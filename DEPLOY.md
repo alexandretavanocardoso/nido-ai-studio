@@ -1,6 +1,6 @@
-# Deploy em produção — aistudio.nigo.global
+# Deploy em produção — aistudio.nido.global
 
-Checklist para colocar o NIDO Studio no ar em **https://aistudio.nigo.global** (Vercel).
+Checklist para colocar o NIDO Studio no ar em **https://aistudio.nido.global** (Vercel).
 O `.env` local continua com `http://localhost:3000` para desenvolver; os valores abaixo são os de **produção**.
 
 ---
@@ -8,12 +8,12 @@ O `.env` local continua com `http://localhost:3000` para desenvolver; os valores
 ## 1. Vercel
 
 1. Importe o repositório na Vercel (framework: Next.js).
-2. **Settings → Domains**: adicione `aistudio.nigo.global` e crie no DNS do `nigo.global` o registro que a Vercel indicar (CNAME `aistudio` → `cname.vercel-dns.com`).
+2. **Settings → Domains**: adicione `aistudio.nido.global` e crie no DNS do `nido.global` o registro que a Vercel indicar (CNAME `aistudio` → `cname.vercel-dns.com`).
 3. **Settings → Environment Variables** (Production) — copie do `.env` local, trocando só o que está marcado:
 
 | Variável | Valor em produção |
 |---|---|
-| `BETTER_AUTH_URL` | **`https://aistudio.nigo.global`** (troque o localhost) |
+| `BETTER_AUTH_URL` | **`https://aistudio.nido.global`** (troque o localhost) |
 | `BETTER_AUTH_SECRET` | o mesmo do `.env` (ou um novo: `openssl rand -base64 32`) |
 | `DATABASE_URL` | Neon (mesmo do `.env`) |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | mesmos do `.env` |
@@ -43,8 +43,8 @@ Opcionais (têm padrão): `ANTHROPIC_MODEL`, `GEMINI_IMAGE_MODEL`, `GEMINI_IMAGE
 
 [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services → Credentials** → o OAuth client Web do app:
 
-- **Authorized JavaScript origins:** `https://aistudio.nigo.global`
-- **Authorized redirect URIs:** `https://aistudio.nigo.global/api/auth/callback/google`
+- **Authorized JavaScript origins:** `https://aistudio.nido.global`
+- **Authorized redirect URIs:** `https://aistudio.nido.global/api/auth/callback/google`
 
 Mantenha também os de `http://localhost:3000` para desenvolver.
 
@@ -57,7 +57,7 @@ Bucket → **Permissions → CORS**:
 ```json
 [
   {
-    "AllowedOrigins": ["http://localhost:3000", "https://aistudio.nigo.global"],
+    "AllowedOrigins": ["http://localhost:3000", "https://aistudio.nido.global"],
     "AllowedMethods": ["GET", "PUT", "HEAD"],
     "AllowedHeaders": ["*"],
     "ExposeHeaders": ["ETag"],
@@ -72,7 +72,7 @@ Bucket → **Permissions → CORS**:
 
 Painel do [bundle.social](https://bundle.social) → **Webhooks** → novo webhook:
 
-- **URL:** `https://aistudio.nigo.global/api/social/webhook`
+- **URL:** `https://aistudio.nido.global/api/social/webhook`
 - **Evento:** `post.published`
 - Copie o **segredo de assinatura** para `BUNDLE_SOCIAL_WEBHOOK_SECRET` na Vercel.
 
@@ -86,7 +86,7 @@ Plano: o Free permite 20 posts/mês e 3 contas conectadas; para clientes, o Pro 
 
 1. Conta Brasil → **Settings → Payment methods**: ativar **Pix** e **boleto**. Ativar o **Customer portal**.
 2. **Developers → Webhooks** → novo endpoint:
-   - **URL:** `https://aistudio.nigo.global/api/pagamentos/stripe/webhook`
+   - **URL:** `https://aistudio.nido.global/api/pagamentos/stripe/webhook`
    - **Eventos:** `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `invoice.paid`, `customer.subscription.deleted`
 3. `STRIPE_SECRET_KEY` (chave secreta) e `STRIPE_WEBHOOK_SECRET` (segredo do endpoint) na Vercel.
 
@@ -102,7 +102,7 @@ O `vercel.json` já agenda, uma vez por dia:
 O **Criar vídeo** (Runway) não tem webhook: para ele terminar em minutos com a página fechada, use o plano Pro da Vercel com `"schedule": "*/5 * * * *"` nesse cron, **ou** um cron externo grátis (ex.: [cron-job.org](https://cron-job.org)) chamando a cada 5 min:
 
 ```
-GET https://aistudio.nigo.global/api/cron/video-jobs
+GET https://aistudio.nido.global/api/cron/video-jobs
 Authorization: Bearer <CRON_SECRET>
 ```
 
@@ -110,7 +110,7 @@ Authorization: Bearer <CRON_SECRET>
 
 ## 7. Conferir depois do deploy
 
-- [ ] Login com Google em `https://aistudio.nigo.global`.
+- [ ] Login com Google em `https://aistudio.nido.global`.
 - [ ] Gerar uma imagem e enviar um vídeo (S3 + CORS).
 - [ ] Trocar pessoa num vídeo e fechar a página — o vídeo deve aparecer pronto ao voltar (webhook do fal).
 - [ ] Estúdio → Publicar → conectar uma rede e publicar um post de teste (bundle.social + webhook).

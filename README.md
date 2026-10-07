@@ -1,6 +1,6 @@
 # Crie seu Influenciador Sintético
 
-> **Deploy em produção (aistudio.nigo.global):** passo a passo em [`DEPLOY.md`](DEPLOY.md) — variáveis da Vercel, Google, S3, bundle.social, Stripe e crons.
+> **Deploy em produção (aistudio.nido.global):** passo a passo em [`DEPLOY.md`](DEPLOY.md) — variáveis da Vercel, Google, S3, bundle.social, Stripe e crons.
 
 Wizard em etapas para definir, campo a campo, quem é o seu influenciador sintético. No final, entrega a **Ficha do Influenciador** completa (exportável em PNG, PDF e JSON) e o personagem pronto para gerar imagens, vídeos e textos dentro do app.
 
@@ -49,7 +49,7 @@ Passo a passo:
 
 1. Criar projeto grátis em [neon.tech](https://neon.tech) e copiar a connection string (**Dashboard → Connect**).
 2. No **SQL Editor** do Neon: rodar, em ordem, [`db/migrations/0001_init.sql`](db/migrations/0001_init.sql) (tabelas do Better Auth — `user`, `session`, `account`, `verification` — e `characters`), [`db/migrations/0002_rate_limits.sql`](db/migrations/0002_rate_limits.sql) (contadores de rate limit) e [`db/migrations/0003_video_jobs.sql`](db/migrations/0003_video_jobs.sql) (jobs de vídeo).
-3. No [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services → Credentials**: criar um OAuth client **Web** com a redirect URI `http://localhost:3000/api/auth/callback/google` (e `https://aistudio.nigo.global/api/auth/callback/google` em produção).
+3. No [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services → Credentials**: criar um OAuth client **Web** com a redirect URI `http://localhost:3000/api/auth/callback/google` (e `https://aistudio.nido.global/api/auth/callback/google` em produção).
 4. Em `.env.local` (local) e na Vercel (produção):
 
 ```
@@ -133,7 +133,7 @@ Passo a passo na AWS:
 ```json
 [
   {
-    "AllowedOrigins": ["http://localhost:3000", "https://aistudio.nigo.global"],
+    "AllowedOrigins": ["http://localhost:3000", "https://aistudio.nido.global"],
     "AllowedMethods": ["GET", "PUT", "HEAD"],
     "AllowedHeaders": ["*"],
     "ExposeHeaders": ["ETag"],
@@ -198,7 +198,7 @@ Dá pra combinar: remover a legenda do original → trocar a pessoa → colocar 
 
 Ao finalizar, o vídeo é atualizado **dentro do personagem no banco** — aparece ao reabrir o app. Falhas devolvem os créditos e marcam o vídeo com erro.
 
-> **Frequência do cron:** no plano Hobby a Vercel só permite cron diário (`vercel.json` está diário). Para o Runway terminar em minutos com a página fechada: plano Pro com `"schedule": "*/5 * * * *"`, ou um cron externo grátis (ex.: cron-job.org) chamando `GET https://aistudio.nigo.global/api/cron/video-jobs` a cada 5 min com o header `Authorization: Bearer $CRON_SECRET`.
+> **Frequência do cron:** no plano Hobby a Vercel só permite cron diário (`vercel.json` está diário). Para o Runway terminar em minutos com a página fechada: plano Pro com `"schedule": "*/5 * * * *"`, ou um cron externo grátis (ex.: cron-job.org) chamando `GET https://aistudio.nido.global/api/cron/video-jobs` a cada 5 min com o header `Authorization: Bearer $CRON_SECRET`.
 
 Custos e limites:
 - Troca: Kling O1 US$ 0,126/s (mínimo 3s); Seedance 2.5 US$ 0,284/s (mínimo 4s gerados). Criar vídeo (Runway) conforme o modelo acima. A tela mostra a estimativa antes de enviar (`lib/video/precos.ts`).
@@ -282,7 +282,7 @@ Como funciona:
 
 Para ligar:
 1. Rodar `db/migrations/0005_creditos.sql`, `0006_limites.sql` e `0007_persona_voz.sql` no Neon.
-2. **Stripe**: conta Brasil, ativar Pix e boleto em *Settings → Payment methods*, ativar o *Customer portal*. `STRIPE_SECRET_KEY` + webhook em `https://aistudio.nigo.global/api/pagamentos/stripe/webhook` com os eventos `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `invoice.paid`, `customer.subscription.deleted` → `STRIPE_WEBHOOK_SECRET`. Local: `stripe listen --forward-to localhost:3000/api/pagamentos/stripe/webhook`.
+2. **Stripe**: conta Brasil, ativar Pix e boleto em *Settings → Payment methods*, ativar o *Customer portal*. `STRIPE_SECRET_KEY` + webhook em `https://aistudio.nido.global/api/pagamentos/stripe/webhook` com os eventos `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `invoice.paid`, `customer.subscription.deleted` → `STRIPE_WEBHOOK_SECRET`. Local: `stripe listen --forward-to localhost:3000/api/pagamentos/stripe/webhook`.
 3. **USDC**: `SOLANA_MERCHANT_WALLET` = endereço da carteira que recebe. Em produção, use um RPC dedicado (`SOLANA_RPC_URL`, ex.: Helius/QuickNode) — o público tem limite baixo. Para testar em devnet: RPC de devnet + `SOLANA_USDC_MINT` do USDC de teste.
 
 ## Stack
@@ -453,7 +453,7 @@ Situação em 06/10/2026.
 - [ ] **Testar o login de ponta a ponta** no navegador (rotas validadas por curl, login real ainda não feito).
 - [ ] **Tela de permissão OAuth**: adicionar usuários de teste ou publicar o app, senão só contas de teste entram.
 - [ ] **Deploy na Vercel** com todas as variáveis (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` = domínio público, `GOOGLE_CLIENT_ID/SECRET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET`, `CRON_SECRET`, `GEMINI_API_KEY`, `FAL_KEY`, `RUNWAYML_API_SECRET`, `ELEVENLABS_API_KEY`, `APIFY_TOKEN`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SOLANA_MERCHANT_WALLET`, `SOLANA_RPC_URL`, `ANTHROPIC_API_KEY` se usada).
-- [ ] **Redirect URI de produção** no OAuth client: `https://aistudio.nigo.global/api/auth/callback/google`.
+- [ ] **Redirect URI de produção** no OAuth client: `https://aistudio.nido.global/api/auth/callback/google`.
 - [ ] **CORS do bucket**: adicionar o domínio de produção em `AllowedOrigins`.
 - [ ] Apagar o projeto antigo no **Supabase** (não é mais usado).
 

@@ -5076,6 +5076,10 @@ export function LandingPage() {
             }}
           >
             <span>© 2026 NIDO · Creator OS v0.1 · Private alpha</span>
+            <span>
+              <a href="/privacidade">Privacidade</a> ·{" "}
+              <a href="/termos">Termos</a>
+            </span>
             <span>Built in Brazil · for the internet.</span>
           </div>
         </div>
