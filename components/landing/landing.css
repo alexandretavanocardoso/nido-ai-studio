@@ -1,0 +1,66 @@
+@keyframes landing-scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+@keyframes landing-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+@keyframes landing-pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(199,255,46,0.5); }
+  70% { box-shadow: 0 0 0 12px rgba(199,255,46,0); }
+  100% { box-shadow: 0 0 0 0 rgba(199,255,46,0); }
+}
+@keyframes landing-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes landing-glowpulse {
+  0%, 100% { opacity: .25; }
+  50% { opacity: .55; }
+}
+
+.landing-root {
+  position: relative;
+  min-height: 100vh;
+  background: #050505;
+  color: #F5F5F2;
+  overflow: hidden;
+  isolation: isolate;
+  font-family: 'Inter Tight', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.landing-root a {
+  color: inherit;
+  text-decoration: none;
+}
+.landing-root a:hover {
+  color: #C7FF2E;
+}
+.landing-root button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+.landing-root input,
+.landing-root textarea {
+  font-family: inherit;
+}
+.landing-root ::selection {
+  background: #C7FF2E;
+  color: #050505;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-root,
+  .landing-root *,
+  .landing-root *::before,
+  .landing-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,18 @@
+node_modules
+.next
+out
+dist
+.env*
+!.env.example
+.DS_Store
+*.log
+.vercel
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Local Claude Code launch config (per-machine)
+.claude/
+
+# Design source export (assets already copied into public/landing)
+Creator AI Landing Design/
+Creator AI Landing Design.zip
