@@ -860,4 +860,15 @@ export const TEXTOS_EN: Record<string, string> = {
   "Nome do personagem": "Character name",
   "Você escolhe o nome; a IA preenche o resto a partir do contexto — nicho, público, tom, referências. Depois você edita tudo.":
     "You choose the name; the AI fills in the rest from the context — niche, audience, tone, references. You can edit everything later.",
+  // planos em dólar (EN)
+  "/mês": "/mo",
+  Anual: "Yearly",
+  Plano: "Plan",
+  "à vista por 12 meses": "billed once for 12 months",
+  "mesmo valor em USDC": "same price in USDC",
+  "Pagar com cartão": "Pay with card",
+  "Pra conhecer": "To try it out",
+  "Para o primeiro influenciador": "For your first influencer",
+  "Para quem opera de verdade": "For serious creators",
+  "Vários influenciadores, volume alto": "Multiple influencers, high volume",
 };

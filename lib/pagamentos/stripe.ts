@@ -5,7 +5,7 @@ import { PACOTES, PLANOS, precoAvulso, precoPlano } from "@/lib/planos";
 import { aplicarCompra, lerCompra, type Compra } from "./aplicar";
 
 /**
- * Stripe (BRL): cartão, Pix e boleto.
+ * Stripe: cartão, Pix e boleto em BRL; em USD (interface em inglês), cartão.
  *  - Plano mensal → assinatura no cartão (renova sozinha; ativada a cada `invoice.paid`).
  *  - Plano anual e pacotes → pagamento único (cartão, Pix ou boleto — os métodos
  *    que estiverem ligados no Dashboard do Stripe).
@@ -24,30 +24,46 @@ function centavos(reais: number) {
   return Math.round(reais * 100);
 }
 
-function descricao(compra: Compra): { nome: string; valor: number } {
+export type MoedaStripe = "BRL" | "USD";
+
+export function descricao(
+  compra: Compra,
+  moeda: MoedaStripe = "BRL",
+): { nome: string; valor: number } {
+  const en = moeda === "USD";
+  const qtd = (n: number) => n.toLocaleString(en ? "en-US" : "pt-BR");
   if (compra.tipo === "pacote") {
     const p = PACOTES[compra.pacote];
     return {
-      nome: `NIDO Studio · ${p.creditos.toLocaleString("pt-BR")} créditos`,
-      valor: p.precoBRL,
+      nome: `NIDO Studio · ${qtd(p.creditos)} ${en ? "credits" : "créditos"}`,
+      valor: en ? p.precoUSD : p.precoBRL,
     };
   }
   if (compra.tipo === "avulso")
     return {
-      nome: `NIDO Studio · ${compra.creditos.toLocaleString("pt-BR")} créditos`,
-      valor: precoAvulso(compra.creditos, "BRL"),
+      nome: `NIDO Studio · ${qtd(compra.creditos)} ${en ? "credits" : "créditos"}`,
+      valor: precoAvulso(compra.creditos, moeda),
     };
-  const nome = `NIDO Studio · Plano ${PLANOS[compra.plano].nome} (${compra.intervalo})`;
-  return { nome, valor: precoPlano(compra.plano, compra.intervalo, "BRL") };
+  const nome = en
+    ? `NIDO Studio · ${PLANOS[compra.plano].nome} plan (${compra.intervalo === "mensal" ? "monthly" : "yearly"})`
+    : `NIDO Studio · Plano ${PLANOS[compra.plano].nome} (${compra.intervalo})`;
+  return { nome, valor: precoPlano(compra.plano, compra.intervalo, moeda) };
 }
 
 /** Cria a sessão de Checkout e registra o pagamento pendente. Devolve a URL. */
 export async function criarCheckout(
   stripe: Stripe,
-  o: { userId: string; email: string | null; compra: Compra; origem: string },
+  o: {
+    userId: string;
+    email: string | null;
+    compra: Compra;
+    origem: string;
+    moeda?: MoedaStripe;
+  },
 ): Promise<string> {
   const conta = await carregarConta(o.userId);
-  const { nome, valor } = descricao(o.compra);
+  const moeda = o.moeda ?? "BRL";
+  const { nome, valor } = descricao(o.compra, moeda);
   const metadata = {
     userId: o.userId,
     tipo: o.compra.tipo,
@@ -79,21 +95,21 @@ export async function criarCheckout(
       {
         quantity: 1,
         price_data: {
-          currency: "brl",
+          currency: moeda.toLowerCase(),
           unit_amount: centavos(valor),
           product_data: { name: nome },
           ...(assinatura ? { recurring: { interval: "month" as const } } : {}),
         },
       },
     ],
-    locale: "pt-BR",
+    locale: moeda === "USD" ? "en" : "pt-BR",
     success_url: `${o.origem}/app/planos?pagamento=sucesso`,
     cancel_url: `${o.origem}/app/planos?pagamento=cancelado`,
   });
 
   await getPool()!.query(
     `insert into pagamentos (id, user_id, provedor, tipo, plano, intervalo, pacote, creditos, valor, moeda)
-     values ($1, $2, 'stripe', $3, $4, $5, $6, $7, $8, 'BRL') on conflict (id) do nothing`,
+     values ($1, $2, 'stripe', $3, $4, $5, $6, $7, $8, $9) on conflict (id) do nothing`,
     [
       session.id,
       o.userId,
@@ -103,6 +119,7 @@ export async function criarCheckout(
       metadata.pacote || null,
       metadata.creditos ? Number(metadata.creditos) : null,
       valor,
+      moeda,
     ],
   );
   return session.url!;
@@ -118,7 +135,7 @@ async function concluir(session: Stripe.Checkout.Session): Promise<void> {
 
   const { rowCount } = await getPool()!.query(
     `insert into pagamentos (id, user_id, provedor, tipo, plano, intervalo, pacote, creditos, valor, moeda, status, pago_em)
-     values ($1, $2, 'stripe', $3, $4, $5, $6, $7, $8, 'BRL', 'pago', now())
+     values ($1, $2, 'stripe', $3, $4, $5, $6, $7, $8, $9, 'pago', now())
      on conflict (id) do update set status = 'pago', pago_em = now() where pagamentos.status <> 'pago'`,
     [
       session.id,
@@ -129,6 +146,7 @@ async function concluir(session: Stripe.Checkout.Session): Promise<void> {
       m.pacote || null,
       compra.tipo === "avulso" ? compra.creditos : null,
       (session.amount_total ?? 0) / 100,
+      (session.currency ?? "brl").toUpperCase(),
     ],
   );
   if (!rowCount) return; // já aplicado (webhook repetido)
@@ -198,8 +216,14 @@ async function faturaPaga(
 
   const { rowCount } = await getPool()!.query(
     `insert into pagamentos (id, user_id, provedor, tipo, plano, intervalo, valor, moeda, status, pago_em)
-     values ($1, $2, 'stripe', 'plano', $3, 'mensal', $4, 'BRL', 'pago', now()) on conflict (id) do nothing`,
-    [invoice.id, m.userId, compra.plano, invoice.amount_paid / 100],
+     values ($1, $2, 'stripe', 'plano', $3, 'mensal', $4, $5, 'pago', now()) on conflict (id) do nothing`,
+    [
+      invoice.id,
+      m.userId,
+      compra.plano,
+      invoice.amount_paid / 100,
+      (invoice.currency ?? "brl").toUpperCase(),
+    ],
   );
   if (!rowCount) return;
 

@@ -40,6 +40,7 @@ import {
 import { paraValor, SeletorHorario } from "@/components/estudio/SeletorHorario";
 import { usePublicacao, type Post } from "@/components/estudio/Publicar";
 import { tx } from "@/lib/i18n/tx";
+import { IconeRede, IconesRedes } from "@/components/ui/IconeRede";
 
 const p2 = (n: number) => String(n).padStart(2, "0");
 
@@ -241,9 +242,7 @@ function ItemBacklog({
           <p className="text-[12px] text-ink-mute line-clamp-3 mt-1">
             {p.titulo || p.texto || "—"}
           </p>
-          <div className="text-[11px] text-ink-dim mt-1">
-            {p.redes.map((r) => INFO_REDES[r]?.nome ?? r).join(", ")}
-          </div>
+          <IconesRedes redes={p.redes} className="text-ink-mute mt-1.5" />
         </div>
       </div>
 
@@ -445,6 +444,7 @@ function EditarPost({
                           : "border-line text-ink-mute hover:text-ink",
                       )}
                     >
+                      <IconeRede rede={r} />
                       {INFO_REDES[r].nome}
                     </button>
                   );

@@ -14,6 +14,8 @@ const BodySchema = z.object({
   intervalo: z.string().optional(),
   pacote: z.string().optional(),
   creditos: z.number().optional(),
+  /** USD quando a interface está em inglês (só cartão); padrão BRL. */
+  moeda: z.enum(["BRL", "USD"]).optional(),
 });
 
 /** POST — abre o Checkout do Stripe para um plano ou pacote. Devolve a URL. */
@@ -47,6 +49,7 @@ export async function POST(req: Request) {
       userId: sessao.user.id,
       email: sessao.user.email ?? null,
       compra,
+      moeda: parsed.success ? parsed.data.moeda : undefined,
       origem:
         process.env.BETTER_AUTH_URL?.replace(/\/$/, "") ||
         new URL(req.url).origin,

@@ -43,7 +43,7 @@ import {
   type PacoteId,
   type PlanoPago,
 } from "@/lib/planos";
-import { tx } from "@/lib/i18n/tx";
+import { idiomaAtual, tx } from "@/lib/i18n/tx";
 import { REDES_USDC, type RedeUsdc } from "@/lib/pagamentos/redes-usdc";
 
 type Compra =
@@ -51,20 +51,58 @@ type Compra =
   | { tipo: "pacote"; pacote: PacoteId }
   | { tipo: "avulso"; creditos: number };
 
-const brl = (v: number) =>
-  v.toLocaleString("pt-BR", {
+type Moeda = "BRL" | "USD";
+/** Em inglês os preços aparecem (e o cartão cobra) em dólar; em português, em real. */
+const moedaAtual = (): Moeda => (idiomaAtual() === "en" ? "USD" : "BRL");
+const local = () => (idiomaAtual() === "en" ? "en-US" : "pt-BR");
+const dinheiro = (v: number, casas = 0) =>
+  v.toLocaleString(local(), {
     style: "currency",
-    currency: "BRL",
-    maximumFractionDigits: 0,
+    currency: moedaAtual(),
+    minimumFractionDigits: casas,
+    maximumFractionDigits: casas,
   });
-const brlCentavos = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const num = (v: number) => v.toLocaleString("pt-BR");
+const brl = (v: number) => dinheiro(v);
+const brlCentavos = (v: number) => dinheiro(v, 2);
+const num = (v: number) => v.toLocaleString(local());
 const data = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("pt-BR") : "—";
+  iso ? new Date(iso).toLocaleDateString(local()) : "—";
+const rotuloCartao = () =>
+  moedaAtual() === "USD" ? tx("Pagar com cartão") : tx("Cartão, Pix ou boleto");
+const precoPacote = (id: PacoteId) =>
+  moedaAtual() === "USD" ? PACOTES[id].precoUSD : PACOTES[id].precoBRL;
 
 function recursosDoPlano(id: PlanoPago): string[] {
   const p = PLANOS[id];
+  const en = idiomaAtual() === "en";
+  const { imagens, videos } = p.simultaneas;
+  const modelosVideo =
+    p.criarVideo.length === 1
+      ? "Gen-4 Turbo"
+      : en
+        ? "Gen-4 Turbo, Gen-4.5 and Veo"
+        : "Gen-4 Turbo, Gen-4.5 e Veo";
+  if (en)
+    return [
+      `${p.personagens} characters`,
+      p.qualidadePro
+        ? "All image models, including Pro"
+        : "Nano Banana, Seedream, Flux.2 and GPT Image",
+      p.troca
+        ? `Swap the person in a video (keeps scene and audio) up to ${p.troca.segundosMax}s`
+        : "",
+      p.trocaPremium
+        ? "Premium swap (Seedance 2.5): up to 30s at once, more faithful scene"
+        : "",
+      p.criarVideo.length
+        ? `Create video: ${modelosVideo}${p.veoComAudio ? " (with audio)" : ""}`
+        : "",
+      "Edit video captions",
+      "Post and schedule on Instagram, TikTok, YouTube, X and LinkedIn",
+      p.rollover ? "Unused credits roll over to the next month" : "",
+      `${p.armazenamentoGB} GB of storage`,
+      `Up to ${imagens} ${imagens === 1 ? "image" : "images"} and ${videos} ${videos === 1 ? "video" : "videos"} generating at once`,
+    ].filter(Boolean);
   return [
     `${p.personagens} personagens`,
     p.qualidadePro
@@ -77,13 +115,13 @@ function recursosDoPlano(id: PlanoPago): string[] {
       ? "Troca Premium (Seedance 2.5): até 30s de uma vez, cenário mais fiel"
       : "",
     p.criarVideo.length
-      ? `Criar vídeo: ${p.criarVideo.length === 1 ? "Gen-4 Turbo" : "Gen-4 Turbo, Gen-4.5 e Veo"}${p.veoComAudio ? " (com áudio)" : ""}`
+      ? `Criar vídeo: ${modelosVideo}${p.veoComAudio ? " (com áudio)" : ""}`
       : "",
     "Editar legenda de vídeo",
     "Publicar e agendar no Instagram, TikTok, YouTube, X e LinkedIn",
     p.rollover ? "Créditos que sobram passam pro mês seguinte" : "",
     `${p.armazenamentoGB} GB de armazenamento`,
-    `Até ${p.simultaneas.imagens} ${p.simultaneas.imagens === 1 ? "imagem" : "imagens"} e ${p.simultaneas.videos} ${p.simultaneas.videos === 1 ? "vídeo" : "vídeos"} gerando ao mesmo tempo`,
+    `Até ${imagens} ${imagens === 1 ? "imagem" : "imagens"} e ${videos} ${videos === 1 ? "vídeo" : "vídeos"} gerando ao mesmo tempo`,
   ].filter(Boolean);
 }
 
@@ -158,7 +196,7 @@ function Conteudo() {
       const res = await fetch("/api/pagamentos/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(compra),
+        body: JSON.stringify({ ...compra, moeda: moedaAtual() }),
       });
       const body = (await res.json().catch(() => ({}))) as {
         url?: string;
@@ -305,7 +343,7 @@ function Conteudo() {
               >
                 {i === "mensal"
                   ? tx("Mensal")
-                  : `Anual −${Math.round(DESCONTO_ANUAL * 100)}%`}
+                  : `${tx("Anual")} −${Math.round(DESCONTO_ANUAL * 100)}%`}
               </button>
             ))}
           </div>
@@ -315,7 +353,7 @@ function Conteudo() {
           {PLANOS_PAGOS.map((id) => {
             const p = PLANOS[id];
             const atual = conta?.plano === id;
-            const total = precoPlano(id, intervalo, "BRL");
+            const total = precoPlano(id, intervalo, moedaAtual());
             const mensalEquiv = intervalo === "anual" ? total / 12 : total;
             const compra: Compra = { tipo: "plano", plano: id, intervalo };
             return (
@@ -340,21 +378,23 @@ function Conteudo() {
                       </span>
                     )}
                   </div>
-                  <p className="text-[13px] text-ink-mute">{p.descricao}</p>
+                  <p className="text-[13px] text-ink-mute">{tx(p.descricao)}</p>
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-ink">
                     {brl(mensalEquiv)}
                     <span className="text-sm font-normal text-ink-dim">
-                      /mês
+                      {tx("/mês")}
                     </span>
                   </div>
                   <div className="text-[12px] text-ink-dim">
                     {intervalo === "anual"
-                      ? `${brl(total)} à vista por 12 meses`
+                      ? `${brl(total)} ${tx("à vista por 12 meses")}`
                       : tx("cobrado todo mês no cartão")}
                     {recursos.usdc &&
-                      ` · ou US$ ${precoPlano(id, intervalo, "USD")} em USDC`}
+                      (moedaAtual() === "USD"
+                        ? ` · ${tx("mesmo valor em USDC")}`
+                        : ` · ou US$ ${precoPlano(id, intervalo, "USD")} em USDC`)}
                   </div>
                 </div>
                 <div className="rounded-xl border border-line bg-bg px-3.5 py-3">
@@ -392,7 +432,7 @@ function Conteudo() {
                       )}
                       {intervalo === "mensal"
                         ? tx("Assinar com cartão")
-                        : tx("Cartão, Pix ou boleto")}
+                        : rotuloCartao()}
                     </Button>
                   )}
                   {recursos.usdc && (
@@ -401,7 +441,7 @@ function Conteudo() {
                       onClick={() =>
                         setUsdc({
                           compra,
-                          titulo: `Plano ${p.nome} (${intervalo})`,
+                          titulo: `${tx("Plano")} ${p.nome} (${tx(intervalo === "mensal" ? "Mensal" : "Anual").toLowerCase()})`,
                         })
                       }
                       disabled={!!abrindo}
@@ -445,8 +485,8 @@ function Conteudo() {
                   {tx("créditos")}
                 </div>
                 <div className="text-2xl font-bold text-ink">
-                  {brl(pk.precoBRL)}
-                  {recursos.usdc && (
+                  {brl(precoPacote(id))}
+                  {recursos.usdc && moedaAtual() === "BRL" && (
                     <span className="text-[12px] font-normal text-ink-dim">
                       {" "}
                       {tx("· US$")} {pk.precoUSD} {tx("em USDC")}
@@ -464,7 +504,7 @@ function Conteudo() {
                     ) : (
                       <CreditCard className="w-3.5 h-3.5" />
                     )}
-                    {tx("Cartão, Pix ou boleto")}
+                    {rotuloCartao()}
                   </Button>
                 )}
                 {recursos.usdc && (
@@ -474,7 +514,7 @@ function Conteudo() {
                     onClick={() =>
                       setUsdc({
                         compra,
-                        titulo: `${num(pk.creditos)} créditos`,
+                        titulo: `${num(pk.creditos)} ${tx("créditos")}`,
                       })
                     }
                     disabled={!!abrindo}
@@ -493,7 +533,10 @@ function Conteudo() {
           usdc={recursos.usdc}
           onStripe={(compra) => pagarStripe(compra, "avulso-stripe")}
           onUsdc={(compra) =>
-            setUsdc({ compra, titulo: `${num(compra.creditos)} créditos` })
+            setUsdc({
+              compra,
+              titulo: `${num(compra.creditos)} ${tx("créditos")}`,
+            })
           }
         />
       </section>
@@ -532,8 +575,10 @@ function CompraManual(o: {
         </div>
         <p className="text-[13px] text-ink-mute mb-3">
           {tx("Escolha quantos créditos quer, a partir de")} {AVULSO_MIN}.{" "}
-          {brlCentavos(PRECO_CREDITO.BRL)} {tx("por crédito")}
-          {o.usdc && ` (US$ ${PRECO_CREDITO.USD.toFixed(2)} em USDC)`}
+          {brlCentavos(PRECO_CREDITO[moedaAtual()])} {tx("por crédito")}
+          {o.usdc &&
+            moedaAtual() === "BRL" &&
+            ` (US$ ${PRECO_CREDITO.USD.toFixed(2)} em USDC)`}
           {tx("; valem 12 meses como os pacotes.")}
         </p>
         <div className="flex items-center gap-3 flex-wrap">
@@ -551,8 +596,8 @@ function CompraManual(o: {
           <span className="text-ink-mute text-sm">{tx("créditos")}</span>
           {valido && (
             <span className="text-2xl font-bold text-ink">
-              {brlCentavos(precoAvulso(n, "BRL"))}
-              {o.usdc && (
+              {brlCentavos(precoAvulso(n, moedaAtual()))}
+              {o.usdc && moedaAtual() === "BRL" && (
                 <span className="text-[12px] font-normal text-ink-dim">
                   {" "}
                   {tx("· US$")} {precoAvulso(n, "USD").toFixed(2)}{" "}
@@ -571,7 +616,7 @@ function CompraManual(o: {
         {melhor && (
           <p className="text-[12px] text-ink-dim mt-2">
             {tx("Dica: o pacote de")} {num(PACOTES[melhor].creditos)}{" "}
-            {tx("créditos sai por")} {brl(PACOTES[melhor].precoBRL)}{" "}
+            {tx("créditos sai por")} {brl(precoPacote(melhor))}{" "}
             {tx("— mais créditos pelo mesmo preço ou menos.")}
           </p>
         )}
@@ -588,7 +633,7 @@ function CompraManual(o: {
             ) : (
               <CreditCard className="w-3.5 h-3.5" />
             )}
-            {tx("Cartão, Pix ou boleto")}
+            {rotuloCartao()}
           </Button>
         )}
         {o.usdc && (

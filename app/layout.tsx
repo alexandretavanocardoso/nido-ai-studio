@@ -10,9 +10,9 @@ import { recursosDisponiveis } from "@/lib/recursos";
 import { ComIdioma, IdiomaDoDocumento } from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  title: "Crie seu Influenciador Sintético",
+  title: "NIDO AI Studio — Crie seu Influenciador Sintético",
   description:
-    "Wizard em etapas para definir, de forma clara, quem é seu influenciador sintético. Gera a ficha completa e o Prompt Mestre pronto para usar.",
+    "Defina quem é o seu influenciador sintético e produza imagens, vídeos, legendas e posts agendados no Estúdio — tudo em um só lugar.",
 };
 
 export default function RootLayout({

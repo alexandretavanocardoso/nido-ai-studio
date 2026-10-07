@@ -19,6 +19,7 @@ import {
   type TomStatus,
 } from "@/lib/social/redes";
 import { tx } from "@/lib/i18n/tx";
+import { IconeRede, IconesRedes } from "@/components/ui/IconeRede";
 
 export interface PostCalendario {
   id: string;
@@ -35,13 +36,6 @@ export interface PostCalendario {
 
 type Visao = "semana" | "mes" | "lista";
 
-const SIGLA: Record<Rede, string> = {
-  INSTAGRAM: "IG",
-  TIKTOK: "TT",
-  YOUTUBE: "YT",
-  TWITTER: "X",
-  LINKEDIN: "IN",
-};
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MAX_NO_MES = 3;
 
@@ -518,9 +512,11 @@ function ChipPost({
           )}
         />
         {hora(p.quando)}
-        <span className="text-ink-dim font-semibold truncate">
-          {p.redes.map((r) => SIGLA[r]).join(" ")}
-        </span>
+        <IconesRedes
+          redes={p.redes}
+          className="text-ink-mute gap-1 min-w-0"
+          tamanho="h-3 w-3"
+        />
       </span>
       <span
         className={cn(
@@ -612,9 +608,7 @@ function CardPost({
             {tx(st.rotulo)}
           </span>
           <span className="text-[12px] text-ink-mute">{hora(p.quando)}</span>
-          <span className="text-[12px] text-ink-dim">
-            · {p.redes.map((r) => INFO_REDES[r]?.nome ?? r).join(", ")}
-          </span>
+          <IconesRedes redes={p.redes} className="text-ink-mute" />
           {p.status === "SCHEDULED" &&
             new Date(p.quando).getTime() > Date.now() && (
               <button
@@ -756,7 +750,8 @@ function PostModal({
             <div className="grid gap-1.5">
               {p.redes.map((r) => (
                 <div key={r} className="flex items-center gap-2 text-[13px]">
-                  <span className="font-semibold text-ink w-28 shrink-0">
+                  <span className="font-semibold text-ink w-36 shrink-0 inline-flex items-center gap-2">
+                    <IconeRede rede={r} className="h-4 w-4" />
                     {INFO_REDES[r]?.nome ?? r}
                   </span>
                   {p.links?.[r] ? (

@@ -38,6 +38,7 @@ import {
   type TipoMidia,
 } from "@/lib/social/redes";
 import { tx } from "@/lib/i18n/tx";
+import { IconeRede, IconesRedes } from "@/components/ui/IconeRede";
 
 interface Conta {
   rede: Rede;
@@ -352,7 +353,8 @@ export function Publicar({ character }: { character: Character }) {
                   c ? "border-ok/40 bg-ok/5" : "border-line bg-panel",
                 )}
               >
-                <div className="text-[13px] font-semibold text-ink">
+                <div className="text-[13px] font-semibold text-ink inline-flex items-center gap-1.5">
+                  <IconeRede rede={r} />
                   {INFO_REDES[r].nome}
                 </div>
                 <div
@@ -486,6 +488,7 @@ export function Publicar({ character }: { character: Character }) {
                     )}
                   >
                     {ativo && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
+                    <IconeRede rede={r} />
                     {INFO_REDES[r].nome}
                   </button>
                 );
