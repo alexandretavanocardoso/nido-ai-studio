@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { AIParseError, askClaude } from "./anthropic";
+import { AIParseError, askClaude, usosRecentes } from "./anthropic";
 import { extractJson } from "./schema";
 import type { IdiomaIA } from "./idioma";
 
@@ -24,6 +24,13 @@ export async function askJson<T extends z.ZodTypeAny>({
   const raw = await askClaude({ system, user, maxTokens, idioma });
   const first = tryParse(raw, schema);
   if (first.ok) return first.data;
+
+  // Resposta cortada no limite de tamanho: "consertar" só gastaria outra chamada
+  // inteira para devolver um JSON incompleto. Falha logo (a rota devolve os créditos).
+  if (usosRecentes().at(-1)?.cortado)
+    throw new AIParseError(
+      "A resposta da IA ficou grande demais e saiu incompleta. Tente de novo.",
+    );
 
   // tenta reparar — passa o JSON ruim e pede só o JSON corrigido
   const repair = await askClaude({

@@ -12,7 +12,9 @@ describe("webhook", () => {
     expect(webhookUrl("job1")).toBeUndefined();
     vi.stubEnv("BETTER_AUTH_URL", "https://app.nido.studio/");
     expect(urlPublica()).toBe("https://app.nido.studio");
-    expect(webhookUrl("job1")).toMatch(/^https:\/\/app\.nido\.studio\/api\/videos\/webhook\?job=job1&t=[0-9a-f]{32}$/);
+    expect(webhookUrl("job1")).toMatch(
+      /^https:\/\/app\.nido\.studio\/api\/videos\/webhook\?job=job1&t=[0-9a-f]{32}$/,
+    );
   });
 
   it("token vale só para o próprio job", () => {

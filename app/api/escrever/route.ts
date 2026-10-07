@@ -93,7 +93,8 @@ export async function POST(req: Request) {
         "Você está escrevendo conteúdo para as suas redes. Escreva em português do Brasil, sempre como você mesmo (primeira pessoa), nunca como assistente.",
       ].join("\n"),
       user: pedidoEscrita(body),
-      maxTokens: 2048,
+      // Roteiros passavam de 2 mil tokens e saíam cortados.
+      maxTokens: 4096,
     });
     return NextResponse.json({
       texto,

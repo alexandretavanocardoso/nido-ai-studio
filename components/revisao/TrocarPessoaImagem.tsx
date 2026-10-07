@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import {
   Download,
+  Hand,
   ImagePlus,
   Loader2,
   Maximize2,
@@ -110,6 +111,8 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
     disponiveis[0]?.id ?? "nano-banana",
   );
   const [gerando, setGerando] = useState(false);
+  /** A geração em curso é a correção da pele das mãos (e não uma troca). */
+  const [corrigindo, setCorrigindo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [erroCode, setErroCode] = useState<string | null>(null);
   const [resultado, setResultado] = useState<string | null>(null);
@@ -157,27 +160,42 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
     }
   }
 
-  async function gerar() {
+  /** Com `corrigir`, refaz só a pele das mãos do resultado atual. */
+  async function gerar(corrigir = false) {
     if (!foto) return;
-    if (marcas.length ? marcasSemImagem : !imagem)
+    if (corrigir ? !resultado : marcas.length ? marcasSemImagem : !imagem)
       return setErro(tx("Escolha a imagem do personagem."));
     setErro(null);
     setErroCode(null);
+    setCorrigindo(corrigir);
     setGerando(true);
     try {
       const res = await fetch("/api/imagens/trocar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          characterId: character.id,
-          fotoKey: foto.key,
-          ...motorApi(motor),
-          roupa,
-          imageKey: marcas.length ? undefined : imagem,
-          pessoas: marcas.length
-            ? marcas.map((x) => ({ x: x.x, y: x.y, imageKey: x.imageKey }))
-            : undefined,
-        }),
+        body: JSON.stringify(
+          corrigir
+            ? {
+                characterId: character.id,
+                fotoKey: resultado,
+                ...motorApi(motor),
+                corrigir: true,
+              }
+            : {
+                characterId: character.id,
+                fotoKey: foto.key,
+                ...motorApi(motor),
+                roupa,
+                imageKey: marcas.length ? undefined : imagem,
+                pessoas: marcas.length
+                  ? marcas.map((x) => ({
+                      x: x.x,
+                      y: x.y,
+                      imageKey: x.imageKey,
+                    }))
+                  : undefined,
+              },
+        ),
       });
       const body = (await res.json().catch(() => ({}))) as {
         key?: string;
@@ -343,7 +361,9 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
                 <div className="grid justify-items-center gap-2 text-center">
                   <Loader2 className="w-8 h-8 animate-spin text-accent" />
                   <span className="text-[13px] font-semibold text-white">
-                    {tx("Trocando a pessoa… (até 1 min)")}
+                    {corrigindo
+                      ? tx("Corrigindo a pele das mãos… (até 1 min)")
+                      : tx("Trocando a pessoa… (até 1 min)")}
                   </span>
                 </div>
               </div>
@@ -495,7 +515,7 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
               <Button
                 variant="accent"
                 className="w-full justify-center"
-                onClick={gerar}
+                onClick={() => gerar()}
                 disabled={
                   gerando ||
                   (marcas.length ? marcasSemImagem : !imagem) ||
@@ -513,6 +533,20 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
                     ? tx("Gerar de novo")
                     : tx("Trocar pessoa")}
               </Button>
+              {resultado && (
+                <button
+                  type="button"
+                  onClick={() => gerar(true)}
+                  disabled={gerando || !!bloqueio}
+                  title={tx(
+                    "Se as mãos saíram com a pele da pessoa original, refaz só a pele delas para combinar com o rosto.",
+                  )}
+                  className="inline-flex items-center justify-center gap-1.5 text-[13px] font-semibold text-ink-mute hover:text-ink h-9 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Hand className="w-4 h-4" /> {tx("Corrigir pele das mãos")} ·{" "}
+                  {creditos} {tx("créditos")}
+                </button>
+              )}
               {resultado && (
                 <a
                   href={downloadUrl(resultado, `troca-${Date.now()}.jpg`)}

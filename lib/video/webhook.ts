@@ -9,7 +9,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 /** URL pública do app (webhook só funciona com domínio https acessível de fora). */
 export function urlPublica(): string | null {
   const u = process.env.BETTER_AUTH_URL?.trim().replace(/\/$/, "");
-  if (!u || !u.startsWith("https://") || /localhost|127\.0\.0\.1/.test(u)) return null;
+  if (!u || !u.startsWith("https://") || /localhost|127\.0\.0\.1/.test(u))
+    return null;
   return u;
 }
 
@@ -23,7 +24,9 @@ function token(jobId: string): string {
 /** URL de webhook do job, ou undefined em dev (localhost não recebe chamadas de fora). */
 export function webhookUrl(jobId: string): string | undefined {
   const base = urlPublica();
-  return base ? `${base}/api/videos/webhook?job=${encodeURIComponent(jobId)}&t=${token(jobId)}` : undefined;
+  return base
+    ? `${base}/api/videos/webhook?job=${encodeURIComponent(jobId)}&t=${token(jobId)}`
+    : undefined;
 }
 
 export function tokenValido(jobId: string, t: string | null): boolean {

@@ -62,6 +62,30 @@ function mensagemAnthropic(err: unknown): string {
   return "Falha ao chamar a Anthropic. Tente de novo em instantes.";
 }
 
+/** Preço do modelo padrão (Claude Sonnet 5.5), em US$ por milhão de tokens. */
+export const PRECO_TEXTO = { entrada: 2, saida: 10 } as const;
+
+export interface UsoTexto {
+  entrada: number;
+  saida: number;
+  /** Custo da chamada em US$, pelos preços acima. */
+  custo: number;
+  /** A resposta bateu no limite de tamanho (max_tokens) e saiu incompleta. */
+  cortado: boolean;
+}
+
+export function custoDoUso(entrada: number, saida: number): number {
+  return (
+    (entrada * PRECO_TEXTO.entrada + saida * PRECO_TEXTO.saida) / 1_000_000
+  );
+}
+
+/** Tokens das últimas chamadas (mais recente por último) — para medir custo. */
+const usos: UsoTexto[] = [];
+export function usosRecentes(): UsoTexto[] {
+  return [...usos];
+}
+
 /**
  * Chama o modelo e devolve só o texto principal da resposta.
  */
@@ -86,6 +110,17 @@ export async function askClaude({
     throw new AIProviderError(err, mensagemAnthropic(err));
   }
   const dur = Date.now() - t0;
+  const uso: UsoTexto = {
+    entrada: res.usage?.input_tokens ?? 0,
+    saida: res.usage?.output_tokens ?? 0,
+    custo: custoDoUso(
+      res.usage?.input_tokens ?? 0,
+      res.usage?.output_tokens ?? 0,
+    ),
+    cortado: res.stop_reason === "max_tokens",
+  };
+  usos.push(uso);
+  if (usos.length > 50) usos.shift();
   const text = res.content
     .map((b) => (b.type === "text" ? b.text : ""))
     .join("")
@@ -94,7 +129,9 @@ export async function askClaude({
     throw new AIParseError("A IA voltou vazia. Tente de novo.");
   }
   if (process.env.NODE_ENV === "development") {
-    console.log(`[anthropic] ${model} · ${dur}ms · ${text.length} chars`);
+    console.log(
+      `[anthropic] ${model} · ${dur}ms · ${uso.entrada}+${uso.saida} tokens · US$ ${uso.custo.toFixed(4)}`,
+    );
   }
   return text;
 }

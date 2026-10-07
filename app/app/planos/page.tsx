@@ -39,6 +39,8 @@ import {
   precoAvulso,
   PRECO_CREDITO,
   precoPlano,
+  TROCA_POR_SEGUNDO,
+  TROCA_PREMIUM_POR_SEGUNDO,
   type Intervalo,
   type PacoteId,
   type PlanoPago,
@@ -128,17 +130,6 @@ function recursosDoPlano(id: PlanoPago): string[] {
 export default function PlanosPage() {
   return (
     <main className="min-h-screen">
-      <nav className="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
-          <Link
-            href="/app"
-            className="inline-flex items-center gap-1.5 text-ink-mute hover:text-ink text-sm"
-          >
-            <ArrowLeft className="w-4 h-4" /> {tx("Seus personagens")}
-          </Link>
-          <AccountMenu />
-        </div>
-      </nav>
       <Suspense fallback={null}>
         <Conteudo />
       </Suspense>
@@ -406,7 +397,7 @@ function Conteudo() {
                     ≈ {num(Math.floor(p.creditos / 5))} {tx("imagens · ou")}{" "}
                     {num(Math.floor(p.creditos / 10))}{" "}
                     {tx("Nano Banana Pro · ou")}{" "}
-                    {num(Math.floor(p.creditos / 13))}
+                    {num(Math.floor(p.creditos / TROCA_POR_SEGUNDO))}
                     {tx("s de troca de pessoa em vídeo")}
                   </div>
                 </div>
@@ -658,8 +649,14 @@ function TabelaCustos() {
     ["Imagem Flux.2 Pro", "8"],
     ["GPT Image (média / alta)", "7 / 20"],
     ["Nano Banana Pro", "10"],
-    ["Trocar pessoa em vídeo · Kling O1 (mínimo 3s)", tx("13 por segundo")],
-    ["Trocar pessoa · Premium Seedance 2.5 (mínimo 4s)", tx("29 por segundo")],
+    [
+      "Trocar pessoa em vídeo · Kling O1 Pro (mínimo 3s)",
+      `${TROCA_POR_SEGUNDO} ${tx("por segundo")}`,
+    ],
+    [
+      "Trocar pessoa · Premium Seedance 2.5 (mínimo 4s)",
+      `${TROCA_PREMIUM_POR_SEGUNDO} ${tx("por segundo")}`,
+    ],
     ["Criar vídeo · Gen-4 Turbo / Gen-4.5", tx("5 / 12 por segundo")],
     ["Criar vídeo · Veo 3.1 Fast (sem / com áudio)", tx("10 / 15 por segundo")],
     ["Editar legenda de vídeo", String(CREDITOS_LEGENDA)],

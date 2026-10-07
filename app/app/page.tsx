@@ -1,56 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Sparkles } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useCharacters } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/home/EmptyState";
 import { CharacterListItem } from "@/components/home/CharacterListItem";
-import { CreateDialog } from "@/components/home/CreateDialog";
-import { AccountMenu } from "@/components/auth/AccountMenu";
-import { useAuth } from "@/components/auth/AuthProvider";
 import { useRecursos } from "@/components/RecursosProvider";
 import Link from "next/link";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
 import { PLANOS } from "@/lib/planos";
 import { useT } from "@/lib/i18n";
 import { tx } from "@/lib/i18n/tx";
+import { useCriar } from "@/components/AppShell";
 
 export default function Home() {
   const recursos = useRecursos();
   const t = useT();
   const [mounted, setMounted] = useState(false);
-  const [open, setOpen] = useState(false);
   const characters = useCharacters((s) => s.characters);
-  const { user } = useAuth();
-  const router = useRouter();
   const { conta } = useCreditos();
-  const [avisoLimite, setAvisoLimite] = useState(false);
+  const { criar: handleCreateClick, noLimite: avisoLimite } = useCriar();
   const limitePersonagens = conta ? PLANOS[conta.plano].personagens : Infinity;
-
-  const authLoading = recursos.login && user === null;
-  const requiresLogin = recursos.login && user === undefined;
-
-  function handleCreateClick() {
-    if (authLoading) return;
-    if (requiresLogin) {
-      router.push("/auth/login");
-      return;
-    }
-    // Limite de personagens do plano: avisa em vez de criar um que não sincronizaria.
-    if (characters.length >= limitePersonagens) {
-      setAvisoLimite(true);
-      return;
-    }
-    setOpen(true);
-  }
 
   return (
     <main className="min-h-screen">
-      {/* Nav */}
-      <TopNav onCreate={handleCreateClick} />
-
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-line">
         <div className="absolute inset-0 pointer-events-none">
@@ -140,7 +114,6 @@ export default function Home() {
         </div>
       </footer>
 
-      <CreateDialog open={open} onClose={() => setOpen(false)} />
       <MountGate onMount={() => setMounted(true)} />
     </main>
   );
@@ -149,28 +122,4 @@ export default function Home() {
 function MountGate({ onMount }: { onMount: () => void }) {
   useEffect(() => onMount(), [onMount]);
   return null;
-}
-
-function TopNav({ onCreate }: { onCreate: () => void }) {
-  return (
-    <nav className="sticky top-0 z-30 border-b border-line bg-bg/80 backdrop-blur-lg">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded bg-accent flex items-center justify-center">
-            <Sparkles className="w-3.5 h-3.5 text-bg" strokeWidth={3} />
-          </div>
-          <span className="font-bold text-sm uppercase tracking-wider">
-            {tx("Influenciador Sintético")}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <AccountMenu />
-          <Button variant="accent" size="sm" onClick={onCreate}>
-            <Plus className="w-3.5 h-3.5" strokeWidth={3} />
-            {tx("Novo")}
-          </Button>
-        </div>
-      </div>
-    </nav>
-  );
 }

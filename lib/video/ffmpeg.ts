@@ -9,7 +9,8 @@ import ffmpegStatic from "ffmpeg-static";
  * (delogo + texto novo com a fonte do app).
  */
 function ffmpegPath(): string {
-  const p = process.env.FFMPEG_PATH || (ffmpegStatic as unknown as string | null);
+  const p =
+    process.env.FFMPEG_PATH || (ffmpegStatic as unknown as string | null);
   if (!p) throw new Error("ffmpeg não encontrado neste ambiente.");
   return p;
 }
@@ -23,7 +24,9 @@ function run(args: string[]): Promise<string> {
     proc.stderr.on("data", (d) => (stderr += d.toString()));
     proc.on("error", reject);
     proc.on("close", (code) =>
-      code === 0 ? resolve(stderr) : reject(new Error(`ffmpeg falhou (${code}): ${stderr.slice(-500)}`))
+      code === 0
+        ? resolve(stderr)
+        : reject(new Error(`ffmpeg falhou (${code}): ${stderr.slice(-500)}`)),
     );
   });
 }
@@ -38,7 +41,17 @@ export interface VideoInfo {
 
 /** Lê duração e dimensões do vídeo (sem ffprobe: ffmpeg decodifica 0 frames). */
 export async function probe(arquivo: string): Promise<VideoInfo> {
-  const err = await run(["-i", arquivo, "-map", "0:v:0", "-frames:v", "0", "-f", "null", "-"]);
+  const err = await run([
+    "-i",
+    arquivo,
+    "-map",
+    "0:v:0",
+    "-frames:v",
+    "0",
+    "-f",
+    "null",
+    "-",
+  ]);
   const d = err.match(/Duration: (\d+):(\d+):(\d+(?:\.\d+)?)/);
   const v = err.match(/Video: .*?(\d{2,5})x(\d{2,5})/);
   if (!d || !v) throw new Error("Não consegui ler o vídeo.");
@@ -120,14 +133,22 @@ export async function editarLegenda(o: EditarLegenda): Promise<void> {
 
   await run([
     "-y",
-    "-i", o.entrada,
-    "-vf", filtros.join(","),
-    "-c:v", "libx264",
-    "-preset", "veryfast",
-    "-crf", "20",
-    "-pix_fmt", "yuv420p",
-    "-c:a", "copy",
-    "-movflags", "+faststart",
+    "-i",
+    o.entrada,
+    "-vf",
+    filtros.join(","),
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "20",
+    "-pix_fmt",
+    "yuv420p",
+    "-c:a",
+    "copy",
+    "-movflags",
+    "+faststart",
     o.saida,
   ]);
 }
@@ -141,10 +162,13 @@ async function filtrosTexto(
   texto: string,
   info: VideoInfo,
   px: { x: number; y: number; w: number; h: number },
-  tmpDir: string
+  tmpDir: string,
 ): Promise<string[]> {
   const fontsize = Math.round(info.largura * 0.062);
-  const maxChars = Math.max(8, Math.floor((info.largura * 0.88) / (fontsize * 0.58)));
+  const maxChars = Math.max(
+    8,
+    Math.floor((info.largura * 0.88) / (fontsize * 0.58)),
+  );
   const linhas = quebrarLinhas(texto, maxChars).split("\n");
   const alturaLinha = Math.round(fontsize * 1.25);
   const topo = px.y + px.h / 2 - (linhas.length * alturaLinha) / 2;
@@ -162,7 +186,7 @@ async function filtrosTexto(
         "bordercolor=black",
         "x=(w-text_w)/2",
         `y=${Math.round(topo + i * alturaLinha)}`,
-      ].join(":")
+      ].join(":"),
     );
   }
   return filtros;
@@ -176,26 +200,44 @@ async function filtrosTexto(
 export const TRECHO_IA_SEGUNDOS = 4.8;
 
 /** Início e duração de cada trecho para cobrir o vídeo inteiro. */
-export function trechos(duracao: number, tamanho = TRECHO_IA_SEGUNDOS): Array<{ inicio: number; duracao: number }> {
+export function trechos(
+  duracao: number,
+  tamanho = TRECHO_IA_SEGUNDOS,
+): Array<{ inicio: number; duracao: number }> {
   const lista: Array<{ inicio: number; duracao: number }> = [];
   for (let inicio = 0; inicio < duracao - 0.05; inicio += tamanho) {
-    lista.push({ inicio: Number(inicio.toFixed(3)), duracao: Number(Math.min(tamanho, duracao - inicio).toFixed(3)) });
+    lista.push({
+      inicio: Number(inicio.toFixed(3)),
+      duracao: Number(Math.min(tamanho, duracao - inicio).toFixed(3)),
+    });
   }
   return lista;
 }
 
 /** Corta um trecho (recodificando, pra cortar no quadro exato). Sem áudio: a IA não precisa. */
-export async function recortarTrecho(entrada: string, inicio: number, duracao: number, saida: string): Promise<void> {
+export async function recortarTrecho(
+  entrada: string,
+  inicio: number,
+  duracao: number,
+  saida: string,
+): Promise<void> {
   await run([
     "-y",
-    "-ss", inicio.toFixed(3),
-    "-i", entrada,
-    "-t", duracao.toFixed(3),
+    "-ss",
+    inicio.toFixed(3),
+    "-i",
+    entrada,
+    "-t",
+    duracao.toFixed(3),
     "-an",
-    "-c:v", "libx264",
-    "-preset", "veryfast",
-    "-crf", "16",
-    "-pix_fmt", "yuv420p",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "16",
+    "-pix_fmt",
+    "yuv420p",
     saida,
   ]);
 }
@@ -205,17 +247,23 @@ export async function criarMascara(
   saida: string,
   info: VideoInfo,
   caixa: Caixa,
-  duracao: number
+  duracao: number,
 ): Promise<void> {
   const px = caixaEmPixels(caixa, info.largura, info.altura);
   await run([
     "-y",
-    "-f", "lavfi",
-    "-i", `color=c=black:s=${info.largura}x${info.altura}:r=${info.fps}:d=${duracao.toFixed(3)}`,
-    "-vf", `drawbox=x=${px.x}:y=${px.y}:w=${px.w}:h=${px.h}:color=white:t=fill`,
-    "-c:v", "libx264",
-    "-preset", "veryfast",
-    "-pix_fmt", "yuv420p",
+    "-f",
+    "lavfi",
+    "-i",
+    `color=c=black:s=${info.largura}x${info.altura}:r=${info.fps}:d=${duracao.toFixed(3)}`,
+    "-vf",
+    `drawbox=x=${px.x}:y=${px.y}:w=${px.w}:h=${px.h}:color=white:t=fill`,
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-pix_fmt",
+    "yuv420p",
     saida,
   ]);
 }
@@ -237,26 +285,42 @@ export async function comporRemocaoIA(o: {
   const { largura: W, altura: H, fps } = o.info;
   const px = caixaEmPixels(o.caixa, W, H);
   const n = o.trechosIA.length;
-  const entradas = o.trechosIA.map((_, i) => `[${i + 1}:v]scale=${W}:${H},setsar=1,fps=${fps}[t${i}]`);
+  const entradas = o.trechosIA.map(
+    (_, i) => `[${i + 1}:v]scale=${W}:${H},setsar=1,fps=${fps}[t${i}]`,
+  );
   const concat = `${o.trechosIA.map((_, i) => `[t${i}]`).join("")}concat=n=${n}:v=1:a=0[ia]`;
   const recorte = `[ia]crop=${px.w}:${px.h}:${px.x}:${px.y}[area]`;
   const sobrepor = `[0:v][area]overlay=${px.x}:${px.y}:eof_action=pass[base]`;
-  const texto = o.texto?.trim() ? await filtrosTexto(o.texto, o.info, px, o.tmpDir) : [];
-  const final = texto.length ? `[base]${texto.join(",")}[out]` : `[base]null[out]`;
+  const texto = o.texto?.trim()
+    ? await filtrosTexto(o.texto, o.info, px, o.tmpDir)
+    : [];
+  const final = texto.length
+    ? `[base]${texto.join(",")}[out]`
+    : `[base]null[out]`;
 
   await run([
     "-y",
-    "-i", o.original,
+    "-i",
+    o.original,
     ...o.trechosIA.flatMap((t) => ["-i", t]),
-    "-filter_complex", [...entradas, concat, recorte, sobrepor, final].join(";"),
-    "-map", "[out]",
-    "-map", "0:a?",
-    "-c:v", "libx264",
-    "-preset", "veryfast",
-    "-crf", "20",
-    "-pix_fmt", "yuv420p",
-    "-c:a", "copy",
-    "-movflags", "+faststart",
+    "-filter_complex",
+    [...entradas, concat, recorte, sobrepor, final].join(";"),
+    "-map",
+    "[out]",
+    "-map",
+    "0:a?",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "20",
+    "-pix_fmt",
+    "yuv420p",
+    "-c:a",
+    "copy",
+    "-movflags",
+    "+faststart",
     o.saida,
   ]);
 }
@@ -277,28 +341,47 @@ export async function aplicarAudio(o: {
   const misturar = o.modo === "misturar" && o.videoTemAudio;
   await run([
     "-y",
-    "-i", o.video,
-    "-i", o.audio,
+    "-i",
+    o.video,
+    "-i",
+    o.audio,
     ...(misturar
       ? [
           "-filter_complex",
           "[0:a]volume=0.3[orig];[orig][1:a]amix=inputs=2:duration=first:dropout_transition=0[a]",
-          "-map", "0:v",
-          "-map", "[a]",
+          "-map",
+          "0:v",
+          "-map",
+          "[a]",
         ]
       : ["-map", "0:v", "-map", "1:a"]),
-    "-c:v", "copy",
-    "-c:a", "aac",
-    "-b:a", "192k",
-    "-t", o.duracao.toFixed(3),
-    "-movflags", "+faststart",
+    "-c:v",
+    "copy",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "192k",
+    "-t",
+    o.duracao.toFixed(3),
+    "-movflags",
+    "+faststart",
     o.saida,
   ]);
 }
 
 /** O vídeo tem trilha de áudio? */
 export async function temAudio(arquivo: string): Promise<boolean> {
-  const saida = await run(["-i", arquivo, "-map", "0", "-t", "0", "-f", "null", "-"]).catch((e: Error) => e.message);
+  const saida = await run([
+    "-i",
+    arquivo,
+    "-map",
+    "0",
+    "-t",
+    "0",
+    "-f",
+    "null",
+    "-",
+  ]).catch((e: Error) => e.message);
   return /Audio:/.test(saida);
 }
 
@@ -307,7 +390,10 @@ export async function temAudio(arquivo: string): Promise<boolean> {
 /* ------------------------------------------------------------------ */
 
 /** Lado menor ≥ 720 e maior ≤ 2160 (exigência do Kling O1; serve pro Seedance), dimensões pares. */
-export function dimensoesTroca(largura: number, altura: number): { largura: number; altura: number } {
+export function dimensoesTroca(
+  largura: number,
+  altura: number,
+): { largura: number; altura: number } {
   const menor = Math.min(largura, altura);
   const maior = Math.max(largura, altura);
   const fator = menor < 720 ? 720 / menor : maior > 2160 ? 2160 / maior : 1;
@@ -316,7 +402,10 @@ export function dimensoesTroca(largura: number, altura: number): { largura: numb
 }
 
 /** Trechos iguais de no máximo `maximo` segundos (Kling O1: 3–10s; Seedance: até 30s). */
-export function trechosTroca(duracao: number, maximo = 10): Array<{ inicio: number; duracao: number }> {
+export function trechosTroca(
+  duracao: number,
+  maximo = 10,
+): Array<{ inicio: number; duracao: number }> {
   const n = Math.max(1, Math.ceil(duracao / maximo - 1e-6));
   const tamanho = duracao / n;
   return Array.from({ length: n }, (_, i) => ({
@@ -331,27 +420,38 @@ export async function prepararTrechoTroca(
   inicio: number,
   duracao: number,
   saida: string,
-  info: VideoInfo
+  info: VideoInfo,
 ): Promise<void> {
   const { largura, altura } = dimensoesTroca(info.largura, info.altura);
   const fps = info.fps < 24 ? 24 : info.fps > 60 ? 30 : info.fps;
   await run([
     "-y",
-    "-ss", inicio.toFixed(3),
-    "-i", entrada,
-    "-t", duracao.toFixed(3),
+    "-ss",
+    inicio.toFixed(3),
+    "-i",
+    entrada,
+    "-t",
+    duracao.toFixed(3),
     "-an",
-    "-vf", `scale=${largura}:${altura},setsar=1,fps=${fps}`,
-    "-c:v", "libx264",
-    "-preset", "veryfast",
-    "-crf", "17",
-    "-pix_fmt", "yuv420p",
+    "-vf",
+    `scale=${largura}:${altura},setsar=1,fps=${fps}`,
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "17",
+    "-pix_fmt",
+    "yuv420p",
     saida,
   ]);
 }
 
 /** Extrai a trilha de áudio (AAC) — a música/fala original volta no vídeo final. */
-export async function extrairAudio(entrada: string, saida: string): Promise<void> {
+export async function extrairAudio(
+  entrada: string,
+  saida: string,
+): Promise<void> {
   await run(["-y", "-i", entrada, "-vn", "-c:a", "aac", "-b:a", "192k", saida]);
 }
 
@@ -381,20 +481,43 @@ export async function juntarTrechos(o: {
     "-y",
     ...o.trechos.flatMap((t) => ["-i", t]),
     ...(o.audio ? ["-i", o.audio] : []),
-    "-filter_complex", [...entradas, concat].join(";"),
-    "-map", "[v]",
+    "-filter_complex",
+    [...entradas, concat].join(";"),
+    "-map",
+    "[v]",
     ...(o.audio ? ["-map", `${n}:a`, "-c:a", "aac", "-b:a", "192k"] : []),
-    "-t", total.toFixed(3),
-    "-c:v", "libx264",
-    "-preset", "veryfast",
-    "-crf", "19",
-    "-pix_fmt", "yuv420p",
-    "-movflags", "+faststart",
+    "-t",
+    total.toFixed(3),
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "19",
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
     o.saida,
   ]);
 }
 
 /** Extrai um quadro do vídeo em JPEG (para marcar quem trocar). */
-export async function extrairQuadro(entrada: string, segundos: number, saida: string): Promise<void> {
-  await run(["-y", "-ss", segundos.toFixed(2), "-i", entrada, "-frames:v", "1", "-q:v", "2", saida]);
+export async function extrairQuadro(
+  entrada: string,
+  segundos: number,
+  saida: string,
+): Promise<void> {
+  await run([
+    "-y",
+    "-ss",
+    segundos.toFixed(2),
+    "-i",
+    entrada,
+    "-frames:v",
+    "1",
+    "-q:v",
+    "2",
+    saida,
+  ]);
 }

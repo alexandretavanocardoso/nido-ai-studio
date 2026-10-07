@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, LogOut, Zap, Languages } from "lucide-react";
+import { ChevronDown, LogOut, Zap, Languages, ShieldCheck } from "lucide-react";
 import { SaldoCreditos } from "@/components/creditos/SaldoCreditos";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { cn } from "@/lib/cn";
 import { useRecursos } from "@/components/RecursosProvider";
 import { IDIOMAS, useIdioma, useT } from "@/lib/i18n";
 import { tx } from "@/lib/i18n/tx";
+import { useCreditos } from "@/components/creditos/CreditosProvider";
 
 export function AccountMenu() {
   const recursos = useRecursos();
@@ -31,6 +32,7 @@ export function AccountMenu() {
   if (!recursos.login || disabled) return null;
 
   const t = useT();
+  const { conta } = useCreditos();
   const { idioma, setIdioma } = useIdioma();
   // user === null → ainda carregando (não mostra nada pra não piscar)
   if (user === null) return null;
@@ -98,6 +100,16 @@ export function AccountMenu() {
               <Zap className="w-4 h-4" />
               {t("conta.planos")}
             </Link>
+            {conta?.admin ? (
+              <Link
+                href="/app/admin"
+                onClick={() => setOpen(false)}
+                className="w-full flex items-center gap-2 px-3.5 py-2.5 text-sm text-ink-mute hover:text-ink hover:bg-bg transition border-b border-line"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                Admin
+              </Link>
+            ) : null}
             <div className="px-3.5 py-2.5 border-b border-line">
               <div className="flex items-center gap-2 text-[12px] text-ink-dim mb-1.5">
                 <Languages className="w-3.5 h-3.5" /> {t("conta.idioma")}

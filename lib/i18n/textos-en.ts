@@ -838,6 +838,11 @@ export const TEXTOS_EN: Record<string, string> = {
   "1 pessoa": "1 person",
   "Gerar de novo": "Generate again",
   "Baixar resultado": "Download result",
+  "Corrigir pele das mãos": "Fix hand skin",
+  "Corrigindo a pele das mãos… (até 1 min)":
+    "Fixing the hands' skin… (up to 1 min)",
+  "Se as mãos saíram com a pele da pessoa original, refaz só a pele delas para combinar com o rosto.":
+    "If the hands kept the original person's skin, redo only their skin to match the face.",
   "Galeria de trocas": "Swap gallery",
   "A troca de pessoa em foto precisa do Gemini configurado (GEMINI_API_KEY).":
     "Photo person swap needs Gemini configured (GEMINI_API_KEY).",
@@ -871,4 +876,22 @@ export const TEXTOS_EN: Record<string, string> = {
   "Para o primeiro influenciador": "For your first influencer",
   "Para quem opera de verdade": "For serious creators",
   "Vários influenciadores, volume alto": "Multiple influencers, high volume",
+  // vídeo por link em passos
+  "Vídeo por link": "Video from link",
+  "Carregar o vídeo": "Load the video",
+  Conferir: "Check",
+  Substituir: "Swap",
+  "Cole o link de um vídeo público. Primeiro a gente carrega o vídeo para você conferir se é o certo — nada é trocado ainda.":
+    "Paste the link of a public video. First we load the video so you can check it's the right one — nothing is swapped yet.",
+  "Carregando o vídeo… (até 2 min)": "Loading the video… (up to 2 min)",
+  "Carregar vídeo": "Load video",
+  "Vídeo carregado (sem prévia disponível).":
+    "Video loaded (no preview available).",
+  "Vídeo carregado": "Video loaded",
+  "É este o vídeo? Assista para conferir. Se for, siga para escolher quem trocar.":
+    "Is this the video? Watch it to check. If it is, continue to choose who to swap.",
+  "Usar outro link": "Use another link",
+  "É este — substituir pessoa": "That's it — swap person",
+  Principal: "Main",
+  "por segundo": "per second",
 };

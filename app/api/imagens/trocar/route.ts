@@ -34,6 +34,7 @@ import {
 } from "@/lib/storage/s3";
 import { descreverPessoasNaFoto } from "@/lib/video/pessoas";
 import {
+  promptCorrigirPele,
   promptTrocaImagem,
   type AlvoImagem,
 } from "@/lib/prompts/trocar-imagem";
@@ -65,8 +66,10 @@ const BodySchema = z
       )
       .max(3, "No máximo 3 pessoas por foto.")
       .optional(),
+    /** fotoKey é o resultado de uma troca: só iguala a pele das mãos à do rosto. */
+    corrigir: z.boolean().default(false),
   })
-  .refine((b) => b.imageKey || b.pessoas?.length, {
+  .refine((b) => b.corrigir || b.imageKey || b.pessoas?.length, {
     message: "Escolha a imagem do personagem.",
   });
 
@@ -110,10 +113,14 @@ export async function POST(req: Request) {
   }
 
   const s3 = getS3()!;
-  const marcadas = body.pessoas ?? [];
+  const marcadas = body.corrigir ? [] : (body.pessoas ?? []);
   const keys = [
     body.fotoKey,
-    ...(marcadas.length ? marcadas.map((p) => p.imageKey) : [body.imageKey!]),
+    ...(body.corrigir
+      ? []
+      : marcadas.length
+        ? marcadas.map((p) => p.imageKey)
+        : [body.imageKey!]),
   ];
   if (keys.some((k) => !ownsKey(userId, k)))
     return NextResponse.json(
@@ -160,7 +167,7 @@ export async function POST(req: Request) {
     userId,
     creditosImagem("nano-banana", qualidade),
     "imagem",
-    "troca-nano-banana",
+    body.corrigir ? "corrigir-nano-banana" : "troca-nano-banana",
   );
   if (cobrado instanceof NextResponse) {
     await liberarVaga(vaga.vaga);
@@ -186,12 +193,17 @@ export async function POST(req: Request) {
           imagem: 2 + unicas.indexOf(p.imageKey),
         }))
       : [{ imagem: 2 }];
-    const prompt = promptTrocaImagem({ alvos, roupa: body.roupa });
+    const prompt = body.corrigir
+      ? promptCorrigirPele()
+      : promptTrocaImagem({ alvos, roupa: body.roupa });
 
     let jpeg: Buffer;
     {
+      // Foto pequena é ampliada até 1024px: menor que a imagem do personagem,
+      // o modelo dá mais peso à referência e perde pose e pele da foto.
+      const lado = Math.min(2048, Math.max(1024, width, height));
       const original = await sharp(foto)
-        .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
+        .resize(lado, lado, { fit: "inside" })
         .jpeg({ quality: 90 })
         .toBuffer();
       const personagens = await Promise.all(

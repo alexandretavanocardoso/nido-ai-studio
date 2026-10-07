@@ -311,7 +311,7 @@ export function SubstituirPessoaModal({
                       [
                         "kling",
                         tx("Padrão"),
-                        tx("Kling O1"),
+                        "Kling O1 Pro",
                         tx(
                           "Partes de 10s; a roupa inventada pode variar entre elas.",
                         ),

@@ -34,6 +34,7 @@ import {
   personagemSemFundo,
 } from "@/lib/video/troca";
 import { descreverPessoas } from "@/lib/video/pessoas";
+import { prepararAncora } from "@/lib/video/ancora";
 import {
   custoTroca,
   custoTrocaPremium,
@@ -268,16 +269,33 @@ export async function POST(req: Request) {
             dir,
           )
         : [];
-      // Personagens sem fundo + vídeo em trechos (webhook do fal em cada um).
-      const alvos = await Promise.all(
-        imagens.map(async (key, i) => ({
-          personagemUrl: await personagemSemFundo(
-            fal,
-            await getObjectBuffer(s3, key),
-          ),
-          descricao: descricoes[i],
-        })),
+      const personagens = await Promise.all(
+        imagens.map((key) => getObjectBuffer(s3, key)),
       );
+      // Em paralelo: (1) quadro-âncora (só Kling) — a troca feita num quadro do
+      // vídeo guia todos os trechos (mesmo visual nas emendas, outras pessoas
+      // preservadas) e, sem ninguém marcado, descreve a pessoa principal;
+      // (2) personagens sem fundo.
+      const [ancora, personagensUrl] = await Promise.all([
+        body.motor === "kling"
+          ? prepararAncora({
+              arquivo,
+              dir,
+              info,
+              marcadas: body.pessoas,
+              descricoes,
+              personagens,
+            })
+          : { imagem: null, descricoes, outras: [] as string[] },
+        Promise.all(
+          personagens.map((imagem) => personagemSemFundo(fal, imagem)),
+        ),
+      ]);
+      const alvos = personagensUrl.map((figura, i) => ({
+        personagemUrl: figura.url,
+        rostoUrl: figura.rostoUrl,
+        descricao: ancora.descricoes[i],
+      }));
       const troca = await iniciarTroca({
         fal,
         motor: body.motor,
@@ -286,6 +304,8 @@ export async function POST(req: Request) {
         alvos,
         removerTexto: body.removerTexto,
         jobId,
+        ancora: ancora.imagem,
+        outras: ancora.outras,
       });
       const custo = premium ? custoTrocaPremium(duracao) : custoTroca(duracao);
 
@@ -297,7 +317,7 @@ export async function POST(req: Request) {
           userId,
           body.characterId,
           "fal",
-          MOTORES_TROCA[body.motor].modelo,
+          troca.modelo ?? MOTORES_TROCA[body.motor].modelo,
           troca.segmentos[0].requestId,
           JSON.stringify({
             videoKey: body.videoKey,

@@ -29,8 +29,16 @@ export function detectarPlataforma(url: string): Plataforma | null {
   if (u.protocol !== "https:" && u.protocol !== "http:") return null;
   const host = u.hostname.replace(/^www\.|^m\./, "");
   if (/(^|\.)tiktok\.com$/.test(host)) return "tiktok";
-  if (/(^|\.)instagram\.com$/.test(host) && /^\/(reel|reels|p|tv)\//.test(u.pathname)) return "instagram";
-  if (host === "youtu.be" || (/(^|\.)youtube\.com$/.test(host) && /^\/(shorts|watch)/.test(u.pathname))) return "youtube";
+  if (
+    /(^|\.)instagram\.com$/.test(host) &&
+    /^\/(reel|reels|p|tv)\//.test(u.pathname)
+  )
+    return "instagram";
+  if (
+    host === "youtu.be" ||
+    (/(^|\.)youtube\.com$/.test(host) && /^\/(shorts|watch)/.test(u.pathname))
+  )
+    return "youtube";
   if (/\.(mp4|mov|webm)$/i.test(u.pathname)) return "direto";
   return null;
 }
@@ -41,13 +49,22 @@ function ator(p: Exclude<Plataforma, "direto">): string {
     instagram: "apify/instagram-scraper",
     youtube: "maximedupre/youtube-shorts-downloader",
   }[p];
-  const env = { tiktok: "APIFY_ACTOR_TIKTOK", instagram: "APIFY_ACTOR_INSTAGRAM", youtube: "APIFY_ACTOR_YOUTUBE" }[p];
+  const env = {
+    tiktok: "APIFY_ACTOR_TIKTOK",
+    instagram: "APIFY_ACTOR_INSTAGRAM",
+    youtube: "APIFY_ACTOR_YOUTUBE",
+  }[p];
   return (process.env[env]?.trim() || padrao).replace("/", "~");
 }
 
-function entradaAtor(p: Exclude<Plataforma, "direto">, url: string): Record<string, unknown> {
-  if (p === "tiktok") return { postURLs: [url], shouldDownloadVideos: true, resultsPerPage: 1 };
-  if (p === "instagram") return { directUrls: [url], resultsType: "posts", resultsLimit: 1 };
+function entradaAtor(
+  p: Exclude<Plataforma, "direto">,
+  url: string,
+): Record<string, unknown> {
+  if (p === "tiktok")
+    return { postURLs: [url], shouldDownloadVideos: true, resultsPerPage: 1 };
+  if (p === "instagram")
+    return { directUrls: [url], resultsType: "posts", resultsLimit: 1 };
   return { shortUrls: [url], preferredResolution: "1080p" };
 }
 
@@ -63,7 +80,8 @@ export interface VideoDoLink {
 }
 
 type Item = Record<string, unknown>;
-const txt = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+const txt = (v: unknown) =>
+  typeof v === "string" && v.trim() ? v.trim() : null;
 const num = (v: unknown) => (typeof v === "number" && v > 0 ? v : null);
 const obj = (v: unknown) => (v && typeof v === "object" ? (v as Item) : {});
 
@@ -77,7 +95,9 @@ export function lerItem(p: Plataforma, item: Item): VideoDoLink | null {
   let audioUrl: string | null = null;
   if (p === "tiktok") {
     const meta = obj(item.videoMeta);
-    videoUrl = txt((item.mediaUrls as unknown[] | undefined)?.[0]) ?? txt(meta.downloadAddr);
+    videoUrl =
+      txt((item.mediaUrls as unknown[] | undefined)?.[0]) ??
+      txt(meta.downloadAddr);
     duracao = num(meta.duration);
     titulo = txt(item.text);
     autor = txt(obj(item.authorMeta).name);
@@ -90,7 +110,10 @@ export function lerItem(p: Plataforma, item: Item): VideoDoLink | null {
     thumb = txt(item.displayUrl);
   } else if (p === "youtube") {
     videoUrl = txt(item.bestDownloadUrl);
-    if (!txt(obj(item.bestFormat).audioCodec) || obj(item.bestFormat).audioCodec === "none")
+    if (
+      !txt(obj(item.bestFormat).audioCodec) ||
+      obj(item.bestFormat).audioCodec === "none"
+    )
       audioUrl = txt(item.audioDownloadUrl);
     duracao = num(item.durationSeconds);
     titulo = txt(item.title);
@@ -101,41 +124,80 @@ export function lerItem(p: Plataforma, item: Item): VideoDoLink | null {
     // Actor trocado por env: procura qualquer campo com cara de link de vídeo.
     for (const [k, v] of Object.entries(item)) {
       const s = txt(v);
-      if (s && /^https?:\/\//.test(s) && (/video|download|media/i.test(k) || /\.(mp4|mov|webm)(\?|$)/i.test(s))) {
+      if (
+        s &&
+        /^https?:\/\//.test(s) &&
+        (/video|download|media/i.test(k) || /\.(mp4|mov|webm)(\?|$)/i.test(s))
+      ) {
         videoUrl = s;
         break;
       }
     }
   }
-  return videoUrl ? { plataforma: p, videoUrl, audioUrl, duracao, titulo: titulo?.slice(0, 140) ?? null, autor, thumb } : null;
+  return videoUrl
+    ? {
+        plataforma: p,
+        videoUrl,
+        audioUrl,
+        duracao,
+        titulo: titulo?.slice(0, 140) ?? null,
+        autor,
+        thumb,
+      }
+    : null;
 }
 
 export class LinkError extends Error {}
 
 /** Token do Apify (aceita os dois nomes usados no console). */
 export function tokenApify(): string | null {
-  return process.env.APIFY_TOKEN?.trim() || process.env.APIFY_API_TOKEN?.trim() || null;
+  return (
+    process.env.APIFY_TOKEN?.trim() ||
+    process.env.APIFY_API_TOKEN?.trim() ||
+    null
+  );
 }
 
 /** Acha o arquivo de vídeo do link (Apify para redes sociais; direto para .mp4/.mov/.webm). */
 export async function resolverLink(url: string): Promise<VideoDoLink> {
   const p = detectarPlataforma(url);
-  if (!p) throw new LinkError("Link não suportado. Use TikTok, Instagram (reel/post), YouTube Shorts ou um link direto de .mp4.");
-  if (p === "direto") return { plataforma: p, videoUrl: url.trim(), duracao: null, titulo: null, autor: null, thumb: null };
+  if (!p)
+    throw new LinkError(
+      "Link não suportado. Use TikTok, Instagram (reel/post), YouTube Shorts ou um link direto de .mp4.",
+    );
+  if (p === "direto")
+    return {
+      plataforma: p,
+      videoUrl: url.trim(),
+      duracao: null,
+      titulo: null,
+      autor: null,
+      thumb: null,
+    };
 
   const token = tokenApify();
-  if (!token) throw new LinkError("Busca por link não configurada (APIFY_TOKEN).");
-  const res = await fetch(`https://api.apify.com/v2/acts/${ator(p)}/run-sync-get-dataset-items?timeout=120&clean=true`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(entradaAtor(p, url.trim())),
-  });
+  if (!token)
+    throw new LinkError("Busca por link não configurada (APIFY_TOKEN).");
+  const res = await fetch(
+    `https://api.apify.com/v2/acts/${ator(p)}/run-sync-get-dataset-items?timeout=120&clean=true`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(entradaAtor(p, url.trim())),
+    },
+  );
   if (!res.ok) {
     const corpo = await res.text().catch(() => "");
     console.error("[link] apify", res.status, corpo.slice(0, 300));
     if (res.status === 402) throw new LinkError("Sem créditos no Apify.");
-    if (res.status === 408) throw new LinkError("A busca do vídeo demorou demais. Tente de novo.");
-    throw new LinkError(`Não consegui buscar o vídeo (Apify HTTP ${res.status}).`);
+    if (res.status === 408)
+      throw new LinkError("A busca do vídeo demorou demais. Tente de novo.");
+    throw new LinkError(
+      `Não consegui buscar o vídeo (Apify HTTP ${res.status}).`,
+    );
   }
   const itens = (await res.json()) as Item[];
   const item = itens.find((i) => !i.error && !i.errorDescription) ?? itens[0];
@@ -147,25 +209,48 @@ export async function resolverLink(url: string): Promise<VideoDoLink> {
         ? `Não consegui pegar o vídeo: ${motivo}`
         : p === "youtube"
           ? "Não achei o vídeo. Para YouTube, só Shorts públicos são aceitos."
-          : "Não achei o vídeo nesse link (é público? é um vídeo?)."
+          : "Não achei o vídeo nesse link (é público? é um vídeo?).",
     );
   }
   return video;
 }
 
 /** Baixa o vídeo pra um arquivo local (com limite de tamanho). Links do Apify levam o token. */
-export async function baixarVideo(url: string, destino: string, aceitarAudio = false): Promise<number> {
-  const headers: Record<string, string> = { "User-Agent": "Mozilla/5.0 (NIDO Studio)" };
+export async function baixarVideo(
+  url: string,
+  destino: string,
+  aceitarAudio = false,
+): Promise<number> {
+  const headers: Record<string, string> = {
+    "User-Agent": "Mozilla/5.0 (NIDO Studio)",
+  };
   const token = tokenApify();
-  if (/^https:\/\/api\.apify\.com\//.test(url) && token) headers.Authorization = `Bearer ${token}`;
+  if (/^https:\/\/api\.apify\.com\//.test(url) && token)
+    headers.Authorization = `Bearer ${token}`;
   const res = await fetch(url, { headers, redirect: "follow" });
-  if (!res.ok || !res.body) throw new LinkError(`O vídeo não pôde ser baixado (HTTP ${res.status}). O link pode ter expirado.`);
+  if (!res.ok || !res.body)
+    throw new LinkError(
+      `O vídeo não pôde ser baixado (HTTP ${res.status}). O link pode ter expirado.`,
+    );
   const tamanho = Number(res.headers.get("content-length") ?? 0);
-  if (tamanho > LINK_MAX_BYTES) throw new LinkError("Vídeo grande demais (máx. 300 MB).");
+  if (tamanho > LINK_MAX_BYTES)
+    throw new LinkError("Vídeo grande demais (máx. 300 MB).");
   const tipo = res.headers.get("content-type") ?? "";
-  if (tipo && !(aceitarAudio ? /video|audio|octet-stream|binary/i : /video|octet-stream|binary/i).test(tipo)) throw new LinkError("O link não aponta para um arquivo de vídeo.");
-  await pipeline(Readable.fromWeb(res.body as import("node:stream/web").ReadableStream), createWriteStream(destino));
+  if (
+    tipo &&
+    !(
+      aceitarAudio
+        ? /video|audio|octet-stream|binary/i
+        : /video|octet-stream|binary/i
+    ).test(tipo)
+  )
+    throw new LinkError("O link não aponta para um arquivo de vídeo.");
+  await pipeline(
+    Readable.fromWeb(res.body as import("node:stream/web").ReadableStream),
+    createWriteStream(destino),
+  );
   const { size } = await stat(destino);
-  if (size > LINK_MAX_BYTES) throw new LinkError("Vídeo grande demais (máx. 300 MB).");
+  if (size > LINK_MAX_BYTES)
+    throw new LinkError("Vídeo grande demais (máx. 300 MB).");
   return size;
 }

@@ -3,10 +3,11 @@
  * Compartilhado entre cliente e servidor.
  *
  * Unidade: 1 crédito = US$ 0,01 de custo nos serviços de IA (arredondado pra
- * cima por ação). O preço do crédito ao cliente fica entre US$ 0,019 (anual,
- * −20%) e 0,030, o que dá ~47–67% de margem no pior caso (uso de 100% dos
- * créditos), antes de taxas. Exceção: Nano Banana Pro cobra 10 créditos com
- * custo ~US$ 0,13–0,15 (preço competitivo com o Higgsfield).
+ * cima por ação). O preço do crédito ao cliente fica entre US$ 0,018 (anual,
+ * −20%; piso conferido em planos.test.ts) e 0,030 (pacote), o que dá ~40–65%
+ * de margem no pior caso (uso de 100% dos créditos), já com a taxa do Stripe. Exceção: Nano Banana Pro cobra
+ * 10 créditos com custo ~US$ 0,13–0,15 (preço competitivo com o Higgsfield).
+ * Custos da IA de texto medidos em 07/10/2026 (ver CREDITOS_TEXTO).
  */
 import type { ModeloImagem } from "@/lib/ai/modelos-imagem";
 import type { ModeloCriar } from "@/lib/video/precos";
@@ -73,9 +74,11 @@ export const PLANOS: Record<PlanoId, Plano> = {
     id: "starter",
     nome: "Starter",
     descricao: "Para o primeiro influenciador",
-    creditos: 600,
-    precoBRL: 79,
-    precoUSD: 15,
+    // 800 = 3 vídeos de troca de 15s (17 créditos/s → 255 cada) e sobra para imagens.
+    // US$ 18 é o menor preço que mantém o piso de US$ 0,018 por crédito no anual.
+    creditos: 800,
+    precoBRL: 95,
+    precoUSD: 18,
     personagens: 3,
     modelosImagem: ["nano-banana", "seedream", "flux2", "gpt-image"],
     qualidadePro: false,
@@ -94,7 +97,9 @@ export const PLANOS: Record<PlanoId, Plano> = {
     id: "creator",
     nome: "Creator",
     descricao: "Para quem opera de verdade",
-    creditos: 1600,
+    // 1.720 = cabe 1 vídeo Premium (Seedance) de 30s, que custa 1.710, sem furar o
+    // piso de US$ 0,018 por crédito no plano anual (máximo: 1.733).
+    creditos: 1720,
     precoBRL: 199,
     precoUSD: 39,
     personagens: 10,
@@ -139,9 +144,16 @@ export const PLANOS_PAGOS: PlanoPago[] = ["starter", "creator", "studio"];
 /** Desconto do plano anual (pago à vista). */
 export const DESCONTO_ANUAL = 0.2;
 
-export function precoPlano(plano: PlanoPago, intervalo: Intervalo, moeda: "BRL" | "USD"): number {
-  const mensal = moeda === "BRL" ? PLANOS[plano].precoBRL : PLANOS[plano].precoUSD;
-  return intervalo === "mensal" ? mensal : Math.round(mensal * 12 * (1 - DESCONTO_ANUAL));
+export function precoPlano(
+  plano: PlanoPago,
+  intervalo: Intervalo,
+  moeda: "BRL" | "USD",
+): number {
+  const mensal =
+    moeda === "BRL" ? PLANOS[plano].precoBRL : PLANOS[plano].precoUSD;
+  return intervalo === "mensal"
+    ? mensal
+    : Math.round(mensal * 12 * (1 - DESCONTO_ANUAL));
 }
 
 /** Pacotes avulsos: valem 12 meses e são gastos depois dos créditos do plano. */
@@ -172,7 +184,9 @@ export function precoAvulso(creditos: number, moeda: "BRL" | "USD"): number {
 /** Maior pacote que sai mais barato do que comprar essa quantidade avulsa (pra sugerir na tela). */
 export function pacoteMaisBarato(creditos: number): PacoteId | null {
   const ids = (Object.keys(PACOTES) as PacoteId[]).filter(
-    (id) => PACOTES[id].creditos >= creditos && PACOTES[id].precoBRL <= precoAvulso(creditos, "BRL")
+    (id) =>
+      PACOTES[id].creditos >= creditos &&
+      PACOTES[id].precoBRL <= precoAvulso(creditos, "BRL"),
   );
   return ids[0] ?? null;
 }
@@ -184,7 +198,10 @@ export const BONUS_USDC = 0.05;
 /* Custo em créditos por ação                                          */
 /* ------------------------------------------------------------------ */
 
-export function creditosImagem(modelo: ModeloImagem, qualidade: "padrao" | "pro"): number {
+export function creditosImagem(
+  modelo: ModeloImagem,
+  qualidade: "padrao" | "pro",
+): number {
   switch (modelo) {
     case "nano-banana":
       return qualidade === "pro" ? 10 : 5;
@@ -199,11 +216,15 @@ export function creditosImagem(modelo: ModeloImagem, qualidade: "padrao" | "pro"
   }
 }
 
-/** Kling O1 Edit: US$ 0,126/s (mínimo 3s por vídeo). */
-const TROCA_POR_SEGUNDO = 13;
-/** Seedance 2.5 (720p, com vídeo de referência): US$ 0,284/s (mínimo 4s gerados). */
-const TROCA_PREMIUM_POR_SEGUNDO = 29;
-const CRIAR_POR_SEGUNDO: Record<ModeloCriar, number> = { gen4_turbo: 5, "gen4.5": 12, "veo3.1_fast": 10 };
+/** Kling O1 Edit Pro: US$ 0,168/s (mínimo 3s por vídeo). */
+export const TROCA_POR_SEGUNDO = 17;
+/** Seedance 2.5 (720p, com vídeo de referência): US$ 0,284/s de entrada + US$ 0,284/s de saída = US$ 0,568/s (mínimo 4s gerados). */
+export const TROCA_PREMIUM_POR_SEGUNDO = 57;
+const CRIAR_POR_SEGUNDO: Record<ModeloCriar, number> = {
+  gen4_turbo: 5,
+  "gen4.5": 12,
+  "veo3.1_fast": 10,
+};
 
 export function creditosTroca(segundos: number): number {
   return Math.ceil(Math.max(3, segundos)) * TROCA_POR_SEGUNDO;
@@ -213,8 +234,13 @@ export function creditosTrocaPremium(segundos: number): number {
   return Math.ceil(Math.max(4, segundos)) * TROCA_PREMIUM_POR_SEGUNDO;
 }
 
-export function creditosCriarVideo(modelo: ModeloCriar, segundos: number, audio: boolean): number {
-  const porSegundo = modelo === "veo3.1_fast" && audio ? 15 : CRIAR_POR_SEGUNDO[modelo];
+export function creditosCriarVideo(
+  modelo: ModeloCriar,
+  segundos: number,
+  audio: boolean,
+): number {
+  const porSegundo =
+    modelo === "veo3.1_fast" && audio ? 15 : CRIAR_POR_SEGUNDO[modelo];
   return segundos * porSegundo;
 }
 
@@ -258,14 +284,22 @@ export const CREDITOS_POST_POR_REDE = 1;
 /** Colocar uma fala num vídeo (ffmpeg). */
 export const CREDITOS_APLICAR_AUDIO = 2;
 
-/** IA de texto (Claude). */
+/**
+ * IA de texto (Claude Sonnet 5.5: US$ 2 / US$ 10 por milhão de tokens de
+ * entrada / saída). Custo real medido em 07/10/2026 com uma ficha completa:
+ *   sugerirCampo        US$ 0,008–0,012
+ *   checarConsistencia  US$ 0,010
+ *   regenerarSecao      US$ 0,012–0,040 (a maior é Personalidade)
+ *   expandirFicha       ~US$ 0,10–0,15 (a resposta é a ficha inteira)
+ *   escrever            US$ 0,005–0,045 (o roteiro é o mais longo)
+ */
 export const CREDITOS_TEXTO = {
   sugerirCampo: 1,
   checarConsistencia: 3,
   regenerarSecao: 4,
-  expandirFicha: 10,
+  expandirFicha: 15,
   /** Escrever como o personagem: legenda, roteiro ou respostas. */
-  escrever: 3,
+  escrever: 4,
 } as const;
 
 /* ------------------------------------------------------------------ */
@@ -273,51 +307,75 @@ export const CREDITOS_TEXTO = {
 /* ------------------------------------------------------------------ */
 
 /** Motivo pelo qual o plano não permite a ação, ou null se permite. */
-export function bloqueioImagem(plano: PlanoId, modelo: ModeloImagem, qualidade: "padrao" | "pro"): string | null {
+export function bloqueioImagem(
+  plano: PlanoId,
+  modelo: ModeloImagem,
+  qualidade: "padrao" | "pro",
+): string | null {
   const p = PLANOS[plano];
-  if (!p.modelosImagem.includes(modelo)) return `Este modelo não está no plano ${p.nome}.`;
-  if (qualidade === "pro" && !p.qualidadePro) return `A qualidade Pro está disponível a partir do plano Creator.`;
+  if (!p.modelosImagem.includes(modelo))
+    return `Este modelo não está no plano ${p.nome}.`;
+  if (qualidade === "pro" && !p.qualidadePro)
+    return `A qualidade Pro está disponível a partir do plano Creator.`;
   return null;
 }
 
 export function bloqueioTroca(plano: PlanoId, segundos: number): string | null {
   const t = PLANOS[plano].troca;
-  if (!t) return "A troca de pessoa em vídeo está disponível a partir do plano Starter.";
+  if (!t)
+    return "A troca de pessoa em vídeo está disponível a partir do plano Starter.";
   if (segundos > t.segundosMax)
     return `O plano ${PLANOS[plano].nome} aceita vídeos de até ${t.segundosMax}s (este tem ${Math.round(segundos)}s).`;
   return null;
 }
 
-export function bloqueioLegendaIA(plano: PlanoId, segundos: number): string | null {
-  if (plano === "gratis") return "A remoção de legenda com IA está disponível a partir do plano Starter.";
+export function bloqueioLegendaIA(
+  plano: PlanoId,
+  segundos: number,
+): string | null {
+  if (plano === "gratis")
+    return "A remoção de legenda com IA está disponível a partir do plano Starter.";
   if (segundos > LEGENDA_IA_MAX_SEGUNDOS)
     return `A remoção com IA aceita vídeos de até ${LEGENDA_IA_MAX_SEGUNDOS}s (este tem ${Math.round(segundos)}s).`;
   return null;
 }
 
 export function bloqueioPersona(plano: PlanoId): string | null {
-  return PLANOS[plano].persona ? null : "Treinar persona está disponível a partir do plano Creator.";
+  return PLANOS[plano].persona
+    ? null
+    : "Treinar persona está disponível a partir do plano Creator.";
 }
 
 export function bloqueioPublicar(plano: PlanoId): string | null {
-  return plano === "gratis" ? "Publicar e agendar nas redes está disponível a partir do plano Starter." : null;
+  return plano === "gratis"
+    ? "Publicar e agendar nas redes está disponível a partir do plano Starter."
+    : null;
 }
 
 export function bloqueioVoz(plano: PlanoId): string | null {
-  return PLANOS[plano].voz ? null : "A voz do personagem está disponível a partir do plano Starter.";
+  return PLANOS[plano].voz
+    ? null
+    : "A voz do personagem está disponível a partir do plano Starter.";
 }
 
 export function bloqueioTrocaPremium(plano: PlanoId): string | null {
-  return PLANOS[plano].trocaPremium ? null : "O motor Premium (Seedance 2.5) está disponível a partir do plano Creator.";
+  return PLANOS[plano].trocaPremium
+    ? null
+    : "O motor Premium (Seedance 2.5) está disponível a partir do plano Creator.";
 }
 
-export function bloqueioCriarVideo(plano: PlanoId, modelo: ModeloCriar, audio: boolean): string | null {
+export function bloqueioCriarVideo(
+  plano: PlanoId,
+  modelo: ModeloCriar,
+  audio: boolean,
+): string | null {
   const p = PLANOS[plano];
   if (!p.criarVideo.includes(modelo)) {
     return p.criarVideo.length
       ? `Este modelo não está no plano ${p.nome}.`
       : "Criar vídeo está disponível a partir do plano Starter.";
   }
-  if (audio && !p.veoComAudio) return "Vídeo com áudio está disponível no plano Studio.";
+  if (audio && !p.veoComAudio)
+    return "Vídeo com áudio está disponível no plano Studio.";
   return null;
 }

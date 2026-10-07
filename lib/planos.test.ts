@@ -23,11 +23,11 @@ describe("custo em créditos", () => {
   });
 
   it("vídeo cobra por segundo, arredondando pra cima", () => {
-    expect(creditosTroca(30)).toBe(390);
-    expect(creditosTroca(29.2)).toBe(390);
-    expect(creditosTroca(2)).toBe(39); // mínimo de 3s do Kling
-    expect(creditosTrocaPremium(30)).toBe(870);
-    expect(creditosTrocaPremium(3)).toBe(116); // Seedance gera no mínimo 4s
+    expect(creditosTroca(30)).toBe(510);
+    expect(creditosTroca(29.2)).toBe(510);
+    expect(creditosTroca(2)).toBe(51); // mínimo de 3s do Kling (17 créditos/s)
+    expect(creditosTrocaPremium(30)).toBe(1710);
+    expect(creditosTrocaPremium(3)).toBe(228); // Seedance gera no mínimo 4s
     expect(creditosCriarVideo("gen4.5", 5, false)).toBe(60);
     expect(creditosCriarVideo("veo3.1_fast", 8, true)).toBe(120);
     expect(creditosCriarVideo("gen4_turbo", 10, true)).toBe(50); // Gen-4 não tem áudio
@@ -41,7 +41,8 @@ describe("margem: o crédito nunca sai abaixo do custo", () => {
       const anual = precoPlano(id, "anual", "USD") / 12 / PLANOS[id].creditos;
       expect(anual).toBeGreaterThanOrEqual(0.018);
     }
-    for (const p of Object.values(PACOTES)) expect(p.precoUSD / p.creditos).toBeGreaterThan(0.02);
+    for (const p of Object.values(PACOTES))
+      expect(p.precoUSD / p.creditos).toBeGreaterThan(0.02);
   });
 });
 
@@ -67,5 +68,21 @@ describe("bloqueios por plano", () => {
     expect(bloqueioCriarVideo("creator", "veo3.1_fast", true)).not.toBeNull();
     expect(bloqueioCriarVideo("studio", "veo3.1_fast", true)).toBeNull();
     expect(bloqueioTroca("studio", 60)).toBeNull();
+  });
+});
+
+describe("o que cabe em cada plano", () => {
+  it("Creator (que anuncia a Troca Premium) paga um vídeo Premium de 30s", () => {
+    expect(PLANOS.creator.creditos).toBeGreaterThanOrEqual(
+      creditosTrocaPremium(30),
+    );
+  });
+});
+
+describe("Starter para vídeo", () => {
+  it("paga 3 vídeos de troca de 15s por mês", () => {
+    expect(PLANOS.starter.creditos).toBeGreaterThanOrEqual(
+      3 * creditosTroca(15),
+    );
   });
 });

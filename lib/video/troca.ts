@@ -12,15 +12,22 @@ import {
   trechosTroca,
   type VideoInfo,
 } from "./ffmpeg";
-import { baixarTrechos, estadoLote, type EstadoLote, type Segmento } from "./lote";
+import {
+  baixarTrechos,
+  estadoLote,
+  type EstadoLote,
+  type Segmento,
+} from "./lote";
 import { comPastaTemporaria } from "./server";
 import { webhookUrl } from "./webhook";
 
 /**
  * Troca de pessoa (fal.ai): troca só a pessoa pelo personagem e mantém
  * cenário, câmera, movimento e o áudio original. Dois motores:
- *  - kling    → Kling O1 Edit (padrão, US$ 0,126/s). Aceita trechos de 3–10s.
- *  - seedance → Seedance 2.5 em modo edição (premium, US$ 0,284/s em 720p).
+ *  - kling    → Kling O1 Edit Pro (padrão, US$ 0,168/s, 1080p). Aceita trechos de 3–10s.
+ *               (O O1 "standard", US$ 0,126/s, mudava a cor da roupa e o corpo do
+ *               personagem ao longo do trecho; o Pro mantém o visual estável.)
+ *  - seedance → Seedance 2.5 em modo edição (premium, US$ 0,568/s em 720p: o fal cobra entrada + saída).
  *               Aceita até 30s de uma vez: preserva melhor cenário, objetos e roupa.
  * O vídeo vira trechos iguais do tamanho máximo do motor (lado menor ≥ 720px),
  * processados em paralelo; no fim eles são juntados e o áudio original
@@ -28,21 +35,44 @@ import { webhookUrl } from "./webhook";
  *
  * A personagem vai SEM fundo (recortada e sobre branco) — com fundo, o modelo
  * copia o cenário da imagem em vez de manter o do vídeo.
+ *
+ * No Kling vão também:
+ *  - um quadro-âncora (lib/video/ancora.ts): um quadro do vídeo com a troca já
+ *    feita, igual para todos os trechos — sem ele o visual pula nas emendas;
+ *  - um close do rosto de cada personagem (o rosto é pequeno na imagem de corpo inteiro);
+ *  - a descrição das OUTRAS pessoas do vídeo — sem dizer quem são, o modelo as redesenha.
  */
 export type MotorTroca = "kling" | "seedance";
 
-export const MOTORES_TROCA: Record<MotorTroca, { modelo: string; maxTrecho: number }> = {
-  kling: { modelo: "fal-ai/kling-video/o1/standard/video-to-video/edit", maxTrecho: 10 },
-  seedance: { modelo: "bytedance/seedance-2.5/reference-to-video", maxTrecho: 30 },
+export const MOTORES_TROCA: Record<
+  MotorTroca,
+  { modelo: string; maxTrecho: number }
+> = {
+  kling: {
+    modelo: "fal-ai/kling-video/o1/video-to-video/edit",
+    maxTrecho: 10,
+  },
+  seedance: {
+    modelo: "bytedance/seedance-2.5/reference-to-video",
+    maxTrecho: 30,
+  },
 };
 const MODELO_RECORTE = "fal-ai/birefnet/v2";
 
+/** Modelos usados antes (jobs antigos ainda em andamento continuam sendo acompanhados neles). */
+const MODELOS_ANTIGOS = ["fal-ai/kling-video/o1/standard/video-to-video/edit"];
+
 export function ehModeloTroca(modelo: string): boolean {
-  return Object.values(MOTORES_TROCA).some((m) => m.modelo === modelo);
+  return (
+    MODELOS_ANTIGOS.includes(modelo) ||
+    Object.values(MOTORES_TROCA).some((m) => m.modelo === modelo)
+  );
 }
 
 export interface InputTroca {
   motor: MotorTroca;
+  /** Modelo do fal usado neste job (ausente em jobs antigos = Kling O1 standard). */
+  modelo?: string;
   segmentos: Segmento[];
   /** Áudio original (no storage do fal), se o vídeo tinha som. */
   audioUrl: string | null;
@@ -51,30 +81,44 @@ export interface InputTroca {
 /** Quem sai do vídeo e quem entra. Sem `descricao`: a pessoa principal do vídeo. */
 export interface AlvoTroca {
   personagemUrl: string;
+  /** Close do rosto do personagem (referência extra no Kling). */
+  rostoUrl?: string | null;
   descricao?: string;
 }
 
-/** Pedido à IA. Com descrições, troca SÓ as pessoas descritas (cada uma pelo seu personagem). */
+/**
+ * Pedido à IA: troca SÓ as pessoas indicadas (cada uma pelo seu personagem) e
+ * exige que todo o resto — inclusive as outras pessoas — fique como no vídeo.
+ * Sem descrição, o alvo é "a pessoa principal".
+ * `ancora` (só Kling): há um quadro do vídeo com a troca já feita, enviado como
+ * @Image1 — é ele que mantém o mesmo visual em todos os trechos.
+ * `outras`: descrição das outras pessoas que aparecem (elas não podem mudar).
+ */
 export function promptTroca(
   motor: MotorTroca,
   alvos: Array<Pick<AlvoTroca, "descricao">>,
   removerTexto: boolean,
+  ancora = false,
+  outras: string[] = [],
 ): string {
-  const ref = (i: number) => (motor === "kling" ? `@Element${i + 1}` : `@Image${i + 1}`);
-  const comDescricao = alvos.some((a) => a.descricao);
-  const troca = comDescricao
-    ? [
-        `In @Video1, replace ONLY ${alvos.length === 1 ? "this person" : "these people"}:`,
-        ...alvos.map(
-          (a, i) => `- ${a.descricao ?? "the main person"} → replace with the character ${ref(i)}.`,
-        ),
-        "Every other person in the video must stay exactly as they are (same face, clothes and movements).",
-      ].join("\n")
-    : `Replace only the main person in @Video1 with the character ${ref(0)}.`;
+  const ref = (i: number) =>
+    motor === "kling" ? `@Element${i + 1}` : `@Image${i + 1}`;
+  const refs = alvos.map((_, i) => ref(i)).join(", ");
   return [
-    troca,
-    "Keep the original background, scenery, objects, camera angle, framing, lighting and all movements of @Video1 unchanged.",
-    `Keep each character's face, hair, style and outfit exactly as in ${alvos.map((_, i) => ref(i)).join(", ")}.`,
+    `In @Video1, replace ONLY ${alvos.length === 1 ? "this person" : "these people"}:`,
+    ...alvos.map(
+      (a, i) =>
+        `- ${a.descricao ?? "the main person"} → replace with the character ${ref(i)}.`,
+    ),
+    ancora && motor === "kling"
+      ? "@Image1 is a frame of this same scene with the replacement already done: the character(s) must look exactly like that in every frame (same face, hair, facial hair, hat, outfit, body proportions and lighting)."
+      : `Keep each character's face, hair, style and outfit exactly as in ${refs}.`,
+    "Every other person in @Video1 must stay exactly as they are — same face, hair, clothes and movements, appearing at the same moments, including when they pass in front of or behind the replaced person.",
+    outras.length
+      ? `Other people who appear in @Video1 and must NOT be changed in any way: ${outras.join("; ")}.`
+      : "",
+    "Follow the replaced person's motion frame by frame: body pose, arms, hands and finger gestures, head direction and facial expression.",
+    "Keep the original background, scenery, objects, camera angle, framing and lighting of @Video1 unchanged.",
     removerTexto ? "Remove all on-screen text, captions and subtitles." : "",
   ]
     .filter(Boolean)
@@ -83,22 +127,38 @@ export function promptTroca(
 
 function inputMotor(
   motor: MotorTroca,
-  o: { videoUrl: string; alvos: AlvoTroca[]; duracao: number; removerTexto: boolean },
+  o: {
+    videoUrl: string;
+    alvos: AlvoTroca[];
+    duracao: number;
+    removerTexto: boolean;
+    ancoraUrl?: string | null;
+    outras?: string[];
+  },
 ): Record<string, unknown> {
   if (motor === "kling")
     return {
-      prompt: promptTroca(motor, o.alvos, o.removerTexto),
+      prompt: promptTroca(
+        motor,
+        o.alvos,
+        o.removerTexto,
+        !!o.ancoraUrl,
+        o.outras,
+      ),
       video_url: o.videoUrl,
       keep_audio: false,
-      // O Kling pede 1 a 3 imagens extras de cada personagem; a principal serve.
+      // Quadro do vídeo com a troca já feita: guia o visual de todos os trechos (@Image1).
+      ...(o.ancoraUrl ? { image_urls: [o.ancoraUrl] } : {}),
+      // O Kling pede 1 a 3 imagens extras de cada personagem: o close do rosto
+      // (melhora rosto, barba e chapéu); sem ele, a própria imagem principal.
       elements: o.alvos.map((a) => ({
         frontal_image_url: a.personagemUrl,
-        reference_image_urls: [a.personagemUrl],
+        reference_image_urls: [a.rostoUrl ?? a.personagemUrl],
       })),
     };
   return {
     task: "editing",
-    prompt: promptTroca(motor, o.alvos, o.removerTexto),
+    prompt: promptTroca(motor, o.alvos, o.removerTexto, false, o.outras),
     video_urls: [o.videoUrl],
     image_urls: o.alvos.map((a) => a.personagemUrl),
     resolution: "720p",
@@ -108,25 +168,79 @@ function inputMotor(
   };
 }
 
-async function enviar(fal: FalClient, arquivo: string, tipo: string): Promise<string> {
-  return fal.storage.upload(new Blob([new Uint8Array(await readFile(arquivo))], { type: tipo }));
+async function enviar(
+  fal: FalClient,
+  arquivo: string,
+  tipo: string,
+): Promise<string> {
+  return fal.storage.upload(
+    new Blob([new Uint8Array(await readFile(arquivo))], { type: tipo }),
+  );
 }
 
-/** Personagem recortada sobre branco liso. Se o recorte falhar, segue com a imagem original. */
-export async function personagemSemFundo(fal: FalClient, imagem: Buffer): Promise<string> {
-  const original = await fal.storage.upload(new Blob([new Uint8Array(imagem)], { type: "image/jpeg" }));
+/**
+ * Close da cabeça a partir da figura recortada sobre branco: o terço de cima
+ * da figura (cabeça, chapéu, barba), ampliado. Null se não der para recortar.
+ */
+export async function closeDoRosto(
+  figuraSobreBranco: Buffer,
+): Promise<Buffer | null> {
+  try {
+    const figura = await sharp(figuraSobreBranco)
+      .trim({ background: "#ffffff", threshold: 12 })
+      .toBuffer({ resolveWithObject: true });
+    const { width, height } = figura.info;
+    // Só vale para figura em pé (corpo inteiro ou meio corpo); num close já não precisa.
+    if (height < width * 1.3) return null;
+    return await sharp(figura.data)
+      .extract({ left: 0, top: 0, width, height: Math.round(height * 0.3) })
+      .resize({ width: 1024 })
+      .flatten({ background: "#ffffff" })
+      .jpeg({ quality: 92 })
+      .toBuffer();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Personagem recortada sobre branco liso (+ close do rosto, quando dá).
+ * Se o recorte falhar, segue com a imagem original.
+ */
+export async function personagemSemFundo(
+  fal: FalClient,
+  imagem: Buffer,
+): Promise<{ url: string; rostoUrl: string | null }> {
+  const subir = (b: Buffer, tipo: string) =>
+    fal.storage.upload(new Blob([new Uint8Array(b)], { type: tipo }));
+  const original = await subir(imagem, "image/jpeg");
   try {
     const r = await fal.subscribe(MODELO_RECORTE, {
-      input: { image_url: original, model: "General Use (Heavy)", output_format: "png" },
+      input: {
+        image_url: original,
+        model: "General Use (Heavy)",
+        output_format: "png",
+      },
     });
     const url = (r.data as { image?: { url?: string } })?.image?.url;
-    if (!url) return original;
+    if (!url) return { url: original, rostoUrl: null };
     const recorte = Buffer.from(await (await fetch(url)).arrayBuffer());
-    const branco = await sharp(recorte).flatten({ background: "#ffffff" }).png().toBuffer();
-    return fal.storage.upload(new Blob([new Uint8Array(branco)], { type: "image/png" }));
+    const branco = await sharp(recorte)
+      .flatten({ background: "#ffffff" })
+      .png()
+      .toBuffer();
+    const rosto = await closeDoRosto(branco);
+    const [figuraUrl, rostoUrl] = await Promise.all([
+      subir(branco, "image/png"),
+      rosto ? subir(rosto, "image/jpeg") : null,
+    ]);
+    return { url: figuraUrl, rostoUrl };
   } catch (e) {
-    console.warn("[troca] recorte da personagem falhou, usando a imagem original:", (e as Error).message);
-    return original;
+    console.warn(
+      "[troca] recorte da personagem falhou, usando a imagem original:",
+      (e as Error).message,
+    );
+    return { url: original, rostoUrl: null };
   }
 }
 
@@ -139,6 +253,10 @@ export async function iniciarTroca(o: {
   alvos: AlvoTroca[];
   removerTexto: boolean;
   jobId: string;
+  /** Quadro do vídeo com a troca já feita (lib/video/ancora.ts). Só o Kling usa. */
+  ancora?: Buffer | null;
+  /** Descrição das outras pessoas do vídeo (não podem mudar). */
+  outras?: string[];
 }): Promise<InputTroca> {
   const { modelo, maxTrecho } = MOTORES_TROCA[o.motor];
   return comPastaTemporaria(async (dir) => {
@@ -148,6 +266,12 @@ export async function iniciarTroca(o: {
       await extrairAudio(o.arquivo, audio);
       audioUrl = await enviar(o.fal, audio, "audio/mp4");
     }
+    const ancoraUrl =
+      o.ancora && o.motor === "kling"
+        ? await o.fal.storage.upload(
+            new Blob([new Uint8Array(o.ancora)], { type: "image/jpeg" }),
+          )
+        : null;
     const segmentos = await Promise.all(
       trechosTroca(o.info.duracao, maxTrecho).map(async (t, i) => {
         const seg = path.join(dir, `seg-${i}.mp4`);
@@ -159,18 +283,28 @@ export async function iniciarTroca(o: {
             alvos: o.alvos,
             duracao: t.duracao,
             removerTexto: o.removerTexto,
+            ancoraUrl,
+            outras: o.outras,
           }),
           webhookUrl: webhookUrl(o.jobId),
         });
         return { requestId: request_id, inicio: t.inicio, duracao: t.duracao };
       }),
     );
-    return { motor: o.motor, segmentos, audioUrl };
+    return { motor: o.motor, modelo, segmentos, audioUrl };
   });
 }
 
-export function estadoTroca(fal: FalClient, input: InputTroca): Promise<EstadoLote> {
-  return estadoLote(fal, MOTORES_TROCA[input.motor ?? "kling"].modelo, input.segmentos);
+export function estadoTroca(
+  fal: FalClient,
+  input: InputTroca,
+): Promise<EstadoLote> {
+  // Acompanha no modelo em que o job foi enviado (jobs antigos do Kling: o standard).
+  const motor = input.motor ?? "kling";
+  const modelo =
+    input.modelo ??
+    (motor === "kling" ? MODELOS_ANTIGOS[0] : MOTORES_TROCA[motor].modelo);
+  return estadoLote(fal, modelo, input.segmentos);
 }
 
 /** Junta os trechos gerados, devolve o áudio original e salva no S3. */
@@ -187,11 +321,23 @@ export async function comporTroca(o: {
       const res = await fetch(o.input.audioUrl);
       if (res.ok) {
         audio = path.join(dir, "audio.m4a");
-        await (await import("node:fs/promises")).writeFile(audio, Buffer.from(await res.arrayBuffer()));
-      } else console.warn("[troca] áudio original indisponível (HTTP", res.status, ") — vídeo sai sem som");
+        await (
+          await import("node:fs/promises")
+        ).writeFile(audio, Buffer.from(await res.arrayBuffer()));
+      } else
+        console.warn(
+          "[troca] áudio original indisponível (HTTP",
+          res.status,
+          ") — vídeo sai sem som",
+        );
     }
     const saida = path.join(dir, "final.mp4");
-    await juntarTrechos({ trechos, duracoes: o.input.segmentos.map((g) => g.duracao), audio, saida });
+    await juntarTrechos({
+      trechos,
+      duracoes: o.input.segmentos.map((g) => g.duracao),
+      audio,
+      saida,
+    });
     const key = newKey(o.userId, "videos", "video/mp4");
     const size = await uploadFromFile(o.s3, key, saida, "video/mp4");
     return { key, size };

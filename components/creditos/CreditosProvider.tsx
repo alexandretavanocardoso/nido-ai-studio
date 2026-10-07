@@ -23,6 +23,8 @@ export interface ContaCreditos {
   assinaturaAtiva: boolean;
   personagens: number;
   armazenamento: { usadoBytes: number; cotaBytes: number };
+  /** Mostra o link da área admin (o acesso em si é checado no servidor). */
+  admin?: boolean;
 }
 
 interface Estado {

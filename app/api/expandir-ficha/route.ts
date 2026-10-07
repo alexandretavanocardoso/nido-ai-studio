@@ -88,7 +88,8 @@ export async function POST(req: Request) {
         "Você é um diretor de criação. Responda SEMPRE com JSON válido no esquema pedido, nada mais.",
       user,
       schema: expandirRespostaSchema,
-      maxTokens: 8192,
+      // A ficha inteira passa de 8 mil tokens: com menos que isso a resposta saía cortada.
+      maxTokens: 16000,
     });
     // Só campos da ficha (a IA às vezes inventa chaves).
     const suggestions = toSuggestions(data).filter((s) =>

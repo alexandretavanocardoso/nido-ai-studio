@@ -125,7 +125,7 @@ export function Wizard({ id }: { id: string }) {
         >
           {/* Desktop: nav vertical sticky */}
           <aside className="hidden lg:block min-w-0">
-            <div className="sticky top-6">
+            <div className="sticky top-20">
               {aba === "ficha" ? (
                 <StepTabs
                   current={currentId}

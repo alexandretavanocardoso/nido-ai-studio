@@ -3,7 +3,15 @@ import path from "node:path";
 import type { FalClient } from "@fal-ai/client";
 import type { S3Client } from "@aws-sdk/client-s3";
 import { downloadToFile, newKey, uploadFromFile } from "@/lib/storage/s3";
-import { comporRemocaoIA, criarMascara, probe, recortarTrecho, trechos, type Caixa, type VideoInfo } from "./ffmpeg";
+import {
+  comporRemocaoIA,
+  criarMascara,
+  probe,
+  recortarTrecho,
+  trechos,
+  type Caixa,
+  type VideoInfo,
+} from "./ffmpeg";
 import { estadoLote, type EstadoLote, type Segmento } from "./lote";
 import { comPastaTemporaria } from "./server";
 import { webhookUrl } from "./webhook";
@@ -28,7 +36,9 @@ export interface InputLegendaIA {
 }
 
 async function enviarArquivo(fal: FalClient, arquivo: string): Promise<string> {
-  return fal.storage.upload(new Blob([await readFile(arquivo)], { type: "video/mp4" }));
+  return fal.storage.upload(
+    new Blob([await readFile(arquivo)], { type: "video/mp4" }),
+  );
 }
 
 /** Corta o vídeo e a máscara em trechos e envia todos ao fal (com webhook). */
@@ -52,20 +62,31 @@ export async function iniciarLegendaIA(o: {
         const msk = path.join(dir, `msk-${i}.mp4`);
         await recortarTrecho(original, t.inicio, t.duracao, seg);
         await recortarTrecho(mascara, t.inicio, t.duracao, msk);
-        const [video_url, mask_video_url] = await Promise.all([enviarArquivo(o.fal, seg), enviarArquivo(o.fal, msk)]);
+        const [video_url, mask_video_url] = await Promise.all([
+          enviarArquivo(o.fal, seg),
+          enviarArquivo(o.fal, msk),
+        ]);
         const { request_id } = await o.fal.queue.submit(MODELO_ERASER, {
-          input: { video_url, mask_video_url, output_container_and_codec: "mp4_h264", preserve_audio: false },
+          input: {
+            video_url,
+            mask_video_url,
+            output_container_and_codec: "mp4_h264",
+            preserve_audio: false,
+          },
           webhookUrl: webhookUrl(o.jobId),
         });
         return { requestId: request_id, inicio: t.inicio, duracao: t.duracao };
-      })
+      }),
     );
     return { info, segmentos };
   });
 }
 
 /** Estado do conjunto: pronto só quando todos os trechos terminam; qualquer falha derruba o job. */
-export function estadoLegendaIA(fal: FalClient, segmentos: Segmento[]): Promise<EstadoLote> {
+export function estadoLegendaIA(
+  fal: FalClient,
+  segmentos: Segmento[],
+): Promise<EstadoLote> {
   return estadoLote(fal, MODELO_ERASER, segmentos);
 }
 
@@ -82,11 +103,14 @@ export async function comporLegendaIA(o: {
     const trechosIA = await Promise.all(
       o.urls.map(async (url, i) => {
         const res = await fetch(url);
-        if (!res.ok) throw new Error(`download do trecho ${i + 1} falhou (HTTP ${res.status})`);
+        if (!res.ok)
+          throw new Error(
+            `download do trecho ${i + 1} falhou (HTTP ${res.status})`,
+          );
         const arquivo = path.join(dir, `ia-${i}.mp4`);
         await writeFile(arquivo, Buffer.from(await res.arrayBuffer()));
         return arquivo;
-      })
+      }),
     );
     const saida = path.join(dir, "final.mp4");
     await comporRemocaoIA({
