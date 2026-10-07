@@ -39,7 +39,7 @@ export const EVENTO_RADAR_VISTO = "nido:radar-visto";
 /** Dias mais recentes que viram aba; o resto do histórico (até 30) fica num seletor. */
 const DIAS_EM_ABAS = 7;
 
-const dataCurta = (dia: string) => {
+export const dataCurta = (dia: string) => {
   const [a, m, d] = dia.split("-").map(Number);
   const texto = new Date(a, m - 1, d).toLocaleDateString(
     idiomaAtual() === "en" ? "en-US" : "pt-BR",
@@ -167,9 +167,6 @@ export function Radar({ character }: { character: Character }) {
   const atual =
     radares?.find((r) => r.dia === (dia ?? radares[0]?.dia)) ?? null;
   const temHoje = !!radares?.some((r) => r.dia === hoje && r.status === "ok");
-  const antigoSelecionado =
-    !!atual &&
-    (radares ?? []).findIndex((r) => r.dia === atual.dia) >= DIAS_EM_ABAS;
 
   return (
     <div className="grid gap-6">
@@ -286,54 +283,11 @@ export function Radar({ character }: { character: Character }) {
         </div>
       ) : (
         <section className="grid gap-4">
-          {radares.length > 1 && (
-            <div className="flex gap-1 flex-wrap items-center">
-              <div
-                role="tablist"
-                aria-label={tx("Dia do radar")}
-                className="flex gap-1 flex-wrap"
-              >
-                {radares.slice(0, DIAS_EM_ABAS).map((r) => (
-                  <button
-                    key={r.dia}
-                    type="button"
-                    role="tab"
-                    aria-selected={atual?.dia === r.dia}
-                    onClick={() => setDia(r.dia)}
-                    className={cn(
-                      "h-8 px-3 rounded-full text-[12px] font-semibold border transition capitalize",
-                      atual?.dia === r.dia
-                        ? "bg-card text-ink border-line-strong"
-                        : "border-line text-ink-mute hover:text-ink",
-                    )}
-                  >
-                    {r.dia === hoje ? tx("Hoje") : dataCurta(r.dia)}
-                  </button>
-                ))}
-              </div>
-              {/* Os dias mais antigos (até 30) ficam num seletor, para não encher a tela de abas. */}
-              {radares.length > DIAS_EM_ABAS && (
-                <select
-                  aria-label={tx("Radares mais antigos")}
-                  value={antigoSelecionado ? atual!.dia : ""}
-                  onChange={(e) => e.target.value && setDia(e.target.value)}
-                  className={cn(
-                    "h-8 rounded-full border bg-panel px-3 text-[12px] font-semibold",
-                    antigoSelecionado
-                      ? "border-line-strong text-ink"
-                      : "border-line text-ink-mute",
-                  )}
-                >
-                  <option value="">{tx("Mais antigos")}</option>
-                  {radares.slice(DIAS_EM_ABAS).map((r) => (
-                    <option key={r.dia} value={r.dia}>
-                      {dataCurta(r.dia)}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
+          <SeletorDeDia
+            dias={radares.map((r) => r.dia)}
+            atual={atual?.dia ?? null}
+            onPick={setDia}
+          />
 
           {atual?.status === "sem_creditos" && (
             <ErroGeracao
@@ -376,7 +330,7 @@ export function Radar({ character }: { character: Character }) {
                   {tx("Nada relevante apareceu nesses temas hoje.")}
                 </p>
               ) : (
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   {atual.itens.map((i, n) => (
                     <CartaoItem
                       key={n}
@@ -394,18 +348,84 @@ export function Radar({ character }: { character: Character }) {
   );
 }
 
-function CartaoItem({
+/** Abas com os dias mais recentes; o resto do histórico fica num seletor. */
+export function SeletorDeDia({
+  dias,
+  atual,
+  onPick,
+}: {
+  dias: string[];
+  atual: string | null;
+  onPick: (dia: string) => void;
+}) {
+  if (dias.length < 2) return null;
+  const hoje = diaDeHoje();
+  const antigoSelecionado = !!atual && dias.indexOf(atual) >= DIAS_EM_ABAS;
+  return (
+    <div className="flex gap-1 flex-wrap items-center">
+      <div
+        role="tablist"
+        aria-label={tx("Dia do radar")}
+        className="flex gap-1 flex-wrap"
+      >
+        {dias.slice(0, DIAS_EM_ABAS).map((d) => (
+          <button
+            key={d}
+            type="button"
+            role="tab"
+            aria-selected={atual === d}
+            onClick={() => onPick(d)}
+            className={cn(
+              "h-8 px-3 rounded-full text-[12px] font-semibold border transition cursor-pointer",
+              atual === d
+                ? "bg-card text-ink border-line-strong"
+                : "border-line text-ink-mute hover:text-ink",
+            )}
+          >
+            {d === hoje ? tx("Hoje") : dataCurta(d)}
+          </button>
+        ))}
+      </div>
+      {/* Os dias mais antigos ficam num seletor, para não encher a tela de abas. */}
+      {dias.length > DIAS_EM_ABAS && (
+        <select
+          aria-label={tx("Radares mais antigos")}
+          value={antigoSelecionado ? atual! : ""}
+          onChange={(e) => e.target.value && onPick(e.target.value)}
+          className={cn(
+            "h-8 rounded-full border bg-panel px-3 text-[12px] font-semibold cursor-pointer",
+            antigoSelecionado
+              ? "border-line-strong text-ink"
+              : "border-line text-ink-mute",
+          )}
+        >
+          <option value="">{tx("Mais antigos")}</option>
+          {dias.slice(DIAS_EM_ABAS).map((d) => (
+            <option key={d} value={d}>
+              {dataCurta(d)}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+}
+
+export function CartaoItem({
   item: i,
   onEscrever,
+  dicaNota,
 }: {
   item: ItemRadar;
-  onEscrever: () => void;
+  /** Sem isto o cartão não mostra o botão de escrever. */
+  onEscrever?: () => void;
+  dicaNota?: string;
 }) {
   const destaque = i.nota >= NOTA_DESTAQUE;
   return (
     <article
       className={cn(
-        "card p-4 grid gap-2.5 content-start",
+        "card p-4 grid grid-cols-1 gap-2.5 content-start",
         destaque && "border-accent/50",
       )}
     >
@@ -417,7 +437,7 @@ function CartaoItem({
               ? "bg-accent text-bg"
               : "bg-panel border border-line text-ink-mute",
           )}
-          title={tx("Relevância para este personagem, de 1 a 10")}
+          title={dicaNota ?? tx("Relevância para este personagem, de 1 a 10")}
         >
           {destaque ? <Flame className="w-3 h-3" /> : null}
           {i.nota}/10
@@ -462,9 +482,13 @@ function CartaoItem({
         </p>
       ) : null}
       <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
-        <Button size="sm" onClick={onEscrever}>
-          <PenLine className="w-3.5 h-3.5" /> {tx("Escrever post sobre isso")}
-        </Button>
+        {onEscrever ? (
+          <Button size="sm" onClick={onEscrever}>
+            <PenLine className="w-3.5 h-3.5" /> {tx("Escrever post sobre isso")}
+          </Button>
+        ) : (
+          <span />
+        )}
         {i.url ? (
           <a
             href={i.url}

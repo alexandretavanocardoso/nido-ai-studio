@@ -376,18 +376,24 @@ async function revisarNotas(o: {
 }
 
 export async function gerarRadar(o: {
-  character: Character;
+  /** Personagem para quem o radar é montado… */
+  character?: Character;
+  /** …ou um perfil pronto (radar global: "qualquer criador do nicho"). */
+  perfil?: string;
   temas: string[];
+  /** Temas que vão para o X, se forem diferentes dos da pesquisa de notícias. */
+  temasX?: string[];
   comX: boolean;
   idioma: "pt" | "en";
   hoje: string;
 }): Promise<RadarGerado> {
   const noX = o.comX
-    ? await emAltaNoX({ temas: o.temas, idioma: o.idioma })
+    ? await emAltaNoX({ temas: o.temasX ?? o.temas, idioma: o.idioma })
     : null;
+  const perfil = o.perfil ?? (o.character ? perfilParaRadar(o.character) : "");
   const client = getClient();
   const user = pedidoRadar({
-    perfil: perfilParaRadar(o.character),
+    perfil,
     temas: o.temas,
     hoje: o.hoje,
     noX: noX?.texto ?? null,
@@ -487,7 +493,6 @@ export async function gerarRadar(o: {
     }
     lido = lerRadar(reemitido);
   }
-  const perfil = perfilParaRadar(o.character);
   const revisao = await revisarNotas({
     perfil,
     itens: lido.itens,

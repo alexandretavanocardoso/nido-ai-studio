@@ -946,4 +946,26 @@ export const TEXTOS_EN: Record<string, string> = {
   "Comunicado, conteúdo patrocinado ou texto de empresa — não é notícia independente.":
     "Press release, sponsored content or a company's own text — not independent news.",
   "Conteúdo promocional": "Promotional content",
+  "Radar global: o que está em alta hoje, por nicho":
+    "Global radar: what is trending today, by niche",
+  "Radar global": "Global radar",
+  "O que está em alta hoje em cada nicho, com nota de relevância e ideia de post. Atualizado todo dia de manhã, igual para todo mundo — não gasta créditos.":
+    "What is trending today in each niche, with a relevance score and a post idea. Updated every morning, the same for everyone — it does not use credits.",
+  "Escrever como": "Write as",
+  "Crie um personagem para transformar um assunto em post.":
+    "Create a character to turn a topic into a post.",
+  "O radar deste nicho ainda não foi montado.":
+    "The radar for this niche has not been built yet.",
+  "Ele é atualizado todo dia de manhã. Volte mais tarde.":
+    "It is updated every morning. Check back later.",
+  "Montar agora": "Build now",
+  "Refazer o de hoje": "Rebuild today's",
+  "Montando… (até 1 min)": "Building… (up to 1 min)",
+  "Só admins veem este botão. A pesquisa é paga pela plataforma.":
+    "Only admins see this button. The research is paid by the platform.",
+  "Relevância para quem cobre este nicho, de 1 a 10":
+    "Relevance for anyone covering this niche, from 1 to 10",
+  "Nada relevante apareceu neste nicho hoje.":
+    "Nothing relevant came up in this niche today.",
+  "Entre na sua conta para ver o radar.": "Sign in to see the radar.",
 };

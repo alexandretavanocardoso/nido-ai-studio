@@ -22,10 +22,14 @@ vi.mock("next/server", async (original) => ({
   },
 }));
 vi.mock("@/lib/db", () => ({ getPool: () => ({}) }));
-vi.mock("@/lib/recursos", () => ({ recursosDisponiveis: () => ({ ia: true }) }));
+vi.mock("@/lib/recursos", () => ({
+  recursosDisponiveis: () => ({ ia: true }),
+}));
 vi.mock("@/lib/radar/server", () => ({
   pendentesDeHoje: async (limite: number) =>
-    estado.pendentes.slice(0, limite).map((characterId) => ({ userId: "u", characterId })),
+    estado.pendentes
+      .slice(0, limite)
+      .map((characterId) => ({ userId: "u", characterId })),
   atualizarRadar: async ({ characterId }: { characterId: string }) => {
     estado.emAndamento++;
     estado.pico = Math.max(estado.pico, estado.emAndamento);
@@ -43,9 +47,12 @@ import { GET } from "@/app/api/cron/radar/route";
 
 const SEGREDO = "segredo-de-teste";
 const pedido = (salto?: number, auth = `Bearer ${SEGREDO}`) =>
-  new Request(`https://app.exemplo/api/cron/radar${salto ? `?salto=${salto}` : ""}`, {
-    headers: { authorization: auth },
-  });
+  new Request(
+    `https://app.exemplo/api/cron/radar${salto ? `?salto=${salto}` : ""}`,
+    {
+      headers: { authorization: auth },
+    },
+  );
 
 /** Roda a tarefa e todas as rodadas que ela encadear; devolve o resumo de cada uma. */
 async function rodarAteOFim(saltoInicial = 0) {
@@ -55,7 +62,11 @@ async function rodarAteOFim(saltoInicial = 0) {
     const u = new URL(String(url));
     const auth = new Headers(init?.headers).get("authorization");
     chamadas.push({ url: u.pathname + u.search, auth });
-    rodadas.push(await (await GET(new Request(u, { headers: { authorization: auth ?? "" } }))).json());
+    rodadas.push(
+      await (
+        await GET(new Request(u, { headers: { authorization: auth ?? "" } }))
+      ).json(),
+    );
     return new Response("{}");
   });
   rodadas.push(await (await GET(pedido(saltoInicial))).json());
@@ -66,13 +77,22 @@ async function rodarAteOFim(saltoInicial = 0) {
 
 beforeEach(() => {
   process.env.CRON_SECRET = SEGREDO;
-  Object.assign(estado, { pendentes: [], feitos: [], falham: new Set(), emAndamento: 0, pico: 0, depois: [] });
+  Object.assign(estado, {
+    pendentes: [],
+    feitos: [],
+    falham: new Set(),
+    emAndamento: 0,
+    pico: 0,
+    depois: [],
+  });
 });
 
 describe("tarefa diária do radar", () => {
   it("recusa quem não manda a senha", async () => {
     expect((await GET(pedido(0, "Bearer errada"))).status).toBe(401);
-    expect((await GET(new Request("https://app.exemplo/api/cron/radar"))).status).toBe(401);
+    expect(
+      (await GET(new Request("https://app.exemplo/api/cron/radar"))).status,
+    ).toBe(401);
   });
 
   it("fila de 45: três rodadas encadeadas, todos feitos, no máximo 5 ao mesmo tempo", async () => {
@@ -103,7 +123,11 @@ describe("tarefa diária do radar", () => {
     estado.falham = new Set(estado.pendentes);
     const { rodadas, chamadas } = await rodarAteOFim();
     expect(rodadas).toHaveLength(1);
-    expect(rodadas[0]).toMatchObject({ feitos: 20, pulado: 20, continuar: false });
+    expect(rodadas[0]).toMatchObject({
+      feitos: 20,
+      pulado: 20,
+      continuar: false,
+    });
     expect(chamadas).toEqual([]);
   });
 
@@ -120,7 +144,11 @@ describe("tarefa diária do radar", () => {
     estado.pendentes = Array.from({ length: 100 }, (_, i) => `c${i}`);
     const { rodadas, chamadas } = await rodarAteOFim(20);
     expect(rodadas).toHaveLength(1);
-    expect(rodadas[0]).toMatchObject({ salto: 20, feitos: 20, continuar: false });
+    expect(rodadas[0]).toMatchObject({
+      salto: 20,
+      feitos: 20,
+      continuar: false,
+    });
     expect(chamadas).toEqual([]);
   });
 });

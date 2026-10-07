@@ -10,7 +10,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, Flame, Plus, Sparkles } from "lucide-react";
+import { Bell, Flame, Plus, Radar, Sparkles } from "lucide-react";
 import { AccountMenu } from "@/components/auth/AccountMenu";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
@@ -89,6 +89,14 @@ function BarraDoApp({ onCriar }: { onCriar: () => void }) {
           </span>
         </Link>
         <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/app/radar"
+            title={tx("Radar global: o que está em alta hoje, por nicho")}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full border border-line text-[13px] font-semibold text-ink-mute hover:text-ink hover:border-line-strong transition"
+          >
+            <Radar className="w-4 h-4" />
+            <span className="hidden md:inline">{tx("Radar")}</span>
+          </Link>
           <AvisosRadar />
           <AccountMenu />
           <Button variant="accent" size="sm" onClick={onCriar}>
