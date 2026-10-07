@@ -684,7 +684,7 @@ function PostModal({
       aria-modal="true"
       onClick={(e) => e.target === e.currentTarget && onFechar()}
     >
-      <div className="card w-full max-w-3xl h-[min(600px,92vh)] grid grid-rows-[auto_1fr] sm:grid-rows-1 sm:grid-cols-[minmax(0,320px)_1fr] overflow-hidden rounded-t-3xl sm:rounded-3xl">
+      <div className="card w-full max-w-3xl h-[min(600px,92vh)] grid grid-rows-[auto_1fr] sm:grid-rows-1 sm:grid-cols-[320px_minmax(0,1fr)] overflow-hidden rounded-t-3xl sm:rounded-3xl">
         {/* Mídia */}
         <div className="bg-black grid place-items-center min-h-0 h-[38vh] sm:h-full">
           {p.midiaKey ? (
@@ -711,7 +711,7 @@ function PostModal({
         </div>
 
         {/* Detalhes */}
-        <div className="flex flex-col min-h-0">
+        <div className="flex flex-col min-h-0 min-w-0">
           <header className="flex items-start gap-3 p-5 border-b border-line">
             <div className="flex-1 min-w-0">
               <span
@@ -747,31 +747,47 @@ function PostModal({
               semBarra,
             )}
           >
-            <div className="grid gap-1.5">
-              {p.redes.map((r) => (
-                <div key={r} className="flex items-center gap-2 text-[13px]">
-                  <span className="font-semibold text-ink w-36 shrink-0 inline-flex items-center gap-2">
-                    <IconeRede rede={r} className="h-4 w-4" />
-                    {INFO_REDES[r]?.nome ?? r}
-                  </span>
-                  {p.links?.[r] ? (
-                    <a
-                      href={p.links[r]!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 font-semibold text-accent hover:underline"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" /> {tx("Ver post")}
-                    </a>
-                  ) : p.erros?.[r] ? (
-                    <span className="text-pink truncate" title={p.erros[r]!}>
-                      {p.erros[r]}
-                    </span>
-                  ) : (
-                    <span className="text-ink-dim">{tx(st.rotulo)}</span>
-                  )}
-                </div>
-              ))}
+            <div className="grid gap-2.5">
+              {p.redes.map((r) => {
+                const erro = !p.links?.[r] ? p.erros?.[r] : null;
+                return (
+                  <div key={r} className="grid gap-1.5 text-[13px] min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-ink min-w-0 inline-flex items-center gap-2">
+                        <IconeRede rede={r} className="h-4 w-4 shrink-0" />
+                        <span className="truncate">
+                          {INFO_REDES[r]?.nome ?? r}
+                        </span>
+                      </span>
+                      {p.links?.[r] ? (
+                        <a
+                          href={p.links[r]!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-semibold text-accent hover:underline shrink-0"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />{" "}
+                          {tx("Ver post")}
+                        </a>
+                      ) : (
+                        <span
+                          className={cn(
+                            "shrink-0",
+                            erro ? "font-semibold text-pink" : "text-ink-dim",
+                          )}
+                        >
+                          {tx(erro ? STATUS_POST.ERROR.rotulo : st.rotulo)}
+                        </span>
+                      )}
+                    </div>
+                    {erro ? (
+                      <p className="rounded-lg border border-pink/40 bg-pink/10 px-3 py-2 text-[12px] leading-relaxed text-pink break-words">
+                        {erro}
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
             {p.titulo ? (
               <div className="text-[14px] font-semibold text-ink">
