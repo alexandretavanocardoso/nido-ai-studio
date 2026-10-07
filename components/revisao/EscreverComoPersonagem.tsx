@@ -22,6 +22,7 @@ import { copyToClipboard } from "@/lib/export";
 import { CREDITOS_TEXTO } from "@/lib/planos";
 import type { Plataforma, TipoEscrita } from "@/lib/prompts/escrever";
 import { tx } from "@/lib/i18n/tx";
+import { useSearchParams } from "next/navigation";
 
 const TIPOS: Array<{
   id: TipoEscrita;
@@ -69,7 +70,9 @@ export function EscreverComoPersonagem({
   const { conta } = useCreditos();
   const [tipo, setTipo] = useState<TipoEscrita>("legenda");
   const [plataforma, setPlataforma] = useState<Plataforma>("instagram");
-  const [tema, setTema] = useState("");
+  // O Radar manda o assunto pela URL (?tema=…): já chega preenchido.
+  const temaInicial = useSearchParams()?.get("tema") ?? "";
+  const [tema, setTema] = useState(temaInicial);
   const [comentario, setComentario] = useState("");
   const [opcoes, setOpcoes] = useState<string[]>([]);
   const [carregando, setCarregando] = useState(false);

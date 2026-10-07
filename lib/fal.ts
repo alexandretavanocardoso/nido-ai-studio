@@ -13,8 +13,11 @@ export function getFal(): FalClient | null {
 /** Mensagem em português para erros do fal (chave, créditos, entrada recusada). */
 export function mensagemDeErro(e: unknown): string {
   if (e instanceof ApiError) {
+    // Conta do fal sem saldo responde 403 ("User is locked. Reason: Exhausted balance"), não 402.
+    const semSaldo =
+      e.status === 402 || (e.status === 403 && /exhausted balance|user is locked/i.test(JSON.stringify(e.body ?? "")));
+    if (semSaldo) return "Sem créditos no fal.ai. Adicione saldo na conta.";
     if (e.status === 401 || e.status === 403) return "Chave do fal inválida ou sem permissão. Confira FAL_KEY.";
-    if (e.status === 402) return "Sem créditos no fal.ai. Adicione saldo na conta.";
     if (e.status === 422) {
       const body = e.body as { detail?: Array<{ msg?: string }> | string };
       const det = Array.isArray(body?.detail) ? body.detail.map((d) => d.msg).join("; ") : body?.detail;

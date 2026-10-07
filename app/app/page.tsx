@@ -13,6 +13,7 @@ import { PLANOS } from "@/lib/planos";
 import { useT } from "@/lib/i18n";
 import { tx } from "@/lib/i18n/tx";
 import { useCriar } from "@/components/AppShell";
+import { usePendentesDeSync } from "@/lib/sync/remoteSync";
 
 export default function Home() {
   const recursos = useRecursos();
@@ -22,6 +23,10 @@ export default function Home() {
   const { conta } = useCreditos();
   const { criar: handleCreateClick, noLimite: avisoLimite } = useCriar();
   const limitePersonagens = conta ? PLANOS[conta.plano].personagens : Infinity;
+  // Personagens que a conta não tem: só existem neste navegador.
+  const naoSalvos = usePendentesDeSync();
+  const foraDoPlano = naoSalvos.recusados.length > 0;
+  const pendentes = naoSalvos.recusados.length + naoSalvos.falharam.length;
 
   return (
     <main className="min-h-screen">
@@ -85,6 +90,26 @@ export default function Home() {
             </Button>
           ) : null}
         </div>
+
+        {mounted && pendentes > 0 && (
+          <div className="mb-6 rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
+            {t(
+              foraDoPlano ? "inicio.soAquiLimite" : "inicio.soAquiFalha",
+              foraDoPlano && conta
+                ? {
+                    x: pendentes,
+                    plano: PLANOS[conta.plano].nome,
+                    n: limitePersonagens,
+                  }
+                : { x: pendentes },
+            )}{" "}
+            {foraDoPlano && (
+              <Link href="/app/planos" className="font-bold underline">
+                {t("inicio.upgradeSalvar")}
+              </Link>
+            )}
+          </div>
+        )}
 
         {!mounted ? (
           <div className="card p-16 text-center text-ink-dim">

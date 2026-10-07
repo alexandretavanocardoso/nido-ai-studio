@@ -9,6 +9,10 @@
     {
       "path": "/api/cron/video-jobs",
       "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/cron/radar",
+      "schedule": "0 9 * * *"
     }
   ]
 }

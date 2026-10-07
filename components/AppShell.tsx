@@ -1,9 +1,16 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Sparkles } from "lucide-react";
+import { Bell, Flame, Plus, Sparkles } from "lucide-react";
 import { AccountMenu } from "@/components/auth/AccountMenu";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
@@ -82,6 +89,7 @@ function BarraDoApp({ onCriar }: { onCriar: () => void }) {
           </span>
         </Link>
         <div className="flex items-center gap-2 shrink-0">
+          <AvisosRadar />
           <AccountMenu />
           <Button variant="accent" size="sm" onClick={onCriar}>
             <Plus className="w-3.5 h-3.5" strokeWidth={3} />
@@ -90,5 +98,107 @@ function BarraDoApp({ onCriar }: { onCriar: () => void }) {
         </div>
       </div>
     </nav>
+  );
+}
+
+interface AvisoRadar {
+  characterId: string;
+  dia: string;
+  destaques: number;
+  titulo: string;
+}
+
+/**
+ * Sino da barra: radares novos (de hoje ou ontem) com assunto quente, ainda
+ * não abertos. Some quando não há aviso. Abrir o Radar do personagem limpa o dele.
+ */
+function AvisosRadar() {
+  const { user } = useAuth();
+  const recursos = useRecursos();
+  const personagens = useCharacters((s) => s.characters);
+  const [avisos, setAvisos] = useState<AvisoRadar[]>([]);
+  const [aberto, setAberto] = useState(false);
+  const caixa = useRef<HTMLDivElement>(null);
+
+  const carregar = useCallback(() => {
+    if (!recursos.login || !user) return setAvisos([]);
+    fetch("/api/radar/avisos", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { avisos?: AvisoRadar[] } | null) => setAvisos(b?.avisos ?? []))
+      .catch(() => {});
+  }, [recursos.login, user]);
+
+  useEffect(() => {
+    carregar();
+    // O Radar avisa quando foi aberto; ao voltar para a aba, confere de novo.
+    const visto = () => carregar();
+    const foco = () => document.visibilityState === "visible" && carregar();
+    window.addEventListener("nido:radar-visto", visto);
+    document.addEventListener("visibilitychange", foco);
+    return () => {
+      window.removeEventListener("nido:radar-visto", visto);
+      document.removeEventListener("visibilitychange", foco);
+    };
+  }, [carregar]);
+
+  useEffect(() => {
+    if (!aberto) return;
+    const fora = (e: MouseEvent) => {
+      if (!caixa.current?.contains(e.target as Node)) setAberto(false);
+    };
+    document.addEventListener("mousedown", fora);
+    return () => document.removeEventListener("mousedown", fora);
+  }, [aberto]);
+
+  if (!avisos.length) return null;
+  const total = avisos.reduce((t, a) => t + a.destaques, 0);
+  return (
+    <div className="relative" ref={caixa}>
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        aria-label={`${tx("Avisos do radar")}: ${total}`}
+        aria-expanded={aberto}
+        className="relative h-9 w-9 inline-flex items-center justify-center rounded-full border border-line bg-panel text-ink hover:border-line-strong transition"
+      >
+        <Bell className="w-4 h-4" />
+        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-bg text-[11px] font-bold grid place-items-center">
+          {total}
+        </span>
+      </button>
+      {aberto ? (
+        <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-line bg-panel shadow-card overflow-hidden z-40">
+          <div className="px-3.5 py-2.5 border-b border-line text-[11px] mono uppercase tracking-wider text-ink-dim">
+            {tx("Em alta nos seus personagens")}
+          </div>
+          {avisos.map((a) => {
+            const nome =
+              personagens.find((c) => c.id === a.characterId)?.identidade
+                .nome || tx("Sem nome");
+            return (
+              <Link
+                key={a.characterId}
+                href={`/app/personagem/${a.characterId}?aba=estudio&secao=radar`}
+                onClick={() => setAberto(false)}
+                className="flex gap-2.5 px-3.5 py-3 hover:bg-bg transition border-b border-line last:border-b-0"
+              >
+                <Flame className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-semibold text-ink truncate">
+                    {nome} · {a.destaques}{" "}
+                    {a.destaques === 1
+                      ? tx("assunto quente")
+                      : tx("assuntos quentes")}
+                  </span>
+                  <span className="block text-[12px] text-ink-mute line-clamp-2">
+                    {a.titulo}
+                  </span>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
   );
 }

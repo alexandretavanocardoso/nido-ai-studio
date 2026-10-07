@@ -67,7 +67,7 @@ export function GerarImagem({ character, tipo: tipoFixo }: Props) {
   const [descricaoAberta, setDescricaoAberta] = useState(!ideia);
   const info = TIPOS.find((t) => t.id === tipo)!;
 
-  if (!recursos.gemini && !recursos.fal)
+  if (!recursos.gemini && !recursos.fal && !recursos.openai)
     return (
       <p className="text-[13px] text-ink-dim">
         {tx(

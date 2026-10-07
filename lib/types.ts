@@ -205,6 +205,11 @@ export interface Character {
   voz: Voz;
   monetizacao: Monetizacao;
   pontosEmAberto: PontoEmAberto[];
+  /**
+   * Radar diário (lib/radar): desligado por padrão — gasta créditos todo dia.
+   * `temas` são assuntos extras além do nicho da ficha; `comX` inclui o que está em alta no X.
+   */
+  radar?: { ativo: boolean; comX: boolean; temas: string[]; idioma?: "pt" | "en" };
   /** Vídeos de origem no S3. Opcional: personagens antigos não têm. */
   videos?: VideoArquivo[];
   /** Galeria das imagens geradas (só com S3; mais recentes primeiro, até 30). */

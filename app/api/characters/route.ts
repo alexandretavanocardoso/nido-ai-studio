@@ -49,30 +49,28 @@ export async function PUT(req: Request) {
 
   // Limite de personagens do plano: atualizar os existentes é sempre livre;
   // personagens novos além do limite ficam de fora (e voltam em `recusados`).
-  let lista = parsed.data.characters;
   const recusados: string[] = [];
+  let limite = Infinity;
+  const existentes = new Set<string>();
   if (creditosAtivos()) {
-    const limite = PLANOS[await planoAtual(ctx.userId)].personagens;
+    limite = PLANOS[await planoAtual(ctx.userId)].personagens;
     const { rows } = await ctx.pool.query<{ id: string }>(
       "select id from characters where user_id = $1",
       [ctx.userId],
     );
-    const existentes = new Set(rows.map((r) => r.id));
-    let total = existentes.size;
-    lista = lista.filter((c) => {
-      if (existentes.has(c.id)) return true;
-      if (total < limite) {
-        total++;
-        return true;
-      }
-      recusados.push(c.id);
-      return false;
-    });
+    for (const r of rows) existentes.add(r.id);
   }
+  let total = existentes.size;
 
-  // O `where` no conflito impede uma conta de sobrescrever um id de outra.
-  for (const c of lista) {
-    await ctx.pool.query(
+  // O `where` no conflito impede uma conta de sobrescrever um id de outra:
+  // nesse caso nada é gravado, o id volta em `recusados` e não ocupa vaga.
+  for (const c of parsed.data.characters) {
+    const novo = !existentes.has(c.id);
+    if (novo && total >= limite) {
+      recusados.push(c.id);
+      continue;
+    }
+    const { rowCount } = await ctx.pool.query(
       `insert into characters (id, user_id, data, updated_at)
        values ($1, $2, $3, $4)
        on conflict (id) do update
@@ -85,6 +83,8 @@ export async function PUT(req: Request) {
         new Date(c.updatedAt).toISOString(),
       ],
     );
+    if (!rowCount) recusados.push(c.id);
+    else if (novo) total++;
   }
   return NextResponse.json({ ok: true, recusados });
 }

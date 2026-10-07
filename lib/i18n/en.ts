@@ -22,6 +22,11 @@ export const en: Record<Chave, string> = {
   "inicio.seus": "Your characters",
   "inicio.novo": "New",
   "inicio.carregando": "Loading…",
+  "inicio.soAquiLimite":
+    "Characters only on this device: {x}. The {plano} plan keeps {n} in your account; the rest do not show up on other devices.",
+  "inicio.soAquiFalha":
+    "Characters only on this device: {x}. We could not save them to your account; we will try again next time you open the app.",
+  "inicio.upgradeSalvar": "Upgrade to save them all",
 
   "personagem.voltar": "Back to your characters",
   "personagem.semNome": "Untitled",
@@ -82,6 +87,9 @@ export const en: Record<Chave, string> = {
   "estudio.publicar.titulo": "Publish",
   "estudio.publicar.descricao":
     "Connect the influencer's accounts and post now, schedule or save to the backlog — Instagram, TikTok, YouTube Shorts, X and LinkedIn.",
+  "estudio.radar.titulo": "Radar",
+  "estudio.radar.descricao":
+    "What is happening today in the character's topics, with a relevance score and a post idea.",
   "estudio.agendamentos.titulo": "Schedule",
   "estudio.agendamentos.descricao":
     "Calendar of scheduled and published posts, plus the backlog of posts ready to schedule.",

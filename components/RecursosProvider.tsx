@@ -9,11 +9,13 @@ const NENHUM: Recursos = {
   ia: false,
   gemini: false,
   fal: false,
+  openai: false,
   runway: false,
   apify: false,
   social: false,
   voz: false,
   stripe: false,
+  radarX: false,
   usdc: false,
   usdcRedes: [],
 };

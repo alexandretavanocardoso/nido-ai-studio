@@ -20,7 +20,8 @@ O personagem nasce de uma ficha preenchida em etapas — à mão ou com ajuda de
    - **editar ou remover legendas** e **adicionar falas** com a voz dele.
 6. **Dar voz ao personagem:** criar uma voz pela descrição da ficha ou clonar uma amostra, e gerar falas.
 7. **Escrever como o personagem:** legendas, roteiros e respostas a comentários no tom, nas gírias e nos bordões da ficha.
-8. **Publicar:** conectar as redes do influenciador e postar na hora, agendar no calendário ou guardar no backlog — Instagram, TikTok, YouTube Shorts, X e LinkedIn.
+8. **Acompanhar o Radar:** todo dia, o que aconteceu nos temas do personagem (notícias e, se ligado, o que está em alta no X), com nota de relevância, ideia de post e aviso quando algo está quente.
+9. **Publicar:** conectar as redes do influenciador e postar na hora, agendar no calendário ou guardar no backlog — Instagram, TikTok, YouTube Shorts, X e LinkedIn.
 
 A interface está em português e inglês.
 
@@ -41,6 +42,8 @@ A interface está em português e inglês.
 | Vídeo: criar a partir de uma imagem, com áudio | **Veo 3.1 Fast** | Google |
 | Vídeo: remover legenda reconstruindo o fundo | **Bria Video Eraser** | Bria |
 | Recorte do fundo do personagem | **BiRefNet** | — |
+| Radar: pesquisar as notícias do dia e dar nota de relevância | **Claude Haiku 4.5** com busca na web | Anthropic |
+| Radar: o que está em alta no X | **Grok** com busca no X | xAI |
 | Voz: criar, clonar e gerar falas | **ElevenLabs** | ElevenLabs |
 
-Seedream, FLUX, GPT Image, Kling, Seedance, Bria e BiRefNet rodam pelo [fal.ai](https://fal.ai). O Veo roda pela API do Runway. Claude, Nano Banana, Gemini, Runway e ElevenLabs são chamados direto na API de cada empresa.
+Seedream, FLUX, Kling, Seedance, Bria e BiRefNet rodam pelo [fal.ai](https://fal.ai). O GPT Image é chamado direto na OpenAI quando há `OPENAI_API_KEY` (sem ela, também vai pelo fal). O Veo roda pela API do Runway. Claude, Nano Banana, Gemini, Grok, Runway e ElevenLabs são chamados direto na API de cada empresa.

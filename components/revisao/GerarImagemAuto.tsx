@@ -67,7 +67,8 @@ interface Props {
 
 /**
  * Geração automática da imagem (rota /api/gerar-imagem) com o modelo escolhido:
- * Nano Banana (Gemini) ou Seedream 4.5 / Flux.2 Pro / GPT Image (fal.ai).
+ * Nano Banana (Gemini), Seedream 4.5 / Flux.2 Pro (fal.ai) ou GPT Image
+ * (OpenAI direto; pelo fal.ai quando não há OPENAI_API_KEY).
  * Usa o mesmo prompt "Neutro" das abas de copiar, mais as referências
  * selecionadas. O resultado pode ser baixado ou salvo nas referências —
  * é assim que o card gerado vira base pro retrato.
@@ -76,7 +77,7 @@ export function GerarImagemAuto({ character, tipo }: Props) {
   const update = useCharacters((s) => s.update);
   const { user } = useAuth();
   const recursos = useRecursos();
-  /** Modelos com o serviço configurado neste deploy (Gemini e/ou fal.ai). */
+  /** Modelos com o serviço configurado neste deploy (Gemini, fal.ai e/ou OpenAI). */
   const { pronta, status: persona } = usePersona(character.id);
   const MODELOS_DISPONIVEIS = (
     Object.keys(MODELOS_IMAGEM) as ModeloImagem[]
@@ -85,7 +86,8 @@ export function GerarImagemAuto({ character, tipo }: Props) {
       ? recursos.fal && pronta.imagem
       : MODELOS_IMAGEM[m].provedor === "gemini"
         ? recursos.gemini
-        : recursos.fal,
+        : // GPT Image também roda direto na OpenAI.
+          recursos.fal || (m === "gpt-image" && recursos.openai),
   );
   const [qualidade, setQualidade] = useState<Qualidade>("padrao");
   const [modelo, setModelo] = useState<ModeloImagem>(

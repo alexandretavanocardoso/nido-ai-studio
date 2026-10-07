@@ -29,6 +29,11 @@ import { hydrate } from "@/lib/defaults";
 import { buildImagePrompt } from "@/lib/prompts/gerar-imagem";
 import sharp from "sharp";
 import { blocoTexto, gerarImagemFal } from "@/lib/ai/fal-imagem";
+import {
+  gerarImagemOpenAI,
+  getOpenAIKey,
+  OpenAIImagemError,
+} from "@/lib/ai/openai-imagem";
 import { MODELOS_IMAGEM, MODELOS_IMAGEM_IDS } from "@/lib/ai/modelos-imagem";
 import { getFal, mensagemDeErro } from "@/lib/fal";
 import {
@@ -56,7 +61,7 @@ const BodySchema = z.object({
   character: z.looseObject({ id: z.string() }),
   tipo: z.enum(["referencia", "retrato"]),
   qualidade: z.enum(["padrao", "pro"]).default("padrao"),
-  /** Modelo de imagem (ver lib/ai/modelos-imagem.ts). Nano Banana = Gemini; os outros = fal.ai. */
+  /** Modelo de imagem (ver lib/ai/modelos-imagem.ts). Nano Banana = Gemini; GPT Image = OpenAI (ou fal.ai sem a chave); os outros = fal.ai. */
   modelo: z.enum(MODELOS_IMAGEM_IDS).default("nano-banana"),
   /** Só GPT Image: texto que deve aparecer escrito na imagem. */
   textoNaImagem: z.string().trim().max(200).optional(),
@@ -131,7 +136,9 @@ export async function POST(req: Request) {
     );
   }
 
-  const usaFal = MODELOS_IMAGEM[body.modelo].provedor === "fal";
+  // GPT Image vai direto na OpenAI quando há OPENAI_API_KEY; sem ela, pelo fal.
+  const usaOpenAI = body.modelo === "gpt-image" && !!getOpenAIKey();
+  const usaFal = !usaOpenAI && MODELOS_IMAGEM[body.modelo].provedor === "fal";
   const fal = usaFal ? getFal() : null;
   if (usaFal && !fal) {
     return NextResponse.json(
@@ -222,7 +229,31 @@ export async function POST(req: Request) {
 
   try {
     let jpeg: Buffer;
-    if (fal) {
+    if (usaOpenAI) {
+      // A OpenAI recebe as referências como arquivo (não por URL, como o fal).
+      const referencias = await Promise.all(
+        body.referencias.map(async (r) => {
+          const ref =
+            typeof r === "string"
+              ? { mimeType: r.match(DATA_URL)![1], data: r.match(DATA_URL)![2] }
+              : await shrinkReferencia(await getObjectBuffer(s3!, r.key));
+          return {
+            mimeType: ref.mimeType,
+            data: Buffer.from(ref.data, "base64"),
+          };
+        }),
+      );
+      jpeg = await sharp(
+        await gerarImagemOpenAI({
+          tipo: body.tipo,
+          prompt,
+          referencias,
+          qualidade: body.qualidade,
+        }),
+      )
+        .jpeg({ quality: 90 })
+        .toBuffer();
+    } else if (fal) {
       // fal baixa as referências por URL: S3 → URL pré-assinada; base64 → upload no storage do fal.
       const imageUrls = await Promise.all(
         body.referencias.map(async (r) => {
@@ -316,6 +347,11 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: e.message, code: "BLOCKED" },
         { status: 422 },
+      );
+    if (e instanceof OpenAIImagemError)
+      return NextResponse.json(
+        { error: e.message, code: e.bloqueado ? "BLOCKED" : "PROVIDER_ERROR" },
+        { status: e.bloqueado ? 422 : 502 },
       );
     if (e instanceof ImageProviderError)
       return NextResponse.json(

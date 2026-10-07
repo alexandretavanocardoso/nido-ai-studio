@@ -6,6 +6,7 @@ import {
   Clapperboard,
   ImageIcon,
   PenLine,
+  Radar as IconeRadar,
   type LucideIcon,
 } from "lucide-react";
 import type { Character } from "@/lib/types";
@@ -18,9 +19,10 @@ import { Publicar } from "@/components/estudio/Publicar";
 import { Agendamentos } from "@/components/estudio/Agendamentos";
 import { useT, type Chave } from "@/lib/i18n";
 import { tx } from "@/lib/i18n/tx";
+import { Radar } from "@/components/estudio/Radar";
 
 export type SecaoEstudio =
-  "videos" | "textos" | "imagens" | "publicar" | "agendamentos";
+  "videos" | "textos" | "imagens" | "publicar" | "agendamentos" | "radar";
 
 export const SECOES_ESTUDIO: Array<{
   id: SecaoEstudio;
@@ -62,6 +64,13 @@ export const SECOES_ESTUDIO: Array<{
     descricao:
       "Calendário com o que foi agendado e publicado, e o backlog de posts prontos para agendar.",
     icon: CalendarDays,
+  },
+  {
+    id: "radar",
+    titulo: "Radar",
+    descricao:
+      "O que está acontecendo hoje nos temas do personagem, com nota de relevância e ideia de post.",
+    icon: IconeRadar,
   },
 ];
 
@@ -167,6 +176,7 @@ export function EstudioConteudo({
 
       {secao === "publicar" && <Publicar character={character} />}
       {secao === "agendamentos" && <Agendamentos character={character} />}
+      {secao === "radar" && <Radar character={character} />}
 
       {secao === "imagens" && <GerarImagem character={character} />}
     </section>

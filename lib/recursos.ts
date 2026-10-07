@@ -17,6 +17,8 @@ export interface Recursos {
   gemini: boolean;
   /** fal.ai: Seedream, Flux.2, GPT Image e troca de pessoa (Kling O1 / Seedance 2.5). */
   fal: boolean;
+  /** OpenAI: GPT Image direto na API dela (sem a chave, o GPT Image vai pelo fal). */
+  openai: boolean;
   /** Runway: criar vídeo (Gen-4 / Veo). */
   runway: boolean;
   /** Buscar vídeo por link de rede social (Apify). Link direto de .mp4 não precisa. */
@@ -25,6 +27,8 @@ export interface Recursos {
   social: boolean;
   /** Voz do personagem (ElevenLabs). */
   voz: boolean;
+  /** Radar: incluir o que está em alta no X (Grok, xAI). O radar de notícias só precisa da IA de texto. */
+  radarX: boolean;
   /** Pagamento pelo Stripe (cartão, Pix, boleto). */
   stripe: boolean;
   /** Pagamento em USDC (pelo menos uma rede configurada). */
@@ -60,10 +64,12 @@ export function recursosDisponiveis(): Recursos {
     ia: tem("ANTHROPIC_API_KEY"),
     gemini: tem("GEMINI_API_KEY"),
     fal: tem("FAL_KEY"),
+    openai: tem("OPENAI_API_KEY"),
     runway: tem("RUNWAYML_API_SECRET"),
     apify: tem("APIFY_TOKEN") || tem("APIFY_API_TOKEN"),
     social: login && (tem("BUNDLE_SOCIAL") || tem("BUNDLE_SOCIAL_API_KEY")),
     voz: tem("ELEVENLABS_API_KEY"),
+    radarX: tem("XAI_API_KEY"),
     stripe: login && tem("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"),
     usdc: login && usdcRedes.length > 0,
     usdcRedes: login ? usdcRedes : [],

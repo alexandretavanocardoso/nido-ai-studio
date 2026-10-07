@@ -39,6 +39,7 @@ import {
   precoAvulso,
   PRECO_CREDITO,
   precoPlano,
+  creditosRadar,
   TROCA_POR_SEGUNDO,
   TROCA_PREMIUM_POR_SEGUNDO,
   type Intervalo,
@@ -667,6 +668,10 @@ function TabelaCustos() {
     [
       "Escrever como o personagem (legendas, roteiro, respostas)",
       String(CREDITOS_TEXTO.escrever),
+    ],
+    [
+      "Radar do dia · notícias / notícias + X",
+      `${creditosRadar(false)} / ${creditosRadar(true)}`,
     ],
     ["Publicar ou agendar post (por rede)", "1"],
     ["Ficha manual e exportar (PNG, PDF, JSON)", "grátis"],

@@ -70,7 +70,7 @@ export function VisualStep({ id }: { id: string }) {
   return (
     <div className="grid grid-cols-1 gap-5">
       {/* A geração de imagens fica só no Estúdio; aqui, o atalho. */}
-      {(recursos.gemini || recursos.fal) && (
+      {(recursos.gemini || recursos.fal || recursos.openai) && (
         <section className="rounded-xl border border-accent/30 bg-accent/5 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="h-10 w-10 inline-flex items-center justify-center rounded-xl bg-accent text-bg shrink-0">
             <ImageIcon className="w-5 h-5" />

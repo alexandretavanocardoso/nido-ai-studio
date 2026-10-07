@@ -278,6 +278,15 @@ export function creditosFala(caracteres: number): number {
 /** Buscar um vídeo por link (Apify + transferência). */
 export const CREDITOS_LINK = 3;
 
+/**
+ * Radar do dia (lib/radar). Notícias: Claude Haiku 4.5 + 3 buscas na web,
+ * ~US$ 0,066 medido em 07/10/2026. X: Grok lê ~25 posts (US$ 5 por 1.000 posts)
+ * + tokens, ~US$ 0,15 — estimado, ainda não medido (falta XAI_API_KEY).
+ */
+export const CREDITOS_RADAR = { noticias: 8, x: 18 } as const;
+export const creditosRadar = (comX: boolean) =>
+  CREDITOS_RADAR.noticias + (comX ? CREDITOS_RADAR.x : 0);
+
 /** Publicar/agendar nas redes (bundle.social, ~US$ 0,01 por post): por rede. */
 export const CREDITOS_POST_POR_REDE = 1;
 

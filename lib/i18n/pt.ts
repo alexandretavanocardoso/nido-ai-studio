@@ -22,6 +22,11 @@ export const pt = {
   "inicio.seus": "Seus personagens",
   "inicio.novo": "Novo",
   "inicio.carregando": "Carregando…",
+  "inicio.soAquiLimite":
+    "Personagens só neste aparelho: {x}. O plano {plano} guarda {n} na conta; os demais não aparecem em outros aparelhos.",
+  "inicio.soAquiFalha":
+    "Personagens só neste aparelho: {x}. Não foi possível salvá-los na conta; vamos tentar de novo quando você abrir o app.",
+  "inicio.upgradeSalvar": "Faça upgrade para salvar todos",
 
   // Personagem (topo)
   "personagem.voltar": "Voltar para seus personagens",
@@ -85,6 +90,9 @@ export const pt = {
   "estudio.publicar.titulo": "Publicar",
   "estudio.publicar.descricao":
     "Conecte as redes do influencer e publique agora, agende ou guarde no backlog — Instagram, TikTok, YouTube Shorts, X e LinkedIn.",
+  "estudio.radar.titulo": "Radar",
+  "estudio.radar.descricao":
+    "O que está acontecendo hoje nos temas do personagem, com nota de relevância e ideia de post.",
   "estudio.agendamentos.titulo": "Agendamentos",
   "estudio.agendamentos.descricao":
     "Calendário com o que foi agendado e publicado, e o backlog de posts prontos para agendar.",

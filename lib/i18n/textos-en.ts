@@ -894,4 +894,56 @@ export const TEXTOS_EN: Record<string, string> = {
   "É este — substituir pessoa": "That's it — swap person",
   Principal: "Main",
   "por segundo": "per second",
+  // radar
+  "Avisos do radar": "Radar alerts",
+  "Em alta nos seus personagens": "Trending for your characters",
+  "assunto quente": "hot topic",
+  "assuntos quentes": "hot topics",
+  "Temas acompanhados": "Topics to watch",
+  "Ex.: inteligência artificial, bancos, fofoca de famosos":
+    "E.g.: artificial intelligence, banks, celebrity gossip",
+  "O radar de hoje vai procurar por:": "Today's radar will search for:",
+  "Adicione um tema ou preencha o nicho na ficha — o radar usa os dois.":
+    "Add a topic or fill in the niche in the profile — the radar uses both.",
+  "Radar diário": "Daily radar",
+  "Todo dia de manhã, sozinho. Gasta": "Every morning, automatically. Uses",
+  "créditos por dia; sem saldo, ele pula o dia.":
+    "credits per day; with no balance, it skips the day.",
+  "Incluir o que está em alta no X": "Include what is trending on X",
+  "créditos por radar.": "credits per radar.",
+  "Não configurado neste deploy (XAI_API_KEY).":
+    "Not configured on this deploy (XAI_API_KEY).",
+  "Pesquisando… (até 1 min)": "Searching… (up to 1 min)",
+  "Refazer o radar de hoje": "Redo today's radar",
+  "Montar o radar de hoje": "Build today's radar",
+  "Pode continuar usando o app nesta aba.":
+    "You can keep using the app in this tab.",
+  "Nenhum radar ainda": "No radar yet",
+  "O radar pesquisa o que aconteceu hoje nos temas do personagem, dá uma nota de relevância e sugere um post para cada assunto.":
+    "The radar searches what happened today in the character's topics, scores how relevant each one is and suggests a post for it.",
+  "Dia do radar": "Radar day",
+  "notícias + X": "news + X",
+  notícias: "news",
+  "O radar deste dia não rodou porque faltaram créditos.":
+    "This day's radar did not run because there were not enough credits.",
+  "O radar deste dia falhou e os créditos foram devolvidos. Tente montar de novo.":
+    "This day's radar failed and the credits were refunded. Try building it again.",
+  "Os assuntos vêm de uma pesquisa feita por IA: abra a fonte e confira antes de postar.":
+    "These topics come from AI-run research: open the source and check it before posting.",
+  "Nada relevante apareceu nesses temas hoje.":
+    "Nothing relevant came up in these topics today.",
+  "Relevância para este personagem, de 1 a 10":
+    "Relevance for this character, from 1 to 10",
+  Notícia: "News",
+  "Por que importa:": "Why it matters:",
+  "Ideia de post:": "Post idea:",
+  "Escrever post sobre isso": "Write a post about this",
+  "Ver a fonte": "See the source",
+  "O radar precisa da IA de texto configurada neste deploy (ANTHROPIC_API_KEY).":
+    "The radar needs text AI configured on this deploy (ANTHROPIC_API_KEY).",
+  "Radares mais antigos": "Older radars",
+  "Mais antigos": "Older",
+  "Comunicado, conteúdo patrocinado ou texto de empresa — não é notícia independente.":
+    "Press release, sponsored content or a company's own text — not independent news.",
+  "Conteúdo promocional": "Promotional content",
 };
