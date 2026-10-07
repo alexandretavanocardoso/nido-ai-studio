@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, FileText, Wand2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FileText, Radar, Wand2 } from "lucide-react";
 import type { Character } from "@/lib/types";
 import { status, stepCompletion } from "@/lib/completion";
 import { capaSrc } from "@/lib/storage/client";
@@ -10,7 +10,7 @@ import { StatusBadge } from "./StatusBadge";
 import { useT } from "@/lib/i18n";
 import { tx } from "@/lib/i18n/tx";
 
-export type AbaPersonagem = "ficha" | "estudio";
+export type AbaPersonagem = "ficha" | "estudio" | "radar";
 
 /** Progresso geral da ficha (média das etapas, sem a revisão). */
 export function progressoFicha(c: Character): number {
@@ -103,6 +103,7 @@ export function CharacterHeader({
               Wand2,
               t("personagem.dicaEstudio"),
             ],
+            ["radar", tx("Radar"), Radar, t("estudio.radar.descricao")],
           ] as const
         ).map(([id, titulo, Icone, dica]) => (
           <button

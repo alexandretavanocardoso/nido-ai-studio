@@ -74,6 +74,9 @@ export const SECOES_ESTUDIO: Array<{
   },
 ];
 
+/** O Radar tem aba própria no cabeçalho do personagem: fica fora do menu do Estúdio. */
+const SECOES_DO_MENU = SECOES_ESTUDIO.filter((s) => s.id !== "radar");
+
 /** Navegação do Estúdio (coluna da esquerda no desktop, abas no celular). */
 export function EstudioNav({
   atual,
@@ -93,7 +96,7 @@ export function EstudioNav({
         vertical ? "grid gap-1" : "flex gap-2 overflow-x-auto pb-1",
       )}
     >
-      {SECOES_ESTUDIO.map((s) => {
+      {SECOES_DO_MENU.map((s) => {
         const ativo = s.id === atual;
         return (
           <button

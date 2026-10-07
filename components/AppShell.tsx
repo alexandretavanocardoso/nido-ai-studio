@@ -178,7 +178,7 @@ function AvisosRadar() {
             return (
               <Link
                 key={a.characterId}
-                href={`/app/personagem/${a.characterId}?aba=estudio&secao=radar`}
+                href={`/app/personagem/${a.characterId}?aba=radar`}
                 onClick={() => setAberto(false)}
                 className="flex gap-2.5 px-3.5 py-3 hover:bg-bg transition border-b border-line last:border-b-0"
               >

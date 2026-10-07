@@ -40,8 +40,14 @@ export function Wizard({ id }: { id: string }) {
   const params = useSearchParams();
   const character = useCharacters((s) => s.characters.find((c) => c.id === id));
   // Aba, etapa e seção ficam na URL: recarregar ou compartilhar o link volta pro mesmo lugar.
+  // (links antigos do radar, ?aba=estudio&secao=radar, continuam abrindo a aba Radar)
   const aba: AbaPersonagem =
-    params?.get("aba") === "estudio" ? "estudio" : "ficha";
+    params?.get("aba") === "radar" ||
+    (params?.get("aba") === "estudio" && params?.get("secao") === "radar")
+      ? "radar"
+      : params?.get("aba") === "estudio"
+        ? "estudio"
+        : "ficha";
   const currentId = useMemo<StepId>(() => {
     const raw = params?.get("step");
     return (STEP_IDS as readonly string[]).includes(raw ?? "")
@@ -50,7 +56,7 @@ export function Wizard({ id }: { id: string }) {
   }, [params]);
   const secao = useMemo<SecaoEstudio>(() => {
     const raw = params?.get("secao");
-    return SECOES_ESTUDIO.some((s) => s.id === raw)
+    return raw !== "radar" && SECOES_ESTUDIO.some((s) => s.id === raw)
       ? (raw as SecaoEstudio)
       : "videos";
   }, [params]);
@@ -62,7 +68,13 @@ export function Wizard({ id }: { id: string }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   const setCurrentId = (step: StepId) => navegar({ aba: "ficha", step });
-  const setAba = (a: AbaPersonagem) => navegar({ aba: a });
+  // Ao sair do Radar, um ?secao=radar antigo não pode prender o usuário nele.
+  const setAba = (a: AbaPersonagem) =>
+    navegar(
+      params?.get("secao") === "radar"
+        ? { aba: a, secao: "videos" }
+        : { aba: a },
+    );
   const setSecao = (s: SecaoEstudio) => navegar({ aba: "estudio", secao: s });
 
   const current = useMemo(
@@ -98,7 +110,7 @@ export function Wizard({ id }: { id: string }) {
         {aba === "ficha" && <SuggestionCounter character={character} />}
 
         {/* Mobile/tablet: nav horizontal rolável acima do conteúdo */}
-        <div className="mb-6 lg:hidden">
+        <div className={cn("mb-6 lg:hidden", aba === "radar" && "hidden")}>
           {aba === "ficha" ? (
             <StepTabs
               current={currentId}
@@ -118,13 +130,14 @@ export function Wizard({ id }: { id: string }) {
         <div
           className={cn(
             "grid grid-cols-1 gap-6",
-            aba === "estudio"
-              ? "lg:grid-cols-[230px_minmax(0,1fr)]"
-              : "lg:grid-cols-[230px_minmax(0,1fr)_300px]",
+            aba === "estudio" && "lg:grid-cols-[230px_minmax(0,1fr)]",
+            aba === "ficha" && "lg:grid-cols-[230px_minmax(0,1fr)_300px]",
           )}
         >
           {/* Desktop: nav vertical sticky */}
-          <aside className="hidden lg:block min-w-0">
+          <aside
+            className={cn("hidden min-w-0", aba !== "radar" && "lg:block")}
+          >
             <div className="sticky top-20">
               {aba === "ficha" ? (
                 <StepTabs
@@ -144,7 +157,9 @@ export function Wizard({ id }: { id: string }) {
           </aside>
 
           <div className="min-w-0">
-            {aba === "estudio" ? (
+            {aba === "radar" ? (
+              <EstudioConteudo secao="radar" character={character} />
+            ) : aba === "estudio" ? (
               <EstudioConteudo secao={secao} character={character} />
             ) : (
               <section className="card p-5 sm:p-7">
