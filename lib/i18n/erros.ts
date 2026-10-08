@@ -485,6 +485,7 @@ const ERROS_EN: Record<string, string> = {
   "Não consegui mover o post.": "Couldn't move the post.",
   "Não consegui carregar as métricas.": "Couldn't load the metrics.",
   "Informe um número de views válido.": "Enter a valid number of views.",
+  "Não consegui gerar o PDF.": "Couldn't generate the PDF.",
   "Link não suportado. Use o link do post no Instagram, TikTok, YouTube, X ou LinkedIn.":
     "Unsupported link. Use the post link on Instagram, TikTok, YouTube, X or LinkedIn.",
   "A leitura do post demorou demais. Tente de novo.":

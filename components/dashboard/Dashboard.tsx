@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ExternalLink,
   Eye,
+  FileDown,
   Heart,
   Link as LinkIcon,
   Loader2,
@@ -143,6 +144,51 @@ export function Dashboard() {
   );
   const resumo = useMemo(() => resumir(posts, periodo), [posts, periodo]);
 
+  // Relatório em PDF do período escolhido: de todos ou de um personagem só (`alvo`).
+  const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [menuPdf, setMenuPdf] = useState(false);
+  async function baixarPdf(alvo: string | null) {
+    setMenuPdf(false);
+    setGerandoPdf(true);
+    try {
+      const { baixarRelatorioPdf, capaParaPdf } = await import(
+        "@/lib/social/relatorio-pdf"
+      );
+      const c = personagens.find((x) => x.id === alvo);
+      // Foto de perfil de quem aparece no relatório (grande na capa, pequena nas tabelas).
+      const fotos = await Promise.all(
+        personagens
+          .filter((x) => !c || x.id === c.id)
+          .map(async (x) => {
+            const capa = capaSrc(x);
+            const foto = capa ? await capaParaPdf(capa, c ? 240 : 128) : null;
+            return [x.id, foto] as const;
+          }),
+      );
+      const doAlvo = (dados?.posts ?? []).filter(
+        (p) => !c || p.characterId === c.id,
+      );
+      await baixarRelatorioPdf({
+        personagem: c ? c.identidade.nome || tx("Sem nome") : null,
+        personagemId: c?.id ?? null,
+        avatares: new Map(
+          fotos.filter((f): f is readonly [string, string] => !!f[1]),
+        ),
+        periodo,
+        resumo: resumir(doAlvo, periodo),
+        posts: doAlvo,
+        nomes: new Map(
+          personagens.map((c) => [c.id, c.identidade.nome || tx("Sem nome")]),
+        ),
+      });
+    } catch (e) {
+      console.error("[dashboard] pdf", e);
+      setErro(txErro("Não consegui gerar o PDF."));
+    } finally {
+      setGerandoPdf(false);
+    }
+  }
+
   return (
     <main className="flex w-full max-w-[1440px] flex-col gap-7 px-4 pb-16 pt-3 font-geist text-nido-ink sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-5">
@@ -177,6 +223,95 @@ export function Dashboard() {
               <LinkIcon className="h-3.5 w-3.5" />
               {tx("Adicionar link de post")}
             </button>
+          ) : null}
+          {dados?.posts.length ? (
+            <div className="relative">
+              <button
+                type="button"
+                // Com mais de um personagem, abre o menu pra escolher de quem é o relatório.
+                onClick={() =>
+                  personagens.length > 1
+                    ? setMenuPdf((v) => !v)
+                    : baixarPdf(null)
+                }
+                disabled={gerandoPdf}
+                aria-haspopup={personagens.length > 1 ? "menu" : undefined}
+                aria-expanded={menuPdf}
+                className={cn(
+                  "inline-flex h-[38px] items-center gap-1.5 rounded-full border border-white/10 px-4 text-[13px] font-semibold text-nido-soft transition hover:border-nido-yellow/50 hover:text-nido-ink disabled:opacity-60",
+                  menuPdf && "border-nido-yellow/60 text-nido-ink",
+                )}
+              >
+                {gerandoPdf ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <FileDown className="h-3.5 w-3.5" />
+                )}
+                {tx("Baixar PDF")}
+                {personagens.length > 1 ? (
+                  <ChevronDown
+                    className={cn(
+                      "h-3.5 w-3.5 transition",
+                      menuPdf && "rotate-180",
+                    )}
+                  />
+                ) : null}
+              </button>
+              {menuPdf ? (
+                <>
+                  <div
+                    className="fixed inset-0 z-30"
+                    onClick={() => setMenuPdf(false)}
+                    aria-hidden
+                  />
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full z-40 mt-1.5 max-h-72 w-64 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1718] p-1 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.9)] [scrollbar-width:thin]"
+                  >
+                    <div
+                      className={cn(
+                        mono,
+                        "px-2.5 pb-1.5 pt-2 text-[10px] uppercase tracking-[0.14em] text-nido-dim",
+                      )}
+                    >
+                      {tx("Relatório de")} · {periodo}d
+                    </div>
+                    {[null, ...personagens].map((c) => {
+                      const nPosts = dados.posts.filter(
+                        (p) => !c || p.characterId === c.id,
+                      ).length;
+                      return (
+                        <button
+                          key={c?.id ?? "todos"}
+                          type="button"
+                          role="menuitem"
+                          onClick={() => baixarPdf(c?.id ?? null)}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[13.5px] text-nido-soft transition hover:bg-white/[0.05] hover:text-nido-ink"
+                        >
+                          {c ? (
+                            <Capa personagem={c} />
+                          ) : (
+                            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-nido-yellow/15 text-nido-yellow">
+                              <FileDown className="h-3.5 w-3.5" />
+                            </span>
+                          )}
+                          <span className="min-w-0 flex-1 truncate font-medium">
+                            {c
+                              ? c.identidade.nome || tx("Sem nome")
+                              : tx("Todos os personagens")}
+                          </span>
+                          <span
+                            className={cn(mono, "text-[11px] text-nido-dim")}
+                          >
+                            {nPosts}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : null}
+            </div>
           ) : null}
           <button
             type="button"

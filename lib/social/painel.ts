@@ -44,6 +44,9 @@ export interface LinhaPersonagem {
 }
 
 export interface Resumo {
+  /** Período resumido: de `inicio` (inclusive) a `fim` (exclusive). */
+  inicio: Date;
+  fim: Date;
   posts: number;
   atual: Metricas;
   /** Mesmo tamanho de período, imediatamente antes (pra comparar). */
@@ -111,6 +114,8 @@ export function resumir(
   }
 
   return {
+    inicio: new Date(inicio),
+    fim: new Date(fim),
     posts: n,
     atual,
     anterior,
