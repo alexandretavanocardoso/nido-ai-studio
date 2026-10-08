@@ -6,6 +6,7 @@ import { nanoid } from "nanoid";
 import { AudioLines, Loader2, Lock, Mic, Upload, Wand2, X } from "lucide-react";
 import type { Character } from "@/lib/types";
 import { useCharacters } from "@/lib/store";
+import { useDuravel } from "@/lib/duravel";
 import { fileUrl, uploadFile } from "@/lib/storage/client";
 import { STORAGE_KINDS } from "@/lib/storage/env";
 import { useRecursos } from "@/components/RecursosProvider";
@@ -32,7 +33,7 @@ interface Voz {
 }
 
 /** Descrição inicial (em português, a ElevenLabs entende) a partir dos campos da ficha. */
-function descricaoInicial(c: Character): string {
+export function descricaoInicial(c: Character): string {
   const v = c.voz;
   return [
     v.vozGenero ||
@@ -68,17 +69,27 @@ export function VozIA({ character }: { character: Character }) {
   const [vozes, setVozes] = useState<Voz[]>([]);
   const [modo, setModo] = useState<"design" | "clone">("design");
   const [descricao, setDescricao] = useState(() => descricaoInicial(character));
-  const [amostras, setAmostras] = useState<
+  const [amostras, setAmostras] = useDuravel<
     Array<{ key: string; nome: string }>
-  >([]);
+  >(`voz:${character.id}:amostras`, []);
   const [aceito, setAceito] = useState(false);
   const [texto, setTexto] = useState(
     () => character.voz.abertura || character.voz.bordoes[0] || "",
   );
-  const [ocupado, setOcupado] = useState<"criar" | "falar" | "upload" | null>(
+  const [ocupado, setOcupado] = useDuravel<"criar" | "falar" | "upload" | null>(
+    `voz:${character.id}:ocupado`,
+    null,
+    (o) =>
+      o === "criar"
+        ? "Criando a voz"
+        : o === "falar"
+          ? "Gerando fala"
+          : "Enviando amostra de voz",
+  );
+  const [erro, setErro] = useDuravel<{ msg: string; code?: string } | null>(
+    `voz:${character.id}:erro`,
     null,
   );
-  const [erro, setErro] = useState<{ msg: string; code?: string } | null>(null);
 
   const ativo = recursos.voz && recursos.armazenamento && !!user;
   const voz = vozes[0];

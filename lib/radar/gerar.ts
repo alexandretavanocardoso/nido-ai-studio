@@ -8,7 +8,7 @@ import {
 import { askJson } from "@/lib/ai/parse";
 import type { Character } from "@/lib/types";
 import { emAltaNoX } from "./grok";
-import type { ItemRadar } from "./tipos";
+import { lerPublicadoEm, type ItemRadar } from "./tipos";
 
 /**
  * Monta o radar do dia de um personagem:
@@ -43,6 +43,7 @@ const itemSchema = z.object({
   fonte: z.enum(["noticia", "x"]).catch("noticia"),
   origem: texto.optional(),
   url: z.string().optional(),
+  publicadoEm: z.string().optional().catch(undefined),
   nota: z
     .preprocess((v) => (typeof v === "string" ? Number(v) : v), z.number())
     .catch(5),
@@ -135,12 +136,15 @@ export function pedidoRadar(o: {
     en
       ? "Do not invent facts, numbers or links. Only use a URL that came from the search results or from the X block."
       : "Não invente fatos, números nem links. Só use URL que veio dos resultados da busca ou do bloco do X.",
+    en
+      ? 'In "publicadoEm" put when the story or post was published, as the source shows it: date and time in ISO 8601 with the time zone (2026-10-07T14:30:00-03:00), or only the date (2026-10-07) when the time is not shown. Leave it out if you did not see a date — never guess.'
+      : 'Em "publicadoEm" coloque quando a notícia ou o post foi publicado, como a fonte mostra: data e hora em ISO 8601 com o fuso (2026-10-07T14:30:00-03:00), ou só a data (2026-10-07) quando a hora não aparece. Deixe de fora se você não viu a data — nunca chute.',
     "",
     en ? "[OUTPUT]" : "[SAÍDA]",
     en
       ? "After searching, answer with ONE JSON object and nothing after it:"
       : "Depois de pesquisar, responda com UM objeto JSON e nada depois dele:",
-    `{"resumo": "${en ? "2–3 sentences: what matters today for this character" : "2–3 frases: o que importa hoje para este personagem"}", "itens": [{"titulo": "...", "resumo": "${en ? "what happened, 1–2 sentences" : "o que aconteceu, 1–2 frases"}", "porque": "${en ? "why it matters to this character" : "por que importa para este personagem"}", "ideia": "${en ? "a post idea in their voice" : "ideia de post na linha dele"}", "fonte": "noticia" | "x", "origem": "${en ? "outlet or @profile" : "veículo ou @perfil"}", "url": "https://...", "nota": 1-10}]}`,
+    `{"resumo": "${en ? "2–3 sentences: what matters today for this character" : "2–3 frases: o que importa hoje para este personagem"}", "itens": [{"titulo": "...", "resumo": "${en ? "what happened, 1–2 sentences" : "o que aconteceu, 1–2 frases"}", "porque": "${en ? "why it matters to this character" : "por que importa para este personagem"}", "ideia": "${en ? "a post idea in their voice" : "ideia de post na linha dele"}", "fonte": "noticia" | "x", "origem": "${en ? "outlet or @profile" : "veículo ou @perfil"}", "url": "https://...", "publicadoEm": "2026-10-07T14:30:00-03:00", "nota": 1-10}]}`,
     en
       ? "Write everything in English."
       : "Escreva tudo em português do Brasil.",
@@ -210,6 +214,7 @@ export function lerRadar(textoFinal: string): {
       fonte: i.fonte,
       origem: i.origem?.trim().slice(0, 80) || undefined,
       url: i.url && /^https?:\/\//.test(i.url) ? i.url : undefined,
+      publicadoEm: lerPublicadoEm(i.publicadoEm),
       nota: Math.min(
         10,
         Math.max(1, Math.round(Number.isFinite(i.nota) ? i.nota : 5)),
@@ -255,6 +260,7 @@ export function pedidoRevisao(o: {
     resumo: it.resumo,
     origem: it.origem ?? "",
     url: it.url ?? "",
+    publicadoEm: it.publicadoEm ?? "",
     fonte: it.fonte,
   }));
   if (o.idioma === "en")
@@ -475,7 +481,7 @@ export async function gerarRadar(o: {
             role: "user",
             content:
               "Estas são as anotações de uma pesquisa de pautas. Devolva o mesmo conteúdo neste formato, sem inventar nada e sem acrescentar itens:\n" +
-              '{"resumo": "...", "itens": [{"titulo": "...", "resumo": "...", "porque": "...", "ideia": "...", "fonte": "noticia" | "x", "origem": "...", "url": "https://...", "nota": 1-10}]}\n\n[ANOTAÇÕES]\n' +
+              '{"resumo": "...", "itens": [{"titulo": "...", "resumo": "...", "porque": "...", "ideia": "...", "fonte": "noticia" | "x", "origem": "...", "url": "https://...", "publicadoEm": "...", "nota": 1-10}]}\n\n[ANOTAÇÕES]\n' +
               textoFinal.slice(0, 24_000),
           },
         ],

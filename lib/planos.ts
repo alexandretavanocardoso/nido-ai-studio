@@ -10,7 +10,11 @@
  * Custos da IA de texto medidos em 07/10/2026 (ver CREDITOS_TEXTO).
  */
 import type { ModeloImagem } from "@/lib/ai/modelos-imagem";
-import type { ModeloCriar } from "@/lib/video/precos";
+import type {
+  Enquadramento,
+  ModeloCriar,
+  QualidadeTroca,
+} from "@/lib/video/precos";
 
 export type PlanoId = "gratis" | "starter" | "creator" | "studio";
 export type PlanoPago = Exclude<PlanoId, "gratis">;
@@ -29,7 +33,7 @@ export interface Plano {
   modelosImagem: ModeloImagem[];
   /** Nano Banana Pro e GPT Image "alta". */
   qualidadePro: boolean;
-  /** Troca de pessoa (Kling O1, fal.ai): duração máxima por vídeo. null = não disponível. */
+  /** Troca de pessoa (Kling O3, fal.ai): duração máxima por vídeo. null = não disponível. */
   troca: { segundosMax: number } | null;
   /** Troca de pessoa Premium (Seedance 2.5). */
   trocaPremium: boolean;
@@ -216,8 +220,14 @@ export function creditosImagem(
   }
 }
 
-/** Kling O1 Edit Pro: US$ 0,168/s (mínimo 3s por vídeo). */
+/** Kling O3 Edit Pro: US$ 0,168/s (mínimo 3s por vídeo). */
 export const TROCA_POR_SEGUNDO = 17;
+/** Kling O3 Edit por formato: Standard US$ 0,126/s · Pro US$ 0,168/s · 4K US$ 0,42/s. */
+export const TROCA_POR_SEGUNDO_QUALIDADE: Record<QualidadeTroca, number> = {
+  standard: 13,
+  pro: TROCA_POR_SEGUNDO,
+  "4k": 42,
+};
 /** Seedance 2.5 (720p, com vídeo de referência): US$ 0,284/s de entrada + US$ 0,284/s de saída = US$ 0,568/s (mínimo 4s gerados). */
 export const TROCA_PREMIUM_POR_SEGUNDO = 57;
 const CRIAR_POR_SEGUNDO: Record<ModeloCriar, number> = {
@@ -226,8 +236,13 @@ const CRIAR_POR_SEGUNDO: Record<ModeloCriar, number> = {
   "veo3.1_fast": 10,
 };
 
-export function creditosTroca(segundos: number): number {
-  return Math.ceil(Math.max(3, segundos)) * TROCA_POR_SEGUNDO;
+export function creditosTroca(
+  segundos: number,
+  qualidade: QualidadeTroca = "pro",
+): number {
+  return (
+    Math.ceil(Math.max(3, segundos)) * TROCA_POR_SEGUNDO_QUALIDADE[qualidade]
+  );
 }
 
 export function creditosTrocaPremium(segundos: number): number {
@@ -242,6 +257,27 @@ export function creditosCriarVideo(
   const porSegundo =
     modelo === "veo3.1_fast" && audio ? 15 : CRIAR_POR_SEGUNDO[modelo];
   return segundos * porSegundo;
+}
+
+/**
+ * Vídeo falado, por segundo: avatar do Runway (~US$ 0,004/s) + a fala na
+ * ElevenLabs (~15 caracteres por segundo).
+ */
+export const FALADO_POR_SEGUNDO = 2;
+/** Cenário de uma cena do vídeo falado: uma imagem do Nano Banana. */
+export const CREDITOS_CENARIO = 5;
+/** Corpo inteiro: Hailuo 3 no Runway (~US$ 0,10/s + imagem) + a fala. */
+export const CORPO_INTEIRO_POR_SEGUNDO = 12;
+export function creditosVideoFalado(
+  segundos: number,
+  enquadramento: Enquadramento = "close",
+): number {
+  return (
+    segundos *
+    (enquadramento === "inteiro"
+      ? CORPO_INTEIRO_POR_SEGUNDO
+      : FALADO_POR_SEGUNDO)
+  );
 }
 
 export const CREDITOS_LEGENDA = 2;
@@ -309,6 +345,8 @@ export const CREDITOS_TEXTO = {
   expandirFicha: 15,
   /** Escrever como o personagem: legenda, roteiro ou respostas. */
   escrever: 4,
+  /** Roteiro salvo → descrição visual da cena, no "Criar vídeo". */
+  cenaDoRoteiro: 1,
 } as const;
 
 /* ------------------------------------------------------------------ */
@@ -371,6 +409,14 @@ export function bloqueioTrocaPremium(plano: PlanoId): string | null {
   return PLANOS[plano].trocaPremium
     ? null
     : "O motor Premium (Seedance 2.5) está disponível a partir do plano Creator.";
+}
+
+/** Vídeo falado usa a voz do personagem: vale o plano que libera voz e criar vídeo. */
+export function bloqueioVideoFalado(plano: PlanoId): string | null {
+  const p = PLANOS[plano];
+  if (!p.criarVideo.length)
+    return "Criar vídeo está disponível a partir do plano Starter.";
+  return bloqueioVoz(plano);
 }
 
 export function bloqueioCriarVideo(

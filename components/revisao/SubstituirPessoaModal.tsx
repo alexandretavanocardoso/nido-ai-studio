@@ -15,13 +15,16 @@ import {
   bloqueioTrocaPremium,
   creditosTroca,
   creditosTrocaPremium,
+  TROCA_POR_SEGUNDO_QUALIDADE,
 } from "@/lib/planos";
 import { DECLARACAO_VIDEO_LINK } from "@/lib/declaracoes";
 import {
   custoTroca,
   custoTrocaPremium,
   KLING_TROCA,
+  QUALIDADES_TROCA,
   SEEDANCE_TROCA,
+  type QualidadeTroca,
 } from "@/lib/video/precos";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -30,16 +33,24 @@ import {
   useImagensPersonagem,
 } from "@/components/revisao/EscolherImagemPersonagem";
 import {
+  buscarMascara,
   LinhaMarca,
   novaMarca,
   VideoMarcador,
   type Marca,
 } from "@/components/revisao/MarcarPessoas";
 import { useCharacters } from "@/lib/store";
+import { useDuravel } from "@/lib/duravel";
 import { tx } from "@/lib/i18n/tx";
 import { txErro } from "@/lib/i18n/erros";
 
 type Motor = "kling" | "seedance";
+
+const ROTULO_QUALIDADE: Record<QualidadeTroca, string> = {
+  standard: "Standard",
+  pro: "Pro",
+  "4k": "4K",
+};
 
 /** Vídeo buscado por link (/api/videos/link): não está no S3, só na cópia temporária da IA. */
 export interface VideoLink {
@@ -65,11 +76,14 @@ interface Props {
 
 /**
  * Troca a pessoa do vídeo pelo personagem, mantendo cenário, câmera e áudio. Dois motores:
- *  - Kling O1 Edit (fal.ai) — padrão; vídeos longos viram trechos de até 10s.
+ *  - Kling O3 Edit (fal.ai) — padrão, em Standard, Pro ou 4K; vídeos longos viram trechos de até 15s.
  *  - Seedance 2.5 (fal.ai) — premium; até 30s de uma vez, cenário e objetos mais fiéis.
  * Os dois podem remover legendas/textos da tela no mesmo passo.
  * Mostra o custo estimado antes de enviar.
  */
+/** Trechos que dá para escolher em vez do vídeo inteiro (segundos, a partir do começo). */
+const CORTES = [10, 15, 30] as const;
+
 export function SubstituirPessoaModal({
   character,
   video,
@@ -86,20 +100,52 @@ export function SubstituirPessoaModal({
   const srcVideo = video ? fileUrl(video.key) : (link?.videoUrl ?? null);
   const marcasSemImagem = marcas.some((m) => !m.imageKey);
   const [motor, setMotor] = useState<Motor>("kling");
+  /** Formato do Kling O3 (só vale no motor padrão). */
+  const [qualidade, setQualidade] = useState<QualidadeTroca>("pro");
   const [removerTexto, setRemoverTexto] = useState(false);
-  const [duracao, setDuracao] = useState(link?.duracao ?? video?.duracao ?? 0);
+  /** Duração do vídeo inteiro. */
+  const [duracaoTotal, setDuracao] = useState(
+    link?.duracao ?? video?.duracao ?? 0,
+  );
+  /** Usar só os primeiros N segundos (0 = o vídeo inteiro). */
+  const [corte, setCorte] = useState<0 | (typeof CORTES)[number]>(0);
+  // Um corte só vale se for menor que o vídeo; senão é o vídeo inteiro.
+  const cortando = corte > 0 && corte < duracaoTotal - 0.2;
+  const duracao = cortando ? corte : duracaoTotal;
+  const marcaForaDoCorte = cortando && marcas.some((m) => m.t > corte);
   /** Com link: declaração obrigatória de direito de uso do vídeo. */
   const [direitos, setDireitos] = useState(false);
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  const [enviando, setEnviando] = useDuravel<boolean>(
+    `troca-video:${video?.id ?? link?.linkId}:enviando`,
+    false,
+    "Preparando o vídeo da troca",
+  );
+  const [erro, setErro] = useDuravel<string | null>(
+    `troca-video:${video?.id ?? link?.linkId}:erro`,
+    null,
+  );
 
   const { conta } = useCreditos();
-  const [erroCode, setErroCode] = useState<string | null>(null);
+  const [erroCode, setErroCode] = useDuravel<string | null>(
+    `troca-video:${video?.id ?? link?.linkId}:erroCode`,
+    null,
+  );
   const premium = motor === "seedance";
-  const creditos = premium
-    ? creditosTrocaPremium(duracao)
-    : creditosTroca(duracao);
-  const custo = premium ? custoTrocaPremium(duracao) : custoTroca(duracao);
+  /** Créditos e custo de `segundos` de vídeo no motor e formato escolhidos. */
+  const precoDe = (segundos: number) => ({
+    creditos: premium
+      ? creditosTrocaPremium(segundos)
+      : creditosTroca(segundos, qualidade),
+    custo: premium
+      ? custoTrocaPremium(segundos)
+      : custoTroca(segundos, qualidade),
+  });
+  const { creditos, custo } = precoDe(duracao);
+  // Trechos menores que o vídeo, do menor para o maior, e o vídeo inteiro por último.
+  const opcoesDeCorte = [
+    ...CORTES.filter((c) => c < duracaoTotal - 0.2),
+    0 as const,
+  ];
   const minimo = premium ? SEEDANCE_TROCA.minSegundos : KLING_TROCA.minSegundos;
   const curtoDemais = duracao > 0 && duracao < minimo;
   const bloqueio = conta
@@ -131,7 +177,9 @@ export function SubstituirPessoaModal({
               }))
             : undefined,
           motor,
+          qualidade: premium ? undefined : qualidade,
           removerTexto,
+          segundos: cortando ? corte : undefined,
         }),
       });
       const body = (await res.json().catch(() => ({}))) as {
@@ -184,7 +232,6 @@ export function SubstituirPessoaModal({
           <button
             type="button"
             onClick={onClose}
-            disabled={enviando}
             className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-line hover:border-ink text-ink-mute hover:text-ink shrink-0"
             aria-label={tx("Fechar")}
           >
@@ -223,9 +270,18 @@ export function SubstituirPessoaModal({
                 <VideoMarcador
                   src={srcVideo}
                   marcas={marcas}
-                  onMarcar={(x, y, t) =>
-                    setMarcas((m) => [...m, novaMarca(x, y, t, character)])
-                  }
+                  onMarcar={(x, y, t) => {
+                    const nova = novaMarca(x, y, t, character);
+                    setMarcas((m) => [...m, nova]);
+                    void buscarMascara(
+                      link ? { linkId: link.linkId } : { videoKey: video?.key },
+                      nova,
+                    ).then((mascara) =>
+                      setMarcas((m) =>
+                        m.map((z) => (z.id === nova.id ? { ...z, mascara } : z)),
+                      ),
+                    );
+                  }}
                   onRemover={(id) =>
                     setMarcas((m) => m.filter((x) => x.id !== id))
                   }
@@ -250,6 +306,20 @@ export function SubstituirPessoaModal({
                 semBarra,
               )}
             >
+              {link ? (
+                <label className="flex items-start gap-2.5 text-[12px] text-ink cursor-pointer rounded-xl border border-line bg-panel px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={direitos}
+                    onChange={(e) => setDireitos(e.target.checked)}
+                    className="accent-accent h-4 w-4 mt-0.5 shrink-0"
+                  />
+                  <span>
+                    {DECLARACAO_VIDEO_LINK}{" "}
+                    <span className="text-ink-dim">{tx("(obrigatório)")}</span>
+                  </span>
+                </label>
+              ) : null}
               {marcas.length === 0 && srcVideo ? (
                 <div className="rounded-xl border border-accent/30 bg-accent/5 px-3.5 py-3 text-[12px] text-ink-mute leading-relaxed">
                   <strong className="text-ink">
@@ -289,6 +359,9 @@ export function SubstituirPessoaModal({
                       key={m.id}
                       numero={i + 1}
                       marca={m}
+                      origem={
+                        srcVideo ? { tipo: "video", src: srcVideo } : undefined
+                      }
                       personagens={listaPersonagens}
                       onChange={(mud) =>
                         setMarcas((all) =>
@@ -302,6 +375,56 @@ export function SubstituirPessoaModal({
                 </div>
               )}
 
+              {duracaoTotal > CORTES[0] + 0.2 ? (
+                <div>
+                  <div className="mb-2 flex items-baseline justify-between gap-3">
+                    <span className="text-[13px] font-semibold text-ink">
+                      {tx("Duração")}
+                    </span>
+                    <span className="text-[11px] text-ink-dim">
+                      {tx("contada do começo do vídeo")}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {opcoesDeCorte.map((c) => {
+                      const ativo = cortando ? corte === c : c === 0;
+                      const seg = c === 0 ? duracaoTotal : c;
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setCorte(c)}
+                          aria-pressed={ativo}
+                          className={cn(
+                            "rounded-xl border px-3 py-2 text-left transition",
+                            ativo
+                              ? "border-accent bg-accent/10"
+                              : "border-line hover:border-line-strong",
+                          )}
+                        >
+                          <div className="text-[13px] font-bold text-ink">
+                            {c === 0
+                              ? `${tx("Inteiro")} · ${Math.round(duracaoTotal)}s`
+                              : `${c}s`}
+                          </div>
+                          <div className="text-[11px] text-ink-dim">
+                            {conta
+                              ? `${precoDe(seg).creditos} ${tx("créditos")}`
+                              : `~US$ ${precoDe(seg).custo.toFixed(2)}`}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {marcaForaDoCorte ? (
+                    <p className="mt-2 text-[12px] text-pink">
+                      {tx("Marque as pessoas dentro dos primeiros")} {corte}s{" "}
+                      {tx("do vídeo, ou escolha um trecho maior.")}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
               <div>
                 <div className="text-[13px] font-semibold text-ink mb-2">
                   {tx("Motor")}
@@ -312,9 +435,9 @@ export function SubstituirPessoaModal({
                       [
                         "kling",
                         tx("Padrão"),
-                        "Kling O1 Pro",
+                        "Kling O3 Edit",
                         tx(
-                          "Partes de 10s; a roupa inventada pode variar entre elas.",
+                          "Partes de 15s; a roupa inventada pode variar entre elas.",
                         ),
                       ],
                       [
@@ -348,6 +471,38 @@ export function SubstituirPessoaModal({
                 </div>
               </div>
 
+              {!premium && (
+                <div>
+                  <div className="text-[13px] font-semibold text-ink mb-2">
+                    {tx("Formato")}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {QUALIDADES_TROCA.map((q) => (
+                      <button
+                        key={q}
+                        type="button"
+                        onClick={() => setQualidade(q)}
+                        className={cn(
+                          "rounded-xl border px-3 py-2 text-left transition",
+                          qualidade === q
+                            ? "border-accent bg-accent/10"
+                            : "border-line hover:border-line-strong",
+                        )}
+                      >
+                        <div className="text-[13px] font-bold text-ink">
+                          {ROTULO_QUALIDADE[q]}
+                        </div>
+                        <div className="text-[11px] text-ink-dim">
+                          {conta
+                            ? `${TROCA_POR_SEGUNDO_QUALIDADE[q]} ${tx("créditos/s")}`
+                            : `US$ ${KLING_TROCA.porSegundo[q].toFixed(2)}/s`}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <label className="inline-flex items-center gap-2 text-[13px] text-ink cursor-pointer">
                 <input
                   type="checkbox"
@@ -358,20 +513,7 @@ export function SubstituirPessoaModal({
                 {tx("Remover legendas e textos da tela")}
               </label>
 
-              {link ? (
-                <label className="flex items-start gap-2.5 text-[12px] text-ink cursor-pointer rounded-xl border border-line bg-panel px-3 py-2.5">
-                  <input
-                    type="checkbox"
-                    checked={direitos}
-                    onChange={(e) => setDireitos(e.target.checked)}
-                    className="accent-accent h-4 w-4 mt-0.5 shrink-0"
-                  />
-                  <span>
-                    {DECLARACAO_VIDEO_LINK}{" "}
-                    <span className="text-ink-dim">{tx("(obrigatório)")}</span>
-                  </span>
-                </label>
-              ) : (
+              {link ? null : (
                 <p className="text-[11px] text-ink-dim flex gap-1.5">
                   <UserRound className="w-3.5 h-3.5 shrink-0 mt-px" />
                   {tx(
@@ -395,7 +537,9 @@ export function SubstituirPessoaModal({
               <div className="flex items-baseline justify-between text-[13px]">
                 <span className="text-ink-mute">
                   {duracao
-                    ? `${duracao.toFixed(1)}s de vídeo`
+                    ? cortando
+                      ? `${duracao}s ${tx("de")} ${duracaoTotal.toFixed(1)}s`
+                      : `${duracao.toFixed(1)}s de vídeo`
                     : tx("Calculando duração…")}
                 </span>
                 <strong className="text-ink">
@@ -414,6 +558,7 @@ export function SubstituirPessoaModal({
                   enviando ||
                   (marcas.length ? marcasSemImagem : !imagem) ||
                   curtoDemais ||
+                  marcaForaDoCorte ||
                   !!bloqueio ||
                   (!!link && !direitos)
                 }

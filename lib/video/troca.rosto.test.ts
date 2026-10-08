@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import sharp from "sharp";
-import { closeDoRosto, ehModeloTroca, MOTORES_TROCA } from "./troca";
+import {
+  closeDoRosto,
+  ehModeloTroca,
+  MODELOS_KLING,
+  MOTORES_TROCA,
+} from "./troca";
 
 /** Figura escura em pé sobre branco, com margem. */
 const figura = (largura: number, altura: number) =>
@@ -39,13 +44,27 @@ describe("closeDoRosto", () => {
 });
 
 describe("modelos da troca", () => {
-  it("o Kling padrão é o O1 Pro, e jobs antigos (standard) continuam reconhecidos", () => {
-    expect(MOTORES_TROCA.kling.modelo).toBe(
-      "fal-ai/kling-video/o1/video-to-video/edit",
-    );
+  it("o Kling padrão é o O3 Pro (trechos de até 15s), e jobs antigos do O1 continuam reconhecidos", () => {
+    expect(MOTORES_TROCA.kling).toEqual({
+      modelo: "fal-ai/kling-video/o3/pro/video-to-video/edit",
+      maxTrecho: 15,
+    });
     expect(
       ehModeloTroca("fal-ai/kling-video/o1/standard/video-to-video/edit"),
     ).toBe(true);
+    expect(ehModeloTroca("fal-ai/kling-video/o1/video-to-video/edit")).toBe(
+      true,
+    );
+  });
+
+  it("cada formato do Kling O3 tem seu endpoint", () => {
+    expect(MODELOS_KLING).toEqual({
+      standard: "fal-ai/kling-video/o3/standard/video-to-video/edit",
+      pro: "fal-ai/kling-video/o3/pro/video-to-video/edit",
+      "4k": "fal-ai/kling-video/o3/4k/video-to-video/edit",
+    });
+    for (const m of Object.values(MODELOS_KLING))
+      expect(ehModeloTroca(m)).toBe(true);
     expect(ehModeloTroca("outro/modelo")).toBe(false);
   });
 });

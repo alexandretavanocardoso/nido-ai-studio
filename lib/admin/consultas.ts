@@ -1,4 +1,5 @@
 import { getPool } from "@/lib/db";
+import { getS3, presignGet } from "@/lib/storage/s3";
 
 /**
  * Consultas da área admin (somente leitura). Tudo agregado no Postgres;
@@ -613,5 +614,185 @@ export async function lucroAdmin(dias: number): Promise<LucroAdmin> {
         saldoCreditos: n(r.saldo),
       };
     }),
+  };
+}
+
+/** Números de engajamento somados (posts publicados; views digitadas à mão valem no lugar das lidas). */
+export interface MetricasAdmin {
+  posts: number;
+  views: number;
+  curtidas: number;
+  comentarios: number;
+  reposts: number;
+  quotes: number;
+  salvos: number;
+}
+
+export interface DashboardAdmin {
+  dias: number;
+  /** Período pedido e o período de mesmo tamanho logo antes (pra comparar). */
+  atual: MetricasAdmin;
+  anterior: MetricasAdmin;
+  influencers: {
+    total: number;
+    comPost: number;
+    contas: number;
+    novos: number;
+  };
+  redes: Array<{ rede: string; posts: number; views: number }>;
+  porDia: Array<{ dia: string; posts: number; views: number }>;
+  personagens: Array<
+    MetricasAdmin & {
+      id: string;
+      nome: string;
+      userId: string;
+      email: string | null;
+      /** Foto de perfil: link temporário (1h) pro arquivo do dono; null = sem foto no armazenamento. */
+      capa: string | null;
+      criadoEm: string;
+      /** Rede com mais views no período (null = sem views). */
+      melhor: string | null;
+      /** Posts cadastrados por link (publicados fora do app). */
+      porLink: number;
+    }
+  >;
+  /** Última leitura de métricas gravada (as contas atualizam ao abrir o próprio Dashboard). */
+  atualizadoEm: string | null;
+}
+
+const SOMAS = `count(distinct x.id) as posts, coalesce(sum(x.views), 0) as views,
+  coalesce(sum(x.curtidas), 0) as curtidas, coalesce(sum(x.comentarios), 0) as comentarios,
+  coalesce(sum(x.reposts), 0) as reposts, coalesce(sum(x.quotes), 0) as quotes, coalesce(sum(x.salvos), 0) as salvos`;
+// Uma linha por post × rede, só de posts publicados.
+const POSTS_REDE = `select p.id, p.user_id, p.character_id, p.post_date, p.manual, m.rede, m.atualizado_em,
+    coalesce(m.views_manual, m.views, 0) as views, coalesce(m.curtidas, 0) as curtidas,
+    coalesce(m.comentarios, 0) as comentarios, coalesce(m.reposts, 0) as reposts,
+    coalesce(m.quotes, 0) as quotes, coalesce(m.salvos, 0) as salvos
+  from posts_agendados p left join posts_metricas m on m.post_id = p.id
+  where p.status = 'POSTED'`;
+
+const paraMetricas = (r: Record<string, unknown> | undefined): MetricasAdmin => ({
+  posts: n(r?.posts),
+  views: n(r?.views),
+  curtidas: n(r?.curtidas),
+  comentarios: n(r?.comentarios),
+  reposts: n(r?.reposts),
+  quotes: n(r?.quotes),
+  salvos: n(r?.salvos),
+});
+
+/**
+ * Dashboard do admin: alcance e engajamento de todos os influencers da
+ * plataforma, pelos posts publicados nos últimos `dias` (data de publicação).
+ * Lê o que já está gravado em posts_metricas — não consulta as redes.
+ */
+export async function dashboardAdmin(dias: number): Promise<DashboardAdmin> {
+  const db = pool();
+  const [tot, inf, redes, porDia, pers] = await Promise.all([
+    db.query(
+      `with x as (${POSTS_REDE} and p.post_date > now() - make_interval(days => $1 * 2))
+       select (x.post_date > now() - make_interval(days => $1)) as atual, ${SOMAS},
+              max(x.atualizado_em) as atualizado_em
+       from x group by 1`,
+      [dias],
+    ),
+    db.query(
+      `select (select count(*) from characters) as total,
+              (select count(*) from characters where created_at > now() - make_interval(days => $1)) as novos,
+              (select count(distinct character_id) from posts_agendados
+                where status = 'POSTED' and post_date > now() - make_interval(days => $1)) as com_post,
+              (select count(distinct user_id) from posts_agendados
+                where status = 'POSTED' and post_date > now() - make_interval(days => $1)) as contas`,
+      [dias],
+    ),
+    db.query(
+      `with x as (${POSTS_REDE} and p.post_date > now() - make_interval(days => $1))
+       select x.rede, count(distinct x.id) as posts, coalesce(sum(x.views), 0) as views
+       from x where x.rede is not null group by 1 order by 3 desc, 2 desc`,
+      [dias],
+    ),
+    db.query(
+      `with x as (${POSTS_REDE} and p.post_date > now() - make_interval(days => $1))
+       select to_char(d, 'YYYY-MM-DD') as dia,
+              (select count(distinct x.id) from x where x.post_date::date = d::date) as posts,
+              (select coalesce(sum(x.views), 0) from x where x.post_date::date = d::date) as views
+       from generate_series(current_date - ($1::int - 1), current_date, interval '1 day') d order by d`,
+      [dias],
+    ),
+    db.query(
+      `with x as (${POSTS_REDE} and p.post_date > now() - make_interval(days => $1)),
+       a as (select x.character_id, ${SOMAS}, count(distinct x.id) filter (where x.manual) as por_link
+             from x group by 1),
+       b as (select distinct on (character_id) character_id, rede from
+               (select character_id, rede, sum(views) as v from x where rede is not null group by 1, 2) r
+             where v > 0 order by character_id, v desc)
+       select c.id, c.user_id, u.email, c.created_at, c.data->'identidade'->>'nome' as nome,
+              -- Mesma regra da capa no app: a escolhida, senão o retrato gerado mais recente, senão a 1ª referência.
+              coalesce(
+                nullif(c.data->'visual'->>'capaKey', ''),
+                (select g->>'key' from jsonb_array_elements(
+                   case when jsonb_typeof(c.data->'geradas') = 'array' then c.data->'geradas' else '[]'::jsonb end) g
+                  where g->>'tipo' = 'retrato' and g->>'key' <> ''
+                  order by (g->>'createdAt')::numeric desc nulls last limit 1),
+                nullif(c.data->'visual'->'referencias'->0->>'key', '')) as capa_key,
+              a.posts, a.views, a.curtidas, a.comentarios, a.reposts, a.quotes, a.salvos, a.por_link, b.rede as melhor
+       from characters c
+       left join "user" u on u.id = c.user_id
+       left join a on a.character_id = c.id
+       left join b on b.character_id = c.id
+       order by coalesce(a.views, 0) desc, coalesce(a.posts, 0) desc, c.created_at desc limit 300`,
+      [dias],
+    ),
+  ]);
+  const atual = tot.rows.find((r) => r.atual);
+  // As fotos são privadas de cada conta: o admin recebe um link assinado, válido por 1h.
+  const s3 = getS3();
+  const capas = new Map<string, string>();
+  if (s3)
+    await Promise.all(
+      pers.rows
+        .filter((r) => r.capa_key)
+        .map(async (r) => {
+          try {
+            capas.set(r.id, await presignGet(s3, r.capa_key, 3600));
+          } catch {
+            /* sem a foto, fica a inicial */
+          }
+        }),
+    );
+  return {
+    dias,
+    atual: paraMetricas(atual),
+    anterior: paraMetricas(tot.rows.find((r) => !r.atual)),
+    influencers: {
+      total: n(inf.rows[0]?.total),
+      comPost: n(inf.rows[0]?.com_post),
+      contas: n(inf.rows[0]?.contas),
+      novos: n(inf.rows[0]?.novos),
+    },
+    redes: redes.rows.map((r) => ({
+      rede: r.rede,
+      posts: n(r.posts),
+      views: n(r.views),
+    })),
+    porDia: porDia.rows.map((r) => ({
+      dia: r.dia,
+      posts: n(r.posts),
+      views: n(r.views),
+    })),
+    personagens: pers.rows.map((r) => ({
+      ...paraMetricas(r),
+      id: r.id,
+      nome: r.nome || "Sem nome",
+      userId: r.user_id,
+      email: r.email,
+      capa: capas.get(r.id) ?? null,
+      criadoEm: new Date(r.created_at).toISOString(),
+      melhor: r.melhor,
+      porLink: n(r.por_link),
+    })),
+    atualizadoEm: atual?.atualizado_em
+      ? new Date(atual.atualizado_em).toISOString()
+      : null,
   };
 }

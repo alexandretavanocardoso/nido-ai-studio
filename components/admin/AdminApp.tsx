@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   BarChart3,
+  ChartColumn,
   CreditCard,
   Gift,
   LayoutDashboard,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { AccountMenu } from "@/components/auth/AccountMenu";
 import { cn } from "@/lib/cn";
+import { DashboardInfluencers } from "./DashboardInfluencers";
 import { Indicacoes } from "./Indicacoes";
 import { Lucro } from "./Lucro";
 import { Pagamentos } from "./Pagamentos";
@@ -23,6 +25,7 @@ import { VisaoGeral } from "./VisaoGeral";
 
 const ABAS = [
   { id: "visao", titulo: "Visão geral", icone: LayoutDashboard },
+  { id: "dashboard", titulo: "Dashboard", icone: ChartColumn },
   { id: "usuarios", titulo: "Usuários", icone: Users },
   { id: "pagamentos", titulo: "Pagamentos", icone: CreditCard },
   { id: "indicacoes", titulo: "Indicações", icone: Gift },
@@ -95,6 +98,9 @@ export function AdminApp({ email }: { email: string }) {
         <div className="min-w-0">
           {aba === "visao" && (
             <VisaoGeral irPara={(a) => ir({ aba: a, usuario: null })} />
+          )}
+          {aba === "dashboard" && (
+            <DashboardInfluencers abrirUsuario={abrirUsuario} />
           )}
           {aba === "usuarios" && (
             <Usuarios aberto={usuario} abrir={abrirUsuario} />

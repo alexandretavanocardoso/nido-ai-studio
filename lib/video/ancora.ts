@@ -9,11 +9,12 @@ import {
 } from "@/lib/ai/gemini";
 import { promptTrocaImagem } from "@/lib/prompts/trocar-imagem";
 import { extrairQuadro, type VideoInfo } from "./ffmpeg";
+import { marcarPonto } from "./pessoas";
 
 /**
  * Quadro-âncora da troca de pessoa em vídeo.
  *
- * O Kling processa o vídeo em trechos de até 10s, cada um sozinho — sem um
+ * O Kling processa o vídeo em trechos de até 15s, cada um sozinho — sem um
  * guia comum, o rosto, o chapéu e a roupa do personagem mudam de um trecho
  * para o outro, e as OUTRAS pessoas do vídeo são redesenhadas (ou somem).
  * Aqui a troca é feita primeiro num único quadro do vídeo (Nano Banana, que
@@ -98,6 +99,75 @@ export async function escolherQuadroPrincipal(
 }
 
 /**
+ * Mais de uma pessoa marcada: escolhe o quadro que serve de referência parada
+ * (todo mundo nítido, ninguém na frente de ninguém) e diz quais alvos aparecem
+ * bem nele. Um quadro com alguém passando borrado na frente faz a troca na
+ * foto errar (personagens trocados entre si, gente sumindo) — e o erro é
+ * copiado para o vídeo inteiro. Null se não der para decidir.
+ */
+export async function escolherQuadroDosAlvos(
+  quadros: Buffer[],
+  alvos: string[],
+): Promise<{ indice: number; visiveis: number[] } | null> {
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey || !quadros.length || !alvos.length) return null;
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const res = await ai.models.generateContent({
+      model: MODELO_VISAO,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text:
+                `These are ${quadros.length} frames of the same video, numbered 1 to ${quadros.length}. ` +
+                `Target people: ${alvos.map((a, i) => `${i + 1}) ${a}`).join("; ")}. ` +
+                "Pick the ONE frame that works best as a clean still reference: every person in it is sharp (no motion blur), " +
+                "nobody overlaps, covers or is cut off by anybody else, and faces are visible. " +
+                "Among clean frames, prefer the one that shows more of the target people. A clean frame with a single target is better than a frame with all targets where one is blurred or overlapping. " +
+                'Answer with JSON only: {"frame": <number>, "targets": [<numbers of the targets that are sharp and fully recognisable in that frame>]}',
+            },
+            ...(await Promise.all(
+              quadros.map(async (q) => ({
+                inlineData: { mimeType: "image/jpeg", data: await reduzido(q) },
+              })),
+            )),
+          ],
+        },
+      ],
+    });
+    const json = (res.text ?? "").match(/\{[\s\S]*\}/)?.[0];
+    const r = json
+      ? (JSON.parse(json) as { frame?: number; targets?: unknown })
+      : {};
+    if (
+      !Number.isInteger(r.frame) ||
+      r.frame! < 1 ||
+      r.frame! > quadros.length
+    )
+      return null;
+    const visiveis = [
+      ...new Set(
+        (Array.isArray(r.targets) ? r.targets : [])
+          .filter(
+            (n): n is number =>
+              Number.isInteger(n) && n >= 1 && n <= alvos.length,
+          )
+          .map((n) => n - 1),
+      ),
+    ];
+    return { indice: r.frame! - 1, visiveis };
+  } catch (e) {
+    console.warn(
+      "[ancora] escolha do quadro dos alvos falhou:",
+      (e as Error).message,
+    );
+    return null;
+  }
+}
+
+/**
  * Descreve as OUTRAS pessoas que aparecem em destaque no vídeo (quem passa na
  * frente, quem divide a cena) — o modelo de vídeo só as preserva se o pedido
  * disser quem são. `alvos` são as pessoas que serão trocadas (ficam de fora).
@@ -105,6 +175,8 @@ export async function escolherQuadroPrincipal(
 export async function descreverOutrasPessoas(
   quadros: Buffer[],
   alvos: string[],
+  /** Quadros em que o usuário marcou quem trocar (alvo vermelho em cima da pessoa). */
+  marcados: Buffer[] = [],
 ): Promise<string[]> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey || !quadros.length) return [];
@@ -118,7 +190,9 @@ export async function descreverOutrasPessoas(
           parts: [
             {
               text:
-                `These are ${quadros.length} frames sampled along one video. ` +
+                (marcados.length
+                  ? `The first ${marcados.length} image(s) each show, with a red target, a person who WILL be replaced. Never list those people, even when they look different in other frames (another angle, closer to the camera, blurred, partly cut off). After them come ${quadros.length} frames sampled along the same video. `
+                  : `These are ${quadros.length} frames sampled along one video. `) +
                 (alvos.length
                   ? `IGNORE these people (they will be replaced): ${alvos.join("; ")}. `
                   : "IGNORE the main person (the subject of the video). ") +
@@ -127,7 +201,7 @@ export async function descreverOutrasPessoas(
                 'Answer with JSON only: {"others": ["a woman with ...", ...]} — use {"others": []} if there is nobody else. Max 3 people, max 28 words each, English.',
             },
             ...(await Promise.all(
-              quadros.map(async (q) => ({
+              [...marcados, ...quadros].map(async (q) => ({
                 inlineData: { mimeType: "image/jpeg", data: await reduzido(q) },
               })),
             )),
@@ -184,6 +258,12 @@ export interface Ancora {
   descricoes: Array<string | undefined>;
   /** Outras pessoas em destaque no vídeo (não podem ser alteradas). */
   outras: string[];
+  /**
+   * Índices dos alvos que aparecem trocados na âncora. Quando faltar algum, o
+   * pedido ao motor precisa dizer isso: senão ele entende que só os da âncora
+   * devem ser trocados e deixa os outros como estavam.
+   */
+  naAncora: number[];
 }
 
 export async function prepararAncora(o: {
@@ -191,7 +271,7 @@ export async function prepararAncora(o: {
   dir: string;
   info: VideoInfo;
   /** Pessoas marcadas pelo usuário (instante do quadro em que cada uma foi marcada). */
-  marcadas?: Array<{ t: number }>;
+  marcadas?: Array<{ t: number; x?: number; y?: number }>;
   /** Descrições já feitas das pessoas marcadas (mesma ordem dos alvos). */
   descricoes: Array<string | undefined>;
   /** Imagem do personagem de cada alvo (mesma ordem). */
@@ -213,14 +293,89 @@ export async function prepararAncora(o: {
       return [] as Buffer[];
     }
   })();
+  // Quem o usuário marcou, com o alvo em cima: a lista de "outras pessoas"
+  // (que o motor é proibido de mexer) não pode incluir essas.
+  const marcados = (async () => {
+    try {
+      return await Promise.all(
+        (o.marcadas ?? [])
+          .filter(
+            (m): m is { t: number; x: number; y: number } =>
+              m.x !== undefined && m.y !== undefined,
+          )
+          .map(async (m, i) => {
+            const saida = path.join(o.dir, `marcada-${i}.jpg`);
+            await extrairQuadro(
+              o.arquivo,
+              Math.max(0.05, Math.min(m.t, o.info.duracao - 0.1)),
+              saida,
+            );
+            return marcarPonto(await readFile(saida), m);
+          }),
+      );
+    } catch {
+      return [] as Buffer[];
+    }
+  })();
   const outrasDe = async (alvos: Array<string | undefined>) =>
     descreverOutrasPessoas(
       await varredura,
       alvos.filter((a): a is string => !!a),
+      await marcados,
     );
   try {
     let quadro: Buffer;
-    if (o.marcadas?.length) {
+    /** Alvos que entram no quadro-âncora (todos, salvo quando só alguns aparecem bem nele). */
+    let naAncora = o.personagens.map((_, i) => i);
+    const comDescricao = descricoes.filter((d): d is string => !!d);
+    if (
+      o.marcadas &&
+      o.marcadas.length > 1 &&
+      comDescricao.length === o.marcadas.length
+    ) {
+      // Várias pessoas marcadas: o instante de um clique pode ter outra pessoa
+      // passando na frente. Procura um quadro limpo entre os cliques e o resto do vídeo.
+      const instantes = [
+        ...new Set([
+          ...o.marcadas.map(
+            (m) =>
+              Math.round(
+                Math.max(0.05, Math.min(m.t, o.info.duracao - 0.1)) * 100,
+              ) / 100,
+          ),
+          ...instantesCandidatos(o.info.duracao),
+        ]),
+      ];
+      const quadros = await Promise.all(
+        instantes.map(async (t, i) => {
+          const saida = path.join(o.dir, `ancora-cand-${i}.jpg`);
+          await extrairQuadro(o.arquivo, t, saida);
+          return readFile(saida);
+        }),
+      );
+      // Todos marcados no mesmo instante: o usuário pausou num quadro em que
+      // todos aparecem — é esse o quadro, com todos os alvos (o primeiro da
+      // lista de instantes é o do clique).
+      const mesmoInstante = o.marcadas.every(
+        (m) => Math.abs(m.t - o.marcadas![0].t) < 0.05,
+      );
+      const escolha = mesmoInstante
+        ? null
+        : await escolherQuadroDosAlvos(quadros, comDescricao);
+      quadro = quadros[escolha?.indice ?? 0];
+      if (escolha) naAncora = escolha.visiveis;
+      if (!naAncora.length) {
+        console.warn(
+          "[ancora] nenhum alvo aparece bem em um quadro limpo; a troca segue sem âncora",
+        );
+        return {
+          imagem: null,
+          descricoes,
+          outras: await outrasDe(descricoes),
+          naAncora: [],
+        };
+      }
+    } else if (o.marcadas?.length) {
       // O usuário pausou onde a pessoa aparece bem: esse é o quadro.
       const saida = path.join(o.dir, "ancora-origem.jpg");
       await extrairQuadro(
@@ -242,11 +397,12 @@ export async function prepararAncora(o: {
       if (escolha.descricao) descricoes = [escolha.descricao];
     }
     if (!process.env.GEMINI_API_KEY?.trim())
-      return { imagem: null, descricoes, outras: [] };
+      return { imagem: null, descricoes, outras: [], naAncora: [] };
 
     // Uma imagem por personagem (repetidos entram uma vez): IMAGE 2, 3…
     const unicos: Buffer[] = [];
-    const indices = o.personagens.map((p) => {
+    const indices = naAncora.map((n) => {
+      const p = o.personagens[n];
       let i = unicos.findIndex((u) => u.equals(p));
       if (i < 0) i = unicos.push(p) - 1;
       return 2 + i;
@@ -258,8 +414,8 @@ export async function prepararAncora(o: {
     const outrasP = outrasDe(descricoes);
     const geracao = generateImage({
       prompt: promptTrocaImagem({
-        alvos: o.personagens.map((_, i) => ({
-          descricao: descricoes[i],
+        alvos: naAncora.map((n, i) => ({
+          descricao: descricoes[n],
           imagem: indices[i],
         })),
         // No vídeo o personagem entra com o próprio look (como a troca em vídeo sempre fez).
@@ -283,7 +439,12 @@ export async function prepararAncora(o: {
       console.warn(
         "[ancora] o quadro-âncora passou do tempo; a troca segue sem ele",
       );
-    return { imagem, descricoes, outras: await outrasP };
+    return {
+      imagem,
+      descricoes,
+      outras: await outrasP,
+      naAncora: imagem ? naAncora : [],
+    };
   } catch (e) {
     console.warn(
       "[ancora] sem quadro-âncora (a troca segue sem ele):",
@@ -293,6 +454,7 @@ export async function prepararAncora(o: {
       imagem: null,
       descricoes,
       outras: await outrasDe(descricoes).catch(() => []),
+      naAncora: [],
     };
   }
 }

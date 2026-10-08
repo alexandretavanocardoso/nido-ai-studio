@@ -17,6 +17,7 @@ import {
 import type { Character, ImagemGerada } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { useCharacters } from "@/lib/store";
+import { useDuravel } from "@/lib/duravel";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useRecursos } from "@/components/RecursosProvider";
 import {
@@ -32,6 +33,7 @@ import {
   useImagensPersonagem,
 } from "@/components/revisao/EscolherImagemPersonagem";
 import {
+  buscarMascara,
   ImagemMarcador,
   LinhaMarca,
   novaMarca,
@@ -102,23 +104,49 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
   const { conta } = useCreditos();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [foto, setFoto] = useState<{ key: string; src: string } | null>(null);
-  const [enviando, setEnviando] = useState<number | null>(null);
-  const [marcas, setMarcas] = useState<Marca[]>([]);
+  const [foto, setFoto] = useDuravel<{ key: string; src: string } | null>(
+    `troca-img:${character.id}:foto`,
+    null,
+  );
+  const [enviando, setEnviando] = useDuravel<number | null>(
+    `troca-img:${character.id}:enviando`,
+    null,
+    "Enviando foto",
+  );
+  const [marcas, setMarcas] = useDuravel<Marca[]>(`troca-img:${character.id}:marcas`, []);
   const [imagem, setImagem] = useState<string | null>(opcoes[0]?.key ?? null);
   const [roupa, setRoupa] = useState<RoupaTroca>("foto");
   const disponiveis = MOTORES.filter((m) => recursos.gemini);
   const [motor, setMotor] = useState<Motor>(
     disponiveis[0]?.id ?? "nano-banana",
   );
-  const [gerando, setGerando] = useState(false);
+  const [gerando, setGerando] = useDuravel<boolean>(
+    `troca-img:${character.id}:gerando`,
+    false,
+    "Trocando pessoa na foto",
+  );
   /** A geração em curso é a correção da pele das mãos (e não uma troca). */
-  const [corrigindo, setCorrigindo] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  const [erroCode, setErroCode] = useState<string | null>(null);
-  const [resultado, setResultado] = useState<string | null>(null);
+  const [corrigindo, setCorrigindo] = useDuravel<boolean>(
+    `troca-img:${character.id}:corrigindo`,
+    false,
+  );
+  const [erro, setErro] = useDuravel<string | null>(
+    `troca-img:${character.id}:erro`,
+    null,
+  );
+  const [erroCode, setErroCode] = useDuravel<string | null>(
+    `troca-img:${character.id}:erroCode`,
+    null,
+  );
+  const [resultado, setResultado] = useDuravel<string | null>(
+    `troca-img:${character.id}:resultado`,
+    null,
+  );
   /** Qual lado mostrar: a foto original (para marcar) ou o último resultado. */
-  const [verResultado, setVerResultado] = useState(false);
+  const [verResultado, setVerResultado] = useDuravel<boolean>(
+    `troca-img:${character.id}:verResultado`,
+    false,
+  );
   const [aberta, setAberta] = useState<string | null>(null);
 
   const { qualidade } = motorApi(motor);
@@ -348,9 +376,18 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
                 <ImagemMarcador
                   src={foto.src}
                   marcas={marcas}
-                  onMarcar={(x, y) =>
-                    setMarcas((all) => [...all, novaMarca(x, y, 0, character)])
-                  }
+                  onMarcar={(x, y) => {
+                    const nova = novaMarca(x, y, 0, character);
+                    setMarcas((all) => [...all, nova]);
+                    void buscarMascara({ fotoKey: foto.key }, nova).then(
+                      (mascara) =>
+                        setMarcas((all) =>
+                          all.map((z) =>
+                            z.id === nova.id ? { ...z, mascara } : z,
+                          ),
+                        ),
+                    );
+                  }}
                   onRemover={(id) =>
                     setMarcas((all) => all.filter((z) => z.id !== id))
                   }
@@ -408,6 +445,7 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
                       key={x.id}
                       numero={i + 1}
                       marca={x}
+                      origem={{ tipo: "foto", src: foto.src }}
                       personagens={listaPersonagens}
                       onChange={(mud) =>
                         setMarcas((all) =>

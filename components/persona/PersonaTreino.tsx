@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { Character, ImagemTreino } from "@/lib/types";
 import { useCharacters } from "@/lib/store";
+import { useDuravel } from "@/lib/duravel";
 import { fileUrl } from "@/lib/storage/client";
 import { useRecursos } from "@/components/RecursosProvider";
 import {
@@ -63,9 +64,20 @@ export function PersonaTreino({ character }: { character: Character }) {
   const [quantidade, setQuantidade] = useState(20);
   const [treinador, setTreinador] = useState<"rapido" | "pro">("rapido");
   const [aceito, setAceito] = useState(false);
-  const [ocupado, setOcupado] = useState<"dataset" | "treino" | null>(null);
-  const [erro, setErro] = useState<{ msg: string; code?: string } | null>(null);
-  const [aviso, setAviso] = useState<string | null>(null);
+  const [ocupado, setOcupado] = useDuravel<"dataset" | "treino" | null>(
+    `persona:${character.id}:ocupado`,
+    null,
+    (o) =>
+      o === "dataset" ? "Gerando variações da persona" : "Enviando o treino",
+  );
+  const [erro, setErro] = useDuravel<{ msg: string; code?: string } | null>(
+    `persona:${character.id}:erro`,
+    null,
+  );
+  const [aviso, setAviso] = useDuravel<string | null>(
+    `persona:${character.id}:aviso`,
+    null,
+  );
 
   if (!ativo) return null;
 

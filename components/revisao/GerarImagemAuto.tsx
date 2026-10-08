@@ -29,6 +29,7 @@ import { stripMetadata } from "@/lib/ai/strip";
 import { shrinkDataUrl } from "@/lib/image-resize";
 import { downloadUrl, fileUrl, refSrc } from "@/lib/storage/client";
 import { useCharacters } from "@/lib/store";
+import { useDuravel } from "@/lib/duravel";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -112,11 +113,24 @@ export function GerarImagemAuto({ character, tipo }: Props) {
   });
   /** Persona Rápida (FLUX.1) gera só pelo texto: o rosto vem do treino, as referências não entram. */
   const semRefs = modelo === "persona" && persona?.treinador === "rapido";
-  const [loading, setLoading] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  const [erroCode, setErroCode] = useState<string | null>(null);
+  const [loading, setLoading] = useDuravel<boolean>(
+    `img:${character.id}:${tipo}:loading`,
+    false,
+    "Gerando imagem",
+  );
+  const [erro, setErro] = useDuravel<string | null>(
+    `img:${character.id}:${tipo}:erro`,
+    null,
+  );
+  const [erroCode, setErroCode] = useDuravel<string | null>(
+    `img:${character.id}:${tipo}:erroCode`,
+    null,
+  );
   /** Resultados do modo anônimo (base64): não persistem, somem ao recarregar. */
-  const [locais, setLocais] = useState<Resultado[]>([]);
+  const [locais, setLocais] = useDuravel<Resultado[]>(
+    `img:${character.id}:locais`,
+    [],
+  );
 
   const refs = character.visual.referencias.filter((r) => r.dataUrl || r.key);
   const isRetrato = tipo === "retrato";

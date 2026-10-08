@@ -26,7 +26,7 @@ import {
 } from "@/lib/planos";
 import { getPool } from "@/lib/db";
 import { downloadToFile, getObjectBuffer, ownsKey } from "@/lib/storage/s3";
-import { probe } from "@/lib/video/ffmpeg";
+import { cortarInicio, probe } from "@/lib/video/ffmpeg";
 import { getFal, mensagemDeErro } from "@/lib/video/fal";
 import {
   iniciarTroca,
@@ -39,6 +39,7 @@ import {
   custoTroca,
   custoTrocaPremium,
   KLING_TROCA,
+  QUALIDADES_TROCA,
   SEEDANCE_TROCA,
 } from "@/lib/video/precos";
 import { comPastaTemporaria, contextoVideo } from "@/lib/video/server";
@@ -77,10 +78,14 @@ const BodySchema = z.object({
     .min(1)
     .max(3)
     .optional(),
-  /** kling = Kling O1 Edit (padrão) · seedance = Seedance 2.5 (premium). Os dois no fal.ai. */
+  /** kling = Kling O3 Edit (padrão) · seedance = Seedance 2.5 (premium). Os dois no fal.ai. */
   motor: z.enum(["kling", "seedance"]).default("kling"),
+  /** Formato do Kling O3: Standard, Pro ou 4K (o Seedance ignora). */
+  qualidade: z.enum(QUALIDADES_TROCA).default("pro"),
   /** Pede pra remover legendas/textos da tela no mesmo passo. */
   removerTexto: z.boolean().default(false),
+  /** Usar só os primeiros N segundos do vídeo (ausente = o vídeo inteiro). */
+  segundos: z.union([z.literal(10), z.literal(15), z.literal(30)]).optional(),
 });
 
 /**
@@ -190,10 +195,26 @@ export async function POST(req: Request) {
   let cobranca: Cobranca | null = null;
   try {
     return await comPastaTemporaria(async (dir) => {
-      const arquivo = path.join(dir, "entrada.mp4");
+      let arquivo = path.join(dir, "entrada.mp4");
       if (link) await baixarVideo(link.fal_url, arquivo);
       else await downloadToFile(s3, body.videoKey!, arquivo);
-      const info = await probe(arquivo);
+      let info = await probe(arquivo);
+      // Só os primeiros N segundos: corta aqui e segue com o trecho como se fosse
+      // o vídeo (duração, limites do plano e créditos valem para o trecho).
+      if (body.segundos && info.duracao > body.segundos + 0.2) {
+        if (body.pessoas?.some((p) => p.t > body.segundos!))
+          return NextResponse.json(
+            {
+              error: `Marque as pessoas dentro dos primeiros ${body.segundos}s do vídeo.`,
+              code: "BAD_INPUT",
+            },
+            { status: 400 },
+          );
+        const trecho = path.join(dir, "trecho.mp4");
+        await cortarInicio(arquivo, body.segundos, trecho);
+        arquivo = trecho;
+        info = await probe(arquivo);
+      }
       // Duração medida no servidor: é ela que vale pra cota e pros limites.
       const { duracao } = info;
       if (duracao > MAX_SEGUNDOS)
@@ -247,7 +268,7 @@ export async function POST(req: Request) {
 
       const creditos = premium
         ? creditosTrocaPremium(duracao)
-        : creditosTroca(duracao);
+        : creditosTroca(duracao, body.qualidade);
       const cobrado = await cobrarOuResponder(
         userId,
         creditos,
@@ -286,7 +307,12 @@ export async function POST(req: Request) {
               descricoes,
               personagens,
             })
-          : { imagem: null, descricoes, outras: [] as string[] },
+          : {
+              imagem: null,
+              descricoes,
+              outras: [] as string[],
+              naAncora: [] as number[],
+            },
         Promise.all(
           personagens.map((imagem) => personagemSemFundo(fal, imagem)),
         ),
@@ -299,6 +325,7 @@ export async function POST(req: Request) {
       const troca = await iniciarTroca({
         fal,
         motor: body.motor,
+        qualidade: body.qualidade,
         arquivo,
         info,
         alvos,
@@ -306,8 +333,11 @@ export async function POST(req: Request) {
         jobId,
         ancora: ancora.imagem,
         outras: ancora.outras,
+        naAncora: ancora.naAncora,
       });
-      const custo = premium ? custoTrocaPremium(duracao) : custoTroca(duracao);
+      const custo = premium
+        ? custoTrocaPremium(duracao)
+        : custoTroca(duracao, body.qualidade);
 
       await pool.query(
         `insert into video_jobs (id, user_id, character_id, provedor, tipo, modelo, fal_request_id, input, duracao)
@@ -333,6 +363,10 @@ export async function POST(req: Request) {
               ...p,
               descricao: descricoes[i],
             })),
+            // Para entender um resultado ruim depois: se houve quadro-âncora, quais
+            // alvos apareciam trocados nele e quem a IA listou como "outras pessoas".
+            ancora: { usada: !!ancora.imagem, alvos: ancora.naAncora },
+            outras: ancora.outras,
             // Trechos na fila e o áudio original (volta no vídeo final).
             ...troca,
             removerTexto: body.removerTexto,

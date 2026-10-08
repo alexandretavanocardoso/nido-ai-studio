@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { ArrowRight, Check, Link2, Loader2, RotateCcw, X } from "lucide-react";
 import { useRecursos } from "@/components/RecursosProvider";
 import {
@@ -14,6 +13,7 @@ import { cn } from "@/lib/cn";
 import { CREDITOS_LINK } from "@/lib/planos";
 import type { VideoLink } from "@/components/revisao/SubstituirPessoaModal";
 import { tx } from "@/lib/i18n/tx";
+import { useDuravel } from "@/lib/duravel";
 import { txErro } from "@/lib/i18n/erros";
 
 interface Props {
@@ -32,11 +32,21 @@ interface Props {
 export function LinkVideoModal({ onClose, onEncontrado }: Props) {
   const recursos = useRecursos();
   const { conta } = useCreditos();
-  const [url, setUrl] = useState("");
-  const [buscando, setBuscando] = useState(false);
-  const [erro, setErro] = useState<{ msg: string; code?: string } | null>(null);
+  const [url, setUrl] = useDuravel<string>("link-video:url", "");
+  const [buscando, setBuscando] = useDuravel<boolean>(
+    "link-video:buscando",
+    false,
+    "Buscando o vídeo do link",
+  );
+  const [erro, setErro] = useDuravel<{ msg: string; code?: string } | null>(
+    "link-video:erro",
+    null,
+  );
   /** Vídeo carregado, esperando o usuário conferir. */
-  const [achado, setAchado] = useState<VideoLink | null>(null);
+  const [achado, setAchado] = useDuravel<VideoLink | null>(
+    "link-video:achado",
+    null,
+  );
 
   async function buscar() {
     setErro(null);
@@ -86,7 +96,6 @@ export function LinkVideoModal({ onClose, onEncontrado }: Props) {
         <button
           type="button"
           onClick={onClose}
-          disabled={buscando}
           className="absolute top-4 right-4 h-9 w-9 inline-flex items-center justify-center rounded-full border border-line hover:border-ink text-ink-mute hover:text-ink"
           aria-label={tx("Fechar")}
         >
@@ -231,7 +240,12 @@ export function LinkVideoModal({ onClose, onEncontrado }: Props) {
               >
                 <RotateCcw className="w-4 h-4" /> {tx("Usar outro link")}
               </Button>
-              <Button variant="accent" onClick={() => onEncontrado(achado)}>
+              <Button variant="accent" onClick={() => {
+                  // Já usado: o próximo "vídeo por link" começa do zero.
+                  setAchado(null);
+                  setUrl("");
+                  onEncontrado(achado);
+                }}>
                 {tx("É este — substituir pessoa")}
                 <ArrowRight className="w-4 h-4" />
               </Button>

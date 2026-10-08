@@ -3,7 +3,12 @@ import { emptyCharacter } from "@/lib/defaults";
 import { creditosRadar } from "@/lib/planos";
 import { lerRadar, pedidoRadar, perfilParaRadar } from "./gerar";
 import { fontesDaResposta, textoDaResposta } from "./grok";
-import { destaques, diaDeHoje, temasDoPersonagem } from "./tipos";
+import {
+  destaques,
+  diaDeHoje,
+  quandoPublicado,
+  temasDoPersonagem,
+} from "./tipos";
 
 describe("temas do radar", () => {
   it("junta os temas digitados com o nicho da ficha, sem repetir, até 6", () => {
@@ -50,6 +55,33 @@ describe("ler a resposta do radar", () => {
     });
     expect(r.itens[1].url).toBeUndefined();
     expect(destaques(r).map((i) => i.titulo)).toEqual(["A"]);
+  });
+  it("guarda a data de publicação só quando é uma data ISO de verdade", () => {
+    const r = lerRadar(
+      '{"itens": [' +
+        '{"titulo": "A", "nota": 8, "publicadoEm": "2026-10-07T14:30:00-03:00"},' +
+        '{"titulo": "B", "nota": 7, "publicadoEm": "2026-10-07"},' +
+        '{"titulo": "C", "nota": 6, "publicadoEm": "ontem à tarde"}]}',
+    );
+    expect(r.itens.map((i) => i.publicadoEm)).toEqual([
+      "2026-10-07T14:30:00-03:00",
+      "2026-10-07",
+      undefined,
+    ]);
+    expect(quandoPublicado(r.itens[0])).toEqual({
+      data: new Date("2026-10-07T17:30:00Z"),
+      comHora: true,
+    });
+    expect(quandoPublicado(r.itens[1])?.comHora).toBe(false);
+    expect(quandoPublicado(r.itens[2])).toBeNull();
+  });
+  it("post do X: a hora sai do id do link, mesmo sem data informada", () => {
+    const publicado = new Date("2026-10-07T17:30:00Z");
+    const id = (BigInt(publicado.getTime()) - BigInt(1288834974657)) << BigInt(22);
+    expect(
+      quandoPublicado({ url: `https://x.com/alguem/status/${id}` }),
+    ).toEqual({ data: publicado, comHora: true });
+    expect(quandoPublicado({ url: "https://x.com/alguem" })).toBeNull();
   });
   it("resposta sem JSON vira erro claro", () => {
     expect(() => lerRadar("não achei nada hoje")).toThrow(/formato inesperado/);

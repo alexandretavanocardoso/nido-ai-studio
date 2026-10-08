@@ -15,7 +15,7 @@ export interface Recursos {
   ia: boolean;
   /** Nano Banana (Gemini). */
   gemini: boolean;
-  /** fal.ai: Seedream, Flux.2, GPT Image e troca de pessoa (Kling O1 / Seedance 2.5). */
+  /** fal.ai: Seedream, Flux.2, GPT Image e troca de pessoa (Kling O3 / Seedance 2.5). */
   fal: boolean;
   /** OpenAI: GPT Image direto na API dela (sem a chave, o GPT Image vai pelo fal). */
   openai: boolean;

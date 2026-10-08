@@ -57,9 +57,11 @@ interface Props {
   open: boolean;
   onClose: () => void;
   inicio?: InicioCriar | null;
+  /** Abre o tutorial "Como funciona" (o diálogo fecha). */
+  onTutorial?: () => void;
 }
 
-export function CreateDialog({ open, onClose, inicio }: Props) {
+export function CreateDialog({ open, onClose, inicio, onTutorial }: Props) {
   const recursos = useRecursos();
   const t = useT();
   const router = useRouter();
@@ -334,8 +336,20 @@ export function CreateDialog({ open, onClose, inicio }: Props) {
               </div>
             ) : null}
             <div className="mt-6 pt-[18px] border-t border-white/[0.07] flex items-center justify-between gap-3">
-              <span className="font-geist-mono text-[11px] text-nido-dim">
-                {tx("Atalho: N abre esta janela a qualquer momento")}
+              <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span className="font-geist-mono text-[11px] text-nido-dim">
+                  {tx("Atalho: N abre esta janela a qualquer momento")}
+                </span>
+                {onTutorial ? (
+                  <button
+                    type="button"
+                    onClick={onTutorial}
+                    className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-nido-yellow hover:underline"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {tx("Como funciona")}
+                  </button>
+                ) : null}
               </span>
               <button
                 type="button"

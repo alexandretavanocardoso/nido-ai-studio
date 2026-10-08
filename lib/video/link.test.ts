@@ -92,3 +92,17 @@ describe("YouTube com áudio separado", () => {
     ).toBeNull();
   });
 });
+
+describe("Instagram com som separado", () => {
+  it("lê o audioUrl do Reel (o videoUrl vem só com a imagem)", async () => {
+    const { lerItem } = await import("./link");
+    const v = lerItem("instagram", {
+      videoUrl: "https://cdn.example/v.mp4",
+      audioUrl: "https://cdn.example/a.mp4",
+      videoDuration: 11,
+      ownerUsername: "alguem",
+    });
+    expect(v?.audioUrl).toBe("https://cdn.example/a.mp4");
+    expect(lerItem("instagram", { videoUrl: "https://cdn.example/v.mp4" })?.audioUrl).toBeNull();
+  });
+});

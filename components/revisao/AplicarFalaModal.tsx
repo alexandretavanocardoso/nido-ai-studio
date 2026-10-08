@@ -13,6 +13,7 @@ import { CREDITOS_APLICAR_AUDIO } from "@/lib/planos";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { tx } from "@/lib/i18n/tx";
+import { useDuravel } from "@/lib/duravel";
 import { txErro } from "@/lib/i18n/erros";
 
 interface Props {
@@ -27,8 +28,15 @@ export function AplicarFalaModal({ video, audios, onClose, onPronto }: Props) {
   const { conta } = useCreditos();
   const [audio, setAudio] = useState<string | null>(audios[0]?.id ?? null);
   const [modo, setModo] = useState<"misturar" | "substituir">("misturar");
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<{ msg: string; code?: string } | null>(null);
+  const [enviando, setEnviando] = useDuravel<boolean>(
+    `fala:${video.id}:enviando`,
+    false,
+    "Colocando a fala no vídeo",
+  );
+  const [erro, setErro] = useDuravel<{ msg: string; code?: string } | null>(
+    `fala:${video.id}:erro`,
+    null,
+  );
 
   async function aplicar() {
     const a = audios.find((x) => x.id === audio);
@@ -72,7 +80,6 @@ export function AplicarFalaModal({ video, audios, onClose, onPronto }: Props) {
         <button
           type="button"
           onClick={onClose}
-          disabled={enviando}
           className="absolute top-4 right-4 h-9 w-9 inline-flex items-center justify-center rounded-full border border-line hover:border-ink text-ink-mute hover:text-ink"
           aria-label={tx("Fechar")}
         >

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { RefreshCw, X } from "lucide-react";
 import { useCharacters } from "@/lib/store";
+import { useDuravel } from "@/lib/duravel";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/cn";
 import type { StepId } from "@/lib/types";
@@ -19,11 +20,15 @@ interface Props {
 }
 
 export function RegenerateSection({ characterId, stepId, stepTitulo }: Props) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useDuravel<boolean>(`regenerar:${characterId}:${stepId}:open`, false);
   const t = useT();
   const [instrucao, setInstrucao] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useDuravel<boolean>(
+    `regenerar:${characterId}:${stepId}:loading`,
+    false,
+    "Preenchendo a etapa com IA",
+  );
+  const [err, setErr] = useDuravel<string | null>(`regenerar:${characterId}:${stepId}:err`, null);
 
   const character = useCharacters((s) =>
     s.characters.find((c) => c.id === characterId),

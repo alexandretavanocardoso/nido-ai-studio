@@ -19,6 +19,8 @@ import { ownsKey, presignGet } from "@/lib/storage/s3";
 import {
   custoCriar,
   MODELOS_CRIAR,
+  DURACOES_CRIAR,
+  cenasDoVideo,
   type ModeloCriar,
 } from "@/lib/video/precos";
 import {
@@ -79,14 +81,18 @@ export async function POST(req: Request) {
     );
 
   const modelo = MODELOS_CRIAR[body.modelo];
-  if (!(modelo.duracoes as readonly number[]).includes(body.duracao))
+  if (!(DURACOES_CRIAR as readonly number[]).includes(body.duracao))
     return NextResponse.json(
       {
-        error: `Duração inválida para ${modelo.label}: use ${modelo.duracoes.join(", ")}s.`,
+        error: `Duração inválida: use ${DURACOES_CRIAR.join(", ")}s.`,
         code: "BAD_INPUT",
       },
       { status: 400 },
     );
+  // O modelo gera poucos segundos por vez: o vídeo sai em cenas seguidas (cada
+  // uma parte do último quadro da anterior) e é unido na finalização.
+  const cenas = cenasDoVideo(body.modelo, body.duracao);
+  const gerados = cenas.reduce((t, n) => t + n, 0);
   const audio = modelo.audio && body.audio;
 
   const bloqueio = bloqueioCriarVideo(
@@ -102,7 +108,7 @@ export async function POST(req: Request) {
 
   // Sem login (modo dev) vale a cota diária fixa; com créditos, o saldo é o limite.
   if (!creditosAtivos()) {
-    const cota = await hit(`vid:${userId}`, COTA_DIARIA, 86_400, body.duracao);
+    const cota = await hit(`vid:${userId}`, COTA_DIARIA, 86_400, gerados);
     if (!cota.ok)
       return NextResponse.json(
         {
@@ -118,7 +124,7 @@ export async function POST(req: Request) {
   const vaga = await vagaOuResponder(userId, "video");
   if (vaga instanceof NextResponse) return vaga;
 
-  const creditos = creditosCriarVideo(body.modelo, body.duracao, audio);
+  const creditos = creditosCriarVideo(body.modelo, gerados, audio);
   const cobrado = await cobrarOuResponder(
     userId,
     creditos,
@@ -139,7 +145,7 @@ export async function POST(req: Request) {
       imageUrl,
       promptText: body.promptText,
       vertical: body.vertical,
-      duracao: body.duracao,
+      duracao: cenas[0],
       audio,
     });
 
@@ -157,6 +163,8 @@ export async function POST(req: Request) {
           promptText: body.promptText,
           vertical: body.vertical,
           audio,
+          // Cenas a gerar e as que já ficaram prontas (ver lib/video/cadeia.ts).
+          cadeia: { alvo: body.duracao, cenas, partes: [] },
           // Devolvida pela finalização se o serviço falhar.
           cobranca,
         }),
@@ -167,7 +175,7 @@ export async function POST(req: Request) {
       jobId,
       duracao: body.duracao,
       creditos,
-      custoEstimado: custoCriar(body.modelo, body.duracao, audio),
+      custoEstimado: custoCriar(body.modelo, gerados, audio),
     });
   } catch (e) {
     await estornarSeHouver(cobranca);

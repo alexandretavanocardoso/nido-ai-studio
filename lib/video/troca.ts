@@ -18,15 +18,15 @@ import {
   type EstadoLote,
   type Segmento,
 } from "./lote";
+import type { QualidadeTroca } from "./precos";
 import { comPastaTemporaria } from "./server";
 import { webhookUrl } from "./webhook";
 
 /**
  * Troca de pessoa (fal.ai): troca só a pessoa pelo personagem e mantém
  * cenário, câmera, movimento e o áudio original. Dois motores:
- *  - kling    → Kling O1 Edit Pro (padrão, US$ 0,168/s, 1080p). Aceita trechos de 3–10s.
- *               (O O1 "standard", US$ 0,126/s, mudava a cor da roupa e o corpo do
- *               personagem ao longo do trecho; o Pro mantém o visual estável.)
+ *  - kling    → Kling O3 Edit (padrão). Aceita trechos de 3–15s, em três formatos:
+ *               Standard (US$ 0,126/s), Pro (US$ 0,168/s, o padrão) e 4K (US$ 0,42/s).
  *  - seedance → Seedance 2.5 em modo edição (premium, US$ 0,568/s em 720p: o fal cobra entrada + saída).
  *               Aceita até 30s de uma vez: preserva melhor cenário, objetos e roupa.
  * O vídeo vira trechos iguais do tamanho máximo do motor (lado menor ≥ 720px),
@@ -44,13 +44,20 @@ import { webhookUrl } from "./webhook";
  */
 export type MotorTroca = "kling" | "seedance";
 
+/** Kling O3 Edit: um endpoint do fal por formato. */
+export const MODELOS_KLING: Record<QualidadeTroca, string> = {
+  standard: "fal-ai/kling-video/o3/standard/video-to-video/edit",
+  pro: "fal-ai/kling-video/o3/pro/video-to-video/edit",
+  "4k": "fal-ai/kling-video/o3/4k/video-to-video/edit",
+};
+
 export const MOTORES_TROCA: Record<
   MotorTroca,
   { modelo: string; maxTrecho: number }
 > = {
   kling: {
-    modelo: "fal-ai/kling-video/o1/video-to-video/edit",
-    maxTrecho: 10,
+    modelo: MODELOS_KLING.pro,
+    maxTrecho: 15,
   },
   seedance: {
     modelo: "bytedance/seedance-2.5/reference-to-video",
@@ -60,11 +67,15 @@ export const MOTORES_TROCA: Record<
 const MODELO_RECORTE = "fal-ai/birefnet/v2";
 
 /** Modelos usados antes (jobs antigos ainda em andamento continuam sendo acompanhados neles). */
-const MODELOS_ANTIGOS = ["fal-ai/kling-video/o1/standard/video-to-video/edit"];
+const MODELOS_ANTIGOS = [
+  "fal-ai/kling-video/o1/standard/video-to-video/edit",
+  "fal-ai/kling-video/o1/video-to-video/edit",
+];
 
 export function ehModeloTroca(modelo: string): boolean {
   return (
     MODELOS_ANTIGOS.includes(modelo) ||
+    Object.values(MODELOS_KLING).includes(modelo) ||
     Object.values(MOTORES_TROCA).some((m) => m.modelo === modelo)
   );
 }
@@ -100,19 +111,41 @@ export function promptTroca(
   removerTexto: boolean,
   ancora = false,
   outras: string[] = [],
+  /**
+   * Alvos (índices) que aparecem trocados na âncora. Sem isso: todos. Quando
+   * falta algum, o pedido avisa que esse também tem que ser trocado.
+   */
+  naAncora?: number[],
 ): string {
   const ref = (i: number) =>
     motor === "kling" ? `@Element${i + 1}` : `@Image${i + 1}`;
   const refs = alvos.map((_, i) => ref(i)).join(", ");
+  const foraDaAncora = naAncora
+    ? alvos.map((_, i) => i).filter((i) => !naAncora.includes(i))
+    : [];
   return [
     `In @Video1, replace ONLY ${alvos.length === 1 ? "this person" : "these people"}:`,
     ...alvos.map(
       (a, i) =>
         `- ${a.descricao ?? "the main person"} → replace with the character ${ref(i)}.`,
     ),
-    ancora && motor === "kling"
-      ? "@Image1 is a frame of this same scene with the replacement already done: the character(s) must look exactly like that in every frame (same face, hair, facial hair, hat, outfit, body proportions and lighting)."
-      : `Keep each character's face, hair, style and outfit exactly as in ${refs}.`,
+    ...(ancora && motor === "kling"
+      ? foraDaAncora.length
+        ? [
+            `@Image1 is a frame of this same scene with the replacement already done ONLY for ${naAncora!.map((i) => ref(i)).join(", ")}: ${naAncora!.length === 1 ? "that character" : "those characters"} must look exactly like that in every frame (same face, hair, facial hair, hat, outfit, body proportions and lighting).`,
+            `@Image1 does NOT show the replacement of ${foraDaAncora.map((i) => `${alvos[i].descricao ?? "the main person"} (${ref(i)})`).join("; ")}: replace ${foraDaAncora.length === 1 ? "this person" : "these people"} too, in every frame where they appear, taking face, hair, style and outfit from ${foraDaAncora.map((i) => ref(i)).join(", ")}.`,
+          ]
+        : [
+            "@Image1 is a frame of this same scene with the replacement already done: the character(s) must look exactly like that in every frame (same face, hair, facial hair, hat, outfit, body proportions and lighting).",
+          ]
+      : [
+          `Keep each character's face, hair, style and outfit exactly as in ${refs}.`,
+        ]),
+    ...(alvos.length > 1
+      ? [
+          `All ${alvos.length} listed people must be replaced, each one only with their own character: never merge two characters, never leave one of the listed people unchanged, and never add a character's hat, hair or clothing as a loose object in the scene.`,
+        ]
+      : []),
     "Every other person in @Video1 must stay exactly as they are — same face, hair, clothes and movements, appearing at the same moments, including when they pass in front of or behind the replaced person.",
     outras.length
       ? `Other people who appear in @Video1 and must NOT be changed in any way: ${outras.join("; ")}.`
@@ -134,6 +167,7 @@ function inputMotor(
     removerTexto: boolean;
     ancoraUrl?: string | null;
     outras?: string[];
+    naAncora?: number[];
   },
 ): Record<string, unknown> {
   if (motor === "kling")
@@ -144,6 +178,7 @@ function inputMotor(
         o.removerTexto,
         !!o.ancoraUrl,
         o.outras,
+        o.naAncora,
       ),
       video_url: o.videoUrl,
       keep_audio: false,
@@ -248,6 +283,8 @@ export async function personagemSemFundo(
 export async function iniciarTroca(o: {
   fal: FalClient;
   motor: MotorTroca;
+  /** Formato do Kling O3 (Standard, Pro ou 4K). O Seedance ignora. */
+  qualidade?: QualidadeTroca;
   arquivo: string;
   info: VideoInfo;
   alvos: AlvoTroca[];
@@ -257,8 +294,14 @@ export async function iniciarTroca(o: {
   ancora?: Buffer | null;
   /** Descrição das outras pessoas do vídeo (não podem mudar). */
   outras?: string[];
+  /** Alvos que aparecem trocados na âncora (ver lib/video/ancora.ts). */
+  naAncora?: number[];
 }): Promise<InputTroca> {
-  const { modelo, maxTrecho } = MOTORES_TROCA[o.motor];
+  const { maxTrecho } = MOTORES_TROCA[o.motor];
+  const modelo =
+    o.motor === "kling"
+      ? MODELOS_KLING[o.qualidade ?? "pro"]
+      : MOTORES_TROCA[o.motor].modelo;
   return comPastaTemporaria(async (dir) => {
     let audioUrl: string | null = null;
     if (await temAudio(o.arquivo)) {
@@ -285,6 +328,7 @@ export async function iniciarTroca(o: {
             removerTexto: o.removerTexto,
             ancoraUrl,
             outras: o.outras,
+            naAncora: ancoraUrl ? o.naAncora : undefined,
           }),
           webhookUrl: webhookUrl(o.jobId),
         });
@@ -299,7 +343,7 @@ export function estadoTroca(
   fal: FalClient,
   input: InputTroca,
 ): Promise<EstadoLote> {
-  // Acompanha no modelo em que o job foi enviado (jobs antigos do Kling: o standard).
+  // Acompanha no modelo em que o job foi enviado (jobs antigos do Kling, sem modelo: o O1 standard).
   const motor = input.motor ?? "kling";
   const modelo =
     input.modelo ??

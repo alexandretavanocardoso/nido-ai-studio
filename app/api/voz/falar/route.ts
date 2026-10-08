@@ -10,7 +10,12 @@ import { armazenamentoOuResponder, somarArmazenamento } from "@/lib/limites";
 import { bloqueioVoz, creditosFala } from "@/lib/planos";
 import { newKey, putObject } from "@/lib/storage/s3";
 import { contextoVideo } from "@/lib/video/server";
-import { falar, getEleven, mensagemDeErroVoz } from "@/lib/voz/elevenlabs";
+import {
+  falar,
+  getEleven,
+  mensagemDeErroVoz,
+  vozPermitida,
+} from "@/lib/voz/elevenlabs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,12 +55,8 @@ export async function POST(req: Request) {
     );
   const body = parsed.data;
 
-  // Só vozes da própria conta.
-  const { rowCount } = await pool.query(
-    "select 1 from vozes where voice_id = $1 and user_id = $2",
-    [body.voiceId, userId],
-  );
-  if (!rowCount)
+  // Só vozes da própria conta, ou as prontas da biblioteca.
+  if (!(await vozPermitida(pool, el, userId, body.voiceId)))
     return NextResponse.json({ error: "Voz não encontrada." }, { status: 404 });
   const bloqueio = bloqueioVoz(await planoAtual(userId));
   if (bloqueio)

@@ -183,7 +183,7 @@ No painel **"Substituir pessoa em vídeo"** (Revisão), com login + S3, a pessoa
 
 - **Legenda** — para legendas "queimadas" na imagem. Escolhe um quadro, arrasta um retângulo sobre a legenda e escolhe **Remover** (o `delogo` do ffmpeg reconstrói a área com os pixels vizinhos) ou **Trocar texto** (remove e escreve o novo texto centralizado, em Poppins Bold branca com contorno). Roda no servidor com o ffmpeg do pacote `ffmpeg-static`, sem custo externo, até 3 min de vídeo. Gera um vídeo novo; o original fica.
 - **Trocar pessoa** — troca a pessoa pelo personagem mantendo movimento, câmera, cenário **e o áudio original** (música, fala). Dois motores, escolhidos na tela:
-  - **Padrão · Kling O1 Edit Pro** (1080p) no fal.ai (`lib/video/troca.ts`) — US$ 0,168/s → 17 créditos/s; vai com quadro-âncora, close do rosto e descrição das outras pessoas (`lib/video/ancora.ts`), de 3s até o limite do plano (60s no Studio). A personagem vai **sem fundo** (recortada com BiRefNet e posta sobre branco — com fundo, o modelo copia o cenário da imagem). O Kling aceita 3–10s com lado menor ≥ 720px, então o vídeo vira **trechos iguais de até 10s** (ajustados para 720p+ e 24–60 fps) processados em paralelo; no fim os trechos são juntados e o **áudio original** volta por baixo. Testado: personagem 3D fiel, cenário e música mantidos. Dicas: personagem de **corpo inteiro** (meio corpo faz a IA inventar pernas/roupa, que podem variar entre trechos) e vídeo **sem cortes de cena**. Substituiu o Wan 2.2 Animate, que não trocava personagens 3D/estilizados.
+  - **Padrão · Kling O3 Edit** no fal.ai (`lib/video/troca.ts`), em Standard (US$ 0,126/s → 13 créditos/s), Pro (US$ 0,168/s → 17 créditos/s) ou 4K (US$ 0,42/s → 42 créditos/s), trechos de até 15s; vai com quadro-âncora, close do rosto e descrição das outras pessoas (`lib/video/ancora.ts`), de 3s até o limite do plano (60s no Studio). A personagem vai **sem fundo** (recortada com BiRefNet e posta sobre branco — com fundo, o modelo copia o cenário da imagem). O Kling aceita 3–10s com lado menor ≥ 720px, então o vídeo vira **trechos iguais de até 10s** (ajustados para 720p+ e 24–60 fps) processados em paralelo; no fim os trechos são juntados e o **áudio original** volta por baixo. Testado: personagem 3D fiel, cenário e música mantidos. Dicas: personagem de **corpo inteiro** (meio corpo faz a IA inventar pernas/roupa, que podem variar entre trechos) e vídeo **sem cortes de cena**. Substituiu o Wan 2.2 Animate, que não trocava personagens 3D/estilizados.
   - **Premium · Seedance 2.5** (modo edição) no fal.ai — US$ 0,568/s em 720p (o fal cobra US$ 0,284 por segundo de entrada e de saída) → 57 créditos/s (gera no mínimo 4s), a partir do Creator. Aceita **até 30s de uma vez** (vídeos maiores viram partes de até 30s): no teste preservou melhor o cenário e os objetos (o Kling alterou o logo de um galão) e a roupa ficou coerente com o vídeo. Mesmo fluxo do Kling (personagem sem fundo, áudio original de volta). Substituiu o Runway Aleph, que custava o mesmo e exigia outra conta.
   - Nos dois motores dá para **remover legendas e textos da tela no mesmo passo** (vai no pedido à IA).
   Assíncrono: o app cria um job (`video_jobs`, com `provedor` fal/runway), consulta o serviço a cada 10s e, quando termina, salva o resultado no S3. Recomendado usar um **retrato de corpo inteiro** gerado na etapa Visual.
@@ -203,7 +203,7 @@ Ao finalizar, o vídeo é atualizado **dentro do personagem no banco** — apare
 > **Frequência do cron:** no plano Hobby a Vercel só permite cron diário (`vercel.json` está diário). Para o Runway terminar em minutos com a página fechada: plano Pro com `"schedule": "*/5 * * * *"`, ou um cron externo grátis (ex.: cron-job.org) chamando `GET https://aistudio.nido.global/api/cron/video-jobs` a cada 5 min com o header `Authorization: Bearer $CRON_SECRET`.
 
 Custos e limites:
-- Troca: Kling O1 Pro US$ 0,168/s (mínimo 3s); Seedance 2.5 US$ 0,568/s (entrada + saída; mínimo 4s gerados). Criar vídeo (Runway) conforme o modelo acima. A tela mostra a estimativa antes de enviar (`lib/video/precos.ts`).
+- Troca: Kling O3 Edit Standard US$ 0,126/s, Pro US$ 0,168/s, 4K US$ 0,42/s (mínimo 3s); Seedance 2.5 US$ 0,568/s (entrada + saída; mínimo 4s gerados). Criar vídeo (Runway) conforme o modelo acima. A tela mostra a estimativa antes de enviar (`lib/video/precos.ts`).
 - `VIDEO_MAX_SECONDS` (padrão 60) por vídeo e `VIDEO_DAILY_SECONDS` (padrão 180) por conta/dia, contados no Neon. A duração é medida no servidor.
 
 Para ligar a troca de pessoa:
@@ -241,7 +241,7 @@ Painel na etapa **Voz e Linguagem** (`ELEVENLABS_API_KEY`; a partir do Starter):
 
 Na lista de vídeos, **Colar link** (TikTok, Instagram reel/post, YouTube Shorts ou link direto de .mp4; até 3 min):
 1. O servidor busca o arquivo do vídeo com o **Apify** (`APIFY_TOKEN`; actors configuráveis por `APIFY_ACTOR_*`), baixa numa pasta temporária, mede e deixa uma **cópia temporária no storage do fal** só pra IA ler — **o vídeo de origem não vai pro S3**. Custa 3 créditos (devolvidos se falhar). O link vale 24h (`links_video`).
-2. Abre a troca de pessoa normal (Kling O1 ou Seedance 2.5) com a imagem do personagem, mais a **declaração obrigatória**: *"Declaro que tenho direito de usar este vídeo (sou o autor ou tenho autorização) e que vou sinalizar que o personagem é sintético."* — registrada em `consentimentos` com o link.
+2. Abre a troca de pessoa normal (Kling O3 ou Seedance 2.5) com a imagem do personagem, mais a **declaração obrigatória**: *"Declaro que tenho direito de usar este vídeo (sou o autor ou tenho autorização) e que vou sinalizar que o personagem é sintético."* — registrada em `consentimentos` com o link.
 3. Só o **vídeo gerado** é salvo no S3 e entra na lista (com o link de origem guardado como referência).
 
 ## Publicar e agendar nas redes (bundle.social)
@@ -264,7 +264,7 @@ Com login configurado, toda geração com IA gasta **créditos** (1 crédito ≈
 | Créditos/mês | 50 (uma vez) | 600 | 1.600 | 4.200 |
 | Personagens | 1 | 3 | 10 | 30 |
 | Imagem | NB Padrão, Seedream | + Flux.2, GPT média | todos, inclusive Pro | todos |
-| Trocar pessoa (Kling O1) | — | até 15s | até 30s | até 60s |
+| Trocar pessoa (Kling O3) | — | até 15s | até 30s | até 60s |
 | Troca Premium (Seedance 2.5) | — | — | ✓ | ✓ |
 | Criar vídeo | — | Gen-4 Turbo | + Gen-4.5, Veo Fast | + Veo com áudio |
 | Créditos que sobram | — | vencem | passam 1 mês | passam 1 mês |
@@ -295,7 +295,7 @@ Para ligar:
 - **@anthropic-ai/sdk** + **Zod** para as rotas de IA
 - **@google/genai** (Nano Banana) + **sharp** para a geração de imagens — opcional
 - **AWS S3** (`@aws-sdk/client-s3` + presigner) para arquivos — opcional
-- **fal.ai** (`@fal-ai/client`, Kling O1 Edit, BiRefNet), **Runway** (`@runwayml/sdk`, Gen-4 / Veo) + **ffmpeg-static** para vídeo — opcionais
+- **fal.ai** (`@fal-ai/client`, Kling O3 Edit, BiRefNet), **Runway** (`@runwayml/sdk`, Gen-4 / Veo) + **ffmpeg-static** para vídeo — opcionais
 - **Neon** (Postgres, `@neondatabase/serverless`) + **Better Auth** (login Google) — opcionais
 - **vitest** para testes
 - **lucide-react**, **html2canvas**, **jspdf**
@@ -319,7 +319,7 @@ app/
     storage/liberar/route.ts     POST — apaga arquivos sem uso da conta e recalcula o espaço
     cron/storage-cleanup/route.ts  GET (cron) — apaga órfãos do S3 e contadores antigos
     videos/legenda/route.ts      POST — remove/troca legenda queimada (ffmpeg)
-    videos/substituir/route.ts   POST — inicia troca de pessoa (Kling O1 ou Seedance 2.5 no fal.ai, em trechos) — job
+    videos/substituir/route.ts   POST — inicia troca de pessoa (Kling O3 ou Seedance 2.5 no fal.ai, em trechos) — job
     videos/criar/route.ts        POST — cria vídeo novo pelo Runway (Gen-4/Veo) — job
     videos/jobs/[id]/route.ts    GET — estado do job (finaliza se o serviço já terminou)
     videos/webhook/route.ts      POST — webhook do fal (URL assinada) → finaliza o job

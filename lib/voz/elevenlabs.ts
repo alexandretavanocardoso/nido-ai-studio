@@ -1,4 +1,5 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import type { Pool } from "@neondatabase/serverless";
 import type { Character } from "@/lib/types";
 
 /**
@@ -95,8 +96,96 @@ export async function falar(el: ElevenLabsClient, voiceId: string, texto: string
   return paraBuffer(stream);
 }
 
+/** Voz pronta da biblioteca da ElevenLabs (gravada por uma pessoa de verdade). */
+export interface VozDaBiblioteca {
+  voiceId: string;
+  publicOwnerId: string;
+  nome: string;
+  genero: string;
+  idade: string;
+  uso: string;
+  descricao: string;
+  previewUrl: string | null;
+}
+
+/** Vozes da biblioteca em português do Brasil, as mais usadas primeiro. */
+export async function listarBiblioteca(
+  el: ElevenLabsClient,
+  o: { genero?: "female" | "male"; busca?: string; pagina?: number },
+): Promise<{ vozes: VozDaBiblioteca[]; temMais: boolean }> {
+  const r = await el.voices.getShared({
+    pageSize: 6,
+    page: o.pagina ?? 0,
+    language: "pt",
+    locale: "pt-BR",
+    gender: o.genero,
+    search: o.busca,
+    // Vozes com tarifa própria custariam mais que o previsto nos créditos.
+    includeCustomRates: false,
+  });
+  return {
+    temMais: r.hasMore,
+    vozes: r.voices.map((v) => ({
+      voiceId: v.voiceId,
+      publicOwnerId: v.publicOwnerId,
+      nome: v.name,
+      genero: v.gender,
+      idade: v.age,
+      uso: v.useCase,
+      descricao: v.description ?? v.descriptive ?? "",
+      previewUrl: v.previewUrl ?? null,
+    })),
+  };
+}
+
+/**
+ * A voz está na conta da NIDO e veio da biblioteca (ou é uma das padrão)?
+ * Vozes criadas ou clonadas por um usuário nunca passam aqui: essas só valem
+ * para o dono, pela tabela `vozes`.
+ */
+async function ehVozDaBiblioteca(
+  el: ElevenLabsClient,
+  voiceId: string,
+): Promise<boolean> {
+  try {
+    const v = await el.voices.get(voiceId);
+    // Tudo que um usuário cria aqui é "generated" (descrição) ou "cloned".
+    return v.category !== "generated" && v.category !== "cloned";
+  } catch {
+    return false;
+  }
+}
+
+/** Põe a voz da biblioteca na conta da NIDO (se ainda não estiver). */
+export async function adotarVozDaBiblioteca(
+  el: ElevenLabsClient,
+  o: { voiceId: string; publicOwnerId: string; nome: string },
+): Promise<string> {
+  if (await ehVozDaBiblioteca(el, o.voiceId)) return o.voiceId;
+  const r = await el.voices.share(o.publicOwnerId, o.voiceId, {
+    newName: o.nome.slice(0, 100),
+  });
+  return r.voiceId;
+}
+
+/** O usuário pode falar com esta voz? As dele (tabela `vozes`) ou as da biblioteca. */
+export async function vozPermitida(
+  pool: Pool,
+  el: ElevenLabsClient,
+  userId: string,
+  voiceId: string,
+): Promise<boolean> {
+  const { rowCount } = await pool.query(
+    "select 1 from vozes where voice_id = $1 and user_id = $2",
+    [voiceId, userId],
+  );
+  return !!rowCount || ehVozDaBiblioteca(el, voiceId);
+}
+
 export function mensagemDeErroVoz(e: unknown): string {
   const status = (e as { statusCode?: number })?.statusCode;
+  if (/voice_limit_reached|maximum amount of custom voices/i.test(JSON.stringify((e as { body?: unknown })?.body ?? (e as Error)?.message ?? "")))
+    return "A conta da ElevenLabs chegou ao limite de vozes do plano. Apague vozes que não usa ou aumente o plano da ElevenLabs.";
   if (status === 401) return "Chave da ElevenLabs inválida. Confira ELEVENLABS_API_KEY.";
   if (status === 402 || status === 429) return "Limite ou créditos da ElevenLabs esgotados. Confira o plano da conta.";
   if (status === 422 || status === 400) return `A ElevenLabs recusou a entrada: ${(e as Error).message}`;

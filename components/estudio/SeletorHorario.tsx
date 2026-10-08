@@ -92,7 +92,7 @@ export function SeletorHorario({
   });
 
   return (
-    <div className="grid gap-3 rounded-xl border border-line bg-panel p-3.5">
+    <div className="grid gap-3 rounded-xl border border-line bg-panel p-3.5 [&>*]:min-w-0">
       {/* Atalhos */}
       <div className="flex gap-1.5 flex-wrap">
         {atalhos.map(([rotulo, d]) => {

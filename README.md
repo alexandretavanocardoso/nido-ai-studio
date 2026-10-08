@@ -36,7 +36,7 @@ A interface está em português e inglês.
 | Imagem com texto escrito | **GPT Image 2** | OpenAI |
 | Persona treinada (modelo próprio do personagem, rosto idêntico) | **FLUX.1** e **FLUX.2** com LoRA | Black Forest Labs |
 | Visão: descrever as pessoas de um vídeo ou foto e escolher o melhor quadro | **Gemini Flash** | Google |
-| Vídeo: trocar a pessoa pelo personagem (padrão) | **Kling O1 Pro** | Kuaishou |
+| Vídeo: trocar a pessoa pelo personagem (padrão) | **Kling O3 Edit** (Standard, Pro ou 4K) | Kuaishou |
 | Vídeo: trocar a pessoa pelo personagem (premium) | **Seedance 2.5** | ByteDance |
 | Vídeo: criar a partir de uma imagem | **Gen-4 Turbo**, **Gen-4.5** | Runway |
 | Vídeo: criar a partir de uma imagem, com áudio | **Veo 3.1 Fast** | Google |

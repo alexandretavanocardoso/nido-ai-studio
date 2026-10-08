@@ -31,6 +31,8 @@ import {
   BONUS_USDC,
   CREDITOS_LEGENDA,
   CREDITOS_TEXTO,
+  CORPO_INTEIRO_POR_SEGUNDO,
+  FALADO_POR_SEGUNDO,
   DESCONTO_ANUAL,
   PACOTES,
   PLANOS,
@@ -41,6 +43,7 @@ import {
   precoPlano,
   creditosRadar,
   TROCA_POR_SEGUNDO,
+  TROCA_POR_SEGUNDO_QUALIDADE,
   TROCA_PREMIUM_POR_SEGUNDO,
   type Intervalo,
   type PacoteId,
@@ -652,8 +655,8 @@ function TabelaCustos() {
     ["GPT Image (média / alta)", "7 / 20"],
     ["Nano Banana Pro", "10"],
     [
-      "Trocar pessoa em vídeo · Kling O1 Pro (mínimo 3s)",
-      `${TROCA_POR_SEGUNDO} ${tx("por segundo")}`,
+      "Trocar pessoa em vídeo · Kling O3 Standard / Pro / 4K (mínimo 3s)",
+      `${TROCA_POR_SEGUNDO_QUALIDADE.standard} / ${TROCA_POR_SEGUNDO} / ${TROCA_POR_SEGUNDO_QUALIDADE["4k"]} ${tx("por segundo")}`,
     ],
     [
       "Trocar pessoa · Premium Seedance 2.5 (mínimo 4s)",
@@ -661,6 +664,10 @@ function TabelaCustos() {
     ],
     ["Criar vídeo · Gen-4 Turbo / Gen-4.5", tx("5 / 12 por segundo")],
     ["Criar vídeo · Veo 3.1 Fast (sem / com áudio)", tx("10 / 15 por segundo")],
+    [
+      "Criar vídeo falado · com a voz do personagem (close / corpo inteiro)",
+      `${FALADO_POR_SEGUNDO} / ${CORPO_INTEIRO_POR_SEGUNDO} ${tx("por segundo")}`,
+    ],
     ["Editar legenda de vídeo", String(CREDITOS_LEGENDA)],
     [
       "IA de texto · sugerir campo / checar / regenerar / expandir ficha",
@@ -669,6 +676,10 @@ function TabelaCustos() {
     [
       "Escrever como o personagem (legendas, roteiro, respostas)",
       String(CREDITOS_TEXTO.escrever),
+    ],
+    [
+      "Criar vídeo · transformar roteiro salvo em cena",
+      String(CREDITOS_TEXTO.cenaDoRoteiro),
     ],
     [
       "Radar do dia · notícias / notícias + X",

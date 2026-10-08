@@ -42,7 +42,9 @@ import {
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
 import { CreateDialog, type InicioCriar } from "@/components/home/CreateDialog";
+import { TutorialCriar } from "@/components/home/TutorialCriar";
 import { useRecursos } from "@/components/RecursosProvider";
+import { TarefasEmAndamento } from "@/components/TarefasEmAndamento";
 import type { SecaoEstudio } from "@/components/estudio/Estudio";
 import { useCharacters } from "@/lib/store";
 import { capaSrc } from "@/lib/storage/client";
@@ -77,6 +79,8 @@ export const DEPOIS_DO_MENU =
 
 const LOGO = "/logo/NIDO%20AI%20STUDIO%20SEM%20FUNDO.png";
 const CHAVE_MENU = "nido:menu-recolhido";
+/** Marcado depois que a pessoa viu (ou fechou) o tutorial de criar. */
+const CHAVE_TUTORIAL = "nido:tutorial-criar";
 
 /**
  * Casca de todas as telas do app (/app/*): o menu lateral (navegação, saldo e
@@ -93,6 +97,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const criarEmBranco = useCharacters((s) => s.createCharacter);
   const [aberto, setAberto] = useState(false);
   const [inicio, setInicio] = useState<InicioCriar | null>(null);
+  const [tutorial, setTutorial] = useState(false);
   const [noLimite, setNoLimite] = useState(false);
   const [recolhido, setRecolhido] = useState(false);
   const [gaveta, setGaveta] = useState(false);
@@ -111,6 +116,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setNoLimite(false);
       if (como?.modo === "manual")
         return router.push(`/app/personagem/${criarEmBranco()}`);
+      // Primeira vez criando pelo caminho normal: mostra antes como funciona.
+      if (como === null && !tutorialVisto()) return setTutorial(true);
       setInicio(como);
       setAberto(true);
     },
@@ -187,9 +194,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         open={aberto}
         onClose={() => setAberto(false)}
         inicio={inicio}
+        onTutorial={() => {
+          setAberto(false);
+          setTutorial(true);
+        }}
       />
+      <TutorialCriar
+        open={tutorial}
+        onClose={() => {
+          marcarTutorialVisto();
+          setTutorial(false);
+        }}
+        onConcluir={() => {
+          marcarTutorialVisto();
+          setTutorial(false);
+          setInicio(null);
+          setAberto(true);
+        }}
+      />
+      <TarefasEmAndamento />
     </CriarCtx.Provider>
   );
+}
+
+function tutorialVisto(): boolean {
+  try {
+    return localStorage.getItem(CHAVE_TUTORIAL) === "1";
+  } catch {
+    return true; // sem armazenamento, não insiste no tutorial
+  }
+}
+
+function marcarTutorialVisto() {
+  try {
+    localStorage.setItem(CHAVE_TUTORIAL, "1");
+  } catch {}
 }
 
 interface ItemMenu {

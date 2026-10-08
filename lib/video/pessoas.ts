@@ -2,6 +2,7 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 import sharp from "sharp";
 import { GoogleGenAI } from "@google/genai";
+import type { FalClient } from "@fal-ai/client";
 import { extrairQuadro } from "./ffmpeg";
 
 /**
@@ -54,6 +55,72 @@ export async function marcarPonto(
     .toBuffer();
 }
 
+const MODELO_SILHUETA = "fal-ai/sam2/image";
+
+/**
+ * Silhueta da pessoa clicada (SAM 2): PNG branco com transparência fora da
+ * pessoa, pra tela pintar por cima do quadro. Null se o recorte não servir
+ * (pegou quase nada ou o quadro inteiro) — a tela fica só com o ponto.
+ */
+export async function silhuetaDaPessoa(
+  fal: FalClient,
+  imagem: Buffer,
+  p: Pick<PessoaMarcada, "x" | "y">,
+): Promise<Buffer | null> {
+  const base = await sharp(imagem)
+    .rotate()
+    .resize(1024, 1024, { fit: "inside" })
+    .jpeg({ quality: 88 })
+    .toBuffer({ resolveWithObject: true });
+  const { width, height } = base.info;
+  const url = await fal.storage.upload(
+    new Blob([new Uint8Array(base.data)], { type: "image/jpeg" }),
+  );
+  const r = await fal.subscribe(MODELO_SILHUETA, {
+    input: {
+      image_url: url,
+      prompts: [
+        // A API exige o número 1 (os tipos do cliente dizem "1", que ela recusa).
+        {
+          x: Math.round(p.x * width),
+          y: Math.round(p.y * height),
+          label: 1 as unknown as "1",
+        },
+      ],
+      output_format: "png",
+    },
+  });
+  const saida = (r.data as { image?: { url?: string } })?.image?.url;
+  if (!saida) return null;
+  const res = await fetch(saida);
+  if (!res.ok) return null;
+  // A máscara vem clara na pessoa e escura (ou transparente) no resto: o brilho vira a transparência.
+  const cinza = await sharp(Buffer.from(await res.arrayBuffer()))
+    .flatten({ background: "#000" })
+    .resize(512, 512, { fit: "inside" })
+    .greyscale()
+    .threshold(128)
+    .blur(1)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const coberto =
+    cinza.data.reduce((s, v) => s + (v > 127 ? 1 : 0), 0) / cinza.data.length;
+  if (coberto < 0.003 || coberto > 0.85) return null;
+  return sharp({
+    create: {
+      width: cinza.info.width,
+      height: cinza.info.height,
+      channels: 3,
+      background: "#fff",
+    },
+  })
+    .joinChannel(cinza.data, {
+      raw: { width: cinza.info.width, height: cinza.info.height, channels: 1 },
+    })
+    .png()
+    .toBuffer();
+}
+
 /** Descreve UMA pessoa marcada numa imagem (inglês, curto). Sem Gemini ou se falhar, usa a posição. */
 async function descreverUma(
   imagem: () => Promise<Buffer>,
@@ -72,6 +139,13 @@ async function descreverUma(
       origem === "video"
         ? "everyone else in the video"
         : "everyone else in the photo";
+    // No vídeo a pessoa anda, vira e sai do quadro: posição e pose valem só para
+    // aquele instante e fazem o modelo de vídeo perder a pessoa no resto.
+    const como =
+      origem === "video"
+        ? "gender, build, hair, accessories, clothing (colours and pieces) — only what stays the same during the whole video. " +
+          "Do NOT mention position in the frame, pose, action or facial expression. "
+        : "position in the frame (left/center/right, foreground/background), pose, clothing (colours and pieces), hair. ";
     const res = await ai.models.generateContent({
       model: MODELO_VISAO,
       contents: [
@@ -81,7 +155,7 @@ async function descreverUma(
             {
               text:
                 `${onde} A red target marks ONE person. Describe only that person so they can be told apart from ${resto}: ` +
-                "position in the frame (left/center/right, foreground/background), pose, clothing (colours and pieces), hair. " +
+                como +
                 'Answer in English, one line, max 30 words, starting with "the". No preamble.',
             },
             {

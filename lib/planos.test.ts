@@ -26,6 +26,8 @@ describe("custo em créditos", () => {
     expect(creditosTroca(30)).toBe(510);
     expect(creditosTroca(29.2)).toBe(510);
     expect(creditosTroca(2)).toBe(51); // mínimo de 3s do Kling (17 créditos/s)
+    expect(creditosTroca(10, "standard")).toBe(130);
+    expect(creditosTroca(10, "4k")).toBe(420);
     expect(creditosTrocaPremium(30)).toBe(1710);
     expect(creditosTrocaPremium(3)).toBe(228); // Seedance gera no mínimo 4s
     expect(creditosCriarVideo("gen4.5", 5, false)).toBe(60);

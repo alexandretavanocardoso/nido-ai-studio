@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
 import { cn } from "@/lib/cn";
 import { tx } from "@/lib/i18n/tx";
+import { useDuravel } from "@/lib/duravel";
 import { txErro } from "@/lib/i18n/erros";
 
 interface Caixa {
@@ -60,9 +61,19 @@ export function LegendaEditor({
   const [caixa, setCaixa] = useState<Caixa | null>(null);
   const [modo, setModo] = useState<"remover" | "trocar">("remover");
   const [texto, setTexto] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  const [erroCode, setErroCode] = useState<string | null>(null);
+  const [enviando, setEnviando] = useDuravel<boolean>(
+    `legenda:${video.id}:enviando`,
+    false,
+    "Editando a legenda do vídeo",
+  );
+  const [erro, setErro] = useDuravel<string | null>(
+    `legenda:${video.id}:erro`,
+    null,
+  );
+  const [erroCode, setErroCode] = useDuravel<string | null>(
+    `legenda:${video.id}:erroCode`,
+    null,
+  );
   const { conta } = useCreditos();
   const recursos = useRecursos();
   /** rapida = ffmpeg, na hora · ia = Bria Video Eraser (fundo complexo), alguns minutos. */
@@ -160,7 +171,6 @@ export function LegendaEditor({
         <button
           type="button"
           onClick={onClose}
-          disabled={enviando}
           className="absolute top-4 right-4 h-9 w-9 inline-flex items-center justify-center rounded-full border border-line hover:border-ink text-ink-mute hover:text-ink"
           aria-label={tx("Fechar")}
         >

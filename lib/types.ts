@@ -42,6 +42,18 @@ export interface AudioArquivo {
   createdAt: number;
 }
 
+/** Texto escrito na voz do personagem (legenda, roteiro ou resposta), com as opções geradas. */
+export interface TextoEscrito {
+  id: string;
+  /** legenda | roteiro | resposta */
+  tipo: string;
+  plataforma: string;
+  /** O que foi pedido: o tema do post/vídeo ou o comentário respondido. */
+  tema: string;
+  opcoes: string[];
+  createdAt: number;
+}
+
 /** Vídeo no S3: enviado pela pessoa ou gerado pelo app (legenda, troca de pessoa). */
 export interface VideoArquivo {
   id: string;
@@ -221,6 +233,10 @@ export interface Character {
   personaDataset?: ImagemTreino[];
   /** Falas geradas com a voz do personagem. A voz fica na tabela `vozes`. */
   audios?: AudioArquivo[];
+  /** Textos escritos em Estúdio → Textos, salvos na hora (mais recentes primeiro, até 30). */
+  textos?: TextoEscrito[];
+  /** Voz pronta escolhida na biblioteca da ElevenLabs (as criadas/clonadas ficam na tabela `vozes`). */
+  vozBiblioteca?: { voiceId: string; nome: string; previewUrl?: string };
   /** fieldId → "contexto"|"suposicao". Enquanto estiver aqui, o campo mostra badge. */
   _suggestions: Record<string, "contexto" | "suposicao">;
   /** fieldIds travados: nunca sobrescritos por regeneração. */

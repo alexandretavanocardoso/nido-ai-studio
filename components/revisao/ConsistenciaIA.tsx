@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { AlertTriangle, Info, Loader2, Wand2 } from "lucide-react";
 import { useCharacters } from "@/lib/store";
+import { useDuravel } from "@/lib/duravel";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
 import type { AlertaIA } from "@/lib/ai/schema";
@@ -14,9 +14,16 @@ export function ConsistenciaIA({ characterId }: { characterId: string }) {
   const character = useCharacters((s) =>
     s.characters.find((c) => c.id === characterId),
   );
-  const [alertas, setAlertas] = useState<AlertaIA[] | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [alertas, setAlertas] = useDuravel<AlertaIA[] | null>(
+    `consistencia:${characterId}:alertas`,
+    null,
+  );
+  const [loading, setLoading] = useDuravel<boolean>(
+    `consistencia:${characterId}:loading`,
+    false,
+    "Checando a ficha com IA",
+  );
+  const [err, setErr] = useDuravel<string | null>(`consistencia:${characterId}:err`, null);
 
   async function run() {
     if (!character) return;

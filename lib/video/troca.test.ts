@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { dimensoesTroca, trechosTroca } from "./ffmpeg";
 
-describe("trechos do Kling O1 (3 a 10s cada)", () => {
+describe("trechos da troca", () => {
+  it("Kling O3 aceita até 15s: 15s vai inteiro, 20s vira 2 de 10s, nenhum abaixo de 3s", () => {
+    expect(trechosTroca(15, 15)).toEqual([{ inicio: 0, duracao: 15 }]);
+    expect(trechosTroca(20, 15).map((t) => t.duracao)).toEqual([10, 10]);
+    for (const d of [15.5, 30, 44.9, 60])
+      expect(
+        trechosTroca(d, 15).every((x) => x.duracao <= 15 && x.duracao >= 3),
+      ).toBe(true);
+  });
   it("Seedance aceita até 30s: 25s vai inteiro, 45s vira 2 de 22,5s", () => {
     expect(trechosTroca(25, 30)).toEqual([{ inicio: 0, duracao: 25 }]);
     expect(trechosTroca(45, 30).map((t) => t.duracao)).toEqual([22.5, 22.5]);

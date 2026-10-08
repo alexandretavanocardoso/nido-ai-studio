@@ -212,7 +212,9 @@ export interface PostMetricas {
 /** Posts publicados da conta na janela do Dashboard, com as métricas por rede. */
 export async function postsComMetricas(
   pool: Pool,
-  userId: string,
+  /** null = todas as contas (relatório do admin). */
+  userId: string | null,
+  dias = DIAS_METRICAS,
 ): Promise<{
   posts: PostMetricas[];
   atualizadoEm: string | null;
@@ -238,9 +240,10 @@ export async function postsComMetricas(
          filter (where m.rede is not null), '{}') as metricas
      from posts_agendados p
      left join posts_metricas m on m.post_id = p.id
-     where p.user_id = $1 and p.status = 'POSTED' and p.post_date > now() - make_interval(days => $2)
-     group by p.id order by p.post_date desc`,
-    [userId, DIAS_METRICAS],
+     where ($1::text is null or p.user_id = $1) and p.status = 'POSTED'
+       and p.post_date > now() - make_interval(days => $2)
+     group by p.id order by p.post_date desc limit 5000`,
+    [userId, dias],
   );
   const leituras = rows
     .map((r) => r.atualizado_em?.getTime() ?? 0)

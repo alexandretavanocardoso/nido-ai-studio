@@ -23,7 +23,7 @@ export function mensagemDeErro(e: unknown): string {
       const det = Array.isArray(body?.detail) ? body.detail.map((d) => d.msg).join("; ") : body?.detail;
       // Seedance bloqueia vídeos/imagens com rosto de pessoa real reconhecível.
       if (det && /likeness|real people|private information/i.test(det))
-        return "O motor Premium (Seedance) recusa vídeos em que aparece o rosto de uma pessoa real. Use o motor Padrão (Kling O1) para este vídeo.";
+        return "O motor Premium (Seedance) recusa vídeos em que aparece o rosto de uma pessoa real. Use o motor Padrão (Kling O3) para este vídeo.";
       return `O fal recusou a entrada${det ? `: ${det}` : "."}`;
     }
     return `Falha no fal.ai (HTTP ${e.status}).`;

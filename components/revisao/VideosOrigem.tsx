@@ -11,15 +11,20 @@ import {
   Link2,
   Loader2,
   Mic,
+  Send,
+  Sparkles,
   Upload,
   UserRound,
   X,
+  type LucideIcon,
 } from "lucide-react";
+import { cn } from "@/lib/cn";
 import { AplicarFalaModal } from "@/components/revisao/AplicarFalaModal";
 import { LinkVideoModal } from "@/components/revisao/LinkVideoModal";
 import type { VideoLink } from "@/components/revisao/SubstituirPessoaModal";
 import type { Character, VideoArquivo } from "@/lib/types";
 import { useCharacters } from "@/lib/store";
+import { useDuravel } from "@/lib/duravel";
 import { downloadUrl, fileUrl, uploadFile } from "@/lib/storage/client";
 import { STORAGE_KINDS } from "@/lib/storage/env";
 import { useStorageReady } from "@/lib/storage/useStorage";
@@ -28,33 +33,79 @@ import { Button } from "@/components/ui/Button";
 import { LegendaEditor } from "@/components/revisao/LegendaEditor";
 import { SubstituirPessoaModal } from "@/components/revisao/SubstituirPessoaModal";
 import { CriarVideoModal } from "@/components/revisao/CriarVideoModal";
-import { avisarCreditos } from "@/components/creditos/CreditosProvider";
-import { MODELOS_CRIAR } from "@/lib/video/precos";
 import { tx } from "@/lib/i18n/tx";
 import { txErro } from "@/lib/i18n/erros";
 
 const MAX_MB = STORAGE_KINDS.videos.maxBytes / 1024 / 1024;
-const POLL_MS = 10_000;
 
-const ORIGEM_LABEL: Record<NonNullable<VideoArquivo["origem"]>, string> = {
-  upload: "Original",
-  legenda: "Legenda editada",
-  substituicao: "Com o personagem",
-  criado: "Criado",
-  audio: "Com fala",
+/** Selo de cada tipo de vídeo (fica sobre o vídeo, no canto). */
+const TIPOS: Record<
+  NonNullable<VideoArquivo["origem"]>,
+  { rotulo: string; icon: LucideIcon; selo: string }
+> = {
+  upload: {
+    rotulo: "Original",
+    icon: Upload,
+    selo: "bg-black/75 text-ink border border-line-strong",
+  },
+  substituicao: {
+    rotulo: "Com o personagem",
+    icon: Sparkles,
+    selo: "bg-accent text-bg",
+  },
+  criado: {
+    rotulo: "Criado com IA",
+    icon: Clapperboard,
+    selo: "bg-violet-500 text-white",
+  },
+  legenda: {
+    rotulo: "Legenda editada",
+    icon: Captions,
+    selo: "bg-sky-500 text-white",
+  },
+  audio: { rotulo: "Com fala", icon: Mic, selo: "bg-ok text-bg" },
 };
+
+/** Ação secundária do cartão: só o ícone (o nome fica na dica). */
+/** Estúdio → Publicar do personagem, com esta mídia já escolhida. */
+const linkPublicar = (characterId: string, key: string) =>
+  `/app/personagem/${characterId}?aba=estudio&secao=publicar&midia=${encodeURIComponent(key)}`;
+
+const acaoIcone =
+  "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line-strong text-ink transition hover:bg-panel hover:border-ink/50";
+
+/** A lista é separada em dois blocos: o que a pessoa enviou e o que o app gerou. */
+const GRUPOS: Array<{
+  originais: boolean;
+  titulo: string;
+  dica: string;
+  icon: LucideIcon;
+}> = [
+  {
+    originais: true,
+    titulo: "Vídeos de origem",
+    dica: "O que você enviou. Use como base para trocar a pessoa, editar a legenda ou pôr uma fala.",
+    icon: Upload,
+  },
+  {
+    originais: false,
+    titulo: "Feitos com IA",
+    dica: "O que o Estúdio gerou a partir dos seus vídeos ou do zero. Prontos para baixar e publicar.",
+    icon: Sparkles,
+  },
+];
 
 /**
  * Vídeos do personagem no S3: upload direto do navegador (com progresso),
  * edição de legenda (ffmpeg no servidor), troca da pessoa pelo personagem
- * (Kling O1 ou Seedance 2.5, no fal.ai) e criação de vídeo novo (Runway). Troca e
- * criação são assíncronas — os jobs em andamento são consultados a cada 10s.
+ * (Kling O3 ou Seedance 2.5, no fal.ai) e criação de vídeo novo (Runway). Troca e
+ * criação são assíncronas — quem acompanha os jobs é o TarefasEmAndamento (app inteiro).
  */
 export function VideosOrigem({ character }: { character: Character }) {
   const update = useCharacters((s) => s.update);
   const pronto = useStorageReady();
   const recursos = useRecursos();
-  /** Algum serviço de troca de pessoa ligado (Kling O1 ou Seedance 2.5, no fal.ai). */
+  /** Algum serviço de troca de pessoa ligado (Kling O3 ou Seedance 2.5, no fal.ai). */
   const trocaLigada = recursos.fal;
   /** Criar vídeo: Runway. */
   const criarLigado = recursos.runway;
@@ -64,74 +115,19 @@ export function VideosOrigem({ character }: { character: Character }) {
   const [linkAberto, setLinkAberto] = useState(false);
   const [linkEncontrado, setLinkEncontrado] = useState<VideoLink | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [progresso, setProgresso] = useState<number | null>(null);
+  const [progresso, setProgresso] = useDuravel<number | null>(
+    `videos:${character.id}:envio`,
+    null,
+    "Enviando vídeo",
+  );
   const [erro, setErro] = useState<string | null>(null);
   const [legendaDe, setLegendaDe] = useState<VideoArquivo | null>(null);
   const [trocarDe, setTrocarDe] = useState<VideoArquivo | null>(null);
   const [criarAberto, setCriarAberto] = useState(false);
 
   const videos = character.videos ?? [];
-  const pendentes = videos.filter((v) => v.status === "processando" && v.jobId);
-  const pendentesKey = pendentes.map((v) => v.id).join(",");
-
-  // Acompanha os jobs de troca de pessoa enquanto houver algum em andamento.
-  useEffect(() => {
-    if (!pronto || !pendentesKey) return;
-    let ativo = true;
-    async function consultar() {
-      const atual = useCharacters
-        .getState()
-        .characters.find((c) => c.id === character.id);
-      for (const v of (atual?.videos ?? []).filter(
-        (x) => x.status === "processando" && x.jobId,
-      )) {
-        try {
-          const res = await fetch(`/api/videos/jobs/${v.jobId}`, {
-            cache: "no-store",
-          });
-          const job = (await res.json()) as {
-            status?: string;
-            key?: string;
-            erro?: string;
-            duracao?: number;
-          };
-          if (!ativo) return;
-          if (job.status === "concluido" && job.key) {
-            atualizarVideo(v.id, {
-              key: job.key,
-              status: undefined,
-              duracao: job.duracao,
-            });
-          } else if (job.status === "erro" || res.status === 404) {
-            atualizarVideo(v.id, {
-              status: "erro",
-              erro: job.erro ?? "O processamento falhou.",
-            });
-            avisarCreditos(); // créditos devolvidos
-          }
-        } catch {
-          // rede instável: tenta de novo na próxima volta
-        }
-      }
-    }
-    void consultar();
-    const t = setInterval(consultar, POLL_MS);
-    return () => {
-      ativo = false;
-      clearInterval(t);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pronto, pendentesKey, character.id]);
 
   if (!recursos.armazenamento) return null;
-
-  function atualizarVideo(id: string, patch: Partial<VideoArquivo>) {
-    update(character.id, (c) => {
-      c.videos = (c.videos ?? []).map((v) =>
-        v.id === id ? { ...v, ...patch } : v,
-      );
-    });
-  }
 
   function adicionarVideo(v: Omit<VideoArquivo, "id" | "createdAt">) {
     update(character.id, (c) => {
@@ -216,16 +212,6 @@ export function VideosOrigem({ character }: { character: Character }) {
                   {tx("Colar link")}
                 </Button>
               )}
-              {criarLigado && (
-                <Button
-                  size="sm"
-                  variant="accent"
-                  onClick={() => setCriarAberto(true)}
-                >
-                  <Clapperboard className="w-3.5 h-3.5" />
-                  {tx("Criar vídeo")}
-                </Button>
-              )}
               <Button
                 size="sm"
                 variant="ghost"
@@ -237,6 +223,17 @@ export function VideosOrigem({ character }: { character: Character }) {
                   ? `Enviando ${Math.round(progresso * 100)}%`
                   : tx("Enviar vídeo")}
               </Button>
+              {/* Trazer um vídeo pronto (link ou arquivo) vem primeiro; criar do zero é a ação principal, no fim. */}
+              {criarLigado && (
+                <Button
+                  size="sm"
+                  variant="accent"
+                  onClick={() => setCriarAberto(true)}
+                >
+                  <Clapperboard className="w-3.5 h-3.5" />
+                  {tx("Criar vídeo")}
+                </Button>
+              )}
             </div>
           </>
         ) : (
@@ -261,108 +258,240 @@ export function VideosOrigem({ character }: { character: Character }) {
       {erro ? <div className="text-[12px] text-pink">{erro}</div> : null}
 
       {videos.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {videos.map((v) => (
-            <figure
-              key={v.id}
-              className="rounded-lg overflow-hidden border border-line bg-bg relative group"
-            >
-              {v.status === "processando" ? (
-                <div className="w-full aspect-[9/16] max-h-80 flex flex-col items-center justify-center gap-2 text-ink-mute">
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                  <span className="text-[12px]">
-                    {v.origem === "criado"
-                      ? tx("Criando o vídeo…")
-                      : v.origem === "legenda"
-                        ? tx("Removendo a legenda com IA…")
-                        : tx("Gerando com o personagem…")}
-                  </span>
-                  <span className="text-[11px] text-ink-dim">
-                    {v.origem === "criado"
-                      ? tx("Costuma levar de 1 a 5 min")
-                      : tx("Costuma levar de 3 a 15 min")}
-                  </span>
-                </div>
-              ) : v.status === "erro" ? (
-                <div className="w-full aspect-[9/16] max-h-80 flex flex-col items-center justify-center gap-2 px-4 text-center">
-                  <AlertTriangle className="w-6 h-6 text-pink" />
-                  <span className="text-[12px] text-pink">
-                    {txErro(v.erro ?? "O processamento falhou.")}
-                  </span>
-                </div>
-              ) : (
-                <video
-                  src={fileUrl(v.key)}
-                  controls
-                  preload="metadata"
-                  className="w-full max-h-80 bg-black"
-                />
-              )}
-
-              <figcaption className="px-2.5 py-2 grid gap-2">
-                <div className="text-[11px] text-ink-mute truncate">
-                  <span className="label-cap !text-[10px] mr-1.5">
-                    {ORIGEM_LABEL[v.origem ?? "upload"]}
-                  </span>
-                  {v.name}
-                  {v.size ? ` · ${(v.size / 1024 / 1024).toFixed(1)} MB` : ""}
-                </div>
-                {!v.status && pronto && (
-                  <div className="flex gap-2 flex-wrap">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setLegendaDe(v)}
-                    >
-                      <Captions className="w-3.5 h-3.5" />
-                      {tx("Legenda")}
-                    </Button>
-                    {audios.length > 0 && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setFalaEm(v)}
-                      >
-                        <Mic className="w-3.5 h-3.5" />
-                        {tx("Adicionar fala")}
-                      </Button>
+        <div className="grid gap-7 pt-2">
+          {GRUPOS.map((g) => {
+            const lista = videos.filter(
+              (v) => ((v.origem ?? "upload") === "upload") === g.originais,
+            );
+            if (!lista.length) return null;
+            return (
+              <section key={g.titulo} className="grid gap-3">
+                <header className="flex items-center gap-2.5">
+                  <span
+                    className={cn(
+                      "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+                      g.originais
+                        ? "bg-panel text-ink-mute"
+                        : "bg-accent text-bg",
                     )}
-                    {trocaLigada &&
-                      v.origem !== "substituicao" &&
-                      v.origem !== "criado" && (
-                        <Button
-                          size="sm"
-                          variant="accent"
-                          onClick={() => setTrocarDe(v)}
-                        >
-                          <UserRound className="w-3.5 h-3.5" />
-                          {tx("Trocar pessoa")}
-                        </Button>
-                      )}
-                    {v.key && (
-                      <a
-                        href={downloadUrl(v.key, nomeDownload(v))}
-                        download={nomeDownload(v)}
-                        className="inline-flex items-center justify-center gap-1.5 font-bold rounded-full h-8 px-3.5 text-[13px] text-ink border border-line-strong hover:bg-panel transition"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        {tx("Baixar")}
-                      </a>
-                    )}
+                  >
+                    <g.icon className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-[15px] font-bold text-ink">
+                      {tx(g.titulo)}
+                      <span className="ml-1.5 font-normal text-ink-dim">
+                        · {lista.length}
+                      </span>
+                    </h3>
+                    <p className="text-[12px] text-ink-dim">{tx(g.dica)}</p>
                   </div>
-                )}
-              </figcaption>
+                </header>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {lista.map((v) => {
+                    const tipo = TIPOS[v.origem ?? "upload"];
+                    const de = v.origemId
+                      ? videos.find((x) => x.id === v.origemId)
+                      : undefined;
+                    const podeTrocar =
+                      trocaLigada &&
+                      v.origem !== "substituicao" &&
+                      v.origem !== "criado";
+                    const versoes = videos.filter(
+                      (x) => x.origemId === v.id,
+                    ).length;
+                    return (
+                      <figure
+                        key={v.id}
+                        className={cn(
+                          "group relative flex flex-col overflow-hidden rounded-xl border bg-bg",
+                          g.originais ? "border-line" : "border-accent/30",
+                        )}
+                      >
+                        <div className="relative bg-black">
+                          {v.status === "processando" ? (
+                            <div className="flex h-72 w-full flex-col items-center justify-center gap-2 text-ink-mute">
+                              <Loader2 className="h-6 w-6 animate-spin" />
+                              <span className="text-[12px]">
+                                {v.origem === "criado"
+                                  ? tx("Criando o vídeo…")
+                                  : v.origem === "legenda"
+                                    ? tx("Removendo a legenda com IA…")
+                                    : tx("Gerando com o personagem…")}
+                              </span>
+                              <span className="text-[11px] text-ink-dim">
+                                {v.origem === "criado"
+                                  ? tx("Costuma levar de 1 a 5 min")
+                                  : tx("Costuma levar de 3 a 15 min")}
+                              </span>
+                              <TempoDecorrido desde={v.createdAt} />
+                            </div>
+                          ) : v.status === "erro" ? (
+                            <div className="flex h-72 w-full flex-col items-center justify-center gap-2 px-4 text-center">
+                              <AlertTriangle className="h-6 w-6 text-pink" />
+                              <span className="text-[12px] text-pink">
+                                {txErro(v.erro ?? "O processamento falhou.")}
+                              </span>
+                            </div>
+                          ) : (
+                            <video
+                              src={fileUrl(v.key)}
+                              controls
+                              preload="metadata"
+                              className="h-72 w-full bg-black object-contain"
+                            />
+                          )}
+                          {/* Selo do tipo, sempre visível sobre o vídeo */}
+                          <span
+                            className={cn(
+                              "pointer-events-none absolute left-2 top-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wide shadow-[0_2px_8px_rgba(0,0,0,0.5)]",
+                              tipo.selo,
+                            )}
+                          >
+                            <tipo.icon className="h-3 w-3" />
+                            {tx(tipo.rotulo)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => remover(v.id)}
+                            className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-black/70 text-white opacity-0 transition focus:opacity-100 group-hover:opacity-100"
+                            aria-label={`Remover ${v.name}`}
+                            title={tx("Remover")}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
 
-              <button
-                type="button"
-                onClick={() => remover(v.id)}
-                className="absolute top-1.5 right-1.5 h-7 w-7 inline-flex items-center justify-center rounded-lg bg-black/60 text-white opacity-0 group-hover:opacity-100 transition"
-                aria-label={`Remover ${v.name}`}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </figure>
-          ))}
+                        <figcaption className="grid flex-1 content-start gap-2 px-3 py-2.5">
+                          <div className="min-w-0">
+                            <div
+                              className="truncate text-[13px] font-semibold text-ink"
+                              title={v.name}
+                            >
+                              {v.name}
+                            </div>
+                            <div className="truncate text-[11.5px] text-ink-dim">
+                              {g.originais ? (
+                                <>
+                                  {v.size
+                                    ? `${(v.size / 1024 / 1024).toFixed(1)} MB · `
+                                    : ""}
+                                  {versoes
+                                    ? `${versoes} ${tx(versoes === 1 ? "versão com IA" : "versões com IA")}`
+                                    : tx("ainda sem versão com IA")}
+                                </>
+                              ) : de ? (
+                                <>
+                                  {tx("A partir de:")} {de.name}
+                                </>
+                              ) : v.fonte ? (
+                                <>
+                                  {tx("A partir de:")}{" "}
+                                  <a
+                                    href={v.fonte}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-accent hover:underline"
+                                  >
+                                    {tx("link")}
+                                  </a>
+                                </>
+                              ) : v.origemId ? (
+                                tx("O vídeo de origem foi removido")
+                              ) : (
+                                tx("Criado do zero com o personagem")
+                              )}
+                            </div>
+                          </div>
+                          {!v.status && pronto && (
+                            // Uma linha só: a ação principal com texto, as outras só com ícone.
+                            <div className="flex items-center gap-1.5">
+                              {podeTrocar ? (
+                                <Button
+                                  size="sm"
+                                  variant="accent"
+                                  className="min-w-0 flex-1 px-3"
+                                  onClick={() => setTrocarDe(v)}
+                                >
+                                  <UserRound className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="truncate">
+                                    {tx("Trocar pessoa")}
+                                  </span>
+                                </Button>
+                              ) : v.key ? (
+                                <a
+                                  href={downloadUrl(v.key, nomeDownload(v))}
+                                  download={nomeDownload(v)}
+                                  className="inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full bg-accent px-3 text-[13px] font-bold text-bg transition hover:bg-accent-strong"
+                                >
+                                  <Download className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="truncate">{tx("Baixar")}</span>
+                                </a>
+                              ) : null}
+                              {/* Leva o vídeo pronto para Estúdio → Publicar, já escolhido como mídia do post. */}
+                              {recursos.social && v.key ? (
+                                podeTrocar ? (
+                                  <Link
+                                    href={linkPublicar(character.id, v.key)}
+                                    title={tx("Publicar")}
+                                    aria-label={tx("Publicar")}
+                                    className={acaoIcone}
+                                  >
+                                    <Send className="h-3.5 w-3.5" />
+                                  </Link>
+                                ) : (
+                                  <Link
+                                    href={linkPublicar(character.id, v.key)}
+                                    className="inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-bold text-ink transition hover:border-accent hover:text-accent"
+                                  >
+                                    <Send className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="truncate">
+                                      {tx("Publicar")}
+                                    </span>
+                                  </Link>
+                                )
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => setLegendaDe(v)}
+                                title={tx("Legenda")}
+                                aria-label={tx("Legenda")}
+                                className={acaoIcone}
+                              >
+                                <Captions className="h-3.5 w-3.5" />
+                              </button>
+                              {audios.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setFalaEm(v)}
+                                  title={tx("Adicionar fala")}
+                                  aria-label={tx("Adicionar fala")}
+                                  className={acaoIcone}
+                                >
+                                  <Mic className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                              {podeTrocar && v.key && (
+                                <a
+                                  href={downloadUrl(v.key, nomeDownload(v))}
+                                  download={nomeDownload(v)}
+                                  title={tx("Baixar")}
+                                  aria-label={tx("Baixar")}
+                                  className={acaoIcone}
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </figcaption>
+                      </figure>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
         </div>
       )}
 
@@ -424,9 +553,9 @@ export function VideosOrigem({ character }: { character: Character }) {
         <CriarVideoModal
           character={character}
           onClose={() => setCriarAberto(false)}
-          onEnviado={({ jobId, duracao, modelo }) => {
+          onEnviado={({ jobId, duracao, rotulo }) => {
             adicionarVideo({
-              name: `${character.identidade.nome || "personagem"} · ${MODELOS_CRIAR[modelo].label}.mp4`,
+              name: `${character.identidade.nome || "personagem"} · ${rotulo}.mp4`,
               key: "",
               size: 0,
               duracao,
@@ -494,6 +623,25 @@ export function VideosOrigem({ character }: { character: Character }) {
         />
       )}
     </div>
+  );
+}
+
+/** Há quanto tempo o vídeo está sendo gerado (conta a partir do envio), atualizado a cada segundo. */
+function TempoDecorrido({ desde }: { desde: number }) {
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const total = Math.max(0, Math.floor((agora - desde) / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const seg = String(total % 60).padStart(2, "0");
+  return (
+    <span className="mono text-[12px] tabular-nums text-ink-mute">
+      {tx("Gerando há")}{" "}
+      {h ? `${h}:${String(m).padStart(2, "0")}:${seg}` : `${m}:${seg}`}
+    </span>
   );
 }
 

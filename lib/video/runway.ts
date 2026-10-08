@@ -88,6 +88,10 @@ export async function consultarRunway(
 function traduzirFalha(failure: string, code?: string): string {
   if (code?.startsWith("SAFETY"))
     return "O Runway bloqueou a geração pela moderação de conteúdo.";
+  if (/moderation/i.test(failure))
+    return /text|prompt/i.test(failure)
+      ? "O Runway barrou o texto da cena na moderação. Descreva só o que aparece (ação, câmera, luz), sem falas, nomes de pessoas, marcas ou personagens famosos."
+      : "O Runway barrou a imagem na moderação. Tente outra imagem do personagem.";
   if (code?.startsWith("INPUT_PREPROCESSING"))
     return `O Runway não aceitou a entrada: ${failure}`;
   return `O Runway falhou: ${failure}`;

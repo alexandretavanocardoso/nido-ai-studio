@@ -3,13 +3,18 @@
 import { useState } from "react";
 import {
   Check,
+  ChevronDown,
   Copy,
   Loader2,
+  Trash2,
   MessageCircle,
   PenLine,
   Clapperboard,
 } from "lucide-react";
-import type { Character } from "@/lib/types";
+import { nanoid } from "nanoid";
+import type { Character, TextoEscrito } from "@/lib/types";
+import { useCharacters } from "@/lib/store";
+import { confirmar } from "@/components/ui/Confirmacao";
 import {
   avisarCreditos,
   useCreditos,
@@ -22,6 +27,7 @@ import { copyToClipboard } from "@/lib/export";
 import { CREDITOS_TEXTO } from "@/lib/planos";
 import type { Plataforma, TipoEscrita } from "@/lib/prompts/escrever";
 import { tx } from "@/lib/i18n/tx";
+import { useDuravel } from "@/lib/duravel";
 import { useSearchParams } from "next/navigation";
 import { txErro } from "@/lib/i18n/erros";
 
@@ -59,9 +65,13 @@ const PLATAFORMAS: Array<{ id: Plataforma; label: string }> = [
   { id: "youtube", label: "YouTube Shorts" },
 ];
 
+/** Quantos textos ficam guardados por personagem (os mais antigos saem). */
+const MAX_TEXTOS = 30;
+
 /**
  * Escrever como o personagem: legendas, roteiros e respostas a comentários na
  * voz dele, a partir da ficha (substitui copiar o Prompt Mestre para outra IA).
+ * Tudo que é escrito fica salvo no personagem (e na conta), em "Textos salvos".
  */
 export function EscreverComoPersonagem({
   character,
@@ -75,10 +85,33 @@ export function EscreverComoPersonagem({
   const temaInicial = useSearchParams()?.get("tema") ?? "";
   const [tema, setTema] = useState(temaInicial);
   const [comentario, setComentario] = useState("");
-  const [opcoes, setOpcoes] = useState<string[]>([]);
-  const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState<{ msg: string; code?: string } | null>(null);
-  const [copiado, setCopiado] = useState<number | null>(null);
+  const atualizar = useCharacters((s) => s.update);
+  const salvos = character.textos ?? [];
+  /** Texto salvo que está aberto na lista (o recém-escrito abre sozinho). */
+  const [aberto, setAberto] = useState<string | null>(salvos[0]?.id ?? null);
+  const [carregando, setCarregando] = useDuravel<boolean>(
+    `escrever:${character.id}:carregando`,
+    false,
+    "Escrevendo texto",
+  );
+  const [erro, setErro] = useDuravel<{ msg: string; code?: string } | null>(
+    `escrever:${character.id}:erro`,
+    null,
+  );
+  const [copiado, setCopiado] = useState<string | null>(null);
+
+  async function excluir(t: TextoEscrito) {
+    const ok = await confirmar({
+      titulo: tx("Excluir este texto?"),
+      mensagem: tx("Ele sai da lista de textos salvos. Não dá para desfazer."),
+      confirmar: tx("Excluir"),
+      tom: "perigo",
+    });
+    if (!ok) return;
+    atualizar(character.id, (c) => {
+      c.textos = (c.textos ?? []).filter((x) => x.id !== t.id);
+    });
+  }
 
   const info = TIPOS.find((t) => t.id === tipo)!;
   const pronto =
@@ -112,7 +145,19 @@ export function EscreverComoPersonagem({
           msg: txErro(b.error ?? `Falha (HTTP ${res.status}).`),
           code: b.code,
         });
-      setOpcoes(b.opcoes);
+      // Salva na hora, no personagem: não se perde ao recarregar nem em outro aparelho.
+      const novo: TextoEscrito = {
+        id: nanoid(10),
+        tipo,
+        plataforma,
+        tema: (tipo === "resposta" ? comentario : tema).trim(),
+        opcoes: b.opcoes,
+        createdAt: Date.now(),
+      };
+      atualizar(character.id, (c) => {
+        c.textos = [novo, ...(c.textos ?? [])].slice(0, MAX_TEXTOS);
+      });
+      setAberto(novo.id);
     } catch (e) {
       setErro({ msg: (e as Error).message });
     } finally {
@@ -120,9 +165,9 @@ export function EscreverComoPersonagem({
     }
   }
 
-  async function copiar(texto: string, i: number) {
+  async function copiar(texto: string, chave: string) {
     if (await copyToClipboard(texto)) {
-      setCopiado(i);
+      setCopiado(chave);
       setTimeout(() => setCopiado(null), 1500);
     }
   }
@@ -142,10 +187,7 @@ export function EscreverComoPersonagem({
           <button
             key={t.id}
             type="button"
-            onClick={() => {
-              setTipo(t.id);
-              setOpcoes([]);
-            }}
+            onClick={() => setTipo(t.id)}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-bold transition",
               tipo === t.id
@@ -211,34 +253,92 @@ export function EscreverComoPersonagem({
 
       {erro ? <ErroGeracao mensagem={erro.msg} code={erro.code} /> : null}
 
-      {opcoes.length > 0 && (
+      {salvos.length > 0 && (
         <div className="grid gap-2">
-          {opcoes.map((texto, i) => (
-            <div key={i} className="rounded-xl border border-line bg-panel">
-              <div className="flex items-center justify-between px-3.5 py-2 border-b border-line">
-                <span className="text-[11px] text-ink-dim mono uppercase">
-                  {opcoes.length > 1
-                    ? `${tx("Opção")} ${i + 1}`
-                    : tx(info.label)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => copiar(texto, i)}
-                  className="text-[12px] text-ink-mute hover:text-ink inline-flex items-center gap-1 font-semibold"
-                >
-                  {copiado === i ? (
-                    <Check className="w-3.5 h-3.5" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                  {copiado === i ? tx("Copiado") : tx("Copiar")}
-                </button>
+          <div className="flex items-baseline gap-2.5 pt-1">
+            <span className="text-[13px] font-semibold text-ink">
+              {tx("Textos salvos")}
+            </span>
+            <span className="mono text-[11px] text-ink-dim">
+              {salvos.length}
+              {salvos.length >= MAX_TEXTOS ? ` · ${tx("máximo")}` : ""}
+            </span>
+          </div>
+          {salvos.map((t) => {
+            const rotulo = TIPOS.find((x) => x.id === t.tipo)?.label ?? t.tipo;
+            const rede =
+              PLATAFORMAS.find((x) => x.id === t.plataforma)?.label ??
+              t.plataforma;
+            const expandido = aberto === t.id;
+            return (
+              <div key={t.id} className="rounded-xl border border-line bg-panel">
+                <div className="flex items-center gap-2 px-3.5 py-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setAberto(expandido ? null : t.id)}
+                    aria-expanded={expandido}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                  >
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 shrink-0 text-ink-mute transition",
+                        expandido && "rotate-180",
+                      )}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-semibold text-ink">
+                        {t.tema || tx(rotulo)}
+                      </span>
+                      <span className="mono block truncate text-[11px] uppercase text-ink-dim">
+                        {tx(rotulo)} · {rede} ·{" "}
+                        {new Date(t.createdAt).toLocaleDateString()}
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => excluir(t)}
+                    title={tx("Excluir")}
+                    aria-label={tx("Excluir")}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-ink-mute transition hover:bg-pink/10 hover:text-pink"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                {expandido
+                  ? t.opcoes.map((texto, i) => {
+                      const chave = `${t.id}:${i}`;
+                      return (
+                        <div key={chave} className="border-t border-line">
+                          <div className="flex items-center justify-between px-3.5 py-2">
+                            <span className="text-[11px] text-ink-dim mono uppercase">
+                              {t.opcoes.length > 1
+                                ? `${tx("Opção")} ${i + 1}`
+                                : tx(rotulo)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => copiar(texto, chave)}
+                              className="text-[12px] text-ink-mute hover:text-ink inline-flex items-center gap-1 font-semibold"
+                            >
+                              {copiado === chave ? (
+                                <Check className="w-3.5 h-3.5" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                              {copiado === chave ? tx("Copiado") : tx("Copiar")}
+                            </button>
+                          </div>
+                          <p className="px-3.5 pb-3.5 text-[13px] text-ink whitespace-pre-wrap leading-relaxed">
+                            {texto}
+                          </p>
+                        </div>
+                      );
+                    })
+                  : null}
               </div>
-              <p className="p-3.5 text-[13px] text-ink whitespace-pre-wrap leading-relaxed">
-                {texto}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>

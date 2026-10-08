@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Clock,
   ExternalLink,
   Flame,
   Loader2,
@@ -28,6 +29,7 @@ import {
   diaDeHoje,
   MAX_TEMAS,
   NOTA_DESTAQUE,
+  quandoPublicado,
   temasDoPersonagem,
   type ItemRadar,
   type Radar as RadarDoDia,
@@ -412,6 +414,22 @@ export function SeletorDeDia({
   );
 }
 
+/** "hoje 14:30", "ontem 09:10", "05/10 18:00" — ou só o dia, se a fonte não deu a hora. */
+function horarioCurto(q: { data: Date; comHora: boolean }): string {
+  const local = idiomaAtual() === "en" ? "en-US" : "pt-BR";
+  const ontem = new Date();
+  ontem.setDate(ontem.getDate() - 1);
+  const dia =
+    q.data.toDateString() === new Date().toDateString()
+      ? tx("hoje")
+      : q.data.toDateString() === ontem.toDateString()
+        ? tx("ontem")
+        : q.data.toLocaleDateString(local, { day: "2-digit", month: "2-digit" });
+  return q.comHora
+    ? `${dia} ${q.data.toLocaleTimeString(local, { hour: "2-digit", minute: "2-digit" })}`
+    : dia;
+}
+
 export function CartaoItem({
   item: i,
   onEscrever,
@@ -423,6 +441,7 @@ export function CartaoItem({
   dicaNota?: string;
 }) {
   const destaque = i.nota >= NOTA_DESTAQUE;
+  const quando = quandoPublicado(i);
   return (
     <article
       className={cn(
@@ -453,6 +472,21 @@ export function CartaoItem({
             {i.origem ?? (i.fonte === "x" ? "X" : tx("Notícia"))}
           </span>
         </span>
+        {quando ? (
+          <time
+            dateTime={quando.data.toISOString()}
+            title={`${tx("Publicado em")} ${quando.data.toLocaleString(
+              idiomaAtual() === "en" ? "en-US" : "pt-BR",
+              quando.comHora
+                ? { dateStyle: "short", timeStyle: "short" }
+                : { dateStyle: "short" },
+            )}`}
+            className="ml-auto inline-flex shrink-0 items-center gap-1 font-semibold normal-case tracking-normal text-ink-mute"
+          >
+            <Clock className="w-3 h-3" />
+            {horarioCurto(quando)}
+          </time>
+        ) : null}
       </div>
       {i.promocional ? (
         <span

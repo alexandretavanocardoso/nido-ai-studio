@@ -17,6 +17,11 @@ export interface ItemRadar {
   /** Nome do veículo ou do perfil. */
   origem?: string;
   url?: string;
+  /**
+   * Quando a notícia ou o post foi publicado, como a fonte mostra: data e hora
+   * (ISO 8601) ou só a data (AAAA-MM-DD). Ausente se a pesquisa não achou.
+   */
+  publicadoEm?: string;
   /** Relevância para o personagem, de 1 a 10. */
   nota: number;
   /** Comunicado, conteúdo patrocinado ou texto de empresa vendendo algo (não é notícia). */
@@ -37,6 +42,41 @@ export interface Radar {
   comX: boolean;
   vistoEm: string | null;
   criadoEm: string;
+}
+
+const DATA_ISO =
+  /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/;
+
+/** Data de publicação válida (ISO, com ou sem hora) ou undefined. */
+export function lerPublicadoEm(v: string | undefined): string | undefined {
+  const t = (v ?? "").trim().replace(" ", "T");
+  return DATA_ISO.test(t) && !Number.isNaN(Date.parse(t)) ? t : undefined;
+}
+
+/** Início da contagem de tempo dos ids do X (ms). */
+const EPOCA_DO_X = BigInt(1288834974657);
+
+/**
+ * Quando o item foi publicado. Post do X: a hora exata está no próprio id do
+ * link (vale até para radares antigos). Notícia: o que a pesquisa informou —
+ * às vezes só o dia (`comHora` = false).
+ */
+export function quandoPublicado(
+  i: Pick<ItemRadar, "url" | "publicadoEm">,
+): { data: Date; comHora: boolean } | null {
+  const id = i.url?.match(
+    /^https?:\/\/(?:www\.|mobile\.)?(?:x|twitter)\.com\/[^/]+\/status\/(\d{15,20})/,
+  )?.[1];
+  if (id)
+    return {
+      data: new Date(Number((BigInt(id) >> BigInt(22)) + EPOCA_DO_X)),
+      comHora: true,
+    };
+  const iso = lerPublicadoEm(i.publicadoEm);
+  if (!iso) return null;
+  const comHora = iso.includes("T");
+  // Só o dia: meio-dia local, pra não virar a véspera em nenhum fuso.
+  return { data: new Date(comHora ? iso : `${iso}T12:00:00`), comHora };
 }
 
 /** A partir desta nota o item é "destaque" e vira aviso (9–10 = quente hoje e no centro do nicho). */

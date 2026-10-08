@@ -24,6 +24,25 @@ import type { S3Client } from "@aws-sdk/client-s3";
 import { uploadFromFile } from "@/lib/storage/s3";
 import { estadoTreino } from "@/lib/persona/server";
 import { comPastaTemporaria } from "./server";
+import {
+  criarAvatarDaCena,
+  enviarCorpoInteiro,
+  enviarVideoFalado,
+  esperaAvatar,
+  estadoAvatar,
+  faladoDoJob,
+  guardarCenaFalada,
+  idDaEspera,
+  MAX_RECUSAS_DO_AVATAR,
+  unirFalado,
+} from "./falado";
+import { getRunway, mensagemDeErroRunway } from "./runway";
+import {
+  cadeiaDoJob,
+  FalhaDaCadeia,
+  proximaCena,
+  unirCenas,
+} from "./cadeia";
 
 /**
  * Finalização de jobs de vídeo, chamada de três lugares:
@@ -117,15 +136,191 @@ export async function finalizarJob(
     if (e.estado === "erro") return falhar(job, e.mensagem);
     if (e.estado === "concluido") concluido = { urls: e.urls };
     else return emAndamento(job, e.estado, { progresso: e.progresso });
+  } else if (esperaAvatar(job.fal_request_id)) {
+    // Vídeo falado: o avatar do Runway ainda estava sendo preparado.
+    const avatarId = esperaAvatar(job.fal_request_id)!;
+    const rw = getRunway();
+    if (!rw) return falhar(job, "Runway não configurado no servidor.");
+    const a = await estadoAvatar(rw, avatarId);
+    const emCenas = faladoDoJob(job.input);
+    const daVez = emCenas?.cenas[emCenas.partes.length];
+    if (a.estado === "erro") {
+      // O Runway às vezes recusa uma imagem que aceita em seguida: tenta de novo.
+      const recusas = (daVez?.recusas ?? 0) + 1;
+      if (!emCenas || !daVez || recusas > MAX_RECUSAS_DO_AVATAR)
+        return falhar(job, a.mensagem);
+      const pegouRecusa = await pool.query(
+        `update video_jobs set status = 'finalizando', updated_at = now()
+         where id = $1 and fal_request_id = $2
+           and (status in ('na_fila', 'processando')
+                or (status = 'finalizando' and updated_at < now() - interval '5 minutes'))
+         returning id`,
+        [job.id, idDaEspera(avatarId)],
+      );
+      if (!pegouRecusa.rowCount) return publico({ status: "processando" });
+      try {
+        const novo = await criarAvatarDaCena(rw, s3, emCenas.nome, daVez);
+        const cenas = emCenas.cenas.map((c) =>
+          c === daVez ? { ...c, avatarId: novo, recusas } : c,
+        );
+        await pool.query(
+          `update video_jobs set status = 'processando', fal_request_id = $2, input = $3, updated_at = now()
+           where id = $1`,
+          [
+            job.id,
+            idDaEspera(novo),
+            JSON.stringify({ ...job.input, falado: { ...emCenas, cenas } }),
+          ],
+        );
+      } catch (err) {
+        console.error("[videos] avatar recusado:", job.id, err);
+        return falhar(job, mensagemDeErroRunway(err));
+      }
+      return publico({ status: "processando" });
+    }
+    if (a.estado === "preparando") return emAndamento(job, "processando", {});
+    // Pronto: só uma chamada pede o vídeo.
+    const pegou = await pool.query(
+      `update video_jobs set status = 'finalizando', updated_at = now()
+       where id = $1 and fal_request_id = $2
+         and (status in ('na_fila', 'processando')
+              or (status = 'finalizando' and updated_at < now() - interval '5 minutes'))
+       returning id`,
+      [job.id, idDaEspera(avatarId)],
+    );
+    if (!pegou.rowCount) return publico({ status: "processando" });
+    try {
+      // Em cenas: o áudio é o da cena da vez (a seguinte às que já ficaram prontas).
+      const tarefa = await enviarVideoFalado(rw, s3, {
+        avatarId,
+        audioKey: daVez ? daVez.audioKey : String(job.input.audioKey),
+      });
+      // Avatar do retrato sem cenário: fica anotado para os próximos vídeos da imagem.
+      if (daVez?.base && !job.input.avatarId)
+        await pool.query(
+          "update video_jobs set input = jsonb_set(input, '{avatarId}', to_jsonb($2::text)) where id = $1",
+          [job.id, avatarId],
+        );
+      await pool.query(
+        "update video_jobs set status = 'processando', fal_request_id = $2, updated_at = now() where id = $1",
+        [job.id, tarefa],
+      );
+    } catch (err) {
+      console.error("[videos] vídeo falado:", job.id, err);
+      return falhar(job, mensagemDeErroRunway(err));
+    }
+    return publico({ status: "processando" });
   } else {
     const e = await consultarJob(job.provedor, job.modelo, job.fal_request_id);
     if (e.estado === "erro") return falhar(job, e.mensagem);
-    if (e.estado === "concluido") concluido = { url: e.videoUrl };
-    else
+    const cadeia = cadeiaDoJob(job.input);
+    // Vídeo em cenas: o progresso conta as cenas prontas mais a que está rodando.
+    const feito = (parcial = 0) =>
+      cadeia
+        ? (cadeia.partes.length + parcial) / cadeia.cenas.length
+        : parcial || undefined;
+    if (e.estado !== "concluido")
       return emAndamento(job, e.estado, {
         posicao: e.estado === "na_fila" ? e.posicao : undefined,
-        progresso: e.estado === "processando" ? e.progresso : undefined,
+        progresso:
+          e.estado === "processando" ? feito(e.progresso ?? 0) : feito(),
       });
+    const falado = faladoDoJob(job.input);
+    if (falado && falado.partes.length + 1 < falado.cenas.length) {
+      // Vídeo falado em cenas: guarda esta e passa para o avatar da próxima.
+      const pegou = await pool.query(
+        `update video_jobs set status = 'finalizando', updated_at = now()
+         where id = $1 and fal_request_id = $2
+           and (status in ('na_fila', 'processando')
+                or (status = 'finalizando' and updated_at < now() - interval '5 minutes'))
+         returning id`,
+        [job.id, job.fal_request_id],
+      );
+      if (!pegou.rowCount) return publico({ status: "processando" });
+      const prontas = falado.partes.length + 1;
+      try {
+        const parte = await guardarCenaFalada({
+          s3,
+          userId: job.user_id,
+          videoUrl: e.videoUrl,
+        });
+        // O avatar da próxima cena só é criado agora: um por vez (ver falado.ts).
+        const rw = getRunway();
+        if (!rw) return falhar(job, "Runway não configurado no servidor.");
+        const proxima = falado.cenas[prontas];
+        // Corpo inteiro não tem avatar: a próxima cena já vai para o modelo.
+        const avatarId = falado.corpo
+          ? undefined
+          : (proxima.avatarId ??
+            (await criarAvatarDaCena(rw, s3, falado.nome, proxima)));
+        const seguinte = falado.corpo
+          ? await enviarCorpoInteiro(rw, s3, proxima, falado.corpo.vertical)
+          : idDaEspera(avatarId!);
+        const cenas = falado.cenas.map((c, i) =>
+          i === prontas && avatarId ? { ...c, avatarId } : c,
+        );
+        await pool.query(
+          `update video_jobs set status = 'processando', fal_request_id = $2, input = $3, updated_at = now()
+           where id = $1`,
+          [
+            job.id,
+            seguinte,
+            JSON.stringify({
+              ...job.input,
+              falado: { ...falado, cenas, partes: [...falado.partes, parte] },
+            }),
+          ],
+        );
+      } catch (err) {
+        console.error("[videos] cena falada:", job.id, err);
+        // Falha passageira: volta a "processando" e a próxima consulta tenta de novo.
+        await pool.query(
+          "update video_jobs set status = 'processando', updated_at = now() where id = $1",
+          [job.id],
+        );
+      }
+      return publico({
+        status: "processando",
+        progresso: prontas / falado.cenas.length,
+      });
+    }
+    if (cadeia && cadeia.partes.length + 1 < cadeia.cenas.length) {
+      // Ainda faltam cenas: guarda esta e manda a próxima (uma chamada só faz isso).
+      const pegou = await pool.query(
+        `update video_jobs set status = 'finalizando', updated_at = now()
+         where id = $1 and fal_request_id = $2
+           and (status in ('na_fila', 'processando')
+                or (status = 'finalizando' and updated_at < now() - interval '5 minutes'))
+         returning id`,
+        [job.id, job.fal_request_id],
+      );
+      if (!pegou.rowCount) return publico({ status: "processando" });
+      try {
+        const proxima = await proximaCena({
+          s3,
+          userId: job.user_id,
+          modelo: job.modelo,
+          input: job.input,
+          cadeia,
+          videoUrl: e.videoUrl,
+        });
+        await pool.query(
+          `update video_jobs set status = 'processando', fal_request_id = $2, input = $3, updated_at = now()
+           where id = $1`,
+          [job.id, proxima.idExterno, JSON.stringify(proxima.input)],
+        );
+      } catch (err) {
+        console.error("[videos] próxima cena:", job.id, err);
+        if (err instanceof FalhaDaCadeia) return falhar(job, err.message);
+        // Falha passageira: volta a "processando" e a próxima consulta tenta de novo.
+        await pool.query(
+          "update video_jobs set status = 'processando', updated_at = now() where id = $1",
+          [job.id],
+        );
+      }
+      return publico({ status: "processando", progresso: feito(1) });
+    }
+    concluido = { url: e.videoUrl };
   }
 
   // Pronto no serviço: só uma chamada "pega" a finalização.
@@ -168,6 +363,28 @@ export async function finalizarJob(
         userId: job.user_id,
         input: job.input as unknown as InputLegendaIA,
         urls: concluido.urls,
+      }));
+    } else if (
+      faladoDoJob(job.input)?.partes.length ||
+      faladoDoJob(job.input)?.corpo
+    ) {
+      // Vídeo falado em cenas: une as guardadas com a última. No corpo inteiro
+      // o som de cada cena passa a ser a fala original (a voz do personagem).
+      const f = faladoDoJob(job.input)!;
+      ({ key, size } = await unirFalado({
+        s3,
+        userId: job.user_id,
+        partes: f.partes,
+        ultimaUrl: concluido.url!,
+        audios: f.corpo ? f.cenas.map((c) => c.audioKey) : undefined,
+      }));
+    } else if (cadeiaDoJob(job.input)) {
+      // Vídeo em cenas: une as que estavam guardadas com a última e corta no tempo pedido.
+      ({ key, size } = await unirCenas({
+        s3,
+        userId: job.user_id,
+        cadeia: cadeiaDoJob(job.input)!,
+        ultimaUrl: concluido.url!,
       }));
     } else {
       const res = await fetch(concluido.url!);

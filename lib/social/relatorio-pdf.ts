@@ -18,6 +18,8 @@ import { INFO_REDES } from "./redes";
 export interface DadosRelatorio {
   /** Nome do personagem do relatório (null = todos). */
   personagem: string | null;
+  /** Título da capa quando o relatório é de todos (padrão: "Todos os personagens"). */
+  tituloTodos?: string;
   /** Id dele (pra foto de perfil na capa). */
   personagemId?: string | null;
   /**
@@ -121,7 +123,7 @@ export async function baixarRelatorioPdf(d: DadosRelatorio): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const agora = new Date();
-  const quem = d.personagem ?? tx("Todos os personagens");
+  const quem = d.personagem ?? d.tituloTodos ?? tx("Todos os personagens");
   const BASE = 297 - 16; // até onde o conteúdo pode ir (o rodapé fica abaixo)
   let y = 0;
 

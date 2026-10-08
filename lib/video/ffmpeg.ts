@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { writeFile } from "node:fs/promises";
+import { stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import ffmpegStatic from "ffmpeg-static";
 
@@ -17,9 +17,12 @@ function ffmpegPath(): string {
 
 const FONT = path.join(process.cwd(), "assets", "fonts", "Poppins-Bold.ttf");
 
-function run(args: string[]): Promise<string> {
+/** `limiteMs` mata o ffmpeg se ele passar disso (ex.: lendo de uma URL que travou). */
+function run(args: string[], limiteMs?: number): Promise<string> {
   return new Promise((resolve, reject) => {
-    const proc = spawn(ffmpegPath(), ["-hide_banner", ...args]);
+    const proc = spawn(ffmpegPath(), ["-hide_banner", ...args], {
+      timeout: limiteMs,
+    });
     let stderr = "";
     proc.stderr.on("data", (d) => (stderr += d.toString()));
     proc.on("error", reject);
@@ -242,6 +245,108 @@ export async function recortarTrecho(
   ]);
 }
 
+/** Último quadro do vídeo, como imagem (é o ponto de partida da cena seguinte). */
+export async function extrairUltimoQuadro(
+  entrada: string,
+  saida: string,
+): Promise<void> {
+  // Lê só o finalzinho e vai sobrescrevendo a imagem: sobra o último quadro.
+  await run([
+    "-y",
+    "-sseof",
+    "-0.5",
+    "-i",
+    entrada,
+    "-update",
+    "1",
+    "-q:v",
+    "2",
+    saida,
+  ]);
+}
+
+/**
+ * Une cenas geradas em sequência num vídeo só, cortado em `segundos`. Cada
+ * cena depois da primeira começa no último quadro da anterior, então o
+ * primeiro quadro dela é descartado (senão o quadro aparece duas vezes).
+ * O áudio só entra se todas as cenas tiverem.
+ */
+export async function emendarCenas(
+  cenas: string[],
+  segundos: number,
+  saida: string,
+): Promise<void> {
+  const comAudio = (await Promise.all(cenas.map(temAudio))).every(Boolean);
+  const filtros: string[] = [];
+  let entradas = "";
+  cenas.forEach((_, i) => {
+    filtros.push(
+      i === 0
+        ? `[0:v]setpts=PTS-STARTPTS[v0]`
+        : `[${i}:v]trim=start_frame=1,setpts=PTS-STARTPTS[v${i}]`,
+    );
+    entradas += `[v${i}]` + (comAudio ? `[${i}:a]` : "");
+  });
+  filtros.push(
+    `${entradas}concat=n=${cenas.length}:v=1:a=${comAudio ? 1 : 0}[v]${comAudio ? "[a]" : ""}`,
+  );
+  await run([
+    "-y",
+    ...cenas.flatMap((c) => ["-i", c]),
+    "-filter_complex",
+    filtros.join(";"),
+    "-map",
+    "[v]",
+    ...(comAudio ? ["-map", "[a]", "-c:a", "aac", "-b:a", "192k"] : []),
+    "-t",
+    segundos.toFixed(3),
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "17",
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
+    saida,
+  ]);
+}
+
+/**
+ * Fica só com os primeiros `segundos` do vídeo, mantendo o áudio. Recodifica
+ * para cortar no quadro exato (a duração é o que se cobra na troca).
+ */
+export async function cortarInicio(
+  entrada: string,
+  segundos: number,
+  saida: string,
+): Promise<void> {
+  await run([
+    "-y",
+    "-i",
+    entrada,
+    "-t",
+    segundos.toFixed(3),
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "16",
+    "-pix_fmt",
+    "yuv420p",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "192k",
+    "-movflags",
+    "+faststart",
+    saida,
+  ]);
+}
+
 /** Vídeo-máscara: preto com o retângulo da legenda em branco (área a apagar). */
 export async function criarMascara(
   saida: string,
@@ -386,10 +491,10 @@ export async function temAudio(arquivo: string): Promise<boolean> {
 }
 
 /* ------------------------------------------------------------------ */
-/* Troca de pessoa (Kling O1 / Seedance 2.5), em trechos               */
+/* Troca de pessoa (Kling O3 / Seedance 2.5), em trechos               */
 /* ------------------------------------------------------------------ */
 
-/** Lado menor ≥ 720 e maior ≤ 2160 (exigência do Kling O1; serve pro Seedance), dimensões pares. */
+/** Lado menor ≥ 720 e maior ≤ 2160 (cabe no Kling O3, que aceita 720–3840; serve pro Seedance), dimensões pares. */
 export function dimensoesTroca(
   largura: number,
   altura: number,
@@ -401,7 +506,7 @@ export function dimensoesTroca(
   return { largura: par(largura), altura: par(altura) };
 }
 
-/** Trechos iguais de no máximo `maximo` segundos (Kling O1: 3–10s; Seedance: até 30s). */
+/** Trechos iguais de no máximo `maximo` segundos (Kling O3: 3–15s; Seedance: até 30s). */
 export function trechosTroca(
   duracao: number,
   maximo = 10,
@@ -507,17 +612,84 @@ export async function extrairQuadro(
   entrada: string,
   segundos: number,
   saida: string,
+  limiteMs?: number,
 ): Promise<void> {
+  await run(
+    [
+      "-y",
+      "-ss",
+      segundos.toFixed(2),
+      "-i",
+      entrada,
+      "-frames:v",
+      "1",
+      "-q:v",
+      "2",
+      saida,
+    ],
+    limiteMs,
+  );
+}
+
+/**
+ * Une as cenas de um vídeo falado (cada uma com a sua fala) num vídeo só.
+ * Todas são levadas ao tamanho e ao ritmo da primeira, então cenas de tamanhos
+ * diferentes não quebram a emenda.
+ */
+export async function juntarFalas(
+  cenas: string[],
+  saida: string,
+  /**
+   * MP3 da fala de cada cena (128 kbps). Com eles, o som de cada cena passa a
+   * ser a fala original (a voz exata do personagem) e a cena é cortada no fim
+   * da fala.
+   */
+  audios?: string[],
+): Promise<void> {
+  const { largura, altura } = await probe(cenas[0]);
+  const w = largura - (largura % 2);
+  const h = altura - (altura % 2);
+  const duracoes = audios
+    ? await Promise.all(
+        audios.map(async (a) => ((await stat(a)).size * 8) / 128_000),
+      )
+    : null;
+  const n = cenas.length;
+  const filtros = cenas.flatMap((_, i) => {
+    const corte = duracoes ? `trim=0:${duracoes[i].toFixed(3)},` : "";
+    return [
+      `[${i}:v]${corte}scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},setsar=1,fps=30,setpts=PTS-STARTPTS[v${i}]`,
+      duracoes
+        ? `[${n + i}:a]aresample=44100,aformat=channel_layouts=stereo,apad,atrim=0:${duracoes[i].toFixed(3)},asetpts=PTS-STARTPTS[a${i}]`
+        : `[${i}:a]aresample=44100,aformat=channel_layouts=stereo,asetpts=PTS-STARTPTS[a${i}]`,
+    ];
+  });
+  filtros.push(
+    `${cenas.map((_, i) => `[v${i}][a${i}]`).join("")}concat=n=${n}:v=1:a=1[v][a]`,
+  );
   await run([
     "-y",
-    "-ss",
-    segundos.toFixed(2),
-    "-i",
-    entrada,
-    "-frames:v",
-    "1",
-    "-q:v",
-    "2",
+    ...[...cenas, ...(audios ?? [])].flatMap((c) => ["-i", c]),
+    "-filter_complex",
+    filtros.join(";"),
+    "-map",
+    "[v]",
+    "-map",
+    "[a]",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "192k",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "17",
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
     saida,
   ]);
 }

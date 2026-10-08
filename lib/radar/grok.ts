@@ -73,9 +73,9 @@ export async function emAltaNoX(o: {
   const pedido =
     o.idioma === "en"
       ? `Search X for what is trending in the last 24 hours about each of these topics: ${temas.join("; ")}.\n` +
-        "Each search costs money: run exactly ONE search per topic (most engaged posts first) and answer from what it returns — do not refine or repeat searches. For each topic list up to 3 things people are talking about: what happened, why it is getting attention, and the link to one representative post. Be brief and factual; do not invent. If nothing relevant is trending for a topic, say so."
+        "Each search costs money: run exactly ONE search per topic (most engaged posts first) and answer from what it returns — do not refine or repeat searches. For each topic list up to 3 things people are talking about: what happened, why it is getting attention, and the link to one representative post with the date and time it was posted (UTC). Be brief and factual; do not invent. If nothing relevant is trending for a topic, say so."
       : `Procure no X o que está em alta nas últimas 24 horas sobre cada um destes temas: ${temas.join("; ")}.\n` +
-        "Cada busca custa dinheiro: faça exatamente UMA busca por tema (posts com mais engajamento primeiro, em português ou inglês) e responda com o que ela trouxer — não refine nem repita buscas. Para cada tema, liste até 3 assuntos que estão sendo comentados: o que aconteceu, por que está chamando atenção e o link de um post representativo. Seja breve e factual; não invente. Se não houver nada relevante em alta num tema, diga isso.";
+        "Cada busca custa dinheiro: faça exatamente UMA busca por tema (posts com mais engajamento primeiro, em português ou inglês) e responda com o que ela trouxer — não refine nem repita buscas. Para cada tema, liste até 3 assuntos que estão sendo comentados: o que aconteceu, por que está chamando atenção e o link de um post representativo com a data e a hora em que foi publicado (UTC). Seja breve e factual; não invente. Se não houver nada relevante em alta num tema, diga isso.";
   try {
     const res = await fetch(URL_XAI, {
       method: "POST",

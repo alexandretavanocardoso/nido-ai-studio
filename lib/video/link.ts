@@ -73,7 +73,7 @@ function entradaAtor(
 export interface VideoDoLink {
   plataforma: Plataforma;
   videoUrl: string;
-  /** Áudio separado (YouTube em 1080p vem sem som; o servidor junta). */
+  /** Áudio separado (YouTube em 1080p e Reels do Instagram vêm sem som; o servidor junta). */
   audioUrl?: string | null;
   duracao: number | null;
   titulo: string | null;
@@ -106,6 +106,12 @@ export function lerItem(p: Plataforma, item: Item): VideoDoLink | null {
     thumb = txt(meta.coverUrl);
   } else if (p === "instagram") {
     videoUrl = txt(item.videoUrl);
+    // Reels costumam vir com a imagem e o som em arquivos separados: o
+    // `videoUrl` é só a imagem e o som vem em `audioUrl` (o servidor junta).
+    audioUrl =
+      txt(item.audioUrl) ??
+      txt(obj(item.musicInfo).audio_url) ??
+      txt(obj(item.musicInfo).audioUrl);
     duracao = num(item.videoDuration);
     titulo = txt(item.caption);
     autor = txt(item.ownerUsername);

@@ -207,6 +207,18 @@ const PADROES: Padrao[] = [
   ],
   [/^A ElevenLabs recusou a entrada: (.+)$/, "ElevenLabs rejected the input: $1"],
   [/^O Runway recusou a entrada: (.+)$/, "Runway rejected the input: $1"],
+  [
+    /^No corpo inteiro cada cena pode ter até (\d+)s de fala\. Divida a fala em mais cenas \(uma linha em branco entre elas\) ou encurte\.$/,
+    "In full body each scene can have up to $1s of speech. Split the speech into more scenes (a blank line between them) or shorten it.",
+  ],
+  [
+    /^O Runway não conseguiu preparar o avatar com esta imagem: (.+)$/,
+    "Runway couldn't prepare the avatar from this image: $1",
+  ],
+  [
+    /^A fala ficou com (\d+)s e passa dos (\d+)s escolhidos\. Encurte o texto ou escolha uma duração maior\.$/,
+    "The speech came out at $1s, over the $2s you chose. Shorten the text or pick a longer duration.",
+  ],
   [/^O Runway não aceitou a entrada: (.+)$/, "Runway didn't accept the input: $1"],
   [/^O Runway falhou: (.+)$/, "Runway failed: $1"],
   [
@@ -424,11 +436,23 @@ const ERROS_EN: Record<string, string> = {
     "No credits on fal.ai. Add balance to the account.",
   "Chave do fal inválida ou sem permissão. Confira FAL_KEY.":
     "Invalid fal key, or it lacks permission. Check FAL_KEY.",
-  "O motor Premium (Seedance) recusa vídeos em que aparece o rosto de uma pessoa real. Use o motor Padrão (Kling O1) para este vídeo.":
-    "The Premium engine (Seedance) refuses videos showing a real person's face. Use the Standard engine (Kling O1) for this video.",
+  "O motor Premium (Seedance) recusa vídeos em que aparece o rosto de uma pessoa real. Use o motor Padrão (Kling O3) para este vídeo.":
+    "The Premium engine (Seedance) refuses videos showing a real person's face. Use the Standard engine (Kling O3) for this video.",
   "Falha no fal.ai.": "fal.ai failed.",
   "O Runway não devolveu vídeo.": "Runway returned no video.",
   "Geração cancelada no Runway.": "Generation cancelled on Runway.",
+  "O Runway barrou o texto da cena na moderação. Descreva só o que aparece (ação, câmera, luz), sem falas, nomes de pessoas, marcas ou personagens famosos.":
+    "Runway's moderation blocked the scene text. Describe only what is seen (action, camera, light), with no dialogue, names of people, brands or famous characters.",
+  "O Runway barrou a imagem na moderação. Tente outra imagem do personagem.":
+    "Runway's moderation blocked the image. Try another image of the character.",
+  "Escolha a voz do personagem.":
+    "Choose the character's voice.",
+  "Vídeo falado não configurado (FAL_KEY e ELEVENLABS_API_KEY).":
+    "Spoken video is not configured (FAL_KEY and ELEVENLABS_API_KEY).",
+  "A conta da ElevenLabs chegou ao limite de vozes do plano. Apague vozes que não usa ou aumente o plano da ElevenLabs.":
+    "The ElevenLabs account reached its plan's voice limit. Delete unused voices or upgrade the ElevenLabs plan.",
+  "Vídeo falado não configurado (RUNWAYML_API_SECRET e ELEVENLABS_API_KEY).":
+    "Spoken video is not configured (RUNWAYML_API_SECRET and ELEVENLABS_API_KEY).",
   "O Runway bloqueou a geração pela moderação de conteúdo.":
     "Runway blocked the generation through content moderation.",
   "Chave do Runway inválida. Confira RUNWAYML_API_SECRET.":

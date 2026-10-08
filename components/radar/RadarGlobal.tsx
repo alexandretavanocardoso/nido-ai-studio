@@ -22,6 +22,7 @@ import { idiomaAtual, tx } from "@/lib/i18n/tx";
 import { NICHOS_GLOBAIS, type RadarGlobal as Radar } from "@/lib/radar/global";
 import { diaDeHoje, type ItemRadar } from "@/lib/radar/tipos";
 import { useCharacters } from "@/lib/store";
+import { useDuravel } from "@/lib/duravel";
 import { txErro } from "@/lib/i18n/erros";
 
 /**
@@ -43,8 +44,15 @@ export function RadarGlobal() {
   const [radares, setRadares] = useState<Radar[] | null>(null);
   const [dia, setDia] = useState<string | null>(null);
   const [escreverComo, setEscreverComo] = useState("");
-  const [montando, setMontando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  const [montando, setMontando] = useDuravel<boolean>(
+    "radar-global:montando",
+    false,
+    "Montando o radar",
+  );
+  const [erro, setErro] = useDuravel<string | null>(
+    "radar-global:erro",
+    null,
+  );
 
   const carregar = useCallback(async () => {
     const res = await fetch("/api/radar/global", { cache: "no-store" }).catch(

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { useCharacters } from "@/lib/store";
+import { useDuravel } from "@/lib/duravel";
 import { writePath } from "@/lib/paths";
 import { cn } from "@/lib/cn";
 import { avisarCreditos } from "@/components/creditos/CreditosProvider";
@@ -26,8 +26,12 @@ export function SuggestFieldButton({
   const character = useCharacters((s) =>
     s.characters.find((c) => c.id === characterId),
   );
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useDuravel<boolean>(
+    `sugerir:${characterId}:${fieldId}:loading`,
+    false,
+    "Sugerindo campo com IA",
+  );
+  const [err, setErr] = useDuravel<string | null>(`sugerir:${characterId}:${fieldId}:err`, null);
 
   async function onClick() {
     if (!character) return;

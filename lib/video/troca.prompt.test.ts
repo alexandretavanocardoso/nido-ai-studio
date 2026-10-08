@@ -69,3 +69,24 @@ describe("promptTroca — outras pessoas", () => {
     );
   });
 });
+
+describe("troca de várias pessoas", () => {
+  const alvos = [{ descricao: "the man in green" }, { descricao: "the man in a cap" }];
+
+  it("exige a troca de todos e proíbe sobras soltas na cena", () => {
+    const p = promptTroca("kling", alvos, false);
+    expect(p).toMatch(/All 2 listed people must be replaced/);
+    expect(p).toMatch(/loose object/);
+    expect(promptTroca("kling", [{}], false)).not.toMatch(/listed people must be replaced/);
+  });
+
+  it("âncora com só um dos alvos: avisa que o outro também tem que ser trocado", () => {
+    const p = promptTroca("kling", alvos, false, true, [], [0]);
+    expect(p).toMatch(/already done ONLY for @Element1/);
+    expect(p).toMatch(/does NOT show the replacement of the man in a cap \(@Element2\)/);
+    // Âncora com todos: a frase de sempre, sem o aviso.
+    const todos = promptTroca("kling", alvos, false, true, [], [0, 1]);
+    expect(todos).not.toMatch(/ONLY for/);
+    expect(todos).toMatch(/replacement already done:/);
+  });
+});

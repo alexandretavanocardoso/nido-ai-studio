@@ -39,8 +39,8 @@ export const TEXTOS_EN: Record<string, string> = {
   ": treinando (": ": training (",
   "; valem 12 meses como os pacotes.": "; valid for 12 months like the packs.",
   "@ sugeridos": "suggested @",
-  "A IA acompanha cada pessoa marcada pelo vídeo inteiro, mesmo se ela se mexer. Clique em outra pessoa para trocar mais de uma · clique no número para desmarcar.":
-    "The AI follows each marked person through the whole video, even when they move. Click another person to swap more than one · click the number to unmark.",
+  "A IA acompanha cada pessoa marcada pelo vídeo inteiro, mesmo se ela se mexer. Clique em outra pessoa para trocar mais de uma · clique no X para desmarcar.":
+    "The AI follows each marked person through the whole video, even when they move. Click another person to swap more than one · click the X to unmark.",
   "A IA marcou essas decisões como importantes mas pulou pra você. Responder cada uma define melhor o personagem.":
     "The AI flagged these decisions as important but left them for you. Answering each one defines the character better.",
   "A IA não encontrou contradições, clichês ou campos genéricos.":
@@ -366,6 +366,7 @@ export const TEXTOS_EN: Record<string, string> = {
   "Ficha preenchida": "Profile filled in",
   Forma: "Form",
   Formalidade: "Formality",
+  Formato: "Format",
   Formatos: "Formats",
   "Foto de perfil de corpo inteiro, fiel ao card de referência.":
     "Full-body profile photo, faithful to the reference sheet.",
@@ -396,6 +397,9 @@ export const TEXTOS_EN: Record<string, string> = {
   Gírias: "Slang",
   "História de origem": "Origin story",
   Hoje: "Today",
+  hoje: "today",
+  ontem: "yesterday",
+  "Publicado em": "Published on",
   Hora: "Time",
   "Horário de": "Time zone:",
   Horários: "Times",
@@ -540,8 +544,8 @@ export const TEXTOS_EN: Record<string, string> = {
   "Palavras proibidas": "Forbidden words",
   Paleta: "Palette",
   "Paleta de cores": "Color palette",
-  "Partes de 10s; a roupa inventada pode variar entre elas.":
-    "10s parts; an invented outfit may vary between them.",
+  "Partes de 15s; a roupa inventada pode variar entre elas.":
+    "15s parts; an invented outfit may vary between them.",
   Pausar: "Pause",
   "Pause num momento em que a pessoa aparece bem e clique nela. Sem marcar ninguém, a IA troca a pessoa principal.":
     "Pause where the person is clearly visible and click them. If nobody is marked, the AI swaps the main person.",
@@ -732,6 +736,7 @@ export const TEXTOS_EN: Record<string, string> = {
   "créditos sai por": "credits costs",
   "créditos, sem frações.": "credits, no fractions.",
   "créditos/mês": "credits/month",
+  "créditos/s": "credits/s",
   "do contexto": "from context",
   "do plano +": "from plan +",
   "e as chaves do Google.": "and the Google keys.",
@@ -810,8 +815,8 @@ export const TEXTOS_EN: Record<string, string> = {
   "Sem marcar ninguém, a IA troca a pessoa principal da foto.":
     "If nobody is marked, the AI swaps the main person in the photo.",
   "Máximo de 3 pessoas por foto.": "Up to 3 people per photo.",
-  "Clique em outra pessoa para trocar mais de uma · clique no número para desmarcar.":
-    "Click another person to swap more than one · click the number to unmark.",
+  "Clique em outra pessoa para trocar mais de uma · clique no X para desmarcar.":
+    "Click another person to swap more than one · click the X to unmark.",
   "Entre na sua conta para trocar pessoas em fotos.":
     "Sign in to swap people in photos.",
   "Escolha a imagem do personagem.": "Choose the character image.",
@@ -1499,4 +1504,305 @@ export const TEXTOS_EN: Record<string, string> = {
   "Mantém movimento, gestual, ritmo e enquadramento": "Keeps movement, gestures, rhythm and framing",
   "Prompt pronto para trocar uma pessoa de um vídeo existente pelo seu personagem, mantendo exatamente o mesmo movimento. Anexe o vídeo original + a imagem de referência do personagem numa IA de vídeo-para-vídeo (Runway, Kling, Veo, Pika) e cole este prompt.": "Ready-made prompt to swap a person in an existing video for your character, keeping exactly the same movement. Attach the original video + the character's reference image in a video-to-video AI (Runway, Kling, Veo, Pika) and paste this prompt.",
   "Precisa anexar vídeo de origem + imagem do personagem.": "You need to attach the source video + the character image.",
+  "Vídeos de origem": "Source videos",
+  "O que você enviou. Use como base para trocar a pessoa, editar a legenda ou pôr uma fala.": "What you uploaded. Use it as the base to swap the person, edit the caption or add speech.",
+  "Feitos com IA": "Made with AI",
+  "O que o Estúdio gerou a partir dos seus vídeos ou do zero. Prontos para baixar e publicar.": "What the Studio generated from your videos or from scratch. Ready to download and publish.",
+  "Com o personagem": "With the character",
+  "Criado com IA": "Created with AI",
+  "Legenda editada": "Edited caption",
+  "Com fala": "With speech",
+  "versão com IA": "AI version",
+  "versões com IA": "AI versions",
+  "ainda sem versão com IA": "no AI version yet",
+  "A partir de:": "From:",
+  "link": "link",
+  "O vídeo de origem foi removido": "The source video was removed",
+  "Criado do zero com o personagem": "Created from scratch with the character",
+  "Em andamento": "In progress",
+  "Terminou:": "Finished:",
+  "Gerando imagem": "Generating image",
+  "Enviando foto": "Uploading photo",
+  "Trocando pessoa na foto": "Swapping person in the photo",
+  "Escrevendo texto": "Writing text",
+  "Checando a ficha com IA": "Checking the profile with AI",
+  "Preenchendo a etapa com IA": "Filling the step with AI",
+  "Sugerindo campo com IA": "Suggesting field with AI",
+  "Criando a voz": "Creating the voice",
+  "Gerando fala": "Generating speech",
+  "Enviando amostra de voz": "Uploading voice sample",
+  "Gerando variações da persona": "Generating persona variations",
+  "Enviando o treino": "Submitting the training",
+  "Preparando o vídeo da troca": "Preparing the swap video",
+  "Enviando o vídeo para criação": "Submitting the video for creation",
+  "Editando a legenda do vídeo": "Editing the video caption",
+  "Colocando a fala no vídeo": "Adding the speech to the video",
+  "Buscando o vídeo do link": "Fetching the video from the link",
+  "Enviando vídeo": "Uploading video",
+  "Publicando o post": "Publishing the post",
+  "Escrevendo a legenda": "Writing the caption",
+  "Montando o radar": "Building the radar",
+  "Gerando há": "Generating for",
+
+  // Tutorial de criar
+  "Comece com uma ideia ou foto":
+    "Start with an idea or a photo",
+  "Uma frase já basta: quem é o personagem, de onde vem, como fala. Se tiver uma imagem de referência, melhor ainda.":
+    "One sentence is enough: who the character is, where they come from, how they talk. A reference image helps even more.",
+  "A ficha dá a identidade":
+    "The sheet gives the identity",
+  "Em 7 etapas você define rosto, personalidade e voz. Daí sai o Prompt Mestre, que mantém o personagem igual em tudo.":
+    "In 7 steps you define the face, personality and voice. That produces the Master Prompt, which keeps the character consistent everywhere.",
+  "Um personagem. Muito conteúdo.":
+    "One character. Lots of content.",
+  "No Estúdio, o mesmo personagem vira vídeo, imagem, legenda e post agendado nas redes.":
+    "In the Studio, the same character becomes video, image, caption and scheduled posts.",
+  "Você revisa tudo antes de gerar. Nada é cobrado agora.":
+    "You review everything before generating. Nothing is charged now.",
+  "Criar meu AI Creator":
+    "Create my AI Creator",
+  "Entendendo o estilo":
+    "Understanding the style",
+  "Sua referência":
+    "Your reference",
+  "Rosto reconhecível":
+    "Recognizable face",
+  "Voz e bordões":
+    "Voice and catchphrases",
+  "Prompt Mestre":
+    "Master Prompt",
+  "Identidade consistente":
+    "Consistent identity",
+  "Feito na NIDO":
+    "Made on NIDO",
+
+  // Troca de pessoa: trecho do vídeo
+  "Quanto do vídeo":
+    "How much of the video",
+  "Inteiro":
+    "Whole video",
+  "do começo":
+    "from the start",
+  "Marque as pessoas dentro dos primeiros":
+    "Mark the people within the first",
+  "do vídeo, ou escolha um trecho maior.":
+    "of the video, or choose a longer part.",
+  "de":
+    "of",
+  "Marque as pessoas dentro dos primeiros 10s do vídeo.":
+    "Mark the people within the first 10s of the video.",
+  "Marque as pessoas dentro dos primeiros 15s do vídeo.":
+    "Mark the people within the first 15s of the video.",
+  "Marque as pessoas dentro dos primeiros 30s do vídeo.":
+    "Mark the people within the first 30s of the video.",
+
+  "contada do começo do vídeo":
+    "counted from the start of the video",
+
+  // Textos salvos
+  "Textos salvos":
+    "Saved texts",
+  "máximo":
+    "max",
+  "Excluir este texto?":
+    "Delete this text?",
+  "Ele sai da lista de textos salvos. Não dá para desfazer.":
+    "It is removed from your saved texts. This cannot be undone.",
+
+  "Usar um roteiro salvo":
+    "Use a saved script",
+  "Este roteiro é maior que o limite da cena: entrou só o começo. Edite para descrever o trecho que você quer.":
+    "This script is longer than the scene limit: only the beginning was used. Edit it to describe the part you want.",
+  "Os roteiros que você escrever em Estúdio → Textos aparecem aqui para escolher.":
+    "Scripts you write in Studio → Text show up here to choose from.",
+
+  // Criar vídeo em cenas
+  "A imagem vira o primeiro quadro e o texto descreve o que acontece. Vídeos mais longos são gerados em cenas seguidas e unidos.":
+    "The image becomes the first frame and the text describes what happens. Longer videos are generated as consecutive scenes and joined.",
+  "cenas seguidas":
+    "consecutive scenes",
+  "e unido num vídeo só: cada cena continua do último quadro da anterior. Deixe a tela aberta até terminar.":
+    "and joined into one video: each scene continues from the last frame of the previous one. Keep this screen open until it finishes.",
+  "Este modelo gera":
+    "This model generates",
+  "e o vídeo é cortado em":
+    "and the video is trimmed to",
+
+  "1 cena":
+    "1 scene",
+  "cenas":
+    "scenes",
+  "Vertical":
+    "Vertical",
+  "Horizontal":
+    "Horizontal",
+
+  "a IA transforma a fala em descrição de cena":
+    "AI turns the spoken script into a scene description",
+  "crédito":
+    "credit",
+  "Transformando o roteiro em cena…":
+    "Turning the script into a scene…",
+  "A cena abaixo é o que aparece no vídeo, tirada do roteiro. As falas não entram: o modelo anima a imagem, não lê texto. Edite à vontade.":
+    "The scene below is what shows in the video, taken from the script. Spoken lines are left out: the model animates the image, it doesn't read text. Edit freely.",
+  "Criar vídeo · transformar roteiro salvo em cena":
+    "Create video · turn saved script into a scene",
+
+  "Imagem e cena":
+    "Image and scene",
+  "Modelo e formato":
+    "Model and format",
+  "É o primeiro quadro do vídeo: use um retrato já no cenário e enquadramento que você quer.":
+    "It's the first frame of the video: use a portrait already in the setting and framing you want.",
+
+  // Criar vídeo falado
+  "Imagem e roteiro":
+    "Image and script",
+  "Voz e qualidade":
+    "Voice and quality",
+  "Falado · voz do personagem":
+    "Spoken · character's voice",
+  "Só cena · sem fala":
+    "Scene only · no speech",
+  "Falado":
+    "Spoken",
+  "a IA tira a fala do roteiro, no tempo escolhido":
+    "AI extracts the speech from the script, at the chosen length",
+  "O que o personagem fala no vídeo. Ex.: Gente, eu preciso contar como foi o meu primeiro dia de treino…":
+    "What the character says in the video. E.g.: Guys, I have to tell you how my first day of training went…",
+  "Preparando o roteiro…":
+    "Preparing the script…",
+  "A fala tem cerca de":
+    "The speech is about",
+  "e passa da duração escolhida: encurte o texto ou aumente a duração.":
+    "and exceeds the chosen length: shorten the text or pick a longer duration.",
+  "O personagem fala exatamente este texto, com a voz dele e os lábios sincronizados. O vídeo dura o que a fala durar.":
+    "The character says exactly this text, in their own voice with lips in sync. The video lasts as long as the speech.",
+  "Descreva ação, câmera e luz: o modelo anima a imagem, não fala o texto.":
+    "Describe action, camera and light: the model animates the image, it doesn't speak the text.",
+  "Voz do personagem":
+    "Character's voice",
+  "Este personagem ainda não tem voz. Crie a voz dele no bloco “Voz” do Estúdio e volte aqui.":
+    "This character has no voice yet. Create it in the Studio's “Voice” block and come back.",
+  "voz clonada":
+    "cloned voice",
+  "voz criada":
+    "designed voice",
+  "Qualidade":
+    "Quality",
+  "Avatar Padrão":
+    "Avatar Standard",
+  "Avatar Pro":
+    "Avatar Pro",
+  "Mais barato":
+    "Cheapest",
+  "Mais nítido e natural":
+    "Sharper and more natural",
+  "Como ele aparece falando":
+    "How they look while speaking",
+  "opcional":
+    "optional",
+  "Ex.: fala animado olhando para a câmera, gesticula com as mãos, sorri no final.":
+    "E.g.: talks excitedly looking at the camera, gestures with their hands, smiles at the end.",
+  "O vídeo sai no formato da imagem escolhida (vertical ou horizontal) e dura o tempo da fala.":
+    "The video follows the chosen image's format (vertical or horizontal) and lasts as long as the speech.",
+  "até":
+    "up to",
+  "· cobrança real no fal.ai e na ElevenLabs":
+    "· actual billing on fal.ai and ElevenLabs",
+  "Criar vídeo falado · voz do personagem (Avatar Padrão / Pro)":
+    "Create spoken video · character's voice (Avatar Standard / Pro)",
+
+  "Roteiro inteiro":
+    "Whole script",
+  "a IA separa todas as falas do roteiro":
+    "AI pulls every spoken line from the script",
+  "a IA resume as falas do roteiro no tempo escolhido":
+    "AI condenses the script's lines to the chosen length",
+
+  "Este personagem ainda não tem voz. Descreva como ela é e crie agora (ElevenLabs); ela fica salva no personagem.":
+    "This character has no voice yet. Describe it and create it now (ElevenLabs); it stays saved on the character.",
+  "Para clonar uma voz a partir de áudios, use o bloco “Voz” do Estúdio.":
+    "To clone a voice from audio samples, use the Studio's “Voice” block.",
+  "Criar voz":
+    "Create voice",
+
+  "Todas":
+    "All",
+  "Femininas":
+    "Female",
+  "Masculinas":
+    "Male",
+  "feminina":
+    "female",
+  "masculina":
+    "male",
+  "Vozes naturais da ElevenLabs":
+    "ElevenLabs natural voices",
+  "Gravadas por pessoas de verdade, em português do Brasil. Ouça e escolha: ela vira a voz deste personagem.":
+    "Recorded by real people, in Brazilian Portuguese. Listen and pick: it becomes this character's voice.",
+  "Nenhuma voz encontrada.":
+    "No voices found.",
+  "Ouvir":
+    "Listen",
+  "Usar":
+    "Use",
+  "Anteriores":
+    "Previous",
+  "Mais vozes":
+    "More voices",
+  "Escolher voz natural (ElevenLabs)":
+    "Pick a natural voice (ElevenLabs)",
+  "Este personagem ainda não tem voz. Escolha uma voz natural no botão acima (recomendado) ou crie uma pela descrição:":
+    "This character has no voice yet. Pick a natural voice with the button above (recommended) or create one from a description:",
+  "voz natural":
+    "natural voice",
+
+  "Direção para o modelo de vídeo (em inglês funciona melhor). O vídeo sai no formato da imagem escolhida e dura o tempo da fala.":
+    "Direction for the video model (English works best). The video follows the chosen image's format and lasts as long as the speech.",
+
+  "O Runway gera o vídeo do personagem falando o texto com esta voz, com os lábios sincronizados. Ele sai no formato da imagem escolhida e dura o tempo da fala. Na primeira vez com cada imagem, o Runway prepara o avatar antes (leva um pouco mais).":
+    "Runway generates the video of the character saying the text in this voice, lips in sync. It follows the chosen image's format and lasts as long as the speech. The first time with each image, Runway prepares the avatar first (takes a bit longer).",
+  "· cobrança real no Runway e na ElevenLabs":
+    "· actual billing on Runway and ElevenLabs",
+  "Criar vídeo falado · com a voz do personagem":
+    "Create spoken video · in the character's voice",
+
+  "O Runway gera o vídeo do personagem falando o texto com esta voz, com os lábios sincronizados. O vídeo é um close (cabeça e ombros), recortado da imagem escolhida em volta do rosto, e dura o tempo da fala. Na primeira vez com cada imagem, o Runway prepara o avatar antes (leva um pouco mais).":
+    "Runway generates the video of the character saying the text in this voice, lips in sync. The video is a close-up (head and shoulders), cropped from the chosen image around the face, and lasts as long as the speech. The first time with each image, Runway prepares the avatar first (takes a bit longer).",
+
+  "Cenário de cada cena":
+    "Setting of each scene",
+  "créditos por cenário":
+    "credits per setting",
+  "vazio = fundo da imagem":
+    "empty = the image's background",
+  "Onde ele está nesta cena. Ex.: quarto gamer à noite, luz de LED roxa":
+    "Where they are in this scene. E.g.: gaming room at night, purple LED light",
+  "O vídeo é um close do personagem (cabeça e ombros) falando com esta voz, com os lábios sincronizados, e troca de cenário a cada cena. Na primeira vez o Runway prepara os avatares antes (leva um pouco mais).":
+    "The video is a close-up of the character (head and shoulders) speaking in this voice, lips in sync, changing setting on each scene. The first time, Runway prepares the avatars first (takes a bit longer).",
+  "O personagem fala exatamente este texto, com a voz dele. Uma linha em branco separa as cenas (até 4): cada uma pode ter o seu cenário.":
+    "The character says exactly this text, in their own voice. A blank line separates scenes (up to 4): each can have its own setting.",
+
+  "Enquadramento":
+    "Framing",
+  "Close":
+    "Close-up",
+  "Cabeça e ombros · mais barato":
+    "Head and shoulders · cheapest",
+  "Corpo inteiro":
+    "Full body",
+  "A imagem inteira, com gestos":
+    "The whole image, with gestures",
+  "No corpo inteiro cada cena pode ter até 15s de fala: separe a fala em mais cenas (linha em branco) na parte 1.":
+    "In full body each scene can have up to 15s of speech: split the speech into more scenes (blank line) in part 1.",
+  "O personagem aparece de corpo inteiro, como na imagem, falando com esta voz. Cada cena tem no mínimo 5s e até 15s; o resultado varia mais que no close.":
+    "The character appears full body, as in the image, speaking in this voice. Each scene lasts at least 5s and up to 15s; results vary more than in the close-up.",
+  "Close do personagem falando com esta voz, com os lábios sincronizados. Na primeira vez o Runway prepara o avatar antes (leva um pouco mais).":
+    "Close-up of the character speaking in this voice, lips in sync. The first time, Runway prepares the avatar first (takes a bit longer).",
+  "Criar vídeo falado · com a voz do personagem (close / corpo inteiro)":
+    "Create spoken video · in the character's voice (close-up / full body)",
+
+  "O navegador não conseguiu abrir este vídeo (arquivo indisponível ou formato que ele não toca, como HEVC/H.265). A troca ainda funciona: sem marcar ninguém, a IA troca a pessoa principal.":
+    "The browser couldn't open this video (file unavailable or a format it can't play, such as HEVC/H.265). The swap still works: with nobody marked, the AI swaps the main person.",
 };

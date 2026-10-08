@@ -38,6 +38,7 @@ import {
   type TipoMidia,
 } from "@/lib/social/redes";
 import { tx } from "@/lib/i18n/tx";
+import { useDuravel } from "@/lib/duravel";
 import { IconeRede, IconesRedes } from "@/components/ui/IconeRede";
 import { txErro } from "@/lib/i18n/erros";
 
@@ -133,17 +134,31 @@ export function Publicar({ character }: { character: Character }) {
   );
   const params = useSearchParams();
   const [conectando, setConectando] = useState(false);
-  const [erro, setErro] = useState<{ msg: string; code?: string } | null>(null);
+  const [erro, setErro] = useDuravel<{ msg: string; code?: string } | null>(
+    `publicar:${character.id}:erro`,
+    null,
+  );
 
   const [redes, setRedes] = useState<Rede[]>([]);
   const [midiaKey, setMidiaKey] = useState<string | null>(null);
-  const [texto, setTexto] = useState("");
-  const [titulo, setTitulo] = useState("");
+  const [texto, setTexto] = useDuravel<string>(`publicar:${character.id}:texto`, "");
+  const [titulo, setTitulo] = useDuravel<string>(`publicar:${character.id}:titulo`, "");
   const [modo, setModo] = useState<"agora" | "agendar" | "backlog">("agendar");
   const [quando, setQuando] = useState(daquiUmaHora);
-  const [enviando, setEnviando] = useState(false);
-  const [escrevendo, setEscrevendo] = useState(false);
-  const [aviso, setAviso] = useState<string | null>(null);
+  const [enviando, setEnviando] = useDuravel<boolean>(
+    `publicar:${character.id}:enviando`,
+    false,
+    "Publicando o post",
+  );
+  const [escrevendo, setEscrevendo] = useDuravel<boolean>(
+    `publicar:${character.id}:escrevendo`,
+    false,
+    "Escrevendo a legenda",
+  );
+  const [aviso, setAviso] = useDuravel<string | null>(
+    `publicar:${character.id}:aviso`,
+    null,
+  );
 
   // Vindo do calendário ("Agendar neste dia"): já abre agendando naquele dia.
   const diaParam = params?.get("dia");
@@ -171,6 +186,17 @@ export function Publicar({ character }: { character: Character }) {
     return [...videos, ...imagens];
   }, [character.videos, character.geradas]);
   const midia = midias.find((m) => m.key === midiaKey) ?? null;
+
+  // Vindo de um vídeo ou imagem ("Publicar" no card): já abre com essa mídia escolhida.
+  const midiaParam = params?.get("midia");
+  const temMidiaDoLink = !!midiaParam && midias.some((m) => m.key === midiaParam);
+  useEffect(() => {
+    if (!midiaParam || !temMidiaDoLink) return;
+    setMidiaKey(midiaParam);
+    document
+      .getElementById("novo-post")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [midiaParam, temMidiaDoLink]);
 
   const conectadas = new Set((estado?.contas ?? []).map((c) => c.rede));
   const problemas = problemasDoPost({
@@ -317,7 +343,8 @@ export function Publicar({ character }: { character: Character }) {
     );
 
   return (
-    <div className="grid gap-8">
+    // min-w-0 nos filhos: as faixas com rolagem horizontal (mídias, dias) não podem alargar a grade.
+    <div className="grid gap-8 [&>*]:min-w-0">
       {/* 1. Contas */}
       <section className="grid gap-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -397,7 +424,7 @@ export function Publicar({ character }: { character: Character }) {
       {conectadas.size > 0 && (
         <section
           id="novo-post"
-          className="grid gap-4 border-t border-line pt-6 scroll-mt-6"
+          className="grid gap-4 border-t border-line pt-6 scroll-mt-6 [&>*]:min-w-0"
         >
           <h3 className="text-[15px] font-semibold text-ink">
             {tx("Novo post")}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MousePointerClick, Pause, Play } from "lucide-react";
+import { Loader2, MousePointerClick, Pause, Play, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import type { Character } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -20,6 +20,8 @@ export interface Marca {
   t: number;
   characterId: string;
   imageKey: string | null;
+  /** Silhueta da pessoa (PNG): indefinido = buscando · null = não deu, fica só o ponto. */
+  mascara?: string | null;
 }
 
 export const MAX_MARCAS = 3;
@@ -50,6 +52,80 @@ export function novaMarca(
   };
 }
 
+/** Pede a silhueta da pessoa clicada (só visual: se falhar, devolve null). */
+export async function buscarMascara(
+  origem: { videoKey?: string; linkId?: string; fotoKey?: string },
+  p: Pick<Marca, "x" | "y" | "t">,
+): Promise<string | null> {
+  try {
+    const res = await fetch("/api/pessoas/marcar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...origem, x: p.x, y: p.y, t: p.t }),
+      // Nunca deixa a marca "carregando" pra sempre: passou disso, fica só o ponto.
+      signal: AbortSignal.timeout(30_000),
+    });
+    const body = (await res.json().catch(() => ({}))) as {
+      mascara?: string | null;
+    };
+    return res.ok ? (body.mascara ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A marca por cima do quadro: a pessoa inteira pintada na cor da marca e, no
+ * ponto clicado, o botão de desmarcar.
+ */
+function MarcaNoQuadro({
+  marca,
+  cor,
+  onRemover,
+}: {
+  marca: Marca;
+  cor: string;
+  onRemover: () => void;
+}) {
+  const recorte = marca.mascara ? `url(${marca.mascara})` : null;
+  return (
+    <>
+      {recorte ? (
+        <div
+          className="pointer-events-none absolute inset-0 opacity-50"
+          style={{
+            background: cor,
+            maskImage: recorte,
+            WebkitMaskImage: recorte,
+            maskSize: "100% 100%",
+            WebkitMaskSize: "100% 100%",
+            maskRepeat: "no-repeat",
+            WebkitMaskRepeat: "no-repeat",
+          }}
+        />
+      ) : null}
+      <button
+        type="button"
+        onClick={onRemover}
+        title={tx("Desmarcar")}
+        aria-label={tx("Desmarcar")}
+        className="absolute -translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full grid place-items-center text-bg shadow-lg ring-2 ring-black/40"
+        style={{
+          left: `${marca.x * 100}%`,
+          top: `${marca.y * 100}%`,
+          background: cor,
+        }}
+      >
+        {marca.mascara === undefined ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : (
+          <X className="w-3.5 h-3.5" strokeWidth={3} />
+        )}
+      </button>
+    </>
+  );
+}
+
 /** Tamanho do elemento (atualiza ao redimensionar). */
 function useTamanho<T extends HTMLElement>() {
   const ref = useRef<T>(null);
@@ -68,7 +144,8 @@ function useTamanho<T extends HTMLElement>() {
 
 /**
  * O vídeo ocupando todo o espaço disponível (sem cortar e sem rolagem), com
- * controle de tempo. Clique numa pessoa marca quem trocar (até 3).
+ * controle de tempo. Clique numa pessoa marca quem trocar (até 3): a pessoa
+ * inteira fica pintada na cor da marca.
  */
 export function VideoMarcador({
   src,
@@ -87,6 +164,8 @@ export function VideoMarcador({
   const [duracao, setDuracao] = useState(0);
   const [tempo, setTempo] = useState(0);
   const [tocando, setTocando] = useState(false);
+  /** O navegador não conseguiu abrir o vídeo (arquivo fora do ar ou formato que ele não toca). */
+  const [semVideo, setSemVideo] = useState(false);
 
   // Maior caixa com a proporção do vídeo que cabe na área.
   const largura = area.w && area.h ? Math.min(area.w, area.h * proporcao) : 0;
@@ -128,7 +207,18 @@ export function VideoMarcador({
             onTimeUpdate={(e) => setTempo(e.currentTarget.currentTime)}
             onPlay={() => setTocando(true)}
             onPause={() => setTocando(false)}
+            onLoadedData={() => setSemVideo(false)}
+            onError={() => setSemVideo(true)}
           />
+          {semVideo ? (
+            <div className="absolute inset-0 z-10 grid place-items-center bg-black p-5 text-center">
+              <p className="text-[13px] leading-relaxed text-ink-mute">
+                {tx(
+                  "O navegador não conseguiu abrir este vídeo (arquivo indisponível ou formato que ele não toca, como HEVC/H.265). A troca ainda funciona: sem marcar ninguém, a IA troca a pessoa principal.",
+                )}
+              </p>
+            </div>
+          ) : null}
           <div
             className={cn(
               "absolute inset-0",
@@ -142,20 +232,12 @@ export function VideoMarcador({
               pessoa (a IA acompanha essa pessoa pelo vídeo todo, mesmo se mexendo). */}
           {marcas.map((m, i) =>
             Math.abs(tempo - m.t) < 0.35 ? (
-              <button
+              <MarcaNoQuadro
                 key={m.id}
-                type="button"
-                onClick={() => onRemover(m.id)}
-                title={tx("Desmarcar")}
-                className="absolute -translate-x-1/2 -translate-y-1/2 h-8 w-8 rounded-full grid place-items-center text-[13px] font-bold text-bg shadow-lg ring-2 ring-black/40"
-                style={{
-                  left: `${m.x * 100}%`,
-                  top: `${m.y * 100}%`,
-                  background: CORES_MARCA[i],
-                }}
-              >
-                {i + 1}
-              </button>
+                marca={m}
+                cor={CORES_MARCA[i]}
+                onRemover={() => onRemover(m.id)}
+              />
             ) : null,
           )}
 
@@ -188,11 +270,9 @@ export function VideoMarcador({
                     title={tx("Ver onde esta pessoa foi marcada")}
                   >
                     <span
-                      className="h-4 w-4 rounded-full grid place-items-center text-[10px] font-bold text-bg"
+                      className="h-3 w-3 rounded-full"
                       style={{ background: CORES_MARCA[i] }}
-                    >
-                      {i + 1}
-                    </span>
+                    />
                     {tx("marcada em")} {m.t.toFixed(1)}s
                   </button>
                 ) : null,
@@ -205,7 +285,10 @@ export function VideoMarcador({
         <button
           type="button"
           onClick={() =>
-            tocando ? videoRef.current?.pause() : videoRef.current?.play()
+            tocando
+              ? videoRef.current?.pause()
+              : // Sem fonte tocável o play() rejeita: o aviso já está na tela.
+                void videoRef.current?.play().catch(() => setSemVideo(true))
           }
           className="h-8 w-8 rounded-full border border-line grid place-items-center text-ink-mute hover:text-ink shrink-0"
           aria-label={tocando ? tx("Pausar") : tx("Tocar")}
@@ -239,7 +322,7 @@ export function VideoMarcador({
             )
           : marcas.length < MAX_MARCAS
             ? tx(
-                "A IA acompanha cada pessoa marcada pelo vídeo inteiro, mesmo se ela se mexer. Clique em outra pessoa para trocar mais de uma · clique no número para desmarcar.",
+                "A IA acompanha cada pessoa marcada pelo vídeo inteiro, mesmo se ela se mexer. Clique em outra pessoa para trocar mais de uma · clique no X para desmarcar.",
               )
             : `Máximo de ${MAX_MARCAS} pessoas por vídeo.`}
       </p>
@@ -247,15 +330,93 @@ export function VideoMarcador({
   );
 }
 
+/** De onde a pessoa foi marcada: o vídeo ou a foto de origem. */
+export interface OrigemMarca {
+  tipo: "video" | "foto";
+  src: string;
+}
+
+/**
+ * Miniatura da pessoa marcada: a altura toda do quadro (corpo inteiro), recortada
+ * na horizontal em volta do clique. Sem canvas, pra funcionar com vídeo de outro
+ * domínio. Se a origem não abrir, mostra só a cor da marca.
+ */
+function MiniaturaMarca({
+  numero,
+  marca,
+  origem,
+}: {
+  numero: number;
+  marca: Marca;
+  origem?: OrigemMarca;
+}) {
+  const [falhou, setFalhou] = useState(false);
+  const cor = CORES_MARCA[numero - 1];
+  if (!origem || falhou)
+    return (
+      <span
+        className="h-6 w-6 rounded-full shrink-0"
+        style={{ background: cor }}
+      />
+    );
+  // Com `cover`, o ponto clicado cai na mesma fração da miniatura — o alvo abaixo fica em cima da pessoa.
+  const posicao = `${marca.x * 100}% ${marca.y * 100}%`;
+  const t = Math.max(0.05, marca.t);
+  return (
+    <span
+      className="relative h-[4.5rem] w-12 rounded-lg overflow-hidden border-2 bg-black shrink-0"
+      style={{ borderColor: cor }}
+    >
+      {origem.tipo === "video" ? (
+        <video
+          // A marca muda de instante só se for refeita; a chave garante o quadro certo.
+          key={`${origem.src}#${t}`}
+          src={`${origem.src}#t=${t}`}
+          muted
+          playsInline
+          preload="metadata"
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{ objectPosition: posicao }}
+          onLoadedMetadata={(e) => {
+            e.currentTarget.currentTime = t;
+          }}
+          onError={() => setFalhou(true)}
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={origem.src}
+          alt=""
+          draggable={false}
+          className="absolute inset-0 h-full w-full object-cover select-none"
+          style={{ objectPosition: posicao }}
+          onError={() => setFalhou(true)}
+        />
+      )}
+      <span
+        className="absolute -translate-x-1/2 -translate-y-1/2 h-2 w-2 rounded-full ring-1 ring-black/60"
+        style={{
+          left: `${marca.x * 100}%`,
+          top: `${marca.y * 100}%`,
+          background: cor,
+        }}
+      />
+    </span>
+  );
+}
+
 /** Uma pessoa marcada: qual influencer entra no lugar dela e com qual imagem. */
 export function LinhaMarca({
   numero,
   marca,
+  origem,
   personagens,
   onChange,
 }: {
   numero: number;
   marca: Marca;
+  /** Vídeo ou foto em que a pessoa foi marcada (vira a miniatura dela). */
+  origem?: OrigemMarca;
   personagens: Character[];
   onChange: (m: Partial<Marca>) => void;
 }) {
@@ -265,12 +426,7 @@ export function LinhaMarca({
   return (
     <div className="rounded-xl border border-line bg-panel p-2.5 grid gap-2">
       <div className="flex items-center gap-2 min-w-0">
-        <span
-          className="h-6 w-6 rounded-full grid place-items-center text-[12px] font-bold text-bg shrink-0"
-          style={{ background: CORES_MARCA[numero - 1] }}
-        >
-          {numero}
-        </span>
+        <MiniaturaMarca numero={numero} marca={marca} origem={origem} />
         <span className="text-[13px] text-ink-mute shrink-0">vira</span>
         {personagens.length > 1 ? (
           <select
@@ -308,7 +464,7 @@ export function LinhaMarca({
 
 /**
  * A foto ocupando o espaço disponível (sem cortar e sem rolagem). Clique numa
- * pessoa marca quem trocar (até 3); clique no número desmarca.
+ * pessoa marca quem trocar (até 3); clique no X desmarca.
  */
 export function ImagemMarcador({
   src,
@@ -364,20 +520,12 @@ export function ImagemMarcador({
             aria-label={tx("Clique na pessoa que deve ser trocada")}
           />
           {marcas.map((m, i) => (
-            <button
+            <MarcaNoQuadro
               key={m.id}
-              type="button"
-              onClick={() => onRemover(m.id)}
-              title={tx("Desmarcar")}
-              className="absolute -translate-x-1/2 -translate-y-1/2 h-8 w-8 rounded-full grid place-items-center text-[13px] font-bold text-bg shadow-lg ring-2 ring-black/40"
-              style={{
-                left: `${m.x * 100}%`,
-                top: `${m.y * 100}%`,
-                background: CORES_MARCA[i],
-              }}
-            >
-              {i + 1}
-            </button>
+              marca={m}
+              cor={CORES_MARCA[i]}
+              onRemover={() => onRemover(m.id)}
+            />
           ))}
           {marcas.length === 0 && (
             <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
@@ -394,7 +542,7 @@ export function ImagemMarcador({
           ? tx("Sem marcar ninguém, a IA troca a pessoa principal da foto.")
           : marcas.length < MAX_MARCAS
             ? tx(
-                "Clique em outra pessoa para trocar mais de uma · clique no número para desmarcar.",
+                "Clique em outra pessoa para trocar mais de uma · clique no X para desmarcar.",
               )
             : tx("Máximo de 3 pessoas por foto.")}
       </p>
