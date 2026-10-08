@@ -483,6 +483,22 @@ const ERROS_EN: Record<string, string> = {
   "Escolha uma data no futuro.": "Pick a date in the future.",
   "Este post não pode ser reagendado.": "This post can't be rescheduled.",
   "Não consegui mover o post.": "Couldn't move the post.",
+  "Não consegui carregar as métricas.": "Couldn't load the metrics.",
+  "Informe um número de views válido.": "Enter a valid number of views.",
+  "Link não suportado. Use o link do post no Instagram, TikTok, YouTube, X ou LinkedIn.":
+    "Unsupported link. Use the post link on Instagram, TikTok, YouTube, X or LinkedIn.",
+  "A leitura do post demorou demais. Tente de novo.":
+    "Reading the post took too long. Try again.",
+  "Não achei o post nesse link (ele é público?).":
+    "Couldn't find the post at that link (is it public?).",
+  "Esse link já está no Dashboard.":
+    "That link is already on the Dashboard.",
+  "Não consegui ler o post.":
+    "Couldn't read the post.",
+  "Personagem não encontrado.":
+    "Character not found.",
+  "O plano atual do bundle.social não inclui analytics; as métricas ficam zeradas até o upgrade.":
+    "The current bundle.social plan doesn't include analytics; metrics stay at zero until you upgrade.",
   "Só dá pra cancelar posts que ainda não foram publicados.":
     "You can only cancel posts that haven't been published yet.",
   "Conecte as redes deste influencer primeiro.":

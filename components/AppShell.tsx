@@ -17,6 +17,7 @@ import {
   ChevronsRight,
   ChevronUp,
   Clapperboard,
+  ChartColumn,
   Coins,
   Flame,
   Gift,
@@ -324,6 +325,13 @@ function MenuLateral({
           ativo: pathname.startsWith("/app/personagen"),
           contagem: recente ? String(total).padStart(2, "0") : undefined,
         },
+        {
+          rotulo: tx("Dashboard"),
+          curto: tx("Dashboard"),
+          icon: ChartColumn,
+          href: "/app/dashboard",
+          ativo: pathname === "/app/dashboard",
+        },
       ],
     },
     {
@@ -511,8 +519,8 @@ function MenuLateral({
               </span>
             </Link>
           ) : (
-            <div className="border-t border-white/[0.06] px-3 pt-3">
-              <div className="flex flex-col gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+            <div className="border-t border-white/[0.06] px-3 pt-2.5">
+              <div className="flex flex-col gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
                 <div className="flex items-center gap-2">
                   <Coins className="h-[18px] w-[18px] shrink-0 text-nido-yellow" />
                   <span className="font-geist-mono text-sm font-semibold">
@@ -536,18 +544,20 @@ function MenuLateral({
                     }}
                   />
                 </div>
-                <div className="font-geist-mono text-[10.5px] text-nido-dim">
-                  {tx("Plano")} {PLANOS[conta.plano].nome}
-                  {diasAte(conta.proximaRecargaEm) != null
-                    ? ` · ${tx("renova em")} ${diasAte(conta.proximaRecargaEm)}d`
-                    : ""}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate font-geist-mono text-[10.5px] text-nido-dim">
+                    {tx("Plano")} {PLANOS[conta.plano].nome}
+                    {diasAte(conta.proximaRecargaEm) != null
+                      ? ` · ${tx("renova em")} ${diasAte(conta.proximaRecargaEm)}d`
+                      : ""}
+                  </span>
+                  <Link
+                    href="/app/planos"
+                    className="flex h-6 shrink-0 items-center rounded-full bg-nido-yellow px-2.5 text-[11.5px] font-semibold text-nido-bg transition hover:bg-nido-yellow-hi"
+                  >
+                    {tx("Upgrade")}
+                  </Link>
                 </div>
-                <Link
-                  href="/app/planos"
-                  className="flex h-9 items-center justify-center rounded-[10px] bg-nido-yellow text-[13px] font-semibold text-nido-bg transition hover:bg-nido-yellow-hi"
-                >
-                  {tx("Upgrade")}
-                </Link>
               </div>
             </div>
           )

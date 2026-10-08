@@ -1422,4 +1422,58 @@ export const TEXTOS_EN: Record<string, string> = {
 
   "Cada personagem tem uma ficha de 7 etapas e um Prompt Mestre. Abra um card para editar a ficha ou gerar conteúdo no Estúdio.":
     "Each character has a 7-step sheet and a Master Prompt. Open a card to edit the sheet or generate content in the Studio.",
+
+  // Dashboard
+  "Seu desempenho na NIDO": "Your performance on NIDO",
+  Dashboard: "Dashboard",
+  "do criador": "for creators",
+  "Uma visão geral de tudo que seus personagens publicaram: alcance e engajamento, por personagem e por rede.":
+    "An overview of everything your characters published: reach and engagement, by character and by network.",
+  "Visão geral": "Overview",
+  "Por personagem": "By character",
+  "Visualizações": "Views",
+  Curtidas: "Likes",
+  "Comentários": "Comments",
+  Reposts: "Reposts",
+  Quotes: "Quotes",
+  Salvamentos: "Saves",
+  "Nenhum post publicado ainda. Publique pelo Estúdio de um personagem e os números aparecem aqui.":
+    "No published posts yet. Publish from a character's Studio and the numbers show up here.",
+  "Posts contam pela data de publicação.": "Posts count by publish date.",
+  "Última leitura das redes:": "Last read from the networks:",
+  vs: "vs",
+  anteriores: "before",
+  dias: "days",
+  "ordenado por visualizações": "sorted by views",
+  Posts: "Posts",
+  Views: "Views",
+  "Eng.": "Eng.",
+  "Personagem removido": "Removed character",
+  "melhor em": "best on",
+  "sem views ainda": "no views yet",
+  "sem publicação no período": "no posts in this period",
+  "Por rede": "By network",
+  "% das visualizações": "% of views",
+  "Nenhum post publicado neste período.": "No posts published in this period.",
+  "últimos": "last",
+  "por dia": "per day",
+  "a cada": "every",
+  "Adicionar link de post": "Add post link",
+  "Postou por fora (baixou o vídeo ou a imagem e publicou à mão)? Cole o link do post e as métricas públicas entram no Dashboard.": "Posted it yourself (downloaded the video or image and published by hand)? Paste the post link and its public metrics show up on the Dashboard.",
+  "Link do post": "Post link",
+  "Instagram, TikTok, YouTube, X ou LinkedIn. O post precisa ser público.": "Instagram, TikTok, YouTube, X or LinkedIn. The post must be public.",
+  "Lendo o post… pode levar até 1 minuto.": "Reading the post… it can take up to 1 minute.",
+  "Remover este post do Dashboard?": "Remove this post from the Dashboard?",
+  "As métricas dele saem das contas. O post continua na rede social.": "Its metrics leave the totals. The post stays on the social network.",
+  "Posts por link": "Posts by link",
+  "publicados por fora · métricas públicas": "published outside the app · public metrics",
+  "Não reconheci esse link como um post.": "I couldn't recognize that link as a post.",
+  "O post precisa ser público.": "The post must be public.",
+  views: "views",
+  "Views digitadas por você. Clique para mudar; vazio volta ao número da rede.":
+    "Views typed by you. Click to change; empty goes back to the network's number.",
+  "Clique para digitar as views (ex.: impressões do LinkedIn, que só você vê).":
+    "Click to type the views (e.g. LinkedIn impressions, which only you can see).",
+  "publicados por fora · métricas públicas · views editáveis":
+    "published outside the app · public metrics · editable views",
 };

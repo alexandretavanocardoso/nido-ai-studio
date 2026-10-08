@@ -28,11 +28,12 @@ interface Linha {
   titulo: string | null;
   midia_key: string | null;
   midia_tipo: TipoMidia | null;
+  manual: boolean;
 }
 
 async function carregar(id: string, userId: string): Promise<Linha | null> {
   const { rows } = await getPool()!.query<Linha>(
-    `select character_id, bundle_post_id, status, redes, texto, titulo, midia_key, midia_tipo, cobranca
+    `select character_id, bundle_post_id, status, redes, texto, titulo, midia_key, midia_tipo, cobranca, manual
      from posts_agendados where id = $1 and user_id = $2`,
     [id, userId],
   );
@@ -159,7 +160,7 @@ async function reagendar(id: string, post: Linha, iso: string | undefined) {
 
 /**
  * DELETE — post agendado: cancela no bundle.social e volta para o backlog
- * (créditos devolvidos). Post do backlog: apaga de vez.
+ * (créditos devolvidos). Post do backlog ou cadastrado por link: apaga de vez.
  */
 export async function DELETE(
   _req: Request,
@@ -183,7 +184,7 @@ export async function DELETE(
       { error: "Post não encontrado." },
       { status: 404 },
     );
-  if (post.status === "BACKLOG") {
+  if (post.status === "BACKLOG" || post.manual) {
     await pool.query("delete from posts_agendados where id = $1", [id]);
     return NextResponse.json({ ok: true });
   }
