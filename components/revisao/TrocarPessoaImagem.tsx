@@ -380,10 +380,10 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
                     const nova = novaMarca(x, y, 0, character);
                     setMarcas((all) => [...all, nova]);
                     void buscarMascara({ fotoKey: foto.key }, nova).then(
-                      (mascara) =>
+                      (r) =>
                         setMarcas((all) =>
                           all.map((z) =>
-                            z.id === nova.id ? { ...z, mascara } : z,
+                            z.id === nova.id ? { ...z, ...r } : z,
                           ),
                         ),
                     );

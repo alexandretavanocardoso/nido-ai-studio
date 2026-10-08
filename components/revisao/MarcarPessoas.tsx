@@ -10,6 +10,7 @@ import {
   useImagensPersonagem,
 } from "@/components/revisao/EscolherImagemPersonagem";
 import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 export interface Marca {
   id: string;
@@ -22,6 +23,8 @@ export interface Marca {
   imageKey: string | null;
   /** Silhueta da pessoa (PNG): indefinido = buscando · null = não deu, fica só o ponto. */
   mascara?: string | null;
+  /** Por que a silhueta não veio (quando o servidor soube dizer). */
+  aviso?: string;
 }
 
 export const MAX_MARCAS = 3;
@@ -52,11 +55,11 @@ export function novaMarca(
   };
 }
 
-/** Pede a silhueta da pessoa clicada (só visual: se falhar, devolve null). */
+/** Pede a silhueta da pessoa clicada (só visual: se falhar, vem `mascara: null`). */
 export async function buscarMascara(
   origem: { videoKey?: string; linkId?: string; fotoKey?: string },
   p: Pick<Marca, "x" | "y" | "t">,
-): Promise<string | null> {
+): Promise<Pick<Marca, "mascara" | "aviso">> {
   try {
     const res = await fetch("/api/pessoas/marcar", {
       method: "POST",
@@ -67,10 +70,13 @@ export async function buscarMascara(
     });
     const body = (await res.json().catch(() => ({}))) as {
       mascara?: string | null;
+      aviso?: string;
     };
-    return res.ok ? (body.mascara ?? null) : null;
+    return res.ok
+      ? { mascara: body.mascara ?? null, aviso: body.aviso }
+      : { mascara: null };
   } catch {
-    return null;
+    return { mascara: null };
   }
 }
 
@@ -124,6 +130,16 @@ function MarcaNoQuadro({
       </button>
     </>
   );
+}
+
+/** Aviso de que a silhueta não pôde ser desenhada (a marca continua valendo). */
+function AvisoSilhueta({ marcas }: { marcas: Marca[] }) {
+  const aviso = marcas.find((m) => m.aviso)?.aviso;
+  return aviso ? (
+    <p className="text-[12px] text-pink text-center shrink-0">
+      {tx("Não deu para destacar a pessoa inteira:")} {txErro(aviso)}
+    </p>
+  ) : null;
 }
 
 /** Tamanho do elemento (atualiza ao redimensionar). */
@@ -315,6 +331,7 @@ export function VideoMarcador({
           {tempo.toFixed(1)}/{duracao.toFixed(0)}s
         </span>
       </div>
+      <AvisoSilhueta marcas={marcas} />
       <p className="text-[12px] text-ink-dim text-center shrink-0">
         {marcas.length === 0
           ? tx(
@@ -537,6 +554,7 @@ export function ImagemMarcador({
           )}
         </div>
       </div>
+      <AvisoSilhueta marcas={marcas} />
       <p className="text-[12px] text-ink-dim text-center shrink-0">
         {marcas.length === 0
           ? tx("Sem marcar ninguém, a IA troca a pessoa principal da foto.")

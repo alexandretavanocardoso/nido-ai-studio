@@ -8,6 +8,8 @@ import Link from "next/link";
 import { capaSrc } from "@/lib/storage/client";
 import { confirmar } from "@/components/ui/Confirmacao";
 import { CapaImagem } from "@/components/ui/CapaImagem";
+import { IconeRede } from "@/components/ui/IconeRede";
+import type { Rede } from "@/lib/social/redes";
 import { cn } from "@/lib/cn";
 import { tx } from "@/lib/i18n/tx";
 
@@ -25,12 +27,12 @@ const formasEmoji: Record<string, string> = {
 };
 
 /** Selos das redes do card: acesos quando a rede está nas plataformas da ficha. */
-const REDES_DO_CARD: Array<{ k: string; tem: (p: string) => boolean }> = [
-  { k: "IG", tem: (p) => p === "instagram" },
-  { k: "TT", tem: (p) => p === "tiktok" },
-  { k: "YT", tem: (p) => p.startsWith("youtube") },
-  { k: "X", tem: (p) => p === "x" },
-  { k: "in", tem: (p) => p === "linkedin" },
+const REDES_DO_CARD: Array<{ rede: Rede; tem: (p: string) => boolean }> = [
+  { rede: "INSTAGRAM", tem: (p) => p === "instagram" },
+  { rede: "TIKTOK", tem: (p) => p === "tiktok" },
+  { rede: "YOUTUBE", tem: (p) => p.startsWith("youtube") },
+  { rede: "TWITTER", tem: (p) => p === "x" },
+  { rede: "LINKEDIN", tem: (p) => p === "linkedin" },
 ];
 
 /** Tem vídeo sendo gerado agora (troca de pessoa, legenda, criar vídeo…). */
@@ -73,15 +75,15 @@ export function CharacterListItem({ character: c }: Props) {
                 const on = plataformas.some(r.tem);
                 return (
                   <span
-                    key={r.k}
+                    key={r.rede}
                     className={cn(
-                      "grid h-[18px] min-w-[22px] place-items-center rounded-[5px] px-1 font-geist-mono text-[9px] font-semibold",
+                      "grid h-[18px] w-[22px] place-items-center rounded-[5px]",
                       on
                         ? "bg-nido-yellow/[0.16] text-nido-yellow"
                         : "bg-white/[0.06] text-nido-dim",
                     )}
                   >
-                    {r.k}
+                    <IconeRede rede={r.rede} className="h-[11px] w-[11px]" />
                   </span>
                 );
               })}

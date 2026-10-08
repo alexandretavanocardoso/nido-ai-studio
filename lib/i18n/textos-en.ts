@@ -397,6 +397,8 @@ export const TEXTOS_EN: Record<string, string> = {
   Gírias: "Slang",
   "História de origem": "Origin story",
   Hoje: "Today",
+  "Não deu para destacar a pessoa inteira:":
+    "Couldn't highlight the whole person:",
   hoje: "today",
   ontem: "yesterday",
   "Publicado em": "Published on",

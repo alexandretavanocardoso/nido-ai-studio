@@ -1,6 +1,6 @@
 import path from "node:path";
 import { readFile } from "node:fs/promises";
-import sharp from "sharp";
+import sharp, { type Sharp } from "sharp";
 import { GoogleGenAI } from "@google/genai";
 import type { FalClient } from "@fal-ai/client";
 import { extrairQuadro } from "./ffmpeg";
@@ -56,13 +56,38 @@ export async function marcarPonto(
 }
 
 const MODELO_SILHUETA = "fal-ai/sam2/image";
+/** Lado maior da silhueta devolvida à tela (é só um destaque, não precisa de mais). */
+const LADO_SILHUETA = 512;
 
 /**
- * Silhueta da pessoa clicada (SAM 2): PNG branco com transparência fora da
- * pessoa, pra tela pintar por cima do quadro. Null se o recorte não servir
- * (pegou quase nada ou o quadro inteiro) — a tela fica só com o ponto.
+ * Máscara em tons de cinza (pessoa clara) → PNG branco com transparência fora
+ * da pessoa. Null se pegou quase nada ou o quadro inteiro.
  */
-export async function silhuetaDaPessoa(
+async function finalizarSilhueta(mascara: Sharp): Promise<Buffer | null> {
+  const cinza = await mascara
+    .greyscale()
+    .threshold(128)
+    .blur(1)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const { width, height, channels } = cinza.info;
+  let claros = 0;
+  for (let i = 0; i < cinza.data.length; i += channels)
+    if (cinza.data[i] > 127) claros++;
+  const coberto = claros / (width * height);
+  if (coberto < 0.003 || coberto > 0.85) return null;
+  const alfa = Buffer.alloc(width * height);
+  for (let i = 0; i < alfa.length; i++) alfa[i] = cinza.data[i * channels];
+  return sharp({
+    create: { width, height, channels: 3, background: "#fff" },
+  })
+    .joinChannel(alfa, { raw: { width, height, channels: 1 } })
+    .png()
+    .toBuffer();
+}
+
+/** Silhueta pelo SAM 2 (fal.ai), a partir do ponto clicado. */
+async function silhuetaSam(
   fal: FalClient,
   imagem: Buffer,
   p: Pick<PessoaMarcada, "x" | "y">,
@@ -94,31 +119,25 @@ export async function silhuetaDaPessoa(
   if (!saida) return null;
   const res = await fetch(saida);
   if (!res.ok) return null;
-  // A máscara vem clara na pessoa e escura (ou transparente) no resto: o brilho vira a transparência.
-  const cinza = await sharp(Buffer.from(await res.arrayBuffer()))
-    .flatten({ background: "#000" })
-    .resize(512, 512, { fit: "inside" })
-    .greyscale()
-    .threshold(128)
-    .blur(1)
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  const coberto =
-    cinza.data.reduce((s, v) => s + (v > 127 ? 1 : 0), 0) / cinza.data.length;
-  if (coberto < 0.003 || coberto > 0.85) return null;
-  return sharp({
-    create: {
-      width: cinza.info.width,
-      height: cinza.info.height,
-      channels: 3,
-      background: "#fff",
-    },
-  })
-    .joinChannel(cinza.data, {
-      raw: { width: cinza.info.width, height: cinza.info.height, channels: 1 },
-    })
-    .png()
-    .toBuffer();
+  // A máscara vem clara na pessoa e escura (ou transparente) no resto.
+  return finalizarSilhueta(
+    sharp(Buffer.from(await res.arrayBuffer()))
+      .flatten({ background: "#000" })
+      .resize(LADO_SILHUETA, LADO_SILHUETA, { fit: "inside" }),
+  );
+}
+
+/**
+ * Silhueta da pessoa clicada: PNG branco com transparência fora da pessoa, pra
+ * tela pintar por cima do quadro. Null sem fal ou se o recorte não servir — a
+ * tela fica só com o ponto.
+ */
+export async function silhuetaDaPessoa(
+  imagem: Buffer,
+  p: Pick<PessoaMarcada, "x" | "y">,
+  fal: FalClient | null,
+): Promise<Buffer | null> {
+  return fal ? silhuetaSam(fal, imagem, p) : null;
 }
 
 /** Descreve UMA pessoa marcada numa imagem (inglês, curto). Sem Gemini ou se falhar, usa a posição. */

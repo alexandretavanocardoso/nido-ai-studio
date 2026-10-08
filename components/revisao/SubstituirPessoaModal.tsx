@@ -276,9 +276,9 @@ export function SubstituirPessoaModal({
                     void buscarMascara(
                       link ? { linkId: link.linkId } : { videoKey: video?.key },
                       nova,
-                    ).then((mascara) =>
+                    ).then((r) =>
                       setMarcas((m) =>
-                        m.map((z) => (z.id === nova.id ? { ...z, mascara } : z)),
+                        m.map((z) => (z.id === nova.id ? { ...z, ...r } : z)),
                       ),
                     );
                   }}

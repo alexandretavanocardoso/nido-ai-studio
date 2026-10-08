@@ -6,13 +6,13 @@ import { allow } from "@/lib/ai/rate-limit";
 import { getPool } from "@/lib/db";
 import { getObjectBuffer, ownsKey, presignGet } from "@/lib/storage/s3";
 import { extrairQuadro } from "@/lib/video/ffmpeg";
-import { getFal } from "@/lib/video/fal";
+import { getFal, mensagemDeErro } from "@/lib/video/fal";
 import { silhuetaDaPessoa } from "@/lib/video/pessoas";
 import { comPastaTemporaria, contextoVideo } from "@/lib/video/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-/** Tira o quadro do vídeo (~1–3s) e recorta a pessoa (~2–5s). */
+/** Tira o quadro do vídeo (~1–3s) e recorta a pessoa (~3–8s). */
 export const maxDuration = 60;
 
 const PER_MINUTE = Number(process.env.MARCAR_RATE_LIMIT_PER_MINUTE ?? 20);
@@ -57,7 +57,6 @@ export async function POST(req: Request) {
     );
 
   const fal = getFal();
-  if (!fal) return NextResponse.json({ mascara: null });
   const gate = await allow(`marcar:${userId}`, PER_MINUTE);
   if (!gate.ok) return NextResponse.json({ mascara: null });
 
@@ -85,12 +84,13 @@ export async function POST(req: Request) {
         return readFile(saida);
       });
     }
-    const png = await silhuetaDaPessoa(fal, quadro, body);
+    const png = await silhuetaDaPessoa(quadro, body, fal);
     return NextResponse.json({
       mascara: png ? `data:image/png;base64,${png.toString("base64")}` : null,
     });
   } catch (e) {
     console.warn("[pessoas] silhueta falhou:", (e as Error).message);
-    return NextResponse.json({ mascara: null });
+    // O motivo vai junto pra tela avisar (ex.: fal sem saldo — a troca também falharia).
+    return NextResponse.json({ mascara: null, aviso: mensagemDeErro(e) });
   }
 }
