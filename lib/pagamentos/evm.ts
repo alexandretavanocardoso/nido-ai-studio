@@ -3,10 +3,12 @@ import type { RedeUsdc } from "./redes-usdc";
 /**
  * USDC nas redes EVM (Ethereum, Base, Arbitrum, BNB Chain).
  *
- * A cobrança é o preço exato (2 casas). Depois de pagar, o usuário cola o
+ * A cobrança é o preço mais alguns centavos que a tornam única entre as
+ * cobranças em aberto da rede (2 casas). Depois de pagar, o usuário cola o
  * hash da transação (ou o link do explorer); o servidor lê o recibo na rede e
- * confere: foi para a carteira da NIDO, em USDC, com o valor certo, dentro da
- * janela da cobrança e com confirmações. A mesma transação nunca paga duas
+ * confere: foi para a carteira da NIDO, em USDC, com o valor exato, dentro da
+ * janela da cobrança e com confirmações. Como o valor é único, o hash de um
+ * pagamento alheio não serve para outra cobrança. A mesma transação nunca paga duas
  * cobranças (índice único da assinatura).
  *
  * Env: EVM_MERCHANT_WALLET (0x…, a mesma em todas as redes) e o RPC de cada
@@ -94,7 +96,7 @@ export function linkEip681(rede: RedeEvm, micro: bigint): string {
  * RPCs públicos de reserva (sem chave). Usado quando o RPC do .env
  * falha por HTTP/rede — ex.: allowlist de origem no provedor (Ankr "Origin not allowed").
  */
-const RPC_PUBLICO: Record<RedeEvm, string[]> = {
+export const RPC_PUBLICO: Record<RedeEvm, string[]> = {
   ethereum: ["https://ethereum-rpc.publicnode.com"],
   base: ["https://mainnet.base.org", "https://base-rpc.publicnode.com"],
   arbitrum: [
@@ -204,7 +206,7 @@ export type ResultadoTx =
 
 /**
  * Confere uma transação colada pelo usuário: existe nesta rede, deu certo,
- * tem confirmações, mandou pelo menos `micro` em USDC para a carteira da
+ * tem confirmações, mandou exatamente `micro` em USDC para a carteira da
  * NIDO e aconteceu dentro da janela da cobrança [desde, ate].
  */
 export async function conferirTransacao(
@@ -257,11 +259,12 @@ export async function conferirTransacao(
       ok: false,
       erro: "Esta transação não enviou USDC para a carteira da NIDO.",
     };
-  if (unidades < esperado) {
+  // Valor exato: é ele que liga a transação a esta cobrança (ver criarPagamentoUsdc).
+  if (unidades !== esperado) {
     const pago = Number(unidades / BigInt(10) ** BigInt(c.decimais - 6)) / 1e6;
     return {
       ok: false,
-      erro: `Valor enviado: ${pago.toFixed(2)} USDC. Esta cobrança é de ${(Number(micro) / 1e6).toFixed(2)} USDC.`,
+      erro: `Valor enviado: ${pago.toFixed(2)} USDC. Esta cobrança é de exatamente ${(Number(micro) / 1e6).toFixed(2)} USDC.`,
     };
   }
 

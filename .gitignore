@@ -16,3 +16,6 @@ tsconfig.tsbuildinfo
 # Design source export (assets already copied into public/landing)
 Creator AI Landing Design/
 Creator AI Landing Design.zip
+
+# Amostras de vídeo de teste (fora de public/: não podem ficar acessíveis por link)
+/video_teste/

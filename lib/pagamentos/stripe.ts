@@ -1,15 +1,33 @@
 import Stripe from "stripe";
 import { getPool } from "@/lib/db";
 import { ativarPlano, carregarConta } from "@/lib/creditos";
-import { PACOTES, PLANOS, precoAvulso, precoPlano } from "@/lib/planos";
-import { aplicarCompra, lerCompra, type Compra } from "./aplicar";
+import {
+  PACOTES,
+  PLANOS,
+  PRECO_CREDITO,
+  precoAvulso,
+  precoPlano,
+} from "@/lib/planos";
+import {
+  ajustarComissaoParcial,
+  registrarComissao,
+} from "@/lib/indicacao/server";
+import {
+  aplicarCompra,
+  lerCompra,
+  reverterCompra,
+  type Compra,
+} from "./aplicar";
 
 /**
  * Stripe: cartão, Pix e boleto em BRL; em USD (interface em inglês), cartão.
  *  - Plano mensal → assinatura no cartão (renova sozinha; ativada a cada `invoice.paid`).
  *  - Plano anual e pacotes → pagamento único (cartão, Pix ou boleto — os métodos
  *    que estiverem ligados no Dashboard do Stripe).
- * Os preços vêm de lib/planos.ts (price_data), sem produtos pré-criados no Stripe.
+ * O checkout usa os preços do catálogo do Stripe (achados pela lookup key, ex.:
+ * `plano_creator_mensal`, `pacote_p500`, `creditos_avulso`). Os valores de
+ * lib/planos.ts mandam: sem preço no catálogo, ou com valor diferente, o preço
+ * é montado na hora (price_data).
  */
 let client: Stripe | null = null;
 
@@ -50,6 +68,53 @@ export function descricao(
   return { nome, valor: precoPlano(compra.plano, compra.intervalo, moeda) };
 }
 
+/** Apelido (lookup key) do preço no catálogo do Stripe. */
+function lookupKey(compra: Compra): string {
+  if (compra.tipo === "plano")
+    return `plano_${compra.plano}_${compra.intervalo}`;
+  if (compra.tipo === "pacote") return `pacote_${compra.pacote}`;
+  return "creditos_avulso";
+}
+
+/**
+ * Preço do catálogo para a compra, ou null se não existir ou se o valor no
+ * Stripe estiver diferente do de lib/planos.ts (que é a fonte da verdade) —
+ * nesses casos o checkout monta o preço na hora (price_data).
+ */
+async function precoCatalogo(
+  stripe: Stripe,
+  compra: Compra,
+  moeda: MoedaStripe,
+  unitario: number,
+): Promise<string | null> {
+  const key = lookupKey(compra);
+  try {
+    const { data } = await stripe.prices.list({
+      lookup_keys: [key],
+      active: true,
+      limit: 1,
+      expand: ["data.currency_options"],
+    });
+    const preco = data[0];
+    if (!preco) return null;
+    const m = moeda.toLowerCase();
+    const noStripe =
+      preco.currency === m
+        ? preco.unit_amount
+        : preco.currency_options?.[m]?.unit_amount;
+    if (noStripe !== unitario) {
+      console.error(
+        `[stripe] preço ${key} (${moeda}) no catálogo é ${noStripe}, esperado ${unitario}; usando price_data.`,
+      );
+      return null;
+    }
+    return preco.id;
+  } catch (e) {
+    console.error("[stripe] catálogo:", key, e);
+    return null;
+  }
+}
+
 /** Cria a sessão de Checkout e registra o pagamento pendente. Devolve a URL. */
 export async function criarCheckout(
   stripe: Stripe,
@@ -80,6 +145,14 @@ export async function criarCheckout(
       ? { customer_email: o.email }
       : {};
 
+  // Créditos por quantidade: o preço do catálogo é por crédito.
+  const quantidade = o.compra.tipo === "avulso" ? o.compra.creditos : 1;
+  const unitario =
+    o.compra.tipo === "avulso"
+      ? centavos(PRECO_CREDITO[moeda])
+      : centavos(valor);
+  const price = await precoCatalogo(stripe, o.compra, moeda, unitario);
+
   const session = await stripe.checkout.sessions.create({
     mode: assinatura ? "subscription" : "payment",
     client_reference_id: o.userId,
@@ -91,16 +164,21 @@ export async function criarCheckout(
           customer_creation: conta.stripeCustomerId ? undefined : "always",
           payment_intent_data: { metadata },
         }),
+    ...(price ? { currency: moeda.toLowerCase() } : {}),
     line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: moeda.toLowerCase(),
-          unit_amount: centavos(valor),
-          product_data: { name: nome },
-          ...(assinatura ? { recurring: { interval: "month" as const } } : {}),
-        },
-      },
+      price
+        ? { quantity: quantidade, price }
+        : {
+            quantity: 1,
+            price_data: {
+              currency: moeda.toLowerCase(),
+              unit_amount: centavos(valor),
+              product_data: { name: nome },
+              ...(assinatura
+                ? { recurring: { interval: "month" as const } }
+                : {}),
+            },
+          },
     ],
     locale: moeda === "USD" ? "en" : "pt-BR",
     success_url: `${o.origem}/app/planos?pagamento=sucesso`,
@@ -186,6 +264,28 @@ export async function processarEvento(
     case "invoice.paid":
       await faturaPaga(stripe, evento.data.object);
       break;
+    case "charge.refunded": {
+      // Estorno total: tira o plano/créditos e a comissão de quem indicou.
+      // Estorno parcial: o usuário fica com a compra; a comissão encolhe na mesma proporção.
+      const c = evento.data.object;
+      if (c.refunded) await estornarDoPagamento(stripe, c.payment_intent);
+      else if (c.amount_refunded > 0 && c.amount > 0) {
+        const id = await pagamentoDaCobranca(stripe, c.payment_intent);
+        if (id)
+          await ajustarComissaoParcial(id, 1 - c.amount_refunded / c.amount);
+      }
+      break;
+    }
+    case "charge.dispute.created": {
+      // Contestação no cartão: o dinheiro sai da conta; a compra e a comissão também.
+      const d = evento.data.object;
+      const charge =
+        typeof d.charge === "string"
+          ? await stripe.charges.retrieve(d.charge)
+          : d.charge;
+      await estornarDoPagamento(stripe, charge.payment_intent);
+      break;
+    }
     case "customer.subscription.deleted": {
       // O plano segue até o fim do período já pago; só desliga a renovação.
       const sub = evento.data.object;
@@ -196,6 +296,46 @@ export async function processarEvento(
       break;
     }
   }
+}
+
+/** Id do nosso pagamento (sessão de checkout ou fatura da assinatura) de uma cobrança do Stripe. */
+async function pagamentoDaCobranca(
+  stripe: Stripe,
+  paymentIntent: string | Stripe.PaymentIntent | null,
+): Promise<string | null> {
+  const pi =
+    typeof paymentIntent === "string" ? paymentIntent : paymentIntent?.id;
+  if (!pi) return null;
+  const sessoes = await stripe.checkout.sessions.list({
+    payment_intent: pi,
+    limit: 1,
+  });
+  if (sessoes.data[0]) return sessoes.data[0].id;
+  const faturas = await stripe.invoicePayments.list({
+    payment: { type: "payment_intent", payment_intent: pi },
+    limit: 1,
+  });
+  const fatura = faturas.data[0]?.invoice;
+  return (typeof fatura === "string" ? fatura : fatura?.id) ?? null;
+}
+
+/**
+ * Cobrança estornada por inteiro ou contestada: desfaz a compra (plano ou
+ * créditos) e a comissão de indicação, e cancela a assinatura para não cobrar de novo.
+ */
+async function estornarDoPagamento(
+  stripe: Stripe,
+  paymentIntent: string | Stripe.PaymentIntent | null,
+): Promise<void> {
+  const pagamentoId = await pagamentoDaCobranca(stripe, paymentIntent);
+  if (!pagamentoId) return;
+  const desfeito = await reverterCompra(pagamentoId);
+  if (!desfeito) return;
+  console.log("[stripe] compra estornada:", pagamentoId, desfeito.userId);
+  if (desfeito.assinatura)
+    await stripe.subscriptions
+      .cancel(desfeito.assinatura)
+      .catch((e) => console.error("[stripe] cancelar após estorno:", e));
 }
 
 /** Assinatura mensal: cada fatura paga ativa (1ª vez) ou renova o plano até o fim do período. */
@@ -246,4 +386,5 @@ async function faturaPaga(
     stripeCustomerId: customer,
     stripeSubscriptionId: subscriptionId,
   });
+  await registrarComissao(invoice.id);
 }

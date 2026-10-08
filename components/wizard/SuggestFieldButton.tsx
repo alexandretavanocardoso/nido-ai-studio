@@ -7,6 +7,7 @@ import { writePath } from "@/lib/paths";
 import { cn } from "@/lib/cn";
 import { avisarCreditos } from "@/components/creditos/CreditosProvider";
 import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 interface Props {
   characterId: string;
@@ -41,7 +42,7 @@ export function SuggestFieldButton({
       const data = await res.json();
       avisarCreditos(); // gastou (ou foi estornado): atualiza o saldo
       if (!res.ok) {
-        setErr(data?.error ?? "Falha ao sugerir.");
+        setErr(txErro(data?.error ?? "Falha ao sugerir."));
         return;
       }
       update(characterId, (c) => {

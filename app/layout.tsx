@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { CharactersSyncer } from "@/components/auth/CharactersSyncer";
+import { CapturarIndicacao } from "@/components/indicacao/CapturarIndicacao";
 import { StorageMigrator } from "@/components/auth/StorageMigrator";
 import { RecursosProvider } from "@/components/RecursosProvider";
 import { ConfirmacaoHost } from "@/components/ui/Confirmacao";
@@ -30,7 +31,7 @@ export default function RootLayout({
           crossOrigin=""
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
       </head>
@@ -39,6 +40,7 @@ export default function RootLayout({
           <AuthProvider>
             <CreditosProvider>
               <CharactersSyncer />
+              <CapturarIndicacao />
               <StorageMigrator />
               <ComIdioma>
                 {children}

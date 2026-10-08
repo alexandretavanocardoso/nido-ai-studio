@@ -5,10 +5,10 @@ import { status } from "@/lib/completion";
 import type { Character } from "@/lib/types";
 import { Copy, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { StatusBadge } from "@/components/wizard/StatusBadge";
 import { capaSrc } from "@/lib/storage/client";
 import { confirmar } from "@/components/ui/Confirmacao";
 import { CapaImagem } from "@/components/ui/CapaImagem";
+import { cn } from "@/lib/cn";
 import { tx } from "@/lib/i18n/tx";
 
 interface Props {
@@ -24,39 +24,99 @@ const formasEmoji: Record<string, string> = {
   abstrato: "◆",
 };
 
+/** Selos das redes do card: acesos quando a rede está nas plataformas da ficha. */
+const REDES_DO_CARD: Array<{ k: string; tem: (p: string) => boolean }> = [
+  { k: "IG", tem: (p) => p === "instagram" },
+  { k: "TT", tem: (p) => p === "tiktok" },
+  { k: "YT", tem: (p) => p.startsWith("youtube") },
+  { k: "X", tem: (p) => p === "x" },
+  { k: "in", tem: (p) => p === "linkedin" },
+];
+
+/** Tem vídeo sendo gerado agora (troca de pessoa, legenda, criar vídeo…). */
+export function emProducao(c: Character): boolean {
+  return (c.videos ?? []).some((v) => v.status === "processando");
+}
+
 export function CharacterListItem({ character: c }: Props) {
   const duplicate = useCharacters((s) => s.duplicate);
   const del = useCharacters((s) => s.deleteCharacter);
   const nome = c.identidade.nome || "Sem nome";
   const avatar = capaSrc(c);
   const emoji = c.identidade.forma ? formasEmoji[c.identidade.forma] : "✨";
+  const gerando = emProducao(c);
+  const completo = status(c) === "completo";
+  const plataformas = c.nicho.plataformas.map((p) => p.toLowerCase());
 
   return (
-    <div className="group relative rounded-2xl overflow-hidden border border-line bg-panel hover:border-line-strong transition">
-      <Link href={`/app/personagem/${c.id}`} className="block">
-        <div className="relative aspect-[4/5] bg-bg border-b border-line flex items-center justify-center overflow-hidden">
-          {avatar ? (
-            <CapaImagem src={avatar} alt={nome} zoomNoHover />
-          ) : (
-            <span className="text-6xl opacity-40">{emoji}</span>
-          )}
-          <div className="absolute top-3 left-3 z-10">
-            <StatusBadge status={status(c)} />
-          </div>
-        </div>
-        <div className="p-4">
-          <h3 className="display text-base uppercase truncate text-ink">
+    <article className="group relative aspect-[3/4] overflow-hidden rounded-2xl border border-white/[0.07] bg-[linear-gradient(160deg,#2a2224_0%,#141112_75%)] font-geist transition duration-300 ease-[cubic-bezier(.16,1,.3,1)] hover:-translate-y-[3px] hover:border-nido-yellow/55 animate-nido-rise">
+      <Link
+        href={`/app/personagem/${c.id}`}
+        className="absolute inset-0 flex items-center justify-center overflow-hidden"
+      >
+        {avatar ? (
+          <CapaImagem src={avatar} alt={nome} zoomNoHover />
+        ) : (
+          <span className="text-6xl opacity-40">{emoji}</span>
+        )}
+        <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(11,10,10,0)_40%,rgba(11,10,10,0.92)_100%)]" />
+        <span className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-3.5 text-nido-ink">
+          <span className="truncate font-archivo text-base font-extrabold uppercase tracking-[-0.005em] [font-stretch:112%]">
             {nome}
-          </h3>
-          <p className="text-[13px] text-ink-mute line-clamp-2 mt-1 leading-relaxed">
+          </span>
+          <span className="line-clamp-2 text-xs leading-[1.4] text-[#b9b1a5]">
             {c.identidade.bio || c.nicho.promessa || tx("Sem bio ainda.")}
-          </p>
-          <div className="eyebrow mt-3">
-            {tx("Atualizado")} {relativo(c.updatedAt)}
-          </div>
-        </div>
+          </span>
+          <span className="mt-1 flex items-center justify-between gap-2">
+            <span className="flex gap-[3px]">
+              {REDES_DO_CARD.map((r) => {
+                const on = plataformas.some(r.tem);
+                return (
+                  <span
+                    key={r.k}
+                    className={cn(
+                      "grid h-[18px] min-w-[22px] place-items-center rounded-[5px] px-1 font-geist-mono text-[9px] font-semibold",
+                      on
+                        ? "bg-nido-yellow/[0.16] text-nido-yellow"
+                        : "bg-white/[0.06] text-nido-dim",
+                    )}
+                  >
+                    {r.k}
+                  </span>
+                );
+              })}
+            </span>
+            <span className="whitespace-nowrap font-geist-mono text-[10px] text-[#8a8278]">
+              {relativo(c.updatedAt)}
+            </span>
+          </span>
+        </span>
       </Link>
-      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
+
+      <span
+        className={cn(
+          "pointer-events-none absolute left-2.5 top-2.5 z-10 flex h-[22px] items-center gap-1.5 rounded-full px-[9px] font-geist-mono text-[10px] font-semibold uppercase tracking-[0.08em] backdrop-blur",
+          gerando
+            ? "bg-nido-ocre/90 text-nido-bg"
+            : completo
+              ? "bg-nido-yellow text-nido-bg"
+              : "bg-nido-bg/70 text-nido-ink",
+        )}
+      >
+        <span
+          className={cn(
+            "h-[5px] w-[5px] rounded-full bg-current",
+            gerando && "animate-nido-pulse",
+          )}
+        />
+        {gerando
+          ? tx("Em produção")
+          : completo
+            ? tx("Completo")
+            : tx("Rascunho")}
+      </span>
+
+      <div className="absolute top-2.5 right-2.5 z-10 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
         <button
           type="button"
           onClick={() => duplicate(c.id)}
@@ -84,7 +144,7 @@ export function CharacterListItem({ character: c }: Props) {
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
-    </div>
+    </article>
   );
 }
 

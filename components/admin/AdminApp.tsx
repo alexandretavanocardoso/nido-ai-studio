@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   BarChart3,
   CreditCard,
+  Gift,
   LayoutDashboard,
   ShieldCheck,
   TrendingUp,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import { AccountMenu } from "@/components/auth/AccountMenu";
 import { cn } from "@/lib/cn";
+import { Indicacoes } from "./Indicacoes";
 import { Lucro } from "./Lucro";
 import { Pagamentos } from "./Pagamentos";
 import { Uso } from "./Uso";
@@ -23,6 +25,7 @@ const ABAS = [
   { id: "visao", titulo: "Visão geral", icone: LayoutDashboard },
   { id: "usuarios", titulo: "Usuários", icone: Users },
   { id: "pagamentos", titulo: "Pagamentos", icone: CreditCard },
+  { id: "indicacoes", titulo: "Indicações", icone: Gift },
   { id: "uso", titulo: "Uso de créditos", icone: BarChart3 },
   { id: "lucro", titulo: "Lucro", icone: TrendingUp },
 ] as const;
@@ -97,6 +100,7 @@ export function AdminApp({ email }: { email: string }) {
             <Usuarios aberto={usuario} abrir={abrirUsuario} />
           )}
           {aba === "pagamentos" && <Pagamentos abrirUsuario={abrirUsuario} />}
+          {aba === "indicacoes" && <Indicacoes abrirUsuario={abrirUsuario} />}
           {aba === "uso" && <Uso abrirUsuario={abrirUsuario} />}
           {aba === "lucro" && <Lucro abrirUsuario={abrirUsuario} />}
         </div>

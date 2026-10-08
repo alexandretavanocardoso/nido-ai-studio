@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
 import { cn } from "@/lib/cn";
 import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 interface Caixa {
   x: number;
@@ -135,7 +136,7 @@ export function LegendaEditor({
         return onJob({ jobId: body.jobId, duracao: body.duracao ?? duracao });
       if (!res.ok || !body.key) {
         setErroCode(body.code ?? null);
-        return setErro(body.error ?? `Falha ao editar (HTTP ${res.status}).`);
+        return setErro(txErro(body.error ?? `Falha ao editar (HTTP ${res.status}).`));
       }
       onPronto({
         key: body.key,

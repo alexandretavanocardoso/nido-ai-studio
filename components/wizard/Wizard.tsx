@@ -13,6 +13,7 @@ import { WizardProvider } from "./WizardContext";
 import { RegenerateSection } from "./RegenerateSection";
 import { DicaBox } from "@/components/ui/DicaBox";
 import { CharacterCard } from "@/components/preview/CharacterCard";
+import { ExportarFicha } from "@/components/export/ExportarFicha";
 import { IdentidadeStep } from "@/components/steps/IdentidadeStep";
 import { VisualStep } from "@/components/steps/VisualStep";
 import { SoulStep } from "@/components/steps/SoulStep";
@@ -206,7 +207,10 @@ export function Wizard({ id }: { id: string }) {
 
           {aba === "ficha" && (
             <aside className="min-w-0">
-              <CharacterCard character={character} />
+              <div className="sticky top-6 grid gap-3">
+                <CharacterCard character={character} />
+                <ExportarFicha character={character} />
+              </div>
             </aside>
           )}
         </div>

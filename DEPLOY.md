@@ -84,11 +84,37 @@ Plano: o Free permite 20 posts/mês e 3 contas conectadas; para clientes, o Pro 
 
 ## 5. Stripe (cartão, Pix e boleto)
 
-1. Conta Brasil → **Settings → Payment methods**: ativar **Pix** e **boleto**. Ativar o **Customer portal**.
-2. **Developers → Webhooks** → novo endpoint:
-   - **URL:** `https://aistudio.nido.global/api/pagamentos/stripe/webhook`
-   - **Eventos:** `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `invoice.paid`, `customer.subscription.deleted`
-3. `STRIPE_SECRET_KEY` (chave secreta) e `STRIPE_WEBHOOK_SECRET` (segredo do endpoint) na Vercel.
+Situação em **07/10/2026**: webhook e produtos já criados na conta de produção; a conta ainda **não está ativada** (o Stripe recusa qualquer checkout com "No valid payment method types"). Tudo abaixo é feito no Dashboard, em modo produção.
+
+**Já feito**
+
+- [x] Destino de webhook `https://aistudio.nido.global/api/pagamentos/stripe/webhook`, escopo "Sua conta", payload "Instantâneo", com os eventos `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `invoice.paid`, `customer.subscription.deleted`.
+- [x] Catálogo: 7 produtos e 10 preços (BRL e USD no mesmo preço), achados pelo app pela lookup key — `plano_{starter|creator|studio}_{mensal|anual}`, `pacote_{p500|p1500|p5000}`, `creditos_avulso`. Os valores de [lib/planos.ts](lib/planos.ts) mandam: se um preço mudar lá, crie um preço novo no Stripe com a mesma lookup key (marcando "transferir lookup key") e arquive o antigo; enquanto estiverem diferentes, o app monta o preço na hora.
+
+**Falta fazer, nesta ordem**
+
+1. [ ] **Ativar a conta.** Clicar em **Ativar pagamentos** e preencher até o fim: dados da empresa (CNPJ ou CPF, endereço, ramo, site `https://aistudio.nido.global`), representante legal (nome, CPF, nascimento, documento), conta bancária para os repasses (mesmo CNPJ/CPF) e o nome que sai na fatura do cartão (ex.: `NIDO STUDIO`). Pronto quando o painel mostrar pagamentos e repasses ativos; a análise pode levar de minutos a alguns dias.
+2. [ ] **Formas de pagamento** (Configurações → Pagamentos → Formas de pagamento): conferir **cartões** e ativar **boleto** e **Pix**. Se o Pix aparecer como "solicitar acesso", pedir e aguardar. O app não fixa as formas no código: o checkout mostra o que estiver ligado aqui. Pix e boleto só aparecem em compras em real e em pagamento único (plano anual, pacotes, créditos por quantidade); o plano mensal é assinatura no cartão.
+3. [ ] **Portal do cliente** (Configurações → Faturamento → Portal do cliente): abrir e salvar a configuração, permitindo cancelar a assinatura e trocar o cartão. Sem salvar, o botão de gerenciar assinatura dá erro.
+4. [ ] **Stripe Connect** (necessário para o saque das indicações — sem ele "Conectar Stripe" falha):
+   - No menu **Connect**, clicar em começar e concluir o perfil da plataforma (o Stripe pergunta o modelo de negócio e quem responde por perdas).
+   - Escolher contas **Express** e ligar a função **Transferências** (*transfers*). O app cria a conta Express de cada indicador pedindo só essa função e paga com uma transferência do saldo da plataforma.
+   - Em Connect → Configurações → Marca, pôr nome, logo e cor — aparecem na tela de cadastro que o indicador vê.
+   - Não precisa de outro webhook: o app consulta a conta do indicador na hora do saque.
+   - O saque sai do **saldo disponível** da plataforma na moeda da comissão. Com o saldo ainda pendente (vendas recentes) ou sem saldo em dólar, a transferência falha e a comissão volta para "disponível".
+   - Antes, rodar a migration `db/migrations/0016_indicacoes.sql` no Neon.
+5. [ ] **Chaves na Vercel** (Settings → Environment Variables, ambiente Production): `STRIPE_SECRET_KEY` (`sk_live_...`) e `STRIPE_WEBHOOK_SECRET` (o `whsec_...` do destino acima). Depois, **redeploy**.
+6. [ ] **Testar com compras reais** do menor pacote (500 créditos), reembolsando depois pelo painel:
+   - cartão → o saldo sobe na hora;
+   - Pix → sobe logo após pagar o QR code;
+   - boleto → sobe só quando compensar (1 a 2 dias úteis);
+   - plano mensal no cartão → o plano ativa; cancelar pelo portal;
+   - site em inglês → conferir se o checkout abre em US$ (não confirmado para conta brasileira);
+   - indicação → conectar o Stripe em `/app/indicacoes`, gerar uma comissão e sacar.
+
+   Se o saldo não subir, ver as entregas do destino de webhook: **400** = `whsec_` errado; **500 "Stripe não configurado."** = falta variável na Vercel ou o redeploy.
+
+Reembolso feito pelo painel devolve o dinheiro, mas não tira os créditos do cliente nem desfaz a comissão do indicador.
 
 ---
 

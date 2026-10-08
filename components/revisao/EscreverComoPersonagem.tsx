@@ -23,6 +23,7 @@ import { CREDITOS_TEXTO } from "@/lib/planos";
 import type { Plataforma, TipoEscrita } from "@/lib/prompts/escrever";
 import { tx } from "@/lib/i18n/tx";
 import { useSearchParams } from "next/navigation";
+import { txErro } from "@/lib/i18n/erros";
 
 const TIPOS: Array<{
   id: TipoEscrita;
@@ -108,7 +109,7 @@ export function EscreverComoPersonagem({
       avisarCreditos();
       if (!res.ok || !b.opcoes)
         return setErro({
-          msg: b.error ?? `Falha (HTTP ${res.status}).`,
+          msg: txErro(b.error ?? `Falha (HTTP ${res.status}).`),
           code: b.code,
         });
       setOpcoes(b.opcoes);

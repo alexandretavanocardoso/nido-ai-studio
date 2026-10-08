@@ -21,6 +21,7 @@ import { cn } from "@/lib/cn";
 import { DECLARACAO_VOZ } from "@/lib/declaracoes";
 import { bloqueioVoz, CREDITOS_CRIAR_VOZ, creditosFala } from "@/lib/planos";
 import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 interface Voz {
   voiceId: string;
@@ -136,7 +137,7 @@ export function VozIA({ character }: { character: Character }) {
       avisarCreditos();
       if (!res.ok)
         return setErro({
-          msg: b.error ?? `Falha (HTTP ${res.status}).`,
+          msg: txErro(b.error ?? `Falha (HTTP ${res.status}).`),
           code: b.code,
         });
       setAmostras([]);
@@ -172,7 +173,7 @@ export function VozIA({ character }: { character: Character }) {
       avisarCreditos();
       if (!res.ok || !b.key)
         return setErro({
-          msg: b.error ?? `Falha (HTTP ${res.status}).`,
+          msg: txErro(b.error ?? `Falha (HTTP ${res.status}).`),
           code: b.code,
         });
       update(character.id, (c) => {

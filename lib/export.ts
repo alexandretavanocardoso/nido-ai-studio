@@ -124,28 +124,72 @@ function trigger(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export async function downloadPng(node: HTMLElement, filename: string) {
+const PIXEL_VAZIO =
+  "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+
+/**
+ * As imagens do personagem vêm do S3 (por redirecionamento). Desenhada direto,
+ * uma imagem de outro domínio "contamina" o canvas e o navegador se recusa a
+ * salvar PNG/PDF. Por isso cada <img> é trocada pelos próprios bytes (data URL)
+ * antes da captura e devolvida depois. Se a imagem não puder ser lida, a ficha
+ * sai sem ela.
+ */
+async function capturar(node: HTMLElement): Promise<HTMLCanvasElement> {
   const html2canvas = (await import("html2canvas")).default;
-  const canvas = await html2canvas(node, {
-    backgroundColor: "#0a0a0a",
-    scale: 2,
-    useCORS: true,
+  const imgs = Array.from(node.querySelectorAll("img"));
+  const originais = imgs.map((img) => img.getAttribute("src"));
+  await Promise.all(
+    imgs.map(async (img) => {
+      const src = img.currentSrc || img.src;
+      if (!src || src.startsWith("data:")) return;
+      try {
+        // no-store: a cópia em cache veio sem os cabeçalhos de CORS.
+        const res = await fetch(src, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        img.src = await lerComoDataUrl(await res.blob());
+      } catch {
+        img.src = PIXEL_VAZIO;
+      }
+      await img.decode().catch(() => {});
+    }),
+  );
+  try {
+    return await html2canvas(node, {
+      backgroundColor: "#0a0a0a",
+      scale: 2,
+      useCORS: true,
+    });
+  } finally {
+    imgs.forEach((img, i) => {
+      const original = originais[i];
+      if (original) img.setAttribute("src", original);
+    });
+  }
+}
+
+function lerComoDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.onload = () => resolve(leitor.result as string);
+    leitor.onerror = () => reject(leitor.error);
+    leitor.readAsDataURL(blob);
   });
-  canvas.toBlob((blob) => {
-    if (blob) trigger(blob, filename);
-  }, "image/png");
+}
+
+export async function downloadPng(node: HTMLElement, filename: string) {
+  const canvas = await capturar(node);
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/png"),
+  );
+  if (!blob) throw new Error("O navegador não gerou a imagem.");
+  trigger(blob, filename);
 }
 
 export async function downloadPdf(node: HTMLElement, filename: string) {
-  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-    import("html2canvas"),
+  const [canvas, { jsPDF }] = await Promise.all([
+    capturar(node),
     import("jspdf"),
   ]);
-  const canvas = await html2canvas(node, {
-    backgroundColor: "#0a0a0a",
-    scale: 2,
-    useCORS: true,
-  });
   const img = canvas.toDataURL("image/png");
   const pdf = new jsPDF({
     orientation: canvas.width > canvas.height ? "landscape" : "portrait",

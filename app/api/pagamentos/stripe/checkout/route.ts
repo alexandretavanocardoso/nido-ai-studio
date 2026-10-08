@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { allow } from "@/lib/ai/rate-limit";
 import { getAuth } from "@/lib/auth/server";
 import { lerCompra } from "@/lib/pagamentos/aplicar";
 import { criarCheckout, getStripe } from "@/lib/pagamentos/stripe";
@@ -33,6 +34,12 @@ export async function POST(req: Request) {
       { status: 401 },
     );
 
+  const gate = await allow(`cobranca:${sessao.user.id}`, 6);
+  if (!gate.ok)
+    return NextResponse.json(
+      { error: `Muitas tentativas seguidas. Tente em ${gate.retryAfter}s.` },
+      { status: 429 },
+    );
   const parsed = BodySchema.safeParse(await req.json().catch(() => null));
   const compra = parsed.success ? lerCompra(parsed.data) : null;
   if (!compra)

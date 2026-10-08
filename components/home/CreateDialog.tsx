@@ -30,6 +30,7 @@ import {
 import { useRecursos } from "@/components/RecursosProvider";
 import { avisarCreditos } from "@/components/creditos/CreditosProvider";
 import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 type Mode = "pick" | "imagem" | "expand" | "loading";
 
@@ -45,12 +46,20 @@ const LOADING_STEPS = [
 const PLACEHOLDER =
   "Ex.: Influenciadora de finanças pra jovens de 20 a 25 anos, tom debochado, mora em São Paulo, atua no Instagram e TikTok, referência em Nathalia Arcuri mas mais ácida. Odeia conselho genérico de 'guarde 10% do salário'. Fala do dia a dia dela com freelas e boletos.";
 
+/** Por onde o diálogo abre quando vem do campo da Home (em vez da escolha). */
+export interface InicioCriar {
+  modo: "expand" | "imagem";
+  /** Texto já escrito na Home: entra como contexto da expansão. */
+  contexto?: string;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
+  inicio?: InicioCriar | null;
 }
 
-export function CreateDialog({ open, onClose }: Props) {
+export function CreateDialog({ open, onClose, inicio }: Props) {
   const recursos = useRecursos();
   const t = useT();
   const router = useRouter();
@@ -81,14 +90,21 @@ export function CreateDialog({ open, onClose }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    setMode("pick");
-    setContexto("");
+    const pelaImagem = inicio?.modo === "imagem" ? create() : null;
+    setMode(
+      pelaImagem
+        ? "imagem"
+        : inicio?.modo === "expand" && recursos.ia
+          ? "expand"
+          : "pick",
+    );
+    setContexto(inicio?.contexto ?? "");
     setErro(null);
     setLoadingStep(0);
     setImagemTipo("retrato");
     setImagemCharId((prev) => {
-      if (prev) deleteChar(prev);
-      return null;
+      if (prev && prev !== pelaImagem) deleteChar(prev);
+      return pelaImagem;
     });
   }, [open]);
 
@@ -125,7 +141,7 @@ export function CreateDialog({ open, onClose }: Props) {
     if (file.size > 20 * 1024 * 1024)
       return setErroImport("Arquivo grande demais (máx. 20 MB).");
     const r = lerPersonagemExportado(await file.text());
-    if (!r.ok) return setErroImport(r.erro);
+    if (!r.ok) return setErroImport(txErro(r.erro));
     const id = adicionar(r.character);
     onClose();
     router.push(`/app/personagem/${id}`);
@@ -209,7 +225,7 @@ export function CreateDialog({ open, onClose }: Props) {
       avisarCreditos(); // gastou (ou foi estornado): atualiza o saldo
       if (!res.ok) {
         setMode("expand");
-        setErro(data?.error ?? "Falha ao expandir. Tente de novo.");
+        setErro(txErro(data?.error ?? "Falha ao expandir. Tente de novo."));
         return;
       }
       const id = create();
@@ -239,7 +255,17 @@ export function CreateDialog({ open, onClose }: Props) {
         if (e.target === e.currentTarget && mode !== "loading") handleClose();
       }}
     >
-      <div className="card max-w-2xl w-full p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
+      <div
+        className={cn(
+          "card w-full p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto",
+          mode === "pick"
+            ? "max-w-[920px] sm:p-9 rounded-[22px] bg-[#121011] border-white/[0.09] shadow-[0_50px_120px_-30px_rgba(0,0,0,0.9)] animate-nido-rise font-geist text-nido-ink"
+            : "max-w-2xl",
+        )}
+      >
+        {mode === "pick" && (
+          <div className="pointer-events-none absolute -top-px left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-nido-yellow/90 to-transparent" />
+        )}
         {mode !== "loading" && (
           <button
             type="button"
@@ -253,11 +279,13 @@ export function CreateDialog({ open, onClose }: Props) {
 
         {mode === "pick" && (
           <div>
-            <div className="eyebrow-accent mb-2">{t("criar.pergunta")}</div>
-            <h2 className="display text-2xl sm:text-3xl text-ink uppercase leading-tight">
-              {t("criar.titulo")}
+            <div className="font-geist-mono text-[11px] uppercase tracking-[0.16em] text-nido-yellow mb-2.5">
+              {tx("Novo AI Creator")}
+            </div>
+            <h2 className="font-archivo [font-stretch:125%] font-black text-[26px] sm:text-4xl uppercase leading-[0.95] tracking-[-0.02em] pr-10">
+              {t("criar.pergunta")}
             </h2>
-            <p className="text-ink-mute mt-3 leading-relaxed">
+            <p className="text-nido-mute text-[14.5px] mt-2.5 leading-relaxed max-w-[60ch]">
               {t("criar.descricao")}
             </p>
 
@@ -272,18 +300,6 @@ export function CreateDialog({ open, onClose }: Props) {
               }}
             />
             <div className="grid gap-3 mt-6 sm:grid-cols-2">
-              <Option
-                icon={<UserPlus className="w-5 h-5" />}
-                title={t("criar.manual.titulo")}
-                description={t("criar.manual.descricao")}
-                onClick={onCriarDoZero}
-              />
-              <Option
-                icon={<ImageIcon className="w-5 h-5" />}
-                title={t("criar.imagem.titulo")}
-                description={t("criar.imagem.descricao")}
-                onClick={onComecarPelaImagem}
-              />
               {recursos.ia ? (
                 <Option
                   icon={<Wand2 className="w-5 h-5" />}
@@ -293,6 +309,18 @@ export function CreateDialog({ open, onClose }: Props) {
                   accent
                 />
               ) : null}
+              <Option
+                icon={<ImageIcon className="w-5 h-5" />}
+                title={t("criar.imagem.titulo")}
+                description={t("criar.imagem.descricao")}
+                onClick={onComecarPelaImagem}
+              />
+              <Option
+                icon={<UserPlus className="w-5 h-5" />}
+                title={t("criar.manual.titulo")}
+                description={t("criar.manual.descricao")}
+                onClick={onCriarDoZero}
+              />
               <Option
                 icon={<FileUp className="w-5 h-5" />}
                 title={t("criar.importar.titulo")}
@@ -305,6 +333,18 @@ export function CreateDialog({ open, onClose }: Props) {
                 {erroImport}
               </div>
             ) : null}
+            <div className="mt-6 pt-[18px] border-t border-white/[0.07] flex items-center justify-between gap-3">
+              <span className="font-geist-mono text-[11px] text-nido-dim">
+                {tx("Atalho: N abre esta janela a qualquer momento")}
+              </span>
+              <button
+                type="button"
+                onClick={handleClose}
+                className="h-9 px-3.5 rounded-[10px] border border-white/[0.12] text-[13px] text-nido-soft hover:text-nido-ink transition"
+              >
+                {tx("Cancelar")}
+              </button>
+            </div>
           </div>
         )}
 
@@ -556,26 +596,33 @@ function Option({
       type="button"
       onClick={onClick}
       className={cn(
-        "text-left rounded-2xl border p-5 transition group",
+        "flex items-start gap-4 text-left rounded-[14px] border p-5 transition hover:border-nido-yellow/60",
         accent
-          ? "border-accent bg-accent/5 hover:bg-accent/10 shadow-glow"
-          : "border-line bg-panel hover:border-line-strong hover:bg-card",
+          ? "border-nido-yellow/45 bg-nido-yellow/[0.05]"
+          : "border-white/[0.08] bg-white/[0.02]",
       )}
     >
-      <div
+      <span
         className={cn(
-          "inline-flex items-center justify-center h-10 w-10 rounded-full mb-3",
-          accent ? "bg-accent text-bg" : "bg-card text-ink",
+          "inline-flex items-center justify-center h-[42px] w-[42px] rounded-xl shrink-0",
+          accent ? "bg-nido-yellow text-nido-bg" : "bg-white/[0.06] text-nido-ink",
         )}
       >
         {icon}
-      </div>
-      <div className="display text-base uppercase text-ink tracking-tight">
-        {title}
-      </div>
-      <div className="text-[13px] text-ink-mute mt-1.5 leading-relaxed">
-        {description}
-      </div>
+      </span>
+      <span className="grid gap-1.5">
+        <span className="flex items-center gap-2 flex-wrap text-[15px] font-semibold text-nido-ink">
+          {title}
+          {accent ? (
+            <span className="h-[18px] px-[7px] inline-flex items-center rounded-full bg-nido-yellow text-nido-bg text-[10px] font-bold">
+              {tx("Recomendado")}
+            </span>
+          ) : null}
+        </span>
+        <span className="text-[13px] text-nido-mute leading-relaxed">
+          {description}
+        </span>
+      </span>
     </button>
   );
 }

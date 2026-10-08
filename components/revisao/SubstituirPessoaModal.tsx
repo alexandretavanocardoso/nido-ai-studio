@@ -37,6 +37,7 @@ import {
 } from "@/components/revisao/MarcarPessoas";
 import { useCharacters } from "@/lib/store";
 import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 type Motor = "kling" | "seedance";
 
@@ -142,7 +143,7 @@ export function SubstituirPessoaModal({
       avisarCreditos();
       if (!res.ok || !body.jobId) {
         setErroCode(body.code ?? null);
-        return setErro(body.error ?? `Falha ao enviar (HTTP ${res.status}).`);
+        return setErro(txErro(body.error ?? `Falha ao enviar (HTTP ${res.status}).`));
       }
       onEnviado({ jobId: body.jobId, duracao: body.duracao ?? duracao });
     } catch (e) {

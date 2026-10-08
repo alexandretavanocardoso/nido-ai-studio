@@ -9,17 +9,17 @@ export const en: Record<Chave, string> = {
   "conta.idioma": "Language",
   "conta.semEmail": "no email",
 
-  "inicio.selo": "Create your Synthetic Influencer",
-  "inicio.titulo1": "Build your influencer",
-  "inicio.titulo2": "field by field.",
+  "inicio.selo": "AI Creator Studio",
+  "inicio.titulo1": "Generate your first",
+  "inicio.titulo2": "AI Creator",
   "inicio.descricao":
-    "Define who they are in 7 steps, then produce images, videos, captions and scheduled posts in the Studio — all in one place.",
+    "Describe an idea in one sentence. AI builds your character sheet; then you generate the face, the voice and the content in the Studio.",
   "inicio.limite": "Your {plano} plan allows {n} characters.",
   "inicio.upgrade": "Upgrade to create more",
   "inicio.criar": "Create character",
   "inicio.verSeus": "Or see yours",
   "inicio.biblioteca": "Library",
-  "inicio.seus": "Your characters",
+  "inicio.seus": "Your AI Creators",
   "inicio.novo": "New",
   "inicio.carregando": "Loading…",
   "inicio.soAquiLimite":

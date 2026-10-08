@@ -31,7 +31,7 @@ export function CharacterCard({ character: c }: { character: Character }) {
   ].filter(Boolean) as string[];
 
   return (
-    <div className="card overflow-hidden sticky top-6">
+    <div className="card overflow-hidden">
       <div className="relative aspect-[4/5] bg-bg overflow-hidden">
         {avatar ? (
           <CapaImagem src={avatar} alt={`Capa de ${nome}`} />

@@ -41,6 +41,7 @@ import { downloadUrl, fileUrl, uploadFile } from "@/lib/storage/client";
 import { bloqueioImagem, creditosImagem } from "@/lib/planos";
 import type { RoupaTroca } from "@/lib/prompts/trocar-imagem";
 import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 type Motor = "nano-banana" | "nano-banana-pro";
 
@@ -206,7 +207,7 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
       avisarCreditos();
       if (!res.ok || !body.key) {
         setErroCode(body.code ?? null);
-        return setErro(body.error ?? `Falha ao gerar (HTTP ${res.status}).`);
+        return setErro(txErro(body.error ?? `Falha ao gerar (HTTP ${res.status}).`));
       }
       const nova: ImagemGerada = {
         id: nanoid(8),

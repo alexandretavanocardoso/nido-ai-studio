@@ -1,7 +1,9 @@
 import { createWriteStream } from "node:fs";
 import { stat } from "node:fs/promises";
-import { Readable } from "node:stream";
+import type { IncomingMessage } from "node:http";
+import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import { abrirDownloadSeguro } from "./destino-seguro";
 
 /**
  * Vídeo por link (TikTok, Instagram, YouTube Shorts ou arquivo direto).
@@ -227,28 +229,67 @@ export async function baixarVideo(
   const token = tokenApify();
   if (/^https:\/\/api\.apify\.com\//.test(url) && token)
     headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(url, { headers, redirect: "follow" });
-  if (!res.ok || !res.body)
+  // Cada salto é conferido e a conexão só abre em endereço público: um link
+  // público não pode levar o servidor a um endereço interno (ver ./destino-seguro.ts).
+  let atual = url;
+  let res: IncomingMessage;
+  for (let salto = 0; ; salto++) {
+    try {
+      res = await abrirDownloadSeguro(
+        atual,
+        // O token do Apify só vai para o próprio Apify, nunca para onde ele redirecionar.
+        salto === 0 ? headers : { "User-Agent": headers["User-Agent"] },
+      );
+    } catch (e) {
+      throw new LinkError(
+        `O vídeo não pôde ser baixado: ${(e as Error).message}`,
+      );
+    }
+    const status = res.statusCode ?? 0;
+    const para = res.headers.location;
+    if (status < 300 || status >= 400 || !para) break;
+    res.destroy();
+    if (salto >= 5) throw new LinkError("O link redireciona vezes demais.");
+    atual = new URL(para, atual).toString();
+  }
+  const status = res.statusCode ?? 0;
+  if (status < 200 || status >= 300) {
+    res.destroy();
     throw new LinkError(
-      `O vídeo não pôde ser baixado (HTTP ${res.status}). O link pode ter expirado.`,
+      `O vídeo não pôde ser baixado (HTTP ${status}). O link pode ter expirado.`,
     );
-  const tamanho = Number(res.headers.get("content-length") ?? 0);
-  if (tamanho > LINK_MAX_BYTES)
-    throw new LinkError("Vídeo grande demais (máx. 300 MB).");
-  const tipo = res.headers.get("content-type") ?? "";
-  if (
-    tipo &&
+  }
+  const tamanho = Number(res.headers["content-length"] ?? 0);
+  const tipo = res.headers["content-type"] ?? "";
+  const tipoErrado =
+    !!tipo &&
     !(
       aceitarAudio
         ? /video|audio|octet-stream|binary/i
         : /video|octet-stream|binary/i
-    ).test(tipo)
-  )
-    throw new LinkError("O link não aponta para um arquivo de vídeo.");
-  await pipeline(
-    Readable.fromWeb(res.body as import("node:stream/web").ReadableStream),
-    createWriteStream(destino),
-  );
+    ).test(tipo);
+  if (tamanho > LINK_MAX_BYTES || tipoErrado) {
+    res.destroy();
+    throw new LinkError(
+      tipoErrado
+        ? "O link não aponta para um arquivo de vídeo."
+        : "Vídeo grande demais (máx. 300 MB).",
+    );
+  }
+  // Corta o download ao passar do limite, mesmo sem content-length (não enche o disco).
+  let recebido = 0;
+  const limite = new Transform({
+    transform(pedaco: Buffer, _enc, pronto) {
+      recebido += pedaco.length;
+      pronto(
+        recebido > LINK_MAX_BYTES
+          ? new LinkError("Vídeo grande demais (máx. 300 MB).")
+          : null,
+        pedaco,
+      );
+    },
+  });
+  await pipeline(res, limite, createWriteStream(destino));
   const { size } = await stat(destino);
   if (size > LINK_MAX_BYTES)
     throw new LinkError("Vídeo grande demais (máx. 300 MB).");

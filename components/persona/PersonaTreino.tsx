@@ -38,6 +38,7 @@ import {
   TREINO_MIN_IMAGENS,
 } from "@/lib/planos";
 import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 const QUANTIDADES = [12, 20, 30];
 
@@ -124,7 +125,7 @@ export function PersonaTreino({ character }: { character: Character }) {
       avisarCreditos();
       if (!res.ok || !b.imagens)
         return setErro({
-          msg: b.error ?? `Falha (HTTP ${res.status}).`,
+          msg: txErro(b.error ?? `Falha (HTTP ${res.status}).`),
           code: b.code,
         });
       salvarDataset([
@@ -162,7 +163,7 @@ export function PersonaTreino({ character }: { character: Character }) {
       avisarCreditos();
       if (!res.ok)
         return setErro({
-          msg: b.error ?? `Falha (HTTP ${res.status}).`,
+          msg: txErro(b.error ?? `Falha (HTTP ${res.status}).`),
           code: b.code,
         });
       setAceito(false);
@@ -445,7 +446,7 @@ function StatusTreino({ s }: { s?: StatusAlvo }) {
     );
   if (s.status === "erro")
     return (
-      <span className="text-[11px] text-pink" title={s.erro ?? ""}>
+      <span className="text-[11px] text-pink" title={txErro(s.erro ?? "")}>
         {rotulo}
         {tx(": falhou")}{" "}
         {s.temPronto

@@ -9,17 +9,17 @@ export const pt = {
   "conta.semEmail": "sem email",
 
   // Início (/app)
-  "inicio.selo": "Crie seu Influenciador Sintético",
-  "inicio.titulo1": "Monte seu influenciador",
-  "inicio.titulo2": "campo a campo.",
+  "inicio.selo": "Estúdio de AI Creators",
+  "inicio.titulo1": "Gere seu primeiro",
+  "inicio.titulo2": "AI Creator",
   "inicio.descricao":
-    "Defina quem ele é em 7 etapas e depois produza imagens, vídeos, legendas e posts agendados no Estúdio — tudo no mesmo lugar.",
+    "Descreva uma ideia em uma frase. A IA monta a ficha do seu personagem; depois você gera o rosto, a voz e o conteúdo no Estúdio.",
   "inicio.limite": "Seu plano {plano} permite {n} personagens.",
   "inicio.upgrade": "Faça upgrade para criar mais",
   "inicio.criar": "Criar personagem",
   "inicio.verSeus": "Ou veja os seus",
   "inicio.biblioteca": "Biblioteca",
-  "inicio.seus": "Seus personagens",
+  "inicio.seus": "Seus AI Creators",
   "inicio.novo": "Novo",
   "inicio.carregando": "Carregando…",
   "inicio.soAquiLimite":

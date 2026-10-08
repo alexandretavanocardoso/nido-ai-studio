@@ -41,6 +41,7 @@ import { paraValor, SeletorHorario } from "@/components/estudio/SeletorHorario";
 import { usePublicacao, type Post } from "@/components/estudio/Publicar";
 import { tx } from "@/lib/i18n/tx";
 import { IconeRede, IconesRedes } from "@/components/ui/IconeRede";
+import { txErro } from "@/lib/i18n/erros";
 
 const p2 = (n: number) => String(n).padStart(2, "0");
 
@@ -88,7 +89,7 @@ export function Agendamentos({ character }: { character: Character }) {
     const r = await fetch(`/api/social/posts/${id}`, { method: "DELETE" });
     const b = (await r.json().catch(() => ({}))) as { error?: string };
     avisarCreditos();
-    if (!r.ok) setErro(b.error ?? "Não consegui cancelar.");
+    if (!r.ok) setErro(txErro(b.error ?? "Não consegui cancelar."));
     carregar();
   }
 
@@ -180,7 +181,7 @@ function ItemBacklog({
       avisarCreditos();
       if (!r.ok)
         return setErro({
-          msg: b.error ?? `Falha (HTTP ${r.status}).`,
+          msg: txErro(b.error ?? `Falha (HTTP ${r.status}).`),
           code: b.code,
         });
       setAgendando(false);
@@ -368,7 +369,7 @@ function EditarPost({
         }),
       });
       const b = (await r.json().catch(() => ({}))) as { error?: string };
-      if (!r.ok) return setErro(b.error ?? `Falha (HTTP ${r.status}).`);
+      if (!r.ok) return setErro(txErro(b.error ?? `Falha (HTTP ${r.status}).`));
       onSalvo();
     } finally {
       setSalvando(false);

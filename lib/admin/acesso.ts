@@ -28,7 +28,9 @@ export interface Admin {
 export async function adminAtual(): Promise<Admin | null> {
   const sessao = await getAuth()?.api.getSession({ headers: await headers() });
   const email = sessao?.user.email;
-  if (!sessao || !ehAdmin(email)) return null;
+  // E-mail não verificado não vale: se um dia existir cadastro por senha,
+  // ninguém vira admin só por digitar o e-mail de um.
+  if (!sessao || !sessao.user.emailVerified || !ehAdmin(email)) return null;
   return { userId: sessao.user.id, email: email!.toLowerCase() };
 }
 

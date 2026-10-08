@@ -14,6 +14,7 @@ import { cn } from "@/lib/cn";
 import { CREDITOS_LINK } from "@/lib/planos";
 import type { VideoLink } from "@/components/revisao/SubstituirPessoaModal";
 import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 interface Props {
   onClose: () => void;
@@ -53,7 +54,7 @@ export function LinkVideoModal({ onClose, onEncontrado }: Props) {
       avisarCreditos();
       if (!res.ok || !b.linkId)
         return setErro({
-          msg: b.error ?? `Falha (HTTP ${res.status}).`,
+          msg: txErro(b.error ?? `Falha (HTTP ${res.status}).`),
           code: b.code,
         });
       setAchado({

@@ -22,6 +22,7 @@ import {
   useImagensPersonagem,
 } from "@/components/revisao/EscolherImagemPersonagem";
 import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 interface Props {
   character: Character;
@@ -98,7 +99,7 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
       avisarCreditos();
       if (!res.ok || !body.jobId) {
         setErroCode(body.code ?? null);
-        return setErro(body.error ?? `Falha ao enviar (HTTP ${res.status}).`);
+        return setErro(txErro(body.error ?? `Falha ao enviar (HTTP ${res.status}).`));
       }
       onEnviado({ jobId: body.jobId, duracao, modelo });
     } catch (e) {

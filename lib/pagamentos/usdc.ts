@@ -10,6 +10,7 @@ import {
   hashDaTransacao,
   linkEip681,
   microDoPreco,
+  microParaNumero,
   redesEvmAtivas,
   type RedeEvm,
 } from "./evm";
@@ -117,8 +118,12 @@ export async function criarPagamentoUsdc(
     referencia = base58(randomBytes(32));
     link = linkSolanaPay({ valor: preco, referencia, id, rotulo });
   } else {
-    // Sempre o preço exato (2 casas): quem pagou é provado pelo hash da transação.
-    const micro = microDoPreco(preco);
+    // O hash da transação é público: para ninguém confirmar a cobrança com o
+    // pagamento de outra pessoa, cada cobrança em aberto na rede tem um valor
+    // único (o preço + alguns centavos) e só vale a transação com esse valor exato.
+    const extra = await centavosLivres(rede, preco);
+    const micro = microDoPreco(preco, extra);
+    valorTexto = microParaNumero(micro).toFixed(2);
     link = linkEip681(rede, micro);
   }
 
@@ -138,6 +143,21 @@ export async function criarPagamentoUsdc(
       rede,
     ],
   );
+  // Duas cobranças criadas no mesmo instante podem ter pego os mesmos centavos:
+  // a mais nova desiste e o usuário tenta de novo.
+  if (rede !== "solana") {
+    const { rows } = await pool.query<{ id: string }>(
+      `select id from pagamentos
+       where provedor = 'usdc' and rede = $1 and valor = $2 and status in ('pendente', 'expirado')
+         and created_at > now() - interval '${VALIDADE_HORAS + 1} hours'
+       order by created_at, id limit 1`,
+      [rede, valorTexto],
+    );
+    if (rows[0] && rows[0].id !== id) {
+      await pool.query("delete from pagamentos where id = $1", [id]);
+      throw new Error("Valor da cobrança em disputa; tente de novo.");
+    }
+  }
   return {
     id,
     rede,
@@ -148,6 +168,27 @@ export async function criarPagamentoUsdc(
     carteira: rede === "solana" ? carteira() : carteiraEvm(),
     expiraEm: new Date(Date.now() + VALIDADE_HORAS * 3600_000).toISOString(),
   };
+}
+
+/**
+ * Menor número de centavos extras (0–99) que deixa o valor diferente de toda
+ * cobrança ainda não paga nesta rede. Vale para as últimas VALIDADE_HORAS + 1
+ * horas, que é enquanto uma transação ainda pode confirmar uma cobrança.
+ */
+async function centavosLivres(rede: RedeUsdc, preco: number): Promise<number> {
+  const { rows } = await getPool()!.query<{ valor: string }>(
+    `select valor::text as valor from pagamentos
+     where provedor = 'usdc' and rede = $1 and status in ('pendente', 'expirado')
+       and created_at > now() - interval '${VALIDADE_HORAS + 1} hours'
+       and valor >= $2 and valor < $2::numeric + 1`,
+    [rede, preco.toFixed(2)],
+  );
+  const usados = new Set(
+    rows.map((r) => Math.round((Number(r.valor) - preco) * 100)),
+  );
+  for (let extra = 0; extra < 100; extra++)
+    if (!usados.has(extra)) return extra;
+  throw new Error("Muitas cobranças em aberto nesta rede; tente outra rede.");
 }
 
 /** 15003721n → "15.003721" */
@@ -253,7 +294,7 @@ export async function verificarPagamentoUsdc(
   const esperado = BigInt(Math.round(Number(p.valor) * 10 ** DECIMAIS));
   const assinaturas = await rpc<Array<{ signature: string; err: unknown }>>(
     "getSignaturesForAddress",
-    [p.referencia, { limit: 10, commitment: "confirmed" }],
+    [p.referencia, { limit: 10, commitment: "finalized" }],
   );
 
   for (const { signature, err } of assinaturas ?? []) {
@@ -268,7 +309,7 @@ export async function verificarPagamentoUsdc(
       signature,
       {
         encoding: "jsonParsed",
-        commitment: "confirmed",
+        commitment: "finalized",
         maxSupportedTransactionVersion: 0,
       },
     ]);

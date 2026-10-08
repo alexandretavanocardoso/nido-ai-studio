@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import type { AlertaIA } from "@/lib/ai/schema";
 import { avisarCreditos } from "@/components/creditos/CreditosProvider";
 import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 export function ConsistenciaIA({ characterId }: { characterId: string }) {
   const character = useCharacters((s) =>
@@ -30,7 +31,7 @@ export function ConsistenciaIA({ characterId }: { characterId: string }) {
       const data = await res.json();
       avisarCreditos(); // gastou (ou foi estornado): atualiza o saldo
       if (!res.ok) {
-        setErr(data?.error ?? "Falha ao checar.");
+        setErr(txErro(data?.error ?? "Falha ao checar."));
         return;
       }
       setAlertas(data.alertas ?? []);

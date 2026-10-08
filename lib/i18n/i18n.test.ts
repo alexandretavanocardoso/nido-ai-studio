@@ -27,6 +27,67 @@ describe("tx", () => {
   });
 });
 
+describe("txErro (mensagens do servidor)", () => {
+  it("traduz texto fixo, texto com variáveis, final somado e frases juntas", async () => {
+    const { definirIdiomaAtivo } = await import("./tx");
+    const { txErro } = await import("./erros");
+    const pt = "Muitas imagens seguidas. Tente de novo em 12s.";
+    definirIdiomaAtivo("pt");
+    expect(txErro(pt)).toBe(pt);
+    definirIdiomaAtivo("en");
+    expect(txErro(pt)).toBe("Too many images in a row. Try again in 12s.");
+    expect(txErro("Voz não encontrada.")).toBe("Voice not found.");
+    expect(txErro("Falha ao gerar (HTTP 502).")).toBe(
+      "Failed to generate (HTTP 502).",
+    );
+    expect(
+      txErro(
+        "Você já tem 2 vídeos sendo gerados. O plano Starter permite 2 ao mesmo tempo — aguarde terminar ou faça upgrade.",
+      ),
+    ).toBe(
+      "You already have 2 videos being generated. The Starter plan allows 2 at a time — wait for it to finish or upgrade.",
+    );
+    expect(
+      txErro(
+        'Sem espaço: 1,5 GB de 1 GB usados no plano Free. Remova vídeos e use "Liberar espaço" na página de planos, ou faça upgrade.',
+      ),
+    ).toBe(
+      'Out of space: 1.5 GB of 1 GB used on the Free plan. Remove videos and use "Free up space" on the plans page, or upgrade.',
+    );
+    expect(
+      txErro("Vídeo grande demais (máx. 300 MB). Os créditos foram devolvidos."),
+    ).toBe("Video too large (max 300 MB). Your credits were refunded.");
+    expect(
+      txErro("TikTok precisa de um vídeo ou imagem. O YouTube precisa de um título."),
+    ).toBe("TikTok needs a video or an image. YouTube needs a title.");
+    expect(txErro("Erro que ninguém traduziu.")).toBe(
+      "Erro que ninguém traduziu.",
+    );
+    definirIdiomaAtivo("pt");
+  });
+
+  it("toda mensagem fixa das rotas tem tradução", async () => {
+    const { readdirSync, readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const { definirIdiomaAtivo } = await import("./tx");
+    const { txErro } = await import("./erros");
+    // Admin fica só em português; cron e webhooks não são vistos pelo usuário.
+    const fora = /[\\/](admin|cron|webhook|auth)[\\/]/;
+    const arquivos = (readdirSync("app/api", { recursive: true }) as string[])
+      .map((f) => join("app/api", f))
+      .filter((f) => f.endsWith("route.ts") && !fora.test(f));
+    const faltam: string[] = [];
+    definirIdiomaAtivo("en");
+    for (const f of arquivos)
+      for (const m of readFileSync(f, "utf8").matchAll(
+        /\b(?:error|erro|message):\s*"([^"\n]*[a-zà-ú][^"\n]*)"/g,
+      ))
+        if (txErro(m[1]) === m[1]) faltam.push(`${f}: ${m[1]}`);
+    definirIdiomaAtivo("pt");
+    expect(faltam).toEqual([]);
+  });
+});
+
 describe("idioma da IA", () => {
   it("lê o cookie e só instrui quando é inglês", async () => {
     const { idiomaDoPedido, instrucaoIdioma } = await import("../ai/idioma");

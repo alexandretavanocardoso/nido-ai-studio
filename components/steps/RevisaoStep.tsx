@@ -1,21 +1,16 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
-  ChevronDown,
-  Download,
-  FileJson,
-  Image as ImageIcon,
   Info,
   Wand2,
 } from "lucide-react";
 import { useCharacter } from "@/lib/useCharacter";
 import { Button } from "@/components/ui/Button";
 import { checarConsistencia, status } from "@/lib/completion";
-import { downloadJson, downloadPdf, downloadPng } from "@/lib/export";
 import { FichaPoster } from "@/components/export/FichaPoster";
 import { cn } from "@/lib/cn";
 import { PontosEmAberto } from "@/components/revisao/PontosEmAberto";
@@ -35,29 +30,11 @@ export function RevisaoStep({
   const recursos = useRecursos();
   const { character } = useCharacter(id);
   const [orient, setOrient] = useState<Orient>("vertical");
-  const [exportando, setExportando] = useState(false);
-  const posterRef = useRef<HTMLDivElement>(null);
 
   if (!character) return null;
   const c = character;
   const check = checarConsistencia(c);
   const st = status(c);
-  const slug = (c.identidade.nome || "personagem")
-    .toLowerCase()
-    .replace(/\s+/g, "-");
-
-  function onExportJson() {
-    downloadJson(`${slug}.json`, c);
-  }
-  async function onExportPng() {
-    if (!posterRef.current) return;
-    await downloadPng(posterRef.current, `${slug}-ficha.png`);
-  }
-  async function onExportPdf() {
-    if (!posterRef.current) return;
-    await downloadPdf(posterRef.current, `${slug}-ficha.pdf`);
-  }
-
   return (
     <div className="grid grid-cols-1 gap-6">
       <div className="rounded-xl border border-line bg-panel p-4 flex items-start gap-3">
@@ -173,19 +150,6 @@ export function RevisaoStep({
             </div>
           </div>
         </div>
-
-        {/* Cópia em tamanho real, fora do fluxo, usada para exportar PNG/PDF */}
-        <div
-          aria-hidden="true"
-          style={{
-            position: "fixed",
-            left: "-10000px",
-            top: 0,
-            pointerEvents: "none",
-          }}
-        >
-          <FichaPoster ref={posterRef} character={c} orientation={orient} />
-        </div>
       </section>
 
       <section className="rounded-xl border border-accent/30 bg-accent/5 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
@@ -205,42 +169,6 @@ export function RevisaoStep({
         <Button variant="accent" onClick={onEstudio} className="shrink-0">
           {tx("Abrir o Estúdio")} <ArrowRight className="w-4 h-4" />
         </Button>
-      </section>
-
-      <section className="relative w-fit">
-        <Button
-          variant="ghost"
-          onClick={() => setExportando((v) => !v)}
-          aria-expanded={exportando}
-        >
-          <Download className="w-4 h-4" /> {tx("Exportar ficha")}
-          <ChevronDown
-            className={cn("w-4 h-4 transition", exportando && "rotate-180")}
-          />
-        </Button>
-        {exportando && (
-          <div className="absolute left-0 bottom-full mb-2 z-10 grid min-w-48 rounded-xl border border-line bg-card p-1.5 shadow-lg">
-            {(
-              [
-                [ImageIcon, tx("Imagem (PNG)"), onExportPng],
-                [Download, "PDF", onExportPdf],
-                [FileJson, tx("Dados (JSON)"), onExportJson],
-              ] as const
-            ).map(([Icone, rotulo, acao]) => (
-              <button
-                key={rotulo}
-                type="button"
-                onClick={() => {
-                  setExportando(false);
-                  acao();
-                }}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] text-ink-mute hover:text-ink hover:bg-panel text-left"
-              >
-                <Icone className="w-4 h-4" /> {rotulo}
-              </button>
-            ))}
-          </div>
-        )}
       </section>
     </div>
   );

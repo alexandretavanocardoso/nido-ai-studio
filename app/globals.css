@@ -8,21 +8,21 @@
 
 html,
 body {
-  background: #0a0a0a;
-  color: #ffffff;
+  background: #0b0a0a;
+  color: #f1ece2;
   min-height: 100vh;
   max-width: 100%;
   overflow-x: clip;
 }
 
 body {
-  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: #dfff2a;
-  color: #0a0a0a;
+  background: #fdf327;
+  color: #0b0a0a;
 }
 
 /* Scrollbars */
@@ -60,9 +60,9 @@ input[type="range"]::-webkit-slider-thumb {
   height: 18px;
   margin-top: -7px;
   border-radius: 50%;
-  background: #dfff2a;
+  background: #fdf327;
   cursor: pointer;
-  box-shadow: 0 0 0 3px #0a0a0a, 0 0 8px rgba(223, 255, 42, 0.6);
+  box-shadow: 0 0 0 3px #0b0a0a, 0 0 8px rgba(253, 243, 39, 0.6);
 }
 input[type="range"]::-moz-range-track {
   height: 4px;
@@ -73,13 +73,13 @@ input[type="range"]::-moz-range-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #dfff2a;
+  background: #fdf327;
   cursor: pointer;
-  border: 3px solid #0a0a0a;
+  border: 3px solid #0b0a0a;
 }
 
 :focus-visible {
-  outline: 2px solid rgba(223, 255, 42, 0.7);
+  outline: 2px solid rgba(253, 243, 39, 0.7);
   outline-offset: 2px;
   border-radius: 8px;
 }
@@ -88,72 +88,73 @@ input[type="range"]::-moz-range-thumb {
 input:-webkit-autofill,
 textarea:-webkit-autofill {
   -webkit-text-fill-color: #ffffff;
-  -webkit-box-shadow: 0 0 0 100px #141414 inset;
+  -webkit-box-shadow: 0 0 0 100px #131112 inset;
   caret-color: #ffffff;
 }
 
 @layer utilities {
   .display {
-    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-family: "Archivo", "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-stretch: 112%;
     font-weight: 800;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
     line-height: 1;
   }
   .mono {
-    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-family: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
   }
   .eyebrow {
-    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-family: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
     font-size: 11px;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: #a3a3a3;
+    color: #9b9389;
     font-weight: 500;
   }
   .eyebrow-accent {
-    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-family: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
     font-size: 11px;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: #dfff2a;
+    color: #fdf327;
     font-weight: 600;
   }
   .label-cap {
-    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-family: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
     font-size: 10.5px;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: #a3a3a3;
+    color: #9b9389;
     font-weight: 600;
   }
   .card {
-    background: #141414;
-    border: 1px solid #272727;
+    background: #131112;
+    border: 1px solid #272324;
     border-radius: 18px;
   }
   .card-hover {
     @apply transition;
   }
   .card-hover:hover {
-    border-color: #3a3a3a;
-    background: #181818;
+    border-color: #3a3536;
+    background: #181516;
   }
   .input-base {
     width: 100%;
-    background: #141414;
-    border: 1px solid #272727;
+    background: #131112;
+    border: 1px solid #272324;
     border-radius: 12px;
     padding: 0.65rem 0.9rem;
     color: #ffffff;
     transition: border-color 0.15s, background 0.15s;
   }
   .input-base::placeholder {
-    color: #666666;
+    color: #6d665e;
   }
   .input-base:focus {
-    border-color: #dfff2a;
+    border-color: #fdf327;
     outline: none;
-    background: #181818;
+    background: #181516;
   }
   /* Chip "NEW" pink como no Higgsfield */
   .chip-new {

@@ -39,6 +39,7 @@ import {
 } from "@/lib/social/redes";
 import { tx } from "@/lib/i18n/tx";
 import { IconeRede, IconesRedes } from "@/components/ui/IconeRede";
+import { txErro } from "@/lib/i18n/erros";
 
 interface Conta {
   rede: Rede;
@@ -93,7 +94,7 @@ export function usePublicacao(characterId: string) {
       const b = (await r.json().catch(() => null)) as
         (Estado & { error?: string }) | null;
       if (!r.ok || !b)
-        return setErroCarga(b?.error ?? `Falha (HTTP ${r.status}).`);
+        return setErroCarga(txErro(b?.error ?? `Falha (HTTP ${r.status}).`));
       setErroCarga(null);
       setEstado(b);
     } finally {
@@ -208,7 +209,7 @@ export function Publicar({ character }: { character: Character }) {
       };
       if (!r.ok || !b.url)
         return setErro({
-          msg: b.error ?? `Falha (HTTP ${r.status}).`,
+          msg: txErro(b.error ?? `Falha (HTTP ${r.status}).`),
           code: b.code,
         });
       window.location.href = b.url;
@@ -244,7 +245,7 @@ export function Publicar({ character }: { character: Character }) {
       avisarCreditos();
       if (!r.ok || !b.opcoes?.length)
         return setErro({
-          msg: b.error ?? `Falha (HTTP ${r.status}).`,
+          msg: txErro(b.error ?? `Falha (HTTP ${r.status}).`),
           code: b.code,
         });
       setTexto(b.opcoes[0]);
@@ -282,7 +283,7 @@ export function Publicar({ character }: { character: Character }) {
       avisarCreditos();
       if (!r.ok || !b.id)
         return setErro({
-          msg: b.error ?? `Falha (HTTP ${r.status}).`,
+          msg: txErro(b.error ?? `Falha (HTTP ${r.status}).`),
           code: b.code,
         });
       setAviso(

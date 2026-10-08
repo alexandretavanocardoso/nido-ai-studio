@@ -6,6 +6,7 @@ import { getBundle } from "@/lib/social/bundle";
 import { enviarParaRedes } from "@/lib/social/enviar";
 import { problemasDoPost, REDES } from "@/lib/social/redes";
 import { ownsKey } from "@/lib/storage/s3";
+import { getUserId } from "@/lib/auth/server";
 import { contextoVideo } from "@/lib/video/server";
 
 export const runtime = "nodejs";
@@ -27,6 +28,51 @@ const BodySchema = z.object({
   /** Guardar no backlog (sem data, sem enviar). */
   backlog: z.boolean().optional(),
 });
+
+/**
+ * GET — agenda da Home: posts de todos os personagens que saem nos próximos
+ * 7 dias e os que falharam nos últimos 7. Lê só o banco (o estado de cada post
+ * é atualizado pelo webhook e ao abrir os Agendamentos do personagem).
+ */
+export async function GET() {
+  const userId = await getUserId();
+  if (!userId)
+    return NextResponse.json(
+      { error: "Entre na sua conta.", code: "UNAUTHORIZED" },
+      { status: 401 },
+    );
+  const pool = getPool();
+  if (!pool) return NextResponse.json({ posts: [] });
+  const { rows } = await pool.query<{
+    id: string;
+    character_id: string;
+    redes: string[];
+    texto: string;
+    titulo: string | null;
+    post_date: Date;
+    status: string;
+  }>(
+    `select id, character_id, redes, texto, titulo, post_date, status
+     from posts_agendados
+     where user_id = $1
+       and ((status in ('SCHEDULED', 'PROCESSING', 'RETRYING', 'REVIEW')
+             and post_date between now() - interval '1 hour' and now() + interval '7 days')
+         or (status = 'ERROR' and post_date > now() - interval '7 days'))
+     order by post_date asc limit 100`,
+    [userId],
+  );
+  return NextResponse.json({
+    posts: rows.map((p) => ({
+      id: p.id,
+      characterId: p.character_id,
+      redes: p.redes,
+      texto: p.texto,
+      titulo: p.titulo,
+      quando: p.post_date.toISOString(),
+      status: p.status,
+    })),
+  });
+}
 
 /** POST — publica agora, agenda, ou guarda no backlog um post do influencer. */
 export async function POST(req: Request) {

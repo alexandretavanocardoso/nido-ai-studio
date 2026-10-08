@@ -265,6 +265,40 @@ export async function ativarPlano(
  * Atalho para as rotas: debita ou devolve a resposta 402 pronta.
  * Sem créditos ativos (modo dev, sem login), não cobra nada.
  */
+/**
+ * Pagamento estornado: volta a conta para o gratuito agora (zera os créditos
+ * do plano; os avulsos ficam) e desliga a assinatura guardada.
+ */
+export async function removerPlanoPorEstorno(userId: string, ref: string): Promise<void> {
+  const conta = await carregarConta(userId);
+  if (conta.plano === "gratis") return;
+  await pool().query(
+    `update creditos_conta set plano = 'gratis', intervalo = null, plano_expira_em = null,
+       proxima_recarga_em = null, creditos_plano = 0, stripe_subscription_id = null, updated_at = now()
+     where user_id = $1`,
+    [userId]
+  );
+  await registrar(pool(), userId, -conta.creditosPlano, -conta.creditosPlano, 0, "estorno_pagamento", ref);
+}
+
+/**
+ * Pagamento de créditos estornado: tira os créditos comprados. Se parte já foi
+ * gasta, tira o que sobrou (o saldo nunca fica negativo). Devolve quanto tirou.
+ */
+export async function retirarAvulsosPorEstorno(userId: string, qtd: number, ref: string): Promise<number> {
+  await carregarConta(userId);
+  const { rows } = await pool().query<{ tirou: number }>(
+    `with alvo as (select user_id, creditos_avulsos as a from creditos_conta where user_id = $1 for update)
+     update creditos_conta c set creditos_avulsos = alvo.a - least(alvo.a, $2), updated_at = now()
+       from alvo where c.user_id = alvo.user_id
+     returning least(alvo.a, $2)::int as tirou`,
+    [userId, qtd]
+  );
+  const tirou = rows[0]?.tirou ?? 0;
+  if (tirou) await registrar(pool(), userId, -tirou, 0, -tirou, "estorno_pagamento", ref);
+  return tirou;
+}
+
 export async function cobrarOuResponder(
   userId: string | null,
   qtd: number,

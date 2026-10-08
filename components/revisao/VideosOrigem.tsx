@@ -31,6 +31,7 @@ import { CriarVideoModal } from "@/components/revisao/CriarVideoModal";
 import { avisarCreditos } from "@/components/creditos/CreditosProvider";
 import { MODELOS_CRIAR } from "@/lib/video/precos";
 import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 const MAX_MB = STORAGE_KINDS.videos.maxBytes / 1024 / 1024;
 const POLL_MS = 10_000;
@@ -286,7 +287,7 @@ export function VideosOrigem({ character }: { character: Character }) {
                 <div className="w-full aspect-[9/16] max-h-80 flex flex-col items-center justify-center gap-2 px-4 text-center">
                   <AlertTriangle className="w-6 h-6 text-pink" />
                   <span className="text-[12px] text-pink">
-                    {v.erro ?? tx("O processamento falhou.")}
+                    {txErro(v.erro ?? "O processamento falhou.")}
                   </span>
                 </div>
               ) : (

@@ -10,6 +10,7 @@ import { avisarCreditos } from "@/components/creditos/CreditosProvider";
 import { useT } from "@/lib/i18n";
 import { tx } from "@/lib/i18n/tx";
 import { camposDaEtapaParaIA } from "@/lib/campos-ficha";
+import { txErro } from "@/lib/i18n/erros";
 
 interface Props {
   characterId: string;
@@ -52,7 +53,7 @@ export function RegenerateSection({ characterId, stepId, stepTitulo }: Props) {
       const data = await res.json();
       avisarCreditos(); // gastou (ou foi estornado): atualiza o saldo
       if (!res.ok) {
-        setErr(data?.error ?? "Falha ao regenerar.");
+        setErr(txErro(data?.error ?? "Falha ao regenerar."));
         return;
       }
       applySuggestions(

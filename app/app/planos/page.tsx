@@ -48,6 +48,7 @@ import {
 } from "@/lib/planos";
 import { idiomaAtual, tx } from "@/lib/i18n/tx";
 import { REDES_USDC, type RedeUsdc } from "@/lib/pagamentos/redes-usdc";
+import { txErro } from "@/lib/i18n/erros";
 
 type Compra =
   | { tipo: "plano"; plano: PlanoPago; intervalo: Intervalo }
@@ -195,7 +196,7 @@ function Conteudo() {
         error?: string;
       };
       if (!res.ok || !body.url)
-        throw new Error(body.error ?? "Não consegui abrir o pagamento.");
+        throw new Error(txErro(body.error ?? "Não consegui abrir o pagamento."));
       window.location.href = body.url;
     } catch (e) {
       setErro((e as Error).message);
@@ -215,7 +216,7 @@ function Conteudo() {
         error?: string;
       };
       if (!res.ok || !body.url)
-        throw new Error(body.error ?? "Não consegui abrir o portal.");
+        throw new Error(txErro(body.error ?? "Não consegui abrir o portal."));
       window.location.href = body.url;
     } catch (e) {
       setErro((e as Error).message);
@@ -748,7 +749,7 @@ function PagamentoUsdc({
       if (b.status === "pago") {
         setStatus("pago");
         avisarCreditos();
-      } else setErroTx(b.erro ?? "Não consegui conferir a transação.");
+      } else setErroTx(txErro(b.erro ?? "Não consegui conferir a transação."));
     } catch (e) {
       setErroTx((e as Error).message);
     } finally {
@@ -770,7 +771,7 @@ function PagamentoUsdc({
     })
       .then(async (r) => {
         const b = await r.json();
-        if (!r.ok) throw new Error(b.error ?? "Não consegui criar a cobrança.");
+        if (!r.ok) throw new Error(txErro(b.error ?? "Não consegui criar a cobrança."));
         if (!vivo) return;
         setCobranca(b);
         setStatus("pendente");
@@ -1031,7 +1032,7 @@ function Armazenamento({ usado, cota }: { usado: number; cota: number }) {
         liberadoBytes?: number;
         error?: string;
       };
-      if (!r.ok) throw new Error(b.error ?? "Não consegui liberar espaço.");
+      if (!r.ok) throw new Error(txErro(b.error ?? "Não consegui liberar espaço."));
       setMsg(
         b.apagados
           ? `${b.apagados} arquivo(s) apagados · ${gb(b.liberadoBytes ?? 0)} liberados.`

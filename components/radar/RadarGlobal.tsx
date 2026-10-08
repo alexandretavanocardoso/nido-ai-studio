@@ -22,6 +22,7 @@ import { idiomaAtual, tx } from "@/lib/i18n/tx";
 import { NICHOS_GLOBAIS, type RadarGlobal as Radar } from "@/lib/radar/global";
 import { diaDeHoje, type ItemRadar } from "@/lib/radar/tipos";
 import { useCharacters } from "@/lib/store";
+import { txErro } from "@/lib/i18n/erros";
 
 /**
  * Radar global (/app/radar): os assuntos do dia por nicho, iguais para todos.
@@ -79,7 +80,7 @@ export function RadarGlobal() {
         error?: string;
       };
       if (!res.ok || !b.radar)
-        return setErro(b.error ?? `Falha (HTTP ${res.status}).`);
+        return setErro(txErro(b.error ?? `Falha (HTTP ${res.status}).`));
       setRadares((r) => [
         b.radar!,
         ...(r ?? []).filter(

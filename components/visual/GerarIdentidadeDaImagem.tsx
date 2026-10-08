@@ -1,5 +1,6 @@
 "use client";
 import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 import { useMemo, useState } from "react";
 import {
@@ -51,7 +52,7 @@ export function GerarIdentidadeDaImagem({ character }: Props) {
   function onImportar() {
     const r = parseRespostaClaude(resposta);
     if (!r.ok) {
-      setErro(r.error);
+      setErro(txErro(r.error));
       return;
     }
     applySuggestions(

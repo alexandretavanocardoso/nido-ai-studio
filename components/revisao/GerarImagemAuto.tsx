@@ -37,6 +37,7 @@ import { useRecursos } from "@/components/RecursosProvider";
 import { usePersona } from "@/lib/persona/usePersona";
 import { MODELOS_IMAGEM, type ModeloImagem } from "@/lib/ai/modelos-imagem";
 import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 const MAX_REFS = 4;
 /** Tamanho máximo da galeria; as mais antigas saem (o arquivo é limpo pelo cron). */
@@ -186,7 +187,7 @@ export function GerarImagemAuto({ character, tipo }: Props) {
       };
       avisarCreditos(); // gastou (ou foi estornado): atualiza o saldo
       if (!res.ok || !(body.image || body.key)) {
-        setErro(body.error ?? `Falha ao gerar (HTTP ${res.status}).`);
+        setErro(txErro(body.error ?? `Falha ao gerar (HTTP ${res.status}).`));
         setErroCode(body.code ?? null);
         return;
       }

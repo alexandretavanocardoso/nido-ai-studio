@@ -2,6 +2,7 @@
 
 import type { Character, ReferenciaImagem } from "@/lib/types";
 import type { StorageKind } from "./env";
+import { txErro } from "@/lib/i18n/erros";
 
 /** URL same-origin que redireciona pro arquivo no S3 (ver /api/storage/file). */
 export function fileUrl(key: string): string {
@@ -48,7 +49,7 @@ export async function uploadFile(
   });
   const body = (await res.json().catch(() => ({}))) as { key?: string; url?: string; error?: string };
   if (!res.ok || !body.key || !body.url)
-    throw new Error(body.error ?? `Falha ao preparar envio (HTTP ${res.status}).`);
+    throw new Error(txErro(body.error ?? `Falha ao preparar envio (HTTP ${res.status}).`));
 
   await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -60,8 +61,8 @@ export async function uploadFile(
     xhr.onload = () =>
       xhr.status >= 200 && xhr.status < 300
         ? resolve()
-        : reject(new Error(`O S3 recusou o envio (HTTP ${xhr.status}).`));
-    xhr.onerror = () => reject(new Error("Falha de rede ao enviar o arquivo (confira o CORS do bucket)."));
+        : reject(new Error(txErro(`O S3 recusou o envio (HTTP ${xhr.status}).`)));
+    xhr.onerror = () => reject(new Error(txErro("Falha de rede ao enviar o arquivo (confira o CORS do bucket).")));
     xhr.send(file);
   });
   return body.key;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { allow } from "@/lib/ai/rate-limit";
 import { getUserId } from "@/lib/auth/server";
 import { recursosDisponiveis } from "@/lib/recursos";
 import { PACOTES, PLANOS } from "@/lib/planos";
@@ -33,6 +34,12 @@ export async function POST(req: Request) {
       { status: 401 },
     );
 
+  const gate = await allow(`cobranca:${userId}`, 6);
+  if (!gate.ok)
+    return NextResponse.json(
+      { error: `Muitas cobranças seguidas. Tente em ${gate.retryAfter}s.` },
+      { status: 429 },
+    );
   const parsed = BodySchema.safeParse(await req.json().catch(() => null));
   const compra = parsed.success ? lerCompra(parsed.data) : null;
   if (!compra)

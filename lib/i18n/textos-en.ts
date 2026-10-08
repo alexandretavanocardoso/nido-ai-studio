@@ -349,6 +349,8 @@ export const TEXTOS_EN: Record<string, string> = {
   "Expandir com IA": "Expand with AI",
   "Expansão por IA + persistência local.": "AI expansion + local persistence.",
   "Exportar ficha": "Export profile",
+  "Não consegui exportar a ficha. Tente de novo.":
+    "Couldn't export the profile. Try again.",
   "Falas ·": "Lines ·",
   Faltam: "Missing",
   "Faltam os obrigatórios: nome do personagem + pelo menos 1 imagem de referência.":
@@ -968,4 +970,292 @@ export const TEXTOS_EN: Record<string, string> = {
   "Nada relevante apareceu neste nicho hoje.":
     "Nothing relevant came up in this niche today.",
   "Entre na sua conta para ver o radar.": "Sign in to see the radar.",
+
+  // Indicações (/app/indicacoes)
+  "Indique e ganhe":
+    "Refer and earn",
+  "Indicar":
+    "Refer",
+  "Ganhe":
+    "Earn",
+  "de quem você indicar":
+    "from everyone you refer",
+  "Compartilhe o seu link. Quando alguém cria a conta por ele e assina qualquer plano, você recebe":
+    "Share your link. When someone signs up through it and subscribes to any plan, you get",
+  "do valor da primeira assinatura, em dinheiro. O saque é feito pelo Stripe.":
+    "of their first subscription payment, in cash. Withdrawals are made through Stripe.",
+  "para indicar amigos e ganhar comissão.":
+    "to refer friends and earn commission.",
+  "Seu link de indicação":
+    "Your referral link",
+  "Código":
+    "Code",
+  "já escolhido, não muda mais.":
+    "already chosen, it can't be changed.",
+  "seu-codigo":
+    "your-code",
+  "Salvar código":
+    "Save code",
+  "De 3 a 24 caracteres: letras sem acento, números, hífen e sublinhado. Você só pode escolher uma vez.":
+    "3 to 24 characters: unaccented letters, numbers, hyphen and underscore. You can only choose once.",
+  "Escolher meu código (uma vez)":
+    "Choose my code (once)",
+  "Usar o código":
+    "Use the code",
+  "Você só pode escolher o código uma vez. O link antigo para de funcionar e este passa a valer para sempre.":
+    "You can only choose your code once. The old link stops working and this one stays for good.",
+  "Usar este código":
+    "Use this code",
+  "Comissões":
+    "Commissions",
+  "Ver no Stripe":
+    "View on Stripe",
+  "Nenhuma comissão ainda. Ela aparece aqui quando um indicado assinar um plano.":
+    "No commissions yet. They show up here when someone you referred subscribes to a plan.",
+  "Disponível para saque":
+    "Available to withdraw",
+  "Em carência":
+    "On hold",
+  "Já sacado":
+    "Withdrawn",
+  "Sacar":
+    "Withdraw",
+  "Saque mínimo":
+    "Minimum withdrawal",
+  "Uma comissão já sacada foi estornada. O valor será descontado das próximas.":
+    "A commission you already withdrew was reversed. The amount will be deducted from your next ones.",
+  "A comissão fica em carência por":
+    "Commissions stay on hold for",
+  "dias depois do pagamento do indicado e então libera para saque. Se o pagamento for estornado, a comissão é desfeita.":
+    "days after the referred user's payment and then become available to withdraw. If the payment is refunded, the commission is reversed.",
+  "O saque pelo Stripe não está configurado neste deploy.":
+    "Withdrawals through Stripe are not set up on this deployment.",
+  "Falta terminar o cadastro da sua conta de recebimento no Stripe.":
+    "You still need to finish setting up your payout account on Stripe.",
+  "Para sacar, cadastre sua conta de recebimento no Stripe (dados pessoais e conta bancária).":
+    "To withdraw, set up your payout account on Stripe (personal details and bank account).",
+  "Continuar cadastro":
+    "Continue setup",
+  "Conectar Stripe":
+    "Connect Stripe",
+  "Indicados":
+    "Referrals",
+  "assinaram":
+    "subscribed",
+  "Ninguém criou conta pelo seu link ainda.":
+    "Nobody has signed up through your link yet.",
+  "entrou em":
+    "joined on",
+  "ainda não assinou":
+    "hasn't subscribed yet",
+  "pagamento estornado":
+    "payment refunded",
+  "Saques":
+    "Withdrawals",
+  "Processando":
+    "Processing",
+  "Enviado":
+    "Sent",
+  "O valor vai para a sua conta no Stripe, que repassa para o seu banco no prazo dela.":
+    "The amount goes to your Stripe account, which pays it out to your bank on its own schedule.",
+  "enviados para a sua conta no Stripe.":
+    "sent to your Stripe account.",
+  "Falha":
+    "Failed",
+  "Falha. Tente de novo.":
+    "Something went wrong. Try again.",
+  "Falha de rede. Tente de novo.":
+    "Network error. Try again.",
+  "O código precisa de pelo menos 3 caracteres.":
+    "The code needs at least 3 characters.",
+  "O código pode ter no máximo 24 caracteres.":
+    "The code can have at most 24 characters.",
+  "Use só letras sem acento, números, hífen e sublinhado, começando por letra ou número.":
+    "Use only unaccented letters, numbers, hyphen and underscore, starting with a letter or number.",
+  "Este código não está disponível.":
+    "This code is not available.",
+  "Você já escolheu o seu código.":
+    "You have already chosen your code.",
+  "Este código já está em uso. Tente outro.":
+    "This code is already taken. Try another one.",
+  "Informe o código.":
+    "Enter the code.",
+  "Entre na sua conta.":
+    "Sign in to your account.",
+  "Indicações não configuradas.":
+    "Referrals are not set up.",
+  "Saque pelo Stripe não configurado.":
+    "Withdrawals through Stripe are not set up.",
+  "Conecte sua conta do Stripe antes de sacar.":
+    "Connect your Stripe account before withdrawing.",
+  "Conecte sua conta do Stripe primeiro.":
+    "Connect your Stripe account first.",
+  "Termine o cadastro da sua conta no Stripe para sacar.":
+    "Finish setting up your Stripe account to withdraw.",
+  "Termine o cadastro no Stripe para abrir o painel.":
+    "Finish the Stripe setup to open the dashboard.",
+  "Não há saldo disponível para sacar.":
+    "There is no balance available to withdraw.",
+  "O saque mínimo é de 20 BRL.":
+    "The minimum withdrawal is 20 BRL.",
+  "O saque mínimo é de 5 USD.":
+    "The minimum withdrawal is 5 USD.",
+  "O Stripe não concluiu a transferência. O saldo continua disponível; tente de novo mais tarde.":
+    "Stripe did not complete the transfer. Your balance is still available; try again later.",
+  "Não foi possível abrir o cadastro no Stripe. Tente de novo em instantes.":
+    "Could not open the Stripe setup. Try again in a moment.",
+  "Moeda inválida.":
+    "Invalid currency.",
+  "Indisponível.":
+    "Unavailable.",
+
+  // Casca do app, Home e diálogo de criar
+  "Novo AI Creator":
+    "New AI Creator",
+  "Novo AI Creator (N)":
+    "New AI Creator (N)",
+  "Personagens":
+    "Characters",
+  "Inspiração":
+    "Inspiration",
+  "Conta":
+    "Account",
+  "Carteira":
+    "Wallet",
+  "Recarregar":
+    "Top up",
+  "renova em":
+    "renews in",
+  "Buscar AI Creators":
+    "Search AI Creators",
+  "Criar":
+    "Create",
+  "Agenda":
+    "Schedule",
+  "Expandir menu ( [ )":
+    "Expand menu ( [ )",
+  "Recolher menu ( [ )":
+    "Collapse menu ( [ )",
+  "Trocar de personagem":
+    "Switch character",
+  "no total":
+    "total",
+  "completos":
+    "complete",
+  "rascunhos":
+    "drafts",
+  "Todos":
+    "All",
+  "Completos":
+    "Complete",
+  "Rascunhos":
+    "Drafts",
+  "Em produção":
+    "In production",
+  "Manual":
+    "Manual",
+  "Por imagem":
+    "From image",
+  "Gerar":
+    "Generate",
+  "Abrir ficha":
+    "Open sheet",
+  "Continuar":
+    "Continue",
+  "Tente":
+    "Try",
+  "Descreva seu AI Creator primeiro":
+    "Describe your AI Creator first",
+  "wizard de 7 etapas · N":
+    "7-step wizard · N",
+  "Ex.: ex-pirata fofoqueiro que virou cronista de feira em Belém, fala rápido e tem bordão…":
+    "E.g.: a gossipy ex-pirate turned street-market chronicler in Belém, talks fast and has a catchphrase…",
+  "Ficha em branco: você preenche cada campo no seu ritmo.":
+    "Blank sheet: you fill in each field at your own pace.",
+  "Gere ou envie o rosto do personagem e siga direto para a ficha.":
+    "Generate or upload the character's face and go straight to the sheet.",
+  "Benzedeira consultora de ESG":
+    "Folk healer turned ESG consultant",
+  "Caminhoneiro filósofo":
+    "Philosopher truck driver",
+  "Avó gamer de Recife":
+    "Gamer grandma from Recife",
+  "Benzedeira do interior de Minas que virou consultora de ESG. Fala com planta, com juiz e com algoritmo. Tom acolhedor, humor seco.":
+    "A folk healer from rural Minas Gerais who became an ESG consultant. She talks to plants, judges and algorithms. Warm tone, dry humor.",
+  "Caminhoneiro da BR-116 que virou filósofo de posto. Café preto, verdade crua, reels gravados na boleia de madrugada.":
+    "A truck driver on the BR-116 highway who became a gas-station philosopher. Black coffee, raw truth, reels shot in the cab late at night.",
+  "Avó de 72 anos de Recife que faz live de jogo de terror e comenta tudo como novela das oito.":
+    "A 72-year-old grandma from Recife who streams horror games and comments on everything like a prime-time soap opera.",
+  "Texto":
+    "Text",
+  "Fila de geração":
+    "Generation queue",
+  "em curso":
+    "in progress",
+  "Nada sendo gerado agora.":
+    "Nothing is being generated right now.",
+  "gerando":
+    "generating",
+  "legenda":
+    "captions",
+  "troca":
+    "swap",
+  "vídeo":
+    "video",
+  "fala":
+    "speech",
+  "Próximas publicações":
+    "Upcoming posts",
+  "7 dias":
+    "7 days",
+  "Calendário":
+    "Calendar",
+  "Nenhuma publicação agendada para os próximos 7 dias.":
+    "No posts scheduled for the next 7 days.",
+  "Ver":
+    "View",
+  "1 publicação falhou em":
+    "1 post failed for",
+  "publicações falharam em":
+    "posts failed for",
+  "Recomendado":
+    "Recommended",
+  "Atalho: N abre esta janela a qualquer momento":
+    "Shortcut: N opens this window anytime",
+
+  // Indicações: saque em USDC on-chain
+  "do valor da primeira assinatura, em dinheiro. O saque é feito pelo Stripe; se o plano foi pago em USDC, a comissão sai em USDC para a sua carteira.":
+    "of their first subscription payment, in cash. Withdrawals are made through Stripe; if the plan was paid in USDC, the commission is paid in USDC to your wallet.",
+  "Endereço de carteira inválido para esta rede.":
+    "Invalid wallet address for this network.",
+  "O USDC é enviado agora, na rede":
+    "The USDC is sent now, on",
+  "para":
+    "to",
+  "Confira o endereço e a rede: transferência on-chain não pode ser desfeita.":
+    "Double-check the address and the network: an on-chain transfer cannot be undone.",
+  "A transferência foi enviada, mas a rede ainda não confirmou. O saque fica em processamento até a confirmação.":
+    "The transfer was sent, but the network has not confirmed it yet. The withdrawal stays processing until it is confirmed.",
+  "enviados para a sua carteira.":
+    "sent to your wallet.",
+  "O saque em USDC não está configurado neste deploy.":
+    "USDC withdrawals are not set up on this deployment.",
+  "Endereço da sua carteira Solana":
+    "Your Solana wallet address",
+  "Endereço da sua carteira (0x…)":
+    "Your wallet address (0x…)",
+  "ver transação":
+    "view transaction",
+  "O saque em USDC não está disponível nesta rede.":
+    "USDC withdrawals are not available on this network.",
+  "Este valor passa do limite do saque automático. Fale com o suporte para receber.":
+    "This amount is above the automatic withdrawal limit. Contact support to receive it.",
+  "O saque em USDC está indisponível no momento. O saldo continua disponível; tente de novo mais tarde.":
+    "USDC withdrawals are unavailable right now. Your balance is still available; try again later.",
+  "A rede recusou a transferência. O saldo continua disponível; tente de novo mais tarde.":
+    "The network rejected the transfer. Your balance is still available; try again later.",
+  "Pedido de saque inválido.":
+    "Invalid withdrawal request.",
+  "O saque mínimo é de 5 USDC.":
+    "The minimum withdrawal is 5 USDC.",
 };

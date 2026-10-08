@@ -33,6 +33,7 @@ import {
   type Radar as RadarDoDia,
 } from "@/lib/radar/tipos";
 import { idiomaAtual, tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 /** Avisa a barra do topo que os radares deste personagem foram vistos. */
 export const EVENTO_RADAR_VISTO = "nido:radar-visto";
@@ -132,7 +133,7 @@ export function Radar({ character }: { character: Character }) {
       avisarCreditos();
       if (!res.ok || !b.radar)
         return setErro({
-          msg: b.error ?? `Falha (HTTP ${res.status}).`,
+          msg: txErro(b.error ?? `Falha (HTTP ${res.status}).`),
           code: b.code,
         });
       setRadares((r) => [

@@ -13,6 +13,7 @@ import { CREDITOS_APLICAR_AUDIO } from "@/lib/planos";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 
 interface Props {
   video: VideoArquivo;
@@ -50,7 +51,7 @@ export function AplicarFalaModal({ video, audios, onClose, onPronto }: Props) {
       avisarCreditos();
       if (!res.ok || !b.key)
         return setErro({
-          msg: b.error ?? `Falha (HTTP ${res.status}).`,
+          msg: txErro(b.error ?? `Falha (HTTP ${res.status}).`),
           code: b.code,
         });
       onPronto({ key: b.key, size: b.size ?? 0, duracao: b.duracao ?? 0 });

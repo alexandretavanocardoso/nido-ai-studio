@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { allow } from "@/lib/ai/rate-limit";
 import { getUserId } from "@/lib/auth/server";
 import { confirmarTxUsdc, verificarPagamentoUsdc } from "@/lib/pagamentos/usdc";
 
@@ -36,6 +37,14 @@ export async function POST(
   const userId = await getUserId();
   if (!userId)
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  // Cada tentativa consulta a rede: limita quem fica testando hashes.
+  const gate = await allow(`usdc-tx:${userId}`, 10);
+  if (!gate.ok)
+    return NextResponse.json({
+      status: "pendente",
+      erro: `Muitas tentativas seguidas. Tente em ${gate.retryAfter}s.`,
+      aguardar: true,
+    });
   const body = (await req.json().catch(() => null)) as { tx?: unknown } | null;
   const entrada = typeof body?.tx === "string" ? body.tx.slice(0, 300) : "";
   try {

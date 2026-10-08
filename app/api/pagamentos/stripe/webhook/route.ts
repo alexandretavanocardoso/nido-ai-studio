@@ -9,7 +9,8 @@ export const dynamic = "force-dynamic";
  * https://SEU-DOMINIO/api/pagamentos/stripe/webhook com os eventos:
  * checkout.session.completed, checkout.session.async_payment_succeeded,
  * checkout.session.async_payment_failed, checkout.session.expired,
- * invoice.paid, customer.subscription.deleted.
+ * invoice.paid, customer.subscription.deleted, charge.refunded e
+ * charge.dispute.created (os dois últimos desfazem a comissão de indicação).
  */
 export async function POST(req: Request) {
   const stripe = getStripe();

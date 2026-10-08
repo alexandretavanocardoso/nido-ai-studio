@@ -1,4 +1,12 @@
-import { ativarPlano, carregarConta, creditarAvulsos } from "@/lib/creditos";
+import {
+  ativarPlano,
+  carregarConta,
+  creditarAvulsos,
+  removerPlanoPorEstorno,
+  retirarAvulsosPorEstorno,
+} from "@/lib/creditos";
+import { getPool } from "@/lib/db";
+import { estornarComissao, registrarComissao } from "@/lib/indicacao/server";
 import {
   BONUS_USDC,
   creditosAvulsoValido,
@@ -25,7 +33,8 @@ function addMeses(d: Date, n: number): Date {
  * Aplica uma compra paga à conta: ativa/estende o plano (mensal pré-pago ou
  * anual) ou soma os créditos do pacote. Pagamento em USDC ganha +5% em
  * créditos avulsos. Assinatura mensal no cartão NÃO passa por aqui — ela é
- * ativada a cada fatura paga (webhook `invoice.paid`).
+ * ativada a cada fatura paga (webhook `invoice.paid`). Plano pago gera a
+ * comissão de quem indicou o usuário (lib/indicacao).
  */
 export async function aplicarCompra(
   userId: string,
@@ -67,6 +76,51 @@ export async function aplicarCompra(
     );
     if (bonus) await creditarAvulsos(userId, bonus, "bonus_usdc", opts.ref);
   }
+  // Indicação: comissão de quem indicou (opts.ref é o id do pagamento).
+  await registrarComissao(opts.ref);
+}
+
+/**
+ * Desfaz uma compra cujo pagamento foi estornado por inteiro ou contestado:
+ * marca o pagamento como estornado (uma vez só), tira o plano ou os créditos
+ * comprados e desfaz a comissão de indicação. Devolve o usuário e a
+ * assinatura do Stripe a cancelar (se houver), ou null se não havia o que desfazer.
+ */
+export async function reverterCompra(
+  pagamentoId: string,
+): Promise<{ userId: string; assinatura: string | null } | null> {
+  const { rows } = await getPool()!.query<{
+    user_id: string;
+    tipo: string;
+    plano: string | null;
+    intervalo: string | null;
+    pacote: string | null;
+    creditos: number | null;
+  }>(
+    `update pagamentos set status = 'estornado' where id = $1 and status = 'pago'
+     returning user_id, tipo, plano, intervalo, pacote, creditos`,
+    [pagamentoId],
+  );
+  const p = rows[0];
+  if (!p) return null;
+  const compra = lerCompra(p);
+  let assinatura: string | null = null;
+  if (compra?.tipo === "plano") {
+    // Só tira o plano se for o mesmo que este pagamento ativou.
+    const conta = await carregarConta(p.user_id);
+    if (conta.plano === compra.plano) {
+      assinatura = conta.stripeSubscriptionId;
+      await removerPlanoPorEstorno(p.user_id, pagamentoId);
+    }
+  } else if (compra) {
+    const qtd =
+      compra.tipo === "pacote"
+        ? PACOTES[compra.pacote].creditos
+        : compra.creditos;
+    await retirarAvulsosPorEstorno(p.user_id, qtd, pagamentoId);
+  }
+  await estornarComissao(pagamentoId);
+  return { userId: p.user_id, assinatura };
 }
 
 /** Lê a compra a partir de metadata (Stripe) ou colunas (USDC). Null se inválida. */
