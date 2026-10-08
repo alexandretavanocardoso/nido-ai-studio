@@ -13,6 +13,7 @@ import type { Character } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { useRecursos } from "@/components/RecursosProvider";
 import { VideosOrigem } from "@/components/revisao/VideosOrigem";
+import { PromptSubstituirVideo } from "@/components/revisao/PromptSubstituirVideo";
 import { EscreverComoPersonagem } from "@/components/revisao/EscreverComoPersonagem";
 import { GerarImagem } from "@/components/revisao/GerarImagem";
 import { Publicar } from "@/components/estudio/Publicar";
@@ -155,16 +156,20 @@ export function EstudioConteudo({
         </p>
       </header>
 
-      {secao === "videos" &&
-        (recursos.fal || recursos.runway ? (
-          <VideosOrigem character={character} />
-        ) : (
-          <Vazio>
-            {tx(
-              "A produção de vídeo não está configurada neste deploy (FAL_KEY).",
-            )}
-          </Vazio>
-        ))}
+      {secao === "videos" && (
+        <div className="grid gap-6">
+          {recursos.fal || recursos.runway ? (
+            <VideosOrigem character={character} />
+          ) : (
+            <Vazio>
+              {tx(
+                "A produção de vídeo não está configurada neste deploy (FAL_KEY).",
+              )}
+            </Vazio>
+          )}
+          <PromptSubstituirVideo character={character} />
+        </div>
+      )}
 
       {secao === "textos" &&
         (recursos.ia ? (

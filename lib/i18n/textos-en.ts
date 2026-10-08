@@ -1495,4 +1495,8 @@ export const TEXTOS_EN: Record<string, string> = {
   "sem período anterior": "no previous period",
   "Visualizações no período": "Views in the period",
   "Notas": "Notes",
+  "Substituir pessoa em vídeo (Sombra)": "Replace a person in a video (Shadow)",
+  "Mantém movimento, gestual, ritmo e enquadramento": "Keeps movement, gestures, rhythm and framing",
+  "Prompt pronto para trocar uma pessoa de um vídeo existente pelo seu personagem, mantendo exatamente o mesmo movimento. Anexe o vídeo original + a imagem de referência do personagem numa IA de vídeo-para-vídeo (Runway, Kling, Veo, Pika) e cole este prompt.": "Ready-made prompt to swap a person in an existing video for your character, keeping exactly the same movement. Attach the original video + the character's reference image in a video-to-video AI (Runway, Kling, Veo, Pika) and paste this prompt.",
+  "Precisa anexar vídeo de origem + imagem do personagem.": "You need to attach the source video + the character image.",
 };
