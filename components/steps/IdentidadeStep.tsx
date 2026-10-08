@@ -7,7 +7,6 @@ import { Input, Textarea } from "@/components/ui/Input";
 import { CardChoice } from "@/components/ui/CardChoice";
 import { TagInput } from "@/components/ui/TagInput";
 import { formas, generos } from "@/data/choices";
-import { GerarIdentidadeDaImagem } from "@/components/visual/GerarIdentidadeDaImagem";
 
 export function IdentidadeStep({ id }: { id: string }) {
   const { character, set } = useCharacter(id);
@@ -16,8 +15,6 @@ export function IdentidadeStep({ id }: { id: string }) {
 
   return (
     <div className="grid grid-cols-1 gap-5">
-      <GerarIdentidadeDaImagem character={character} />
-
       <Field
         label={tx("Nome / apelido")}
         fieldId="identidade.nome"

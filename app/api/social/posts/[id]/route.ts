@@ -44,7 +44,7 @@ const AgendarSchema = z.object({
   quando: z.string().datetime().optional(),
 });
 
-/** PATCH — agenda (ou publica agora) um post do backlog. */
+/** PATCH — agenda (ou publica agora) um post do backlog; num post já agendado, só muda a data. */
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -71,6 +71,7 @@ export async function PATCH(
       { error: "Post não encontrado." },
       { status: 404 },
     );
+  if (post.status === "SCHEDULED") return reagendar(id, post, parsed.data.quando);
   if (post.status !== "BACKLOG")
     return NextResponse.json(
       {
@@ -117,6 +118,43 @@ export async function PATCH(
     agora,
     idExistente: id,
   });
+}
+
+/** Muda a data de um post já agendado (mesmo post no bundle.social, sem nova cobrança). */
+async function reagendar(id: string, post: Linha, iso: string | undefined) {
+  const agora = Date.now();
+  const quando = iso ? new Date(iso) : null;
+  if (!quando || quando.getTime() < agora + 60_000)
+    return NextResponse.json(
+      { error: "Escolha uma data no futuro.", code: "BAD_INPUT" },
+      { status: 400 },
+    );
+  if (quando.getTime() > agora + MAX_DIAS * 86_400_000)
+    return NextResponse.json(
+      { error: `Agende para no máximo ${MAX_DIAS} dias.`, code: "BAD_INPUT" },
+      { status: 400 },
+    );
+  if (!post.bundle_post_id)
+    return NextResponse.json(
+      { error: "Este post não pode ser reagendado.", code: "BAD_INPUT" },
+      { status: 400 },
+    );
+  try {
+    await getBundle()!.post.postUpdate({
+      id: post.bundle_post_id,
+      requestBody: { postDate: quando.toISOString() },
+    });
+    await getPool()!.query(
+      "update posts_agendados set post_date = $2, updated_at = now() where id = $1 and status = 'SCHEDULED'",
+      [id, quando],
+    );
+    return NextResponse.json({ id, quando: quando.toISOString() });
+  } catch (e) {
+    return NextResponse.json(
+      { error: mensagemBundle(e), code: "PROVIDER_ERROR" },
+      { status: 502 },
+    );
+  }
 }
 
 /**

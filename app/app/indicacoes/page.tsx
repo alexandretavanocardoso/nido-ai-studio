@@ -336,7 +336,7 @@ export default function IndicacoesPage() {
             {tx("Indique e ganhe")}
           </span>
           <h1 className="text-balance font-archivo text-[clamp(38px,5.6vw,76px)] font-black uppercase leading-[0.9] tracking-[-0.02em] [font-stretch:125%]">
-            {tx("Indique a NIDO.")}
+            {tx("Indique a NIDO AI STUDIO.")}
             <br />
             <span className="text-accent">
               {tx("Ganhe")} {pct}% {tx("todo mês.")}

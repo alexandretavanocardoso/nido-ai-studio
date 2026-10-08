@@ -82,6 +82,7 @@ export const TEXTOS_EN: Record<string, string> = {
   Agendamentos: "Schedule",
   Agendar: "Schedule",
   "Agendar neste dia": "Schedule on this day",
+  "Arraste para mudar o dia": "Drag to change the day",
   "Agendar post": "Schedule post",
   Agora: "Now",
   "Aguardando o pagamento na rede…": "Waiting for the payment on-chain…",
@@ -1262,8 +1263,8 @@ export const TEXTOS_EN: Record<string, string> = {
   // Indique e ganhe: página do programa
   "Personagens da NIDO":
     "NIDO characters",
-  "Indique a NIDO.":
-    "Refer NIDO.",
+  "Indique a NIDO AI STUDIO.":
+    "Refer NIDO AI STUDIO.",
   "em dinheiro.":
     "in cash.",
   "Entrar para pegar meu link":

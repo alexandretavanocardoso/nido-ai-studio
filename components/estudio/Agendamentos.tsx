@@ -93,6 +93,21 @@ export function Agendamentos({ character }: { character: Character }) {
     carregar();
   }
 
+  /** Arrastou um post agendado para outro dia: muda a data (a hora fica). */
+  async function mover(id: string, quando: Date) {
+    setErro(null);
+    const r = await fetch(`/api/social/posts/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quando: quando.toISOString() }),
+    }).catch(() => null);
+    const b = (await r?.json().catch(() => ({}))) as
+      | { error?: string }
+      | undefined;
+    if (!r?.ok) setErro(txErro(b?.error ?? "Não consegui mover o post."));
+    await carregar();
+  }
+
   return (
     <div className="grid gap-8">
       <div className="grid gap-3 min-w-0">
@@ -102,6 +117,7 @@ export function Agendamentos({ character }: { character: Character }) {
           posts={posts}
           onCancelar={cancelar}
           onAtualizar={carregar}
+          onMover={mover}
           onAgendarDia={(d) =>
             router.replace(
               `?aba=estudio&secao=publicar&dia=${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`,

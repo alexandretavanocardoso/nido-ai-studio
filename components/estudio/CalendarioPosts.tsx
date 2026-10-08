@@ -52,6 +52,20 @@ const somarDias = (d: Date, n: number) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 const domingoDa = (d: Date) => somarDias(inicioDoDia(d), -d.getDay());
 const semBarra = "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+/** Só post agendado (e ainda no futuro) pode mudar de dia. */
+const podeMover = (p: PostCalendario) =>
+  p.status === "SCHEDULED" && new Date(p.quando).getTime() > Date.now();
+/** O post no dia `d`, na mesma hora de antes. */
+function noDia(p: PostCalendario, d: Date) {
+  const q = new Date(p.quando);
+  return new Date(
+    d.getFullYear(),
+    d.getMonth(),
+    d.getDate(),
+    q.getHours(),
+    q.getMinutes(),
+  );
+}
 
 function corStatus(status: string) {
   return CORES_TOM[STATUS_POST[status]?.tom ?? "neutro"];
@@ -95,31 +109,90 @@ const LEGENDA: Array<[string, TomStatus]> = [
  *  - Mês: grade com até 3 por dia (+N).
  *  - Lista: tudo agrupado por dia.
  * Clicar num post/dia mostra os detalhes (link, erro, cancelar) logo abaixo.
+ * Na semana e no mês, arrastar um post agendado para outro dia muda a data (a hora fica).
  */
 export function CalendarioPosts({
   posts,
   onCancelar,
   onAtualizar,
   onAgendarDia,
+  onMover,
 }: {
   posts: PostCalendario[];
   onCancelar: (id: string) => void;
   onAtualizar: () => void;
   onAgendarDia: (d: Date) => void;
+  onMover: (id: string, quando: Date) => Promise<void>;
 }) {
   const hoje = new Date();
   const [visao, setVisao] = useState<Visao>("semana");
   const [ref, setRef] = useState(() => inicioDoDia(hoje));
   const [diaAberto, setDiaAberto] = useState<Date>(inicioDoDia(hoje));
   const [postAberto, setPostAberto] = useState<PostCalendario | null>(null);
+  const [arrastado, setArrastado] = useState<PostCalendario | null>(null);
+  const [alvo, setAlvo] = useState<string | null>(null);
+  // Post já solto no dia novo, enquanto o servidor confirma.
+  const [movido, setMovido] = useState<{ id: string; quando: string } | null>(
+    null,
+  );
 
   const validos = useMemo(
     () =>
       posts
         .filter((x) => x.status !== "DELETED" && x.status !== "BACKLOG")
+        .map((x) =>
+          movido?.id === x.id ? { ...x, quando: movido.quando } : x,
+        )
         .sort((a, b) => a.quando.localeCompare(b.quando)),
-    [posts],
+    [posts, movido],
   );
+
+  /** Props de um dia como destino de arrasto. */
+  function soltarEm(d: Date) {
+    const k = chaveDia(d);
+    const aceita =
+      !!arrastado &&
+      k !== chaveDia(new Date(arrastado.quando)) &&
+      noDia(arrastado, d).getTime() > Date.now() + 60_000;
+    return {
+      onDragOver: (e: React.DragEvent) => {
+        if (!aceita) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (alvo !== k) setAlvo(k);
+      },
+      onDrop: async (e: React.DragEvent) => {
+        if (!aceita || !arrastado) return;
+        e.preventDefault();
+        const quando = noDia(arrastado, d);
+        setArrastado(null);
+        setAlvo(null);
+        setDiaAberto(d);
+        setMovido({ id: arrastado.id, quando: quando.toISOString() });
+        try {
+          await onMover(arrastado.id, quando);
+        } finally {
+          setMovido(null);
+        }
+      },
+    };
+  }
+  /** Props de um post arrastável. */
+  function arrastar(p: PostCalendario) {
+    if (!podeMover(p) || movido) return {};
+    return {
+      draggable: true,
+      onDragStart: (e: React.DragEvent) => {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", p.id);
+        setArrastado(p);
+      },
+      onDragEnd: () => {
+        setArrastado(null);
+        setAlvo(null);
+      },
+    };
+  }
   const porDia = useMemo(() => {
     const m = new Map<string, PostCalendario[]>();
     for (const p of validos) {
@@ -261,9 +334,11 @@ export function CalendarioPosts({
               return (
                 <div
                   key={chaveDia(d)}
+                  {...soltarEm(d)}
                   className={cn(
                     "min-w-0 rounded-xl border bg-bg flex flex-col overflow-hidden",
                     aberto ? "border-accent" : "border-line",
+                    alvo === chaveDia(d) && "border-sky-400 bg-sky-500/10",
                   )}
                 >
                   <button
@@ -294,6 +369,7 @@ export function CalendarioPosts({
                         key={p.id}
                         post={p}
                         grande
+                        arrasto={arrastar(p)}
                         onClick={() => {
                           setDiaAberto(d);
                           setPostAberto(p);
@@ -350,12 +426,15 @@ export function CalendarioPosts({
                   tabIndex={0}
                   onClick={() => setDiaAberto(d)}
                   onKeyDown={(e) => e.key === "Enter" && setDiaAberto(d)}
+                  {...soltarEm(d)}
                   className={cn(
                     "min-h-[118px] p-1.5 text-left border-line transition flex flex-col gap-1 min-w-0 cursor-pointer",
                     i % 7 !== 6 && "border-r",
                     i < 35 && "border-b",
                     doMes ? "bg-bg hover:bg-panel" : "bg-bg/40",
                     aberto && "ring-2 ring-inset ring-accent",
+                    alvo === chaveDia(d) &&
+                      "ring-2 ring-inset ring-sky-400 bg-sky-500/10",
                   )}
                 >
                   <span
@@ -374,6 +453,7 @@ export function CalendarioPosts({
                     <ChipPost
                       key={p.id}
                       post={p}
+                      arrasto={arrastar(p)}
                       onClick={(e) => {
                         e?.stopPropagation();
                         setDiaAberto(d);
@@ -488,10 +568,13 @@ export function CalendarioPosts({
 function ChipPost({
   post: p,
   grande,
+  arrasto,
   onClick,
 }: {
   post: PostCalendario;
   grande?: boolean;
+  /** Props de arrasto (vazio = post fixo). */
+  arrasto?: React.HTMLAttributes<HTMLElement> & { draggable?: boolean };
   onClick?: (e?: React.MouseEvent) => void;
 }) {
   const tom = STATUS_POST[p.status]?.tom ?? "neutro";
@@ -537,12 +620,17 @@ function ChipPost({
   );
   const dica = `${hora(p.quando)} · ${tx(STATUS_POST[p.status]?.rotulo ?? p.status)} · ${p.redes
     .map((r) => INFO_REDES[r]?.nome ?? r)
-    .join(", ")}\n${texto}`;
+    .join(", ")}\n${texto}${arrasto?.draggable ? `\n${tx("Arraste para mudar o dia")}` : ""}`;
   return onClick ? (
     <button
       type="button"
+      {...arrasto}
       onClick={(e) => onClick(e)}
-      className={cn(classe, "hover:bg-card transition")}
+      className={cn(
+        classe,
+        "hover:bg-card transition",
+        arrasto?.draggable && "cursor-grab active:cursor-grabbing",
+      )}
       title={dica}
     >
       {conteudo}

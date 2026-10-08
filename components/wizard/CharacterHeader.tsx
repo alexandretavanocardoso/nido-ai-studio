@@ -37,7 +37,7 @@ export function CharacterHeader({
     <header className="mb-6 grid gap-5">
       <div className="flex items-center gap-4 min-w-0">
         <Link
-          href="/app"
+          href="/app/personagens"
           className="h-10 w-10 inline-flex items-center justify-center rounded-full border border-line bg-panel hover:bg-card text-ink-mute hover:text-ink shrink-0 transition"
           aria-label={t("personagem.voltar")}
         >

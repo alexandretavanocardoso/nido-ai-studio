@@ -480,6 +480,9 @@ const ERROS_EN: Record<string, string> = {
   "Só posts do backlog podem ser agendados aqui.":
     "Only backlog posts can be scheduled here.",
   "Só posts do backlog podem ser editados.": "Only backlog posts can be edited.",
+  "Escolha uma data no futuro.": "Pick a date in the future.",
+  "Este post não pode ser reagendado.": "This post can't be rescheduled.",
+  "Não consegui mover o post.": "Couldn't move the post.",
   "Só dá pra cancelar posts que ainda não foram publicados.":
     "You can only cancel posts that haven't been published yet.",
   "Conecte as redes deste influencer primeiro.":
