@@ -132,7 +132,7 @@ export function Indicacoes({
     <div className="grid gap-8">
       <Secao
         titulo="Indicações"
-        descricao="Quem indica ganha 10% da primeira assinatura do indicado. BRL e USD saem pelo Stripe Connect; USDC sai on-chain, da carteira de saques."
+        descricao="Quem indica ganha 10% de cada assinatura paga pelo indicado, por até 12 meses. BRL e USD saem pelo Stripe Connect; USDC sai on-chain, da carteira de saques."
         acoes={
           <button
             type="button"

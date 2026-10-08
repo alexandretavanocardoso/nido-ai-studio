@@ -14,6 +14,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   CalendarClock,
+  ChevronsRight,
   ChevronUp,
   Clapperboard,
   Coins,
@@ -319,8 +320,8 @@ function MenuLateral({
           rotulo: tx("Personagens"),
           curto: tx("Personagens"),
           icon: Users,
-          href: "/app#personagens",
-          ativo: pathname.startsWith("/app/personagem"),
+          href: "/app/personagens",
+          ativo: pathname.startsWith("/app/personagen"),
           contagem: recente ? String(total).padStart(2, "0") : undefined,
         },
       ],
@@ -395,14 +396,25 @@ function MenuLateral({
               onClick={onAlternar}
               title={tx("Expandir menu ( [ )")}
               aria-label={tx("Expandir menu ( [ )")}
-              className="flex h-12 w-16 items-center justify-center overflow-hidden rounded-xl border border-white/[0.08] bg-[#141213] transition hover:border-nido-yellow/50"
+              className="flex h-14 w-16 items-center justify-center overflow-hidden rounded-xl border border-white/[0.08] bg-[#141213] transition hover:border-nido-yellow/50"
             >
+              {/* O PNG é quadrado com margem: neste tamanho o logo inteiro (NIDO + AI Studio) cabe no botão. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={LOGO}
                 alt="NIDO AI Studio"
-                className="h-[84px] w-[84px] max-w-none shrink-0 translate-y-2.5 drop-shadow-[0_0_8px_rgba(253,243,39,0.2)]"
+                className="h-20 w-20 max-w-none shrink-0 drop-shadow-[0_0_8px_rgba(253,243,39,0.2)]"
               />
+            </button>
+            {/* Seta: deixa claro que o menu abre (o logo também abre, mas não parece botão). */}
+            <button
+              type="button"
+              onClick={onAlternar}
+              title={tx("Expandir menu ( [ )")}
+              aria-label={tx("Expandir menu ( [ )")}
+              className="grid h-7 w-16 place-items-center rounded-[9px] border border-white/[0.08] text-nido-mute transition hover:border-nido-yellow/50 hover:bg-white/[0.05] hover:text-nido-yellow"
+            >
+              <ChevronsRight className="h-4 w-4" />
             </button>
             <button
               type="button"
@@ -418,18 +430,18 @@ function MenuLateral({
           </div>
         ) : (
           <div className="flex flex-col gap-3.5 px-3.5 pt-4 pb-3.5">
-            <div className="flex h-10 items-center justify-between gap-2">
-              {/* O PNG é quadrado com muita margem: ampliado e deslocado para enquadrar a palavra NIDO. */}
+            <div className="flex h-[60px] items-center justify-between gap-2">
+              {/* O PNG é quadrado com margem: a janela corta só a margem e mostra o logo inteiro (NIDO + AI Studio). */}
               <Link
                 href="/app"
                 aria-label={tx("Home")}
-                className="flex h-11 w-[112px] items-center justify-center overflow-hidden rounded-lg transition hover:opacity-90"
+                className="flex h-[60px] w-[88px] items-center justify-center overflow-hidden rounded-lg transition hover:opacity-90"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={LOGO}
                   alt="NIDO AI Studio"
-                  className="h-[124px] w-[124px] max-w-none shrink-0 translate-y-4 drop-shadow-[0_0_10px_rgba(253,243,39,0.18)]"
+                  className="h-[100px] w-[100px] max-w-none shrink-0 drop-shadow-[0_0_10px_rgba(253,243,39,0.18)]"
                 />
               </Link>
               <button
@@ -800,9 +812,9 @@ function BarraDoApp({
 }
 
 /**
- * Seletor de personagem da barra do topo: mostra o ativo e troca entre todos.
- * Dentro de um personagem, a troca mantém a aba, a etapa e a ferramenta
- * abertas; nas outras telas, só muda em qual deles o Estúdio abre.
+ * Seletor de personagem da barra do topo, só nas telas de um personagem:
+ * mostra o que está aberto e troca entre todos, mantendo a aba, a etapa e a
+ * ferramenta abertas.
  */
 function SeletorDePersonagem() {
   const router = useRouter();
@@ -821,12 +833,13 @@ function SeletorDePersonagem() {
     return () => document.removeEventListener("mousedown", fora);
   }, [aberto]);
 
-  if (!ativo || personagens.length < 2) return null;
+  // Só nas telas de um personagem (ficha, Estúdio, Radar): é lá que se troca.
+  if (!ativo || personagens.length < 2 || !idNaRota(pathname)) return null;
 
   function escolher(id: string) {
     setAberto(false);
     definirAtivo(id);
-    if (idNaRota(pathname) && id !== ativo?.id)
+    if (id !== ativo?.id)
       router.push(`/app/personagem/${id}${window.location.search}`);
   }
 

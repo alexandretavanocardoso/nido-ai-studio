@@ -101,14 +101,14 @@ export async function listarIndicacoesAdmin(): Promise<IndicacoesAdmin> {
       assinaram: number;
     }>(
       `select c.user_id, u."email", c.codigo, c.personalizado, c.stripe_account_id,
-         count(i.indicado_user_id)::int as indicados,
-         count(m.id)::int as assinaram
+         count(distinct i.indicado_user_id)::int as indicados,
+         count(distinct m.indicado_user_id)::int as assinaram
        from indicacao_contas c
        join indicacoes i on i.indicador_user_id = c.user_id
        left join "user" u on u."id" = c.user_id
        left join indicacao_comissoes m on m.indicado_user_id = i.indicado_user_id
        group by c.user_id, u."email", c.codigo, c.personalizado, c.stripe_account_id
-       order by count(i.indicado_user_id) desc limit 200`,
+       order by count(distinct i.indicado_user_id) desc limit 200`,
     ),
     db.query<{
       id: string;

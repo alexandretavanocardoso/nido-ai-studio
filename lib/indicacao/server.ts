@@ -13,6 +13,7 @@ import {
   CARENCIA_DIAS,
   COMISSAO,
   comissaoEmCentavos,
+  MESES_COMISSAO,
   JANELA_VINCULO_DIAS,
   moedaDaComissao,
   normalizarCodigo,
@@ -122,7 +123,9 @@ export async function vincularIndicacao(
 
 /**
  * Gera a comissão de um pagamento de plano já pago, se o pagador foi indicado
- * por alguém. Vale só a primeira assinatura do indicado; repetir a chamada
+ * por alguém. Vale para cada pagamento de plano do indicado (primeira
+ * assinatura e renovações) por MESES_COMISSAO meses a partir da primeira
+ * comissão; depois disso o indicado não gera mais. Repetir a chamada
  * (webhook reenviado) não duplica. Nunca lança: um erro aqui não pode
  * atrapalhar a ativação do plano.
  */
@@ -139,8 +142,13 @@ export async function registrarComissao(pagamentoId: string): Promise<void> {
       `select p.user_id, i.indicador_user_id, p.plano, p.valor, p.moeda, p.provedor
        from pagamentos p
        join indicacoes i on i.indicado_user_id = p.user_id
-       where p.id = $1 and p.status = 'pago' and p.tipo = 'plano'`,
-      [pagamentoId],
+       where p.id = $1 and p.status = 'pago' and p.tipo = 'plano'
+         -- Janela de comissão: acaba N meses depois da primeira comissão deste indicado.
+         and not exists (
+           select 1 from indicacao_comissoes m
+           where m.indicado_user_id = p.user_id
+             and m.created_at <= now() - make_interval(months => $2))`,
+      [pagamentoId, MESES_COMISSAO],
     );
     const p = rows[0];
     if (!p) return;
@@ -219,9 +227,10 @@ export interface ResumoIndicacao {
     nome: string;
     desde: string;
     assinou: boolean;
-    /** O pagamento foi estornado: a comissão foi desfeita. */
+    /** Todos os pagamentos deste indicado foram estornados: não sobrou comissão. */
     estornada: boolean;
     plano: string | null;
+    /** Soma das comissões deste indicado (sem as estornadas). */
     comissao: number | null;
     moeda: MoedaComissao | null;
   }>;
@@ -262,12 +271,20 @@ export async function resumoDaIndicacao(
       plano: string | null;
       valor: string | null;
       moeda: MoedaComissao | null;
-      status: string | null;
+      pagamentos: number;
+      estornadas: number;
     }>(
-      `select u."name" as nome, i.created_at as desde, c.plano, c.valor, c.moeda, c.status
+      // Um indicado pode ter várias comissões (uma por pagamento): soma por pessoa.
+      `select u."name" as nome, i.created_at as desde, c.plano, c.valor, c.moeda, c.pagamentos, c.estornadas
        from indicacoes i
        join "user" u on u."id" = i.indicado_user_id
-       left join indicacao_comissoes c on c.indicado_user_id = i.indicado_user_id
+       left join lateral (
+         select count(*)::int as pagamentos,
+                count(*) filter (where m.status like 'estorn%')::int as estornadas,
+                sum(m.valor) filter (where m.status not like 'estorn%') as valor,
+                max(m.moeda) as moeda,
+                (array_agg(m.plano order by m.created_at desc))[1] as plano
+         from indicacao_comissoes m where m.indicado_user_id = i.indicado_user_id) c on true
        where i.indicador_user_id = $1
        order by i.created_at desc limit 200`,
       [userId],
@@ -318,10 +335,10 @@ export async function resumoDaIndicacao(
       // Só o primeiro nome: quem indica não precisa ver o nome completo de ninguém.
       nome: r.nome.trim().split(/\s+/)[0] || "—",
       desde: r.desde.toISOString(),
-      assinou: r.valor != null,
-      estornada: !!r.status?.startsWith("estorn"),
+      assinou: r.pagamentos > 0,
+      estornada: r.pagamentos > 0 && r.estornadas === r.pagamentos,
       plano: r.plano,
-      comissao: r.valor != null ? Number(r.valor) : null,
+      comissao: r.pagamentos > 0 ? Number(r.valor ?? 0) : null,
       moeda: r.moeda,
     })),
     saldos: saldos.rows.map((s) => ({

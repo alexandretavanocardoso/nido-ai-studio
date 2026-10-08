@@ -8,7 +8,6 @@ import {
   ImageIcon,
   ImagePlus,
   PenLine,
-  Plus,
   Send,
   Sparkles,
   TriangleAlert,
@@ -16,17 +15,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useCharacters } from "@/lib/store";
-import { EmptyState } from "@/components/home/EmptyState";
-import {
-  CharacterListItem,
-  emProducao,
-} from "@/components/home/CharacterListItem";
+import { GradeDePersonagens } from "@/components/home/GradeDePersonagens";
 import { useRecursos } from "@/components/RecursosProvider";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
 import { CREDITOS_TEXTO, PLANOS } from "@/lib/planos";
-import { status } from "@/lib/completion";
 import { STATUS_POST } from "@/lib/social/redes";
 import type { SecaoEstudio } from "@/components/estudio/Estudio";
 import type { Character } from "@/lib/types";
@@ -39,10 +33,8 @@ import {
   useCriar,
   useMaisRecente,
 } from "@/components/AppShell";
-import { usePendentesDeSync } from "@/lib/sync/remoteSync";
 
 type Modo = "ia" | "manual" | "imagem";
-type Filtro = "todos" | "completo" | "rascunho" | "producao";
 
 const MAX_PROMPT = 600;
 
@@ -90,14 +82,9 @@ export default function Home() {
   } = useCriar();
   const recente = useMaisRecente();
   const limitePersonagens = conta ? PLANOS[conta.plano].personagens : Infinity;
-  // Personagens que a conta não tem: só existem neste navegador.
-  const naoSalvos = usePendentesDeSync();
-  const foraDoPlano = naoSalvos.recusados.length > 0;
-  const pendentes = naoSalvos.recusados.length + naoSalvos.falharam.length;
 
   const [prompt, setPrompt] = useState("");
   const [modo, setModo] = useState<Modo>(recursos.ia ? "ia" : "manual");
-  const [filtro, setFiltro] = useState<Filtro>("todos");
   const [aviso, setAviso] = useState<string | null>(null);
   const campo = useRef<HTMLTextAreaElement>(null);
   const avisoTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -131,21 +118,6 @@ export default function Home() {
   const pronto = modo !== "ia" || prompt.trim().length >= 10;
 
   const lista = mounted ? characters : [];
-  const contagem = {
-    completo: lista.filter((c) => status(c) === "completo").length,
-    rascunho: lista.filter((c) => status(c) === "rascunho").length,
-  };
-  const visiveis = lista.filter(
-    (c) =>
-      filtro === "todos" ||
-      (filtro === "producao" ? emProducao(c) : status(c) === filtro),
-  );
-  const filtros: Array<[Filtro, string]> = [
-    ["todos", tx("Todos")],
-    ["completo", tx("Completos")],
-    ["rascunho", tx("Rascunhos")],
-    ["producao", tx("Em produção")],
-  ];
 
   return (
     <main className="min-h-screen bg-nido-bg font-geist text-nido-ink">
@@ -342,95 +314,7 @@ export default function Home() {
         className={cn("relative z-[2] px-4 pb-16 sm:px-6", DEPOIS_DO_MENU)}
       >
         <div className="flex max-w-[1440px] flex-col gap-10">
-          <section
-            id="personagens"
-            className="flex scroll-mt-6 flex-col gap-[18px]"
-          >
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
-                <h2 className="font-archivo text-2xl font-extrabold uppercase tracking-[-0.01em] [font-stretch:125%]">
-                  {t("inicio.seus")}
-                </h2>
-                {lista.length > 0 ? (
-                  <span className="font-geist-mono text-[11.5px] text-nido-mute">
-                    {lista.length} {tx("no total")} · {contagem.completo}{" "}
-                    {tx("completos")} · {contagem.rascunho} {tx("rascunhos")}
-                  </span>
-                ) : null}
-              </div>
-              {lista.length > 0 ? (
-                <div className="flex max-w-full gap-0.5 overflow-x-auto rounded-[11px] border border-white/[0.07] bg-nido-panel p-[3px]">
-                  {filtros.map(([k, rotulo]) => (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => setFiltro(k)}
-                      aria-pressed={filtro === k}
-                      className={cn(
-                        "h-[30px] whitespace-nowrap rounded-lg px-3 text-[12.5px] font-medium transition hover:text-nido-paper",
-                        filtro === k
-                          ? "bg-white/[0.08] text-nido-paper"
-                          : "text-nido-mute",
-                      )}
-                    >
-                      {rotulo}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            {mounted && pendentes > 0 && (
-              <div className="rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
-                {t(
-                  foraDoPlano ? "inicio.soAquiLimite" : "inicio.soAquiFalha",
-                  foraDoPlano && conta
-                    ? {
-                        x: pendentes,
-                        plano: PLANOS[conta.plano].nome,
-                        n: limitePersonagens,
-                      }
-                    : { x: pendentes },
-                )}{" "}
-                {foraDoPlano && (
-                  <Link href="/app/planos" className="font-bold underline">
-                    {t("inicio.upgradeSalvar")}
-                  </Link>
-                )}
-              </div>
-            )}
-
-            {!mounted ? (
-              <div className="card p-16 text-center text-ink-dim">
-                {t("inicio.carregando")}
-              </div>
-            ) : characters.length === 0 ? (
-              <EmptyState onCreate={handleCreateClick} />
-            ) : (
-              <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]">
-                <button
-                  type="button"
-                  onClick={handleCreateClick}
-                  className="flex aspect-[3/4] flex-col items-center justify-center gap-3.5 rounded-2xl border-[1.5px] border-dashed border-white/[0.14] bg-white/[0.015] transition duration-200 hover:border-nido-yellow/60 hover:bg-nido-yellow/[0.04]"
-                >
-                  <span className="grid h-[52px] w-[52px] place-items-center rounded-full bg-nido-yellow text-nido-bg shadow-[0_0_30px_-6px_rgba(253,243,39,0.6)]">
-                    <Plus className="h-[18px] w-[18px]" />
-                  </span>
-                  <span className="flex flex-col items-center gap-1">
-                    <span className="text-sm font-semibold">
-                      {tx("Novo AI Creator")}
-                    </span>
-                    <span className="font-geist-mono text-[11px] text-nido-dim">
-                      {tx("wizard de 7 etapas · N")}
-                    </span>
-                  </span>
-                </button>
-                {visiveis.map((c) => (
-                  <CharacterListItem key={c.id} character={c} />
-                ))}
-              </div>
-            )}
-          </section>
+          <GradeDePersonagens comTitulo />
 
           {lista.length > 0 ? (
             <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,440px),1fr))] gap-3.5">
@@ -482,13 +366,16 @@ function MountGate({ onMount }: { onMount: () => void }) {
   return null;
 }
 
-/** Fundo do hero: manchas de luz nas cores da marca, escurecidas para o texto ler bem. */
+/** Fundo do hero: a imagem do banner, escurecida para o texto ler bem. */
 function FundoDoHero() {
   return (
     <div className="absolute inset-0 z-0 overflow-hidden bg-nido-bg" aria-hidden>
-      <div className="absolute -top-[18%] left-[8%] h-[62vmax] w-[62vmax] rounded-full bg-[#5c2a1f] opacity-70 mix-blend-screen blur-[50px] motion-safe:animate-nido-drift-1" />
-      <div className="absolute -bottom-[30%] right-[-6%] h-[54vmax] w-[54vmax] rounded-full bg-nido-ocre opacity-40 mix-blend-screen blur-[50px] motion-safe:animate-nido-drift-2" />
-      <div className="absolute top-[10%] right-[22%] h-[26vmax] w-[26vmax] rounded-full bg-nido-yellow opacity-[0.14] mix-blend-screen blur-[50px] motion-safe:animate-nido-drift-1" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/banner/banner.jpg"
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover object-center"
+      />
       <div className="pointer-events-none absolute inset-0 bg-nido-bg/[0.62]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_42%,transparent_30%,rgba(11,10,10,0.7)_85%),linear-gradient(to_bottom,rgba(11,10,10,0.35)_0%,rgba(11,10,10,0.15)_30%,rgba(11,10,10,0.6)_72%,#0b0a0a_100%)]" />
     </div>

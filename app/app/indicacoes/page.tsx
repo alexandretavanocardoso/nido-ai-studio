@@ -3,11 +3,19 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowRight,
   Check,
+  ChevronDown,
+  ChevronUp,
+  Coins,
   Copy,
   ExternalLink,
+  Eye,
   Gift,
   Landmark,
+  Link2,
+  UserRound,
+  Wallet,
   Loader2,
   PenLine,
 } from "lucide-react";
@@ -18,6 +26,7 @@ import { confirmar } from "@/components/ui/Confirmacao";
 import {
   CARENCIA_DIAS,
   COMISSAO,
+  MESES_COMISSAO,
   formatoDeCarteira,
   normalizarCodigo,
   problemaDoCodigo,
@@ -65,6 +74,15 @@ export default function IndicacoesPage() {
   const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [rede, setRede] = useState<RedeUsdc | "">("");
+  // Simulador: indicações novas por mês e quanto cada indicado gasta por mês em plano.
+  const emDolar = idiomaAtual() === "en";
+  const moedaSim = emDolar ? "USD" : "BRL";
+  const precos = (["starter", "creator", "studio"] as const).map((id) =>
+    emDolar ? PLANOS[id].precoUSD : PLANOS[id].precoBRL,
+  );
+  const [simN, setSimN] = useState(10);
+  const [simValor, setSimValor] = useState(precos[1]);
+  const [duvida, setDuvida] = useState(0);
   const [carteira, setCarteira] = useState("");
 
   const carregar = useCallback(async () => {
@@ -185,38 +203,194 @@ export default function IndicacoesPage() {
 
   const pct = Math.round(COMISSAO * 100);
 
-  if (user === undefined)
-    return (
-      <main className="mx-auto max-w-5xl px-4 sm:px-6 py-10">
-        <div className="card p-8 text-center text-ink-mute">
-          <Link href="/auth/login" className="font-bold text-accent">
-            {tx("Entre na sua conta")}
-          </Link>{" "}
-          {tx("para indicar amigos e ganhar comissão.")}
-        </div>
-      </main>
-    );
+  async function copiarLink() {
+    if (!resumo) return;
+    try {
+      await navigator.clipboard.writeText(resumo.link);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 1600);
+    } catch {}
+  }
+
+  // Cada leva nova se soma às que já estão pagando (todas dentro dos 12 meses).
+  const porMes = Array.from(
+    { length: 12 },
+    (_, i) => (i + 1) * simN * simValor * COMISSAO,
+  );
+  const totalSim = porMes.reduce((a, b) => a + b, 0);
+  const passos: Array<[typeof UserRound, string, string]> = [
+    [
+      UserRound,
+      tx("Pegue seu link"),
+      tx(
+        "Toda conta já tem um link de indicação. Não precisa de inscrição: ele está no seu painel, logo abaixo.",
+      ),
+    ],
+    [
+      Link2,
+      tx("Compartilhe seu link"),
+      tx(
+        "Coloque na bio, na descrição dos vídeos, nos posts dos seus personagens, na newsletter ou no curso.",
+      ),
+    ],
+    [
+      Coins,
+      tx("Ganhe comissão"),
+      `${tx("Cada assinatura que vier do seu link gera")} ${pct}% ${tx("de comissão, e ela se repete nas renovações por até")} ${MESES_COMISSAO} ${tx("meses.")}`,
+    ],
+  ];
+  const vantagens: Array<[typeof UserRound, string, string]> = [
+    [
+      Coins,
+      tx("Comissão em dinheiro"),
+      tx(
+        "Você recebe em dinheiro, não em créditos da plataforma que precisam ser gastos aqui dentro.",
+      ),
+    ],
+    [
+      Eye,
+      tx("Indicações rastreadas"),
+      tx(
+        "Veja quem criou conta pelo seu link e quem assinou, para saber o que está funcionando.",
+      ),
+    ],
+    [
+      Wallet,
+      tx("Saque quando quiser"),
+      tx(
+        "Pelo Stripe, direto para o seu banco. Se o plano foi pago em USDC, a comissão vai em USDC para a sua carteira.",
+      ),
+    ],
+    [
+      Link2,
+      tx("Seu código, seu nome"),
+      tx(
+        "Troque o código do link por um que tenha a sua cara. Dá para escolher uma vez.",
+      ),
+    ],
+  ];
+  const termos: Array<[string, string]> = [
+    [`${pct}%`, tx("de comissão em cada assinatura")],
+    [String(MESES_COMISSAO), tx("meses de comissão recorrente por indicado")],
+    [
+      String(CARENCIA_DIAS),
+      tx("dias depois do pagamento para a comissão liberar para saque"),
+    ],
+  ];
+  const duvidas: Array<[string, string]> = [
+    [
+      tx("Quem pode participar?"),
+      tx(
+        "Qualquer pessoa com conta na NIDO. O link já vem pronto; não há inscrição nem aprovação.",
+      ),
+    ],
+    [
+      tx("Quanto eu ganho?"),
+      `${pct}% ${tx("de cada assinatura de plano paga por quem criou a conta pelo seu link, incluindo as renovações.")}`,
+    ],
+    [
+      tx("O que gera comissão?"),
+      tx(
+        "Assinaturas de qualquer plano, mensais ou anuais, e as renovações, no cartão, Pix, boleto ou USDC. Compra de créditos avulsos e o plano gratuito não geram comissão.",
+      ),
+    ],
+    [
+      tx("Por quanto tempo uma indicação me paga?"),
+      `${tx("Por até")} ${MESES_COMISSAO} ${tx("meses a partir da primeira assinatura, enquanto a pessoa continuar pagando.")}`,
+    ],
+    [
+      tx("Quando posso sacar?"),
+      `${tx("A comissão fica em carência por")} ${CARENCIA_DIAS} ${tx("dias depois do pagamento do indicado. Depois disso fica disponível, respeitando o saque mínimo.")}`,
+    ],
+    [
+      tx("E se o indicado pedir reembolso?"),
+      tx(
+        "Se o pagamento for estornado, a comissão é desfeita. Se você já tinha sacado, o valor é descontado das próximas comissões.",
+      ),
+    ],
+    [
+      tx("Posso indicar a mim mesmo?"),
+      tx(
+        "Não. Uma segunda conta sua, ou alguém na mesma rede de internet que você, não fica vinculada ao seu link.",
+      ),
+    ],
+  ];
+  const tituloSecao =
+    "font-archivo text-[clamp(28px,3.6vw,46px)] font-black uppercase leading-[0.95] tracking-[-0.02em] [font-stretch:125%]";
+  const olho =
+    "font-mono text-[11px] uppercase tracking-[0.18em] text-accent";
 
   return (
-    <main className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-10 grid gap-6">
-      <header className="grid gap-2.5">
-        <div className="eyebrow-accent inline-flex items-center gap-2">
-          <Gift className="w-3.5 h-3.5" />
-          {tx("Indique e ganhe")}
+    <main className="mx-auto flex w-full max-w-[1240px] flex-col gap-[clamp(44px,6vw,76px)] px-4 pb-16 pt-2 sm:px-6 lg:px-10">
+      <section className="relative flex min-h-[clamp(440px,52vw,620px)] items-end overflow-hidden rounded-3xl border border-white/[0.07] bg-bg">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/banner/afiliados-hero.jpg"
+          alt={tx("Personagens da NIDO")}
+          className="absolute inset-0 h-full w-full object-cover object-[62%_center]"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(to_top,#0b0a0a_4%,rgba(11,10,10,0.88)_30%,rgba(11,10,10,0.25)_62%,rgba(11,10,10,0)_80%)]" />
+        <div className="relative flex max-w-[760px] flex-col gap-4 p-[clamp(24px,4vw,48px)]">
+          <span className="flex h-[26px] items-center gap-2 self-start rounded-full border border-accent/40 bg-bg/80 px-3 font-mono text-[11px] uppercase tracking-[0.12em] text-accent">
+            <Gift className="h-[13px] w-[13px]" />
+            {tx("Indique e ganhe")}
+          </span>
+          <h1 className="text-balance font-archivo text-[clamp(38px,5.6vw,76px)] font-black uppercase leading-[0.9] tracking-[-0.02em] [font-stretch:125%]">
+            {tx("Indique a NIDO.")}
+            <br />
+            <span className="text-accent">
+              {tx("Ganhe")} {pct}% {tx("todo mês.")}
+            </span>
+          </h1>
+          <p className="max-w-[560px] text-pretty text-base leading-[1.55] text-[#d9d2c6]">
+            {tx("Ganhe")} {pct}%{" "}
+            {tx("de comissão, em dinheiro, por até")} {MESES_COMISSAO}{" "}
+            {tx(
+              "meses em cada assinatura que vier do seu link. O saque é feito pelo Stripe; se o plano foi pago em USDC, a comissão sai em USDC para a sua carteira.",
+            )}
+          </p>
+          <div className="flex flex-wrap gap-2.5 pt-1.5">
+            {user === undefined ? (
+              <Link
+                href="/auth/login"
+                className="flex h-[50px] items-center gap-2.5 whitespace-nowrap rounded-full bg-accent px-6 text-[15px] font-bold text-bg transition hover:bg-nido-yellow-hi"
+              >
+                {tx("Entrar para pegar meu link")}
+                <ArrowRight className="h-4 w-4" strokeWidth={2} />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={copiarLink}
+                disabled={!resumo}
+                className="flex h-[50px] items-center gap-2.5 whitespace-nowrap rounded-full bg-accent px-6 text-[15px] font-bold text-bg transition hover:bg-nido-yellow-hi disabled:opacity-60"
+              >
+                {copiado ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                {copiado ? tx("Link copiado") : tx("Copiar meu link")}
+              </button>
+            )}
+          </div>
         </div>
-        <h1 className="display text-3xl sm:text-4xl uppercase">
-          {tx("Ganhe")} {pct}% {tx("de quem você indicar")}
-        </h1>
-        <p className="text-ink-mute max-w-[62ch] leading-relaxed">
-          {tx(
-            "Compartilhe o seu link. Quando alguém cria a conta por ele e assina qualquer plano, você recebe",
-          )}{" "}
-          {pct}%{" "}
-          {tx(
-            "do valor da primeira assinatura, em dinheiro. O saque é feito pelo Stripe; se o plano foi pago em USDC, a comissão sai em USDC para a sua carteira.",
-          )}
-        </p>
-      </header>
+      </section>
+
+      {/* Painel de quem indica: link, comissões, indicados e saques */}
+      <section className="grid gap-6">
+        <div className="flex max-w-[640px] flex-col gap-3">
+          <span className={olho}>{tx("Seu painel")}</span>
+          <h2 className={tituloSecao}>{tx("Seu link e seus ganhos")}</h2>
+        </div>
+        {user === undefined ? (
+          <div className="card p-8 text-center text-ink-mute">
+            <Link href="/auth/login" className="font-bold text-accent">
+              {tx("Entre na sua conta")}
+            </Link>{" "}
+            {tx("para indicar amigos e ganhar comissão.")}
+          </div>
+        ) : null}
 
       {erroCarga ? (
         <div className="rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
@@ -234,7 +408,7 @@ export default function IndicacoesPage() {
         </div>
       ) : null}
 
-      {!resumo ? (
+      {user === undefined ? null : !resumo ? (
         erroCarga ? null : (
           <div className="py-16 grid place-items-center text-ink-dim">
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -251,13 +425,7 @@ export default function IndicacoesPage() {
               </code>
               <Button
                 variant="accent"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(resumo.link);
-                    setCopiado(true);
-                    setTimeout(() => setCopiado(false), 1600);
-                  } catch {}
-                }}
+                onClick={copiarLink}
               >
                 {copiado ? (
                   <Check className="w-4 h-4" />
@@ -589,6 +757,212 @@ export default function IndicacoesPage() {
           ) : null}
         </>
       )}
+      </section>
+
+      <section className="flex flex-col gap-6">
+        <div className="flex max-w-[640px] flex-col gap-3">
+          <span className={olho}>{tx("Como funciona")}</span>
+          <h2 className={tituloSecao}>{tx("3 passos para começar a ganhar")}</h2>
+          <p className="text-[14.5px] leading-[1.55] text-ink-mute">
+            {tx("Seu link já está ativo: é só compartilhar.")}
+          </p>
+        </div>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3">
+          {passos.map(([Icone, titulo, texto], i) => (
+            <div key={titulo} className="card flex flex-col gap-3.5 p-6">
+              <div className="flex items-center justify-between">
+                <span className="grid h-[42px] w-[42px] place-items-center rounded-xl bg-accent/10 text-accent">
+                  <Icone className="h-[18px] w-[18px]" />
+                </span>
+                <span className="font-mono text-xs text-ink-dim">
+                  0{i + 1}
+                </span>
+              </div>
+              <span className="text-[16.5px] font-bold">{titulo}</span>
+              <span className="text-[13.5px] leading-[1.55] text-ink-mute">
+                {texto}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-6">
+        <div className="flex max-w-[680px] flex-col gap-3">
+          <span className={olho}>{tx("Simulador")}</span>
+          <h2 className={tituloSecao}>{tx("Quanto você pode ganhar")}</h2>
+          <p className="text-pretty text-[14.5px] leading-[1.55] text-ink-mute">
+            {tx(
+              "Cada nova indicação se soma às que já estão pagando, então a comissão cresce mês a mês. Ajuste os valores para estimar os primeiros 12 meses.",
+            )}
+          </p>
+        </div>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] gap-3">
+          <div className="flex flex-col gap-3">
+            <div className="card flex flex-col">
+              <label className="flex flex-col gap-3 p-[22px]">
+                <span className="text-[13px] text-ink-mute">
+                  {tx("Novas indicações por mês")}
+                </span>
+                <span className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-bold">
+                    {simN} {tx("indicações")}
+                  </span>
+                  <span className="text-lg text-ink-dim">/ {tx("mês")}</span>
+                </span>
+                <input
+                  type="range"
+                  min={1}
+                  max={200}
+                  value={simN}
+                  onChange={(e) => setSimN(Number(e.target.value))}
+                />
+              </label>
+              <label className="flex flex-col gap-3 border-t border-white/[0.07] p-[22px]">
+                <span className="text-[13px] text-ink-mute">
+                  {tx("Gasto médio por indicado por mês")}
+                </span>
+                <span className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-bold">
+                    {dinheiro(simValor, moedaSim)}
+                  </span>
+                  <span className="text-lg text-ink-dim">
+                    / {tx("indicado")}
+                  </span>
+                </span>
+                <input
+                  type="range"
+                  min={precos[0]}
+                  max={precos[2]}
+                  value={simValor}
+                  onChange={(e) => setSimValor(Number(e.target.value))}
+                />
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-[18px] bg-accent p-[22px] text-bg">
+              <span className="flex flex-col gap-1.5">
+                <span className="text-[13px] font-medium">
+                  {tx("Comissão estimada em 12 meses")}
+                </span>
+                <span className="font-archivo text-[clamp(30px,3.2vw,40px)] font-black leading-none [font-stretch:112%]">
+                  {dinheiro(totalSim, moedaSim)}
+                </span>
+              </span>
+            </div>
+          </div>
+          <div className="card flex min-h-[340px] flex-col gap-3 p-[22px]">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-[13px] text-ink-mute">
+                {tx("Comissão por mês")}
+              </span>
+              <span className="font-mono text-xs text-accent">
+                {dinheiro(porMes[11], moedaSim)} {tx("no 12º mês")}
+              </span>
+            </div>
+            <div className="grid min-h-[220px] flex-1 grid-cols-12 items-end gap-1.5 border-b border-white/10 bg-[repeating-linear-gradient(to_top,rgba(255,255,255,0.05)_0_1px,transparent_1px_25%)] pt-2">
+              {porMes.map((v, i) => (
+                <div
+                  key={i}
+                  title={`${tx("Mês")} ${i + 1}: ${dinheiro(v, moedaSim)}`}
+                  className="min-h-[3px] rounded-t bg-[linear-gradient(to_top,#aa7d43,#fdf327)]"
+                  style={{
+                    height: `${((i + 1) / 12) * 100}%`,
+                    opacity: 0.45 + (i / 11) * 0.55,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="grid grid-cols-12 gap-1.5">
+              {porMes.map((_, i) => (
+                <span
+                  key={i}
+                  className="text-center font-mono text-[10.5px] text-ink-dim"
+                >
+                  {i + 1}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        <span className="text-[12.5px] text-ink-dim">
+          {tx("Estimativa com comissão de")} {pct}%.{" "}
+          {tx(
+            "O valor real depende de renovações, cancelamentos e reembolsos.",
+          )}
+        </span>
+      </section>
+
+      <section className="flex flex-col gap-6">
+        <div className="flex max-w-[680px] flex-col gap-3">
+          <span className={olho}>{tx("Vantagens")}</span>
+          <h2 className={tituloSecao}>{tx("Vai além da comissão")}</h2>
+        </div>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,190px),1fr))] gap-3">
+          {vantagens.map(([Icone, titulo, texto]) => (
+            <div key={titulo} className="card flex flex-col gap-3.5 p-6">
+              <span className="grid h-[42px] w-[42px] place-items-center rounded-xl bg-accent/10 text-accent">
+                <Icone className="h-[18px] w-[18px]" />
+              </span>
+              <span className="text-base font-bold">{titulo}</span>
+              <span className="text-[13.5px] leading-[1.55] text-ink-mute">
+                {texto}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-6">
+        <div className="flex max-w-[680px] flex-col gap-3">
+          <span className={olho}>{tx("Modelo de comissão")}</span>
+          <h2 className={tituloSecao}>
+            {tx("O que você ganha por compartilhar um link")}
+          </h2>
+        </div>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-0.5 overflow-hidden rounded-[20px] bg-white/[0.07]">
+          {termos.map(([valor, rotulo]) => (
+            <div
+              key={rotulo}
+              className="flex flex-col gap-3 bg-[#0e0c0d] p-[clamp(24px,3vw,40px)]"
+            >
+              <span className="font-archivo text-[clamp(56px,7vw,96px)] font-black leading-[0.9] tracking-[-0.03em] text-accent [font-stretch:125%]">
+                {valor}
+              </span>
+              <span className="max-w-[260px] text-[15px] font-semibold leading-[1.4]">
+                {rotulo}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="flex max-w-[880px] flex-col gap-5">
+        <h2 className={tituloSecao}>{tx("Ficou alguma dúvida?")}</h2>
+        <div className="flex flex-col">
+          {duvidas.map(([pergunta, resposta], i) => (
+            <div key={pergunta} className="border-t border-white/[0.08]">
+              <button
+                type="button"
+                onClick={() => setDuvida(duvida === i ? -1 : i)}
+                aria-expanded={duvida === i}
+                className="flex w-full items-center justify-between gap-4 py-[18px] text-left text-[15.5px] font-semibold transition hover:text-accent"
+              >
+                <span>{pergunta}</span>
+                {duvida === i ? (
+                  <ChevronUp className="h-[18px] w-[18px] shrink-0 text-ink-mute" />
+                ) : (
+                  <ChevronDown className="h-[18px] w-[18px] shrink-0 text-ink-mute" />
+                )}
+              </button>
+              {duvida === i ? (
+                <p className="max-w-[720px] pb-5 text-sm leading-[1.6] text-ink-mute">
+                  {resposta}
+                </p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }

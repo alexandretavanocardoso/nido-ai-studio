@@ -1258,4 +1258,167 @@ export const TEXTOS_EN: Record<string, string> = {
     "Invalid withdrawal request.",
   "O saque mínimo é de 5 USDC.":
     "The minimum withdrawal is 5 USDC.",
+
+  // Indique e ganhe: página do programa
+  "Personagens da NIDO":
+    "NIDO characters",
+  "Indique a NIDO.":
+    "Refer NIDO.",
+  "em dinheiro.":
+    "in cash.",
+  "Entrar para pegar meu link":
+    "Sign in to get my link",
+  "Link copiado":
+    "Link copied",
+  "Copiar meu link":
+    "Copy my link",
+  "Seu painel":
+    "Your dashboard",
+  "Seu link e seus ganhos":
+    "Your link and your earnings",
+  "Como funciona":
+    "How it works",
+  "3 passos para começar a ganhar":
+    "3 steps to start earning",
+  "Seu link já está ativo: é só compartilhar.":
+    "Your link is already active: just share it.",
+  "Pegue seu link":
+    "Get your link",
+  "Toda conta já tem um link de indicação. Não precisa de inscrição: ele está no seu painel, logo abaixo.":
+    "Every account already has a referral link. No sign-up needed: it's in your dashboard, right below.",
+  "Compartilhe seu link":
+    "Share your link",
+  "Coloque na bio, na descrição dos vídeos, nos posts dos seus personagens, na newsletter ou no curso.":
+    "Put it in your bio, video descriptions, your characters' posts, your newsletter or your course.",
+  "Ganhe comissão":
+    "Earn commission",
+  "Quando alguém cria a conta pelo seu link e assina um plano, você recebe":
+    "When someone signs up through your link and subscribes to a plan, you get",
+  "do valor da primeira assinatura.":
+    "of their first subscription payment.",
+  "Simulador":
+    "Calculator",
+  "Quanto você pode ganhar":
+    "How much you can earn",
+  "Cada pessoa que assina pelo seu link gera uma comissão, uma vez. Ajuste os valores para estimar os primeiros 12 meses.":
+    "Each person who subscribes through your link earns you one commission. Adjust the values to estimate the first 12 months.",
+  "Assinaturas novas pelo seu link, por mês":
+    "New subscriptions through your link, per month",
+  "assinaturas":
+    "subscriptions",
+  "mês":
+    "month",
+  "Valor médio da primeira assinatura":
+    "Average first subscription amount",
+  "indicado":
+    "referral",
+  "Comissão estimada em 12 meses":
+    "Estimated commission in 12 months",
+  "Comissão acumulada":
+    "Accumulated commission",
+  "no 12º mês":
+    "by month 12",
+  "Estimativa com comissão de":
+    "Estimate with a commission of",
+  "sobre a primeira assinatura. O valor real depende de quantas pessoas assinam e de reembolsos.":
+    "on the first subscription. The real amount depends on how many people subscribe and on refunds.",
+  "Vantagens":
+    "Benefits",
+  "Vai além da comissão":
+    "More than the commission",
+  "Comissão em dinheiro":
+    "Commission in cash",
+  "Você recebe em dinheiro, não em créditos da plataforma que precisam ser gastos aqui dentro.":
+    "You get paid in cash, not in platform credits that have to be spent here.",
+  "Indicações rastreadas":
+    "Tracked referrals",
+  "Veja quem criou conta pelo seu link e quem assinou, para saber o que está funcionando.":
+    "See who signed up through your link and who subscribed, so you know what is working.",
+  "Saque quando quiser":
+    "Withdraw whenever you want",
+  "Pelo Stripe, direto para o seu banco. Se o plano foi pago em USDC, a comissão vai em USDC para a sua carteira.":
+    "Through Stripe, straight to your bank. If the plan was paid in USDC, the commission goes in USDC to your wallet.",
+  "Seu código, seu nome":
+    "Your code, your name",
+  "Troque o código do link por um que tenha a sua cara. Dá para escolher uma vez.":
+    "Swap the code in your link for one that looks like you. You can choose it once.",
+  "Modelo de comissão":
+    "Commission model",
+  "O que você ganha por compartilhar um link":
+    "What you earn for sharing a link",
+  "de comissão na primeira assinatura de cada indicado":
+    "commission on each referral's first subscription",
+  "dias: é por quanto tempo o clique no seu link fica guardado":
+    "days: how long a click on your link is remembered",
+  "dias depois do pagamento para a comissão liberar para saque":
+    "days after the payment until the commission can be withdrawn",
+  "Ficou alguma dúvida?":
+    "Any questions?",
+  "Quem pode participar?":
+    "Who can take part?",
+  "Qualquer pessoa com conta na NIDO. O link já vem pronto; não há inscrição nem aprovação.":
+    "Anyone with a NIDO account. The link comes ready; there is no sign-up or approval.",
+  "Quanto eu ganho?":
+    "How much do I earn?",
+  "do valor da primeira assinatura de plano de cada pessoa que criar a conta pelo seu link.":
+    "of the first plan subscription payment of each person who signs up through your link.",
+  "O que gera comissão?":
+    "What earns commission?",
+  "A primeira assinatura de qualquer plano, mensal ou anual, no cartão, Pix, boleto ou USDC. Renovações, compra de créditos avulsos e o plano gratuito não geram comissão.":
+    "The first subscription to any plan, monthly or yearly, by card, Pix, boleto or USDC. Renewals, credit purchases and the free plan do not earn commission.",
+  "Quando posso sacar?":
+    "When can I withdraw?",
+  "dias depois do pagamento do indicado. Depois disso fica disponível, respeitando o saque mínimo.":
+    "days after the referred user's payment. After that it becomes available, subject to the minimum withdrawal.",
+  "E se o indicado pedir reembolso?":
+    "What if the referred user asks for a refund?",
+  "Se o pagamento for estornado, a comissão é desfeita. Se você já tinha sacado, o valor é descontado das próximas comissões.":
+    "If the payment is refunded, the commission is reversed. If you had already withdrawn it, the amount is deducted from your next commissions.",
+  "Posso indicar a mim mesmo?":
+    "Can I refer myself?",
+  "Não. Uma segunda conta sua, ou alguém na mesma rede de internet que você, não fica vinculada ao seu link.":
+    "No. A second account of yours, or someone on the same internet network as you, is not linked to your link.",
+
+  // Indique e ganhe: comissão recorrente
+  "Cada assinatura que vier do seu link gera":
+    "Every subscription that comes from your link earns",
+  "de comissão, e ela se repete nas renovações por até":
+    "commission, and it repeats on renewals for up to",
+  "meses.":
+    "months.",
+  "de comissão em cada assinatura":
+    "commission on every subscription",
+  "meses de comissão recorrente por indicado":
+    "months of recurring commission per referral",
+  "de cada assinatura de plano paga por quem criou a conta pelo seu link, incluindo as renovações.":
+    "of every plan subscription paid by people who signed up through your link, renewals included.",
+  "Assinaturas de qualquer plano, mensais ou anuais, e as renovações, no cartão, Pix, boleto ou USDC. Compra de créditos avulsos e o plano gratuito não geram comissão.":
+    "Subscriptions to any plan, monthly or yearly, and their renewals, by card, Pix, boleto or USDC. Credit purchases and the free plan do not earn commission.",
+  "Por quanto tempo uma indicação me paga?":
+    "How long does a referral keep paying me?",
+  "Por até":
+    "For up to",
+  "meses a partir da primeira assinatura, enquanto a pessoa continuar pagando.":
+    "months from their first subscription, as long as the person keeps paying.",
+  "todo mês.":
+    "every month.",
+  "de comissão, em dinheiro, por até":
+    "commission, in cash, for up to",
+  "meses em cada assinatura que vier do seu link. O saque é feito pelo Stripe; se o plano foi pago em USDC, a comissão sai em USDC para a sua carteira.":
+    "months on every subscription that comes from your link. Withdrawals are made through Stripe; if the plan was paid in USDC, the commission is paid in USDC to your wallet.",
+  "Cada nova indicação se soma às que já estão pagando, então a comissão cresce mês a mês. Ajuste os valores para estimar os primeiros 12 meses.":
+    "Each new referral adds to the ones already paying, so your commission grows month after month. Adjust the values to estimate the first 12 months.",
+  "Novas indicações por mês":
+    "New referrals per month",
+  "indicações":
+    "referrals",
+  "Gasto médio por indicado por mês":
+    "Average spend per referral per month",
+  "Comissão por mês":
+    "Commission per month",
+  "O valor real depende de renovações, cancelamentos e reembolsos.":
+    "The real amount depends on renewals, cancellations and refunds.",
+
+  "Cada personagem tem uma ficha de 7 etapas e um Prompt Mestre. Abra um card para editar a ficha ou gerar conteúdo no Estúdio.":
+    "Each character has a 7-step sheet and a Master Prompt. Open a card to edit the sheet or generate content in the Studio.",
 };

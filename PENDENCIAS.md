@@ -54,12 +54,13 @@ Página `/app/radar` (atalho na barra do topo): um radar por dia para cada nicho
 
 ## Indicações (novo em 07/10)
 
-Programa de indicação em Conta → Indique e ganhe (`/app/indicacoes`): link com código (`/?ref=codigo`), 10% em dinheiro sobre a primeira assinatura de plano do indicado, saque pelo Stripe Connect. Regras em [lib/indicacao/regras.ts](lib/indicacao/regras.ts).
+Programa de indicação em Conta → Indique e ganhe (`/app/indicacoes`): link com código (`/?ref=codigo`), 10% em dinheiro sobre cada assinatura de plano do indicado, por até 12 meses, saque pelo Stripe Connect. Regras em [lib/indicacao/regras.ts](lib/indicacao/regras.ts).
 
 - [x] Migration `db/migrations/0016_indicacoes.sql` aplicada no Neon em 07/10. O SQL do programa foi validado no banco (as instruções que escrevem, só analisadas, sem gravar nada).
 - [ ] **Ligar o Stripe Connect** (contas Express, com transferências) no Dashboard do Stripe. Sem isso "Conectar Stripe" falha. Passos no [DEPLOY.md](DEPLOY.md), seção 5, item 4.
 - [ ] **Nunca testado de verdade:** vínculo pelo link, comissão gerada por um pagamento, cadastro no Stripe e saque. Só as regras (código, cálculo dos 10%) têm teste, e a tela foi vista com dados simulados.
-- [ ] **Decidir:** 10% só da primeira assinatura (como está) ou também das renovações; carência de 7 dias; saque mínimo de R$ 20 / US$ 5.
+- [ ] **Comissão recorrente (07/10):** passou a ser 10% de cada pagamento de plano do indicado (primeira assinatura e renovações), por até 12 meses a partir da primeira comissão. Migration `db/migrations/0018_indicacao_recorrente.sql` aplicada no Neon em 07/10. Nunca testado com uma renovação de verdade.
+- [ ] **Decidir:** carência de 7 dias; saque mínimo de R$ 20 / US$ 5.
 - [ ] **Comissão em dólar no cartão** (indicado que pagou em USD pelo Stripe): o Stripe só transfere se a conta da plataforma tiver saldo em dólar e a conta do indicador aceitar. Pode falhar; o saldo volta para "disponível".
 - [ ] **Saque em USDC on-chain (feito em 07/10, envio nunca testado):** plano pago em USDC gera comissão em USDC, sacada da carteira de saques da NIDO para a carteira do usuário (Solana, Base, Arbitrum, BNB Chain ou Ethereum). Para ligar:
   - Migration `db/migrations/0017_indicacao_usdc.sql` aplicada no Neon em 07/10.

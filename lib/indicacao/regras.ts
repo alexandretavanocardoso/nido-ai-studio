@@ -1,14 +1,18 @@
 /**
  * Regras do programa de indicação. Compartilhado entre cliente e servidor.
  *
- * Quem indica ganha COMISSAO (10%) do valor que o indicado paga na primeira
- * assinatura de qualquer plano (cartão, Pix, boleto ou USDC). Compra de
- * créditos avulsos e renovações não geram comissão.
+ * Quem indica ganha COMISSAO (10%) de cada pagamento de plano do indicado —
+ * a primeira assinatura e as renovações, no cartão, Pix, boleto ou USDC — por
+ * até MESES_COMISSAO (12) meses contados da primeira comissão. Compra de
+ * créditos avulsos não gera comissão.
  *
  * A comissão sai na moeda do pagamento: BRL e USD são sacados pelo Stripe;
  * USDC (plano pago em USDC) é sacado on-chain, para a carteira do usuário.
  */
 export const COMISSAO = 0.1;
+
+/** Por quantos meses, a partir da primeira comissão, um indicado continua gerando comissão. */
+export const MESES_COMISSAO = 12;
 
 /** Dias até a comissão poder ser sacada (cobre estorno e contestação do pagamento). */
 export const CARENCIA_DIAS = 7;

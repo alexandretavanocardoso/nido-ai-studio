@@ -10,10 +10,32 @@ import { CreditosProvider } from "@/components/creditos/CreditosProvider";
 import { recursosDisponiveis } from "@/lib/recursos";
 import { ComIdioma, IdiomaDoDocumento } from "@/lib/i18n";
 
+const TITULO = "NIDO AI Studio — Crie seu Influenciador Sintético";
+const DESCRICAO =
+  "Defina quem é o seu influenciador sintético e produza imagens, vídeos, legendas e posts agendados no Estúdio — tudo em um só lugar.";
+/** Imagem que aparece ao compartilhar o link (WhatsApp, X, LinkedIn…). JPEG de 1905×825. */
+const BANNER = { url: "/banner/banner.jpg", width: 1905, height: 825 };
+
 export const metadata: Metadata = {
-  title: "NIDO AI Studio — Crie seu Influenciador Sintético",
-  description:
-    "Defina quem é o seu influenciador sintético e produza imagens, vídeos, legendas e posts agendados no Estúdio — tudo em um só lugar.",
+  // Os apps de mensagem só mostram a imagem com endereço completo: este é o domínio do site.
+  metadataBase: new URL(
+    process.env.BETTER_AUTH_URL?.trim() || "https://aistudio.nido.global",
+  ),
+  title: TITULO,
+  description: DESCRICAO,
+  openGraph: {
+    type: "website",
+    siteName: "NIDO AI Studio",
+    title: TITULO,
+    description: DESCRICAO,
+    images: [{ ...BANNER, alt: "NIDO AI Studio" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITULO,
+    description: DESCRICAO,
+    images: [BANNER.url],
+  },
 };
 
 export default function RootLayout({
