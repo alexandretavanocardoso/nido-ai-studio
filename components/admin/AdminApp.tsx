@@ -8,6 +8,7 @@ import {
   ChartColumn,
   CreditCard,
   Gift,
+  Inbox,
   LayoutDashboard,
   ShieldCheck,
   TrendingUp,
@@ -17,6 +18,7 @@ import { AccountMenu } from "@/components/auth/AccountMenu";
 import { cn } from "@/lib/cn";
 import { DashboardInfluencers } from "./DashboardInfluencers";
 import { Indicacoes } from "./Indicacoes";
+import { Leads } from "./Leads";
 import { Lucro } from "./Lucro";
 import { Pagamentos } from "./Pagamentos";
 import { Uso } from "./Uso";
@@ -29,6 +31,7 @@ const ABAS = [
   { id: "usuarios", titulo: "Usuários", icone: Users },
   { id: "pagamentos", titulo: "Pagamentos", icone: CreditCard },
   { id: "indicacoes", titulo: "Indicações", icone: Gift },
+  { id: "leads", titulo: "Leads", icone: Inbox },
   { id: "uso", titulo: "Uso de créditos", icone: BarChart3 },
   { id: "lucro", titulo: "Lucro", icone: TrendingUp },
 ] as const;
@@ -107,6 +110,7 @@ export function AdminApp({ email }: { email: string }) {
           )}
           {aba === "pagamentos" && <Pagamentos abrirUsuario={abrirUsuario} />}
           {aba === "indicacoes" && <Indicacoes abrirUsuario={abrirUsuario} />}
+          {aba === "leads" && <Leads />}
           {aba === "uso" && <Uso abrirUsuario={abrirUsuario} />}
           {aba === "lucro" && <Lucro abrirUsuario={abrirUsuario} />}
         </div>
