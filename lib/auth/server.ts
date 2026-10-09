@@ -16,6 +16,27 @@ function createAuth() {
         clientId: process.env.GOOGLE_CLIENT_ID ?? "",
         clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
       },
+      // Discord: só para vincular à conta (perfil). O login continua sendo
+      // pelo Google: ninguém cria conta pelo Discord.
+      ...(recursosDisponiveis().discord
+        ? {
+            discord: {
+              clientId: process.env.DISCORD_CLIENT_ID ?? "",
+              clientSecret: process.env.DISCORD_CLIENT_SECRET ?? "",
+              disableSignUp: true,
+            },
+          }
+        : {}),
+    },
+    account: {
+      accountLinking: {
+        enabled: true,
+        // O vínculo só acontece quando o usuário, logado, pede (linkSocial):
+        // nunca sozinho porque o e-mail de outra rede é igual.
+        disableImplicitLinking: true,
+        // O e-mail do Discord costuma ser outro que não o do Google.
+        allowDifferentEmails: true,
+      },
     },
   });
 }

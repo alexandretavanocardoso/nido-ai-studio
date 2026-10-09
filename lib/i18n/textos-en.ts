@@ -2642,4 +2642,55 @@ export const TEXTOS_EN: Record<string, string> = {
     "Usually takes 5 to 10 min",
   "Está demorando mais que o normal. Pode deixar aberto.":
     "Taking longer than usual. You can leave it open.",
+
+  "Vincular Discord":
+    "Link Discord",
+  "Discord vinculado":
+    "Discord linked",
+  "Desvincular o Discord":
+    "Unlink Discord",
+  "Desvincular o Discord?":
+    "Unlink Discord?",
+  "Você pode vincular de novo quando quiser.":
+    "You can link it again whenever you want.",
+  "Desvincular":
+    "Unlink",
+  "Não consegui abrir o Discord. Tente de novo.":
+    "Couldn't open Discord. Try again.",
+  "Não consegui desvincular. Tente de novo.":
+    "Couldn't unlink. Try again.",
+
+  "Perfil":
+    "Profile",
+  "Entre na sua conta para ver o perfil.":
+    "Sign in to see your profile.",
+  "Sua conta, seu plano e as contas vinculadas.":
+    "Your account, your plan and linked accounts.",
+  "Login pelo Google. Nome e foto vêm da sua conta Google.":
+    "Signed in with Google. Name and photo come from your Google account.",
+  "Próxima recarga em":
+    "Next refill on",
+  "do plano":
+    "from the plan",
+  "avulsos":
+    "extra",
+  "Contas vinculadas":
+    "Linked accounts",
+  "Vincule o seu Discord à conta. O login continua sendo pelo Google.":
+    "Link your Discord to the account. Sign-in is still with Google.",
+  "Armazenamento":
+    "Storage",
+  "Créditos":
+    "Credits",
+  "Sair":
+    "Sign out",
+
+  "Vinculado":
+    "Linked",
+  "Vincular":
+    "Link",
+  "Nenhuma conta vinculada":
+    "No account linked",
+  "Ligue outras contas à sua. O login continua sendo pelo Google.":
+    "Connect other accounts to yours. Sign-in is still with Google.",
 };

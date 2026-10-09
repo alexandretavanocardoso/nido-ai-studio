@@ -9,6 +9,8 @@ import type { RedeUsdc } from "@/lib/pagamentos/redes-usdc";
 export interface Recursos {
   /** Login com Google + banco (Neon). Sem isso: modo anônimo, só no navegador. */
   login: boolean;
+  /** Vincular o Discord à conta (app do Discord configurado). Exige login. */
+  discord: boolean;
   /** Arquivos no S3 (imagens e vídeos). Exige login. */
   armazenamento: boolean;
   /** IA de texto (Anthropic): expandir ficha, sugerir campo, regenerar, checar. */
@@ -53,6 +55,7 @@ export function recursosDisponiveis(): Recursos {
   );
   return {
     login,
+    discord: login && tem("DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET"),
     armazenamento:
       login &&
       tem(

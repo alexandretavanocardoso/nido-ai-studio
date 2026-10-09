@@ -40,12 +40,14 @@ import {
   X,
   Zap,
   type LucideIcon,
+  UserRound,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
 import { liberadoNaTela } from "@/lib/em-teste";
 import { CreateDialog, type InicioCriar } from "@/components/home/CreateDialog";
 import { TutorialCriar } from "@/components/home/TutorialCriar";
+import { DiscordConta } from "@/components/auth/DiscordConta";
 import { useRecursos } from "@/components/RecursosProvider";
 import { TarefasEmAndamento } from "@/components/TarefasEmAndamento";
 import type { SecaoEstudio } from "@/components/estudio/Estudio";
@@ -720,6 +722,15 @@ function ContaDoMenu({
               Admin
             </Link>
           ) : null}
+          <Link
+            href="/app/perfil"
+            onClick={() => setAberto(false)}
+            className={item}
+          >
+            <UserRound className="h-4 w-4" />
+            {tx("Perfil")}
+          </Link>
+          <DiscordConta className={item} />
           <div className="flex items-center gap-2.5 px-2.5 py-1">
             <Languages
               className="h-4 w-4 shrink-0 text-nido-mute"
