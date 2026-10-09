@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useRecursos } from "@/components/RecursosProvider";
+import type { EstadoEmTeste } from "@/lib/em-teste";
 import type { Intervalo, PlanoId } from "@/lib/planos";
 
 export interface ContaCreditos {
@@ -25,6 +26,8 @@ export interface ContaCreditos {
   armazenamento: { usadoBytes: number; cotaBytes: number };
   /** Mostra o link da área admin (o acesso em si é checado no servidor). */
   admin?: boolean;
+  /** Recursos em teste (lib/em-teste.ts): true = só admin vê. */
+  emTeste?: Partial<EstadoEmTeste>;
 }
 
 interface Estado {

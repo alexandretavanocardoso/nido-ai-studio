@@ -5,6 +5,8 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useCharacters } from "@/lib/store";
 import {
   deleteRemote,
+  gravarMarcas,
+  lerMarcas,
   listRemote,
   upsertRemote,
   usePendentesDeSync,
@@ -44,6 +46,8 @@ export function CharactersSyncer() {
     recusados: new Set<string>(),
     falharam: new Set<string>(),
   });
+  /** Exclusões que o servidor ainda não confirmou. */
+  const aExcluir = useRef<Set<string>>(new Set());
   const fila = useRef<Promise<void>>(Promise.resolve());
   const logado = useRef(false);
   logado.current = !!user?.id;
@@ -55,18 +59,39 @@ export function CharactersSyncer() {
 
     if (currentId && !previousUser.current) {
       hydrating.current = true;
-      void listRemote().then((remote) => {
+      void listRemote().then((lido) => {
+        const remote = lido ?? [];
         const local = useCharacters.getState().characters;
+        const marcas = lerMarcas(currentId);
+        const jaNaConta = new Set(marcas.sincronizados);
+        aExcluir.current = new Set(marcas.excluir);
         const remoteIds = new Set(remote.map((c) => c.id));
-        const localOnly = local.filter((c) => !remoteIds.has(c.id));
+        // Local que já esteve na conta e sumiu de lá foi excluído em outro
+        // aparelho: não volta. Sem ler a conta (lido = null), não descarta nada.
+        const localOnly = local.filter(
+          (c) => !remoteIds.has(c.id) && !(lido && jaNaConta.has(c.id)),
+        );
         // Só o que veio do banco está sincronizado; a fase 2 envia o resto.
         lastSynced.current = snapshot(remote);
+        if (lido)
+          gravarMarcas(currentId, {
+            sincronizados: [...remoteIds],
+            excluir: marcas.excluir,
+          });
         hydrating.current = false;
-        useCharacters.setState({ characters: [...localOnly, ...remote] });
+        // Exclusão que não chegou ao servidor: fica fora e a fase 2 reenvia.
+        useCharacters.setState({
+          characters: [
+            ...localOnly,
+            ...remote.filter((c) => !aExcluir.current.has(c.id)),
+          ],
+        });
       });
     } else if (!currentId && previousUser.current) {
       hydrating.current = true;
       useCharacters.setState({ characters: [] });
+      gravarMarcas(previousUser.current, null);
+      aExcluir.current = new Set();
       lastSynced.current = new Map();
       tentado.current = new Map();
       pendentes.current = { recusados: new Set(), falharam: new Set() };
@@ -80,6 +105,7 @@ export function CharactersSyncer() {
   // Fase 2: escreve mudanças no banco quando logado.
   useEffect(() => {
     if (!user?.id || hydrating.current) return;
+    const userId = user.id;
 
     // Em fila: uma rodada por vez, cada uma olhando o estado mais recente.
     fila.current = fila.current.then(async () => {
@@ -93,10 +119,22 @@ export function CharactersSyncer() {
           tentado.current.get(c.id) !== json
         );
       });
-      const removed = [...lastSynced.current.keys()].filter(
-        (id) => !current.has(id),
-      );
+      for (const id of aExcluir.current)
+        if (current.has(id)) aExcluir.current.delete(id);
+      const removed = [
+        ...new Set([...lastSynced.current.keys(), ...aExcluir.current]),
+      ].filter((id) => !current.has(id));
       if (!changed.length && !removed.length) return;
+
+      // Anota a exclusão antes de tentar: se a aba fechar ou a rede cair, o
+      // personagem não volta da conta na próxima visita.
+      for (const id of removed) aExcluir.current.add(id);
+      const marcar = () =>
+        gravarMarcas(userId, {
+          sincronizados: [...lastSynced.current.keys()],
+          excluir: [...aExcluir.current],
+        });
+      marcar();
 
       const r = await upsertRemote(changed);
       if (!logado.current) return;
@@ -118,9 +156,13 @@ export function CharactersSyncer() {
         p.recusados.delete(id);
       }
       for (const id of removed) {
-        await deleteRemote(id);
+        // Só sai da lista quando o servidor confirma; senão tenta de novo.
+        if (!(await deleteRemote(id))) continue;
         lastSynced.current.delete(id);
+        aExcluir.current.delete(id);
       }
+      if (!logado.current) return;
+      marcar();
 
       const existe = new Set(
         useCharacters.getState().characters.map((c) => c.id),

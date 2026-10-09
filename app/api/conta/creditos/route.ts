@@ -5,6 +5,7 @@ import { getPool } from "@/lib/db";
 import { usoArmazenamento } from "@/lib/limites";
 import { cotaArmazenamentoBytes } from "@/lib/planos";
 import { ehAdmin } from "@/lib/admin/acesso";
+import { estadoEmTeste } from "@/lib/admin/em-teste-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +29,9 @@ export async function GET() {
     ativo: true,
     // Só para mostrar o link "Admin" no menu; o acesso é checado no servidor.
     admin: ehAdmin(eu[0]?.email),
+    // Recursos em teste: true = só admin vê. A tela esconde por aqui; quem
+    // barra de verdade são as rotas.
+    emTeste: await estadoEmTeste(),
     plano: conta.plano,
     intervalo: conta.intervalo,
     planoExpiraEm: conta.planoExpiraEm,

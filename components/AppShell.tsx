@@ -417,8 +417,8 @@ function MenuLateral({
           href: "/app/planos",
           ativo: pathname === "/app/planos",
         },
-        // Em teste: por enquanto só as contas admin veem (lib/em-teste.ts).
-        ...(liberadoNaTela("indicacoes", conta?.admin)
+        // Em teste: fechados, só as contas admin veem (lib/em-teste.ts).
+        ...(liberadoNaTela("indicacoes", conta)
           ? [
               {
                 rotulo: tx("Indique e ganhe"),
@@ -429,7 +429,7 @@ function MenuLateral({
               },
             ]
           : []),
-        ...(liberadoNaTela("mcp", conta?.admin)
+        ...(liberadoNaTela("mcp", conta)
           ? [
               {
                 rotulo: tx("Claude Code (MCP)"),

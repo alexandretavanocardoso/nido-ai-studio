@@ -7,6 +7,7 @@ import {
   BarChart3,
   ChartColumn,
   CreditCard,
+  FlaskConical,
   Gift,
   Inbox,
   LayoutDashboard,
@@ -17,6 +18,7 @@ import {
 import { AccountMenu } from "@/components/auth/AccountMenu";
 import { cn } from "@/lib/cn";
 import { DashboardInfluencers } from "./DashboardInfluencers";
+import { EmTesteAdmin } from "./EmTesteAdmin";
 import { Indicacoes } from "./Indicacoes";
 import { Leads } from "./Leads";
 import { Lucro } from "./Lucro";
@@ -34,6 +36,7 @@ const ABAS = [
   { id: "leads", titulo: "Leads", icone: Inbox },
   { id: "uso", titulo: "Uso de créditos", icone: BarChart3 },
   { id: "lucro", titulo: "Lucro", icone: TrendingUp },
+  { id: "emteste", titulo: "Em teste", icone: FlaskConical },
 ] as const;
 type Aba = (typeof ABAS)[number]["id"];
 
@@ -113,6 +116,7 @@ export function AdminApp({ email }: { email: string }) {
           {aba === "leads" && <Leads />}
           {aba === "uso" && <Uso abrirUsuario={abrirUsuario} />}
           {aba === "lucro" && <Lucro abrirUsuario={abrirUsuario} />}
+          {aba === "emteste" && <EmTesteAdmin />}
         </div>
       </div>
     </main>

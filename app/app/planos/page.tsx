@@ -97,7 +97,7 @@ function Conteudo() {
   const { user } = useAuth();
   const { conta, recarregar } = useCreditos();
   // Stripe em teste: por enquanto só as contas admin compram por ele (lib/em-teste.ts).
-  const stripeLigado = recursos.stripe && liberadoNaTela("stripe", conta?.admin);
+  const stripeLigado = recursos.stripe && liberadoNaTela("stripe", conta);
   const params = useSearchParams();
   const [intervalo, setIntervalo] = useState<Intervalo>("mensal");
   const [abrindo, setAbrindo] = useState<string | null>(null);

@@ -8,7 +8,8 @@ import type { Character } from "@/lib/types";
  * continua sendo a fonte da verdade em memória; estes helpers são
  * chamados por um syncer que roda no cliente quando há usuário logado.
  */
-export async function listRemote(): Promise<Character[]> {
+/** `null` = não deu para ler a conta (rede, sessão): não é o mesmo que conta vazia. */
+export async function listRemote(): Promise<Character[] | null> {
   try {
     const res = await fetch("/api/characters", { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -16,8 +17,40 @@ export async function listRemote(): Promise<Character[]> {
     return body.characters.filter((c): c is Character => !!c && !!c.id);
   } catch (e) {
     console.error("[sync] listRemote:", (e as Error).message);
-    return [];
+    return null;
   }
+}
+
+const MARCAS_KEY = "cis.sync.v1";
+
+/**
+ * O que este navegador sabe da conta, guardado entre visitas:
+ *  - `sincronizados`: ids que o servidor já confirmou. Se um deles some da
+ *    conta, foi excluído em outro aparelho/aba — não é um personagem novo.
+ *  - `excluir`: exclusões que ainda não chegaram ao servidor.
+ */
+export interface MarcasDeSync {
+  sincronizados: string[];
+  excluir: string[];
+}
+
+export function lerMarcas(userId: string): MarcasDeSync {
+  try {
+    const m = JSON.parse(localStorage.getItem(MARCAS_KEY) ?? "null") as
+      | (MarcasDeSync & { userId: string })
+      | null;
+    if (m?.userId === userId)
+      return { sincronizados: m.sincronizados ?? [], excluir: m.excluir ?? [] };
+  } catch {}
+  return { sincronizados: [], excluir: [] };
+}
+
+export function gravarMarcas(userId: string, marcas: MarcasDeSync | null) {
+  try {
+    if (marcas)
+      localStorage.setItem(MARCAS_KEY, JSON.stringify({ userId, ...marcas }));
+    else localStorage.removeItem(MARCAS_KEY);
+  } catch {}
 }
 
 /**
@@ -65,11 +98,14 @@ export async function upsertRemote(
   return r;
 }
 
-export async function deleteRemote(id: string): Promise<void> {
+/** Devolve se o servidor confirmou a exclusão. */
+export async function deleteRemote(id: string): Promise<boolean> {
   try {
     const res = await fetch(`/api/characters/${encodeURIComponent(id)}`, { method: "DELETE" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return true;
   } catch (e) {
     console.error("[sync] deleteRemote:", (e as Error).message);
+    return false;
   }
 }

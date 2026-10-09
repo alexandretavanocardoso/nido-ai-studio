@@ -7,7 +7,8 @@ import { liberadoNaTela, type RecursoEmTeste } from "@/lib/em-teste";
 import { tx } from "@/lib/i18n/tx";
 
 /**
- * Envolve uma tela em teste: só aparece para quem tem acesso (lib/em-teste.ts).
+ * Envolve uma tela em teste: só aparece para quem tem acesso (lib/em-teste.ts;
+ * o admin abre e fecha cada recurso na área admin, aba "Em teste").
  * Quem chega pelo endereço sem acesso vê um aviso — as rotas também recusam.
  */
 export function EmTeste({
@@ -18,7 +19,7 @@ export function EmTeste({
   children: React.ReactNode;
 }) {
   const { conta } = useCreditos();
-  if (liberadoNaTela(recurso, conta?.admin)) return <>{children}</>;
+  if (liberadoNaTela(recurso, conta)) return <>{children}</>;
   return (
     <div className="mx-auto grid max-w-md place-items-center gap-3 px-4 py-24 text-center">
       {conta === null || conta === undefined ? (

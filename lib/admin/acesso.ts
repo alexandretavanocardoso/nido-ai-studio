@@ -2,7 +2,8 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { getAuth } from "@/lib/auth/server";
 import { getPool } from "@/lib/db";
-import { SO_ADMIN, type RecursoEmTeste } from "@/lib/em-teste";
+import type { RecursoEmTeste } from "@/lib/em-teste";
+import { soAdminAgora } from "./em-teste-server";
 
 /**
  * Quem pode abrir a área admin (/app/admin e /api/admin/*).
@@ -48,13 +49,14 @@ export async function adminOuResponder(): Promise<Admin | NextResponse> {
 }
 
 /**
- * Recurso em teste (lib/em-teste.ts): só admin usa. Devolve a recusa pronta,
- * ou null se a sessão atual pode usar. 404 para não revelar que existe.
+ * Recurso em teste (lib/em-teste.ts): enquanto estiver fechado, só admin usa
+ * (o admin abre e fecha na aba "Em teste"). Devolve a recusa pronta, ou null se
+ * a sessão atual pode usar. 404 para não revelar que existe.
  */
 export async function liberadoOuResponder(
   recurso: RecursoEmTeste,
 ): Promise<NextResponse | null> {
-  if (!SO_ADMIN[recurso] || (await adminAtual())) return null;
+  if (!(await soAdminAgora(recurso)) || (await adminAtual())) return null;
   return NextResponse.json({ error: "Não encontrado." }, { status: 404 });
 }
 
@@ -63,7 +65,7 @@ export async function usuarioLiberado(
   recurso: RecursoEmTeste,
   userId: string,
 ): Promise<boolean> {
-  if (!SO_ADMIN[recurso]) return true;
+  if (!(await soAdminAgora(recurso))) return true;
   const pool = getPool();
   if (!pool) return false;
   const { rows } = await pool.query<{ email: string; v: boolean }>(
