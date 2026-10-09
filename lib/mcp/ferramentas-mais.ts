@@ -449,6 +449,7 @@ export const MAIS_FERRAMENTAS: Ferramenta[] = [
       await registrarVideo(userId, c, {
         name: "Vídeo (com os personagens · Claude Code).mp4",
         jobId: String(r.jobId),
+        antesKey: r.antesKey ? String(r.antesKey) : undefined,
         origem: "substituicao",
         duracao: Number(r.duracao) || undefined,
       });

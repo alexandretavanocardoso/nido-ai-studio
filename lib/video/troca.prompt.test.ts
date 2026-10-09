@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { promptTroca } from "./troca";
+import { alvosDoTrecho, promptTroca } from "./troca";
 
 describe("promptTroca", () => {
   it("sem descrição: troca a pessoa principal e protege as outras pessoas", () => {
@@ -78,6 +78,37 @@ describe("troca de várias pessoas", () => {
     expect(p).toMatch(/All 2 listed people must be replaced/);
     expect(p).toMatch(/loose object/);
     expect(promptTroca("kling", [{}], false)).not.toMatch(/listed people must be replaced/);
+  });
+
+  it("cada pessoa fica com o mesmo personagem, também de costas ou fora de cena", () => {
+    const p = promptTroca("kling", alvos, false);
+    expect(p).toMatch(/A back view stays a back view/);
+    expect(p).toMatch(/while they are not on screen their character does not appear/);
+    // A regra de costas vale também com uma pessoa só.
+    expect(promptTroca("kling", [{}], false)).toMatch(/A back view stays a back view/);
+  });
+
+  it("trecho em que só uma das pessoas aparece: vai só o personagem dela", () => {
+    const completos = [
+      { personagemUrl: "a", descricao: "the man in green" },
+      { personagemUrl: "b", descricao: "the man in a cap" },
+    ];
+    // Só a segunda pessoa aparece; a âncora mostra as duas.
+    const so2 = alvosDoTrecho(completos, [1], [0, 1]);
+    expect(so2.alvos.map((a) => a.personagemUrl)).toEqual(["b"]);
+    expect(so2.naAncora).toEqual([0]);
+    expect(so2.sobraNaAncora).toBe(true);
+    const p = promptTroca("kling", so2.alvos, false, true, [], so2.naAncora, so2.sobraNaAncora);
+    expect(p).toMatch(/the man in a cap → replace with the character @Element1/);
+    expect(p).not.toMatch(/the man in green/);
+    expect(p).toMatch(/also shows another replaced person who does NOT appear/);
+    // Todos presentes, lista vazia ou sem leitura: fica como sempre foi.
+    for (const presentes of [[0, 1], [], undefined])
+      expect(alvosDoTrecho(completos, presentes, [0, 1])).toEqual({
+        alvos: completos,
+        naAncora: [0, 1],
+        sobraNaAncora: false,
+      });
   });
 
   it("âncora com só um dos alvos: avisa que o outro também tem que ser trocado", () => {

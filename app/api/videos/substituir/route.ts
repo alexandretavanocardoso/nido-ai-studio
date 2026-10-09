@@ -25,8 +25,14 @@ import {
   creditosTrocaPremium,
 } from "@/lib/planos";
 import { getPool } from "@/lib/db";
-import { downloadToFile, getObjectBuffer, ownsKey } from "@/lib/storage/s3";
-import { cortarInicio, probe } from "@/lib/video/ffmpeg";
+import {
+  downloadToFile,
+  getObjectBuffer,
+  newKey,
+  ownsKey,
+  uploadFromFile,
+} from "@/lib/storage/s3";
+import { cortarInicio, probe, trechosTroca } from "@/lib/video/ffmpeg";
 import { getFal, mensagemDeErro } from "@/lib/video/fal";
 import {
   iniciarTroca,
@@ -34,7 +40,7 @@ import {
   personagemSemFundo,
 } from "@/lib/video/troca";
 import { descreverPessoas } from "@/lib/video/pessoas";
-import { prepararAncora } from "@/lib/video/ancora";
+import { alvosPorTrecho, prepararAncora } from "@/lib/video/ancora";
 import {
   custoTroca,
   custoTrocaPremium,
@@ -196,6 +202,7 @@ export async function POST(req: Request) {
   try {
     return await comPastaTemporaria(async (dir) => {
       let arquivo = path.join(dir, "entrada.mp4");
+      let cortado = false;
       if (link) await baixarVideo(link.fal_url, arquivo);
       else await downloadToFile(s3, body.videoKey!, arquivo);
       let info = await probe(arquivo);
@@ -213,6 +220,7 @@ export async function POST(req: Request) {
         const trecho = path.join(dir, "trecho.mp4");
         await cortarInicio(arquivo, body.segundos, trecho);
         arquivo = trecho;
+        cortado = true;
         info = await probe(arquivo);
       }
       // Duração medida no servidor: é ela que vale pra cota e pros limites.
@@ -278,6 +286,22 @@ export async function POST(req: Request) {
       if (cobrado instanceof NextResponse) return cobrado;
       cobranca = cobrado.cobranca;
 
+      // "Antes e depois": o trecho original que vai ser trocado fica guardado
+      // para comparar com o resultado. Vídeo da conta usado inteiro já está lá.
+      let antesKey: string | null = !link && !cortado ? body.videoKey! : null;
+      if (!antesKey) {
+        try {
+          antesKey = newKey(userId, "videos", "video/mp4");
+          await somarArmazenamento(
+            userId,
+            await uploadFromFile(s3, antesKey, arquivo, "video/mp4"),
+          );
+        } catch (e) {
+          console.warn("[videos/substituir] original não guardado:", e);
+          antesKey = null;
+        }
+      }
+
       const jobId = nanoid(12);
       // Quem trocar: descrição de cada pessoa marcada (Gemini lê o quadro marcado).
       const descricoes = body.pessoas
@@ -296,8 +320,9 @@ export async function POST(req: Request) {
       // Em paralelo: (1) quadro-âncora (só Kling) — a troca feita num quadro do
       // vídeo guia todos os trechos (mesmo visual nas emendas, outras pessoas
       // preservadas) e, sem ninguém marcado, descreve a pessoa principal;
-      // (2) personagens sem fundo.
-      const [ancora, personagensUrl] = await Promise.all([
+      // (2) personagens sem fundo; (3) com mais de uma pessoa marcada e vídeo
+      // em trechos, quem aparece em cada trecho.
+      const [ancora, personagensUrl, porTrecho] = await Promise.all([
         body.motor === "kling"
           ? prepararAncora({
               arquivo,
@@ -316,6 +341,19 @@ export async function POST(req: Request) {
         Promise.all(
           personagens.map((imagem) => personagemSemFundo(fal, imagem)),
         ),
+        body.pessoas && body.pessoas.length > 1
+          ? alvosPorTrecho({
+              arquivo,
+              dir,
+              duracao,
+              trechos: trechosTroca(
+                duracao,
+                MOTORES_TROCA[body.motor].maxTrecho,
+              ),
+              marcadas: body.pessoas,
+              descricoes,
+            })
+          : undefined,
       ]);
       const alvos = personagensUrl.map((figura, i) => ({
         personagemUrl: figura.url,
@@ -334,6 +372,7 @@ export async function POST(req: Request) {
         ancora: ancora.imagem,
         outras: ancora.outras,
         naAncora: ancora.naAncora,
+        alvosPorTrecho: porTrecho,
       });
       const custo = premium
         ? custoTrocaPremium(duracao)
@@ -359,6 +398,7 @@ export async function POST(req: Request) {
                 }
               : undefined,
             imageKey: imagens[0],
+            antesKey,
             pessoas: body.pessoas?.map((p, i) => ({
               ...p,
               descricao: descricoes[i],
@@ -367,6 +407,8 @@ export async function POST(req: Request) {
             // alvos apareciam trocados nele e quem a IA listou como "outras pessoas".
             ancora: { usada: !!ancora.imagem, alvos: ancora.naAncora },
             outras: ancora.outras,
+            // Quais pessoas marcadas a IA viu em cada trecho (só as vistas vão ao motor).
+            alvosPorTrecho: porTrecho,
             // Trechos na fila e o áudio original (volta no vídeo final).
             ...troca,
             removerTexto: body.removerTexto,
@@ -379,6 +421,7 @@ export async function POST(req: Request) {
 
       return NextResponse.json({
         jobId,
+        antesKey,
         duracao,
         custoEstimado: custo,
         creditos,

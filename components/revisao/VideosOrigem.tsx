@@ -17,6 +17,7 @@ import {
   UserRound,
   X,
   type LucideIcon,
+  ChevronsLeftRight,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { AplicarFalaModal } from "@/components/revisao/AplicarFalaModal";
@@ -33,6 +34,7 @@ import { Button } from "@/components/ui/Button";
 import { LegendaEditor } from "@/components/revisao/LegendaEditor";
 import { SubstituirPessoaModal } from "@/components/revisao/SubstituirPessoaModal";
 import { CriarVideoModal } from "@/components/revisao/CriarVideoModal";
+import { AntesDepois } from "@/components/revisao/AntesDepois";
 import { tx } from "@/lib/i18n/tx";
 import { txErro } from "@/lib/i18n/erros";
 
@@ -123,6 +125,47 @@ export function VideosOrigem({ character }: { character: Character }) {
   const [erro, setErro] = useState<string | null>(null);
   const [legendaDe, setLegendaDe] = useState<VideoArquivo | null>(null);
   const [trocarDe, setTrocarDe] = useState<VideoArquivo | null>(null);
+  /** Vídeo trocado aberto no "antes e depois". */
+  const [comparar, setComparar] = useState<VideoArquivo | null>(null);
+  const [buscandoOriginal, setBuscandoOriginal] = useState<string | null>(null);
+  /**
+   * Abre o "antes e depois". Troca antiga por link não tinha o original
+   * guardado: o servidor recupera da cópia do vídeo buscado e guarda na conta.
+   */
+  async function abrirComparacao(v: VideoArquivo) {
+    if (originalDe(v)) return setComparar(v);
+    if (!v.jobId) return;
+    setErro(null);
+    setBuscandoOriginal(v.id);
+    try {
+      const res = await fetch(
+        `/api/videos/jobs/${encodeURIComponent(v.jobId)}/antes`,
+        { method: "POST" },
+      );
+      const b = (await res.json().catch(() => ({}))) as {
+        antesKey?: string;
+        error?: string;
+      };
+      if (!res.ok || !b.antesKey)
+        return setErro(txErro(b.error ?? `Falha (HTTP ${res.status}).`));
+      update(character.id, (c) => {
+        const alvo = c.videos?.find((x) => x.id === v.id);
+        if (alvo) alvo.antesKey = b.antesKey;
+      });
+      setComparar({ ...v, antesKey: b.antesKey });
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setBuscandoOriginal(null);
+    }
+  }
+  /** Original de um vídeo trocado: o guardado na troca ou, nas antigas, o vídeo de onde ele veio. */
+  const originalDe = (v: VideoArquivo): string | null =>
+    v.origem !== "substituicao"
+      ? null
+      : (v.antesKey ??
+        (character.videos ?? []).find((x) => x.id === v.origemId)?.key ??
+        null) || null;
   const [criarAberto, setCriarAberto] = useState(false);
 
   const videos = character.videos ?? [];
@@ -484,6 +527,24 @@ export function VideosOrigem({ character }: { character: Character }) {
                               )}
                             </div>
                           )}
+                          {/* Antes e depois: uma linha própria, discreta, embaixo das ações. */}
+                          {!v.status &&
+                          v.key &&
+                          (originalDe(v) || (v.fonte && v.jobId)) ? (
+                            <button
+                              type="button"
+                              onClick={() => abrirComparacao(v)}
+                              disabled={buscandoOriginal === v.id}
+                              className="mt-1.5 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-full border border-line text-[12.5px] font-semibold text-ink-mute transition hover:border-accent hover:text-ink disabled:opacity-70"
+                            >
+                              {buscandoOriginal === v.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <ChevronsLeftRight className="h-3.5 w-3.5" />
+                              )}
+                              {tx("Ver antes e depois")}
+                            </button>
+                          ) : null}
                         </figcaption>
                       </figure>
                     );
@@ -494,6 +555,15 @@ export function VideosOrigem({ character }: { character: Character }) {
           })}
         </div>
       )}
+
+      {comparar && originalDe(comparar) ? (
+        <AntesDepois
+          antes={fileUrl(originalDe(comparar)!)}
+          depois={fileUrl(comparar.key)}
+          titulo={comparar.name}
+          onClose={() => setComparar(null)}
+        />
+      ) : null}
 
       {legendaDe && (
         <LegendaEditor
@@ -584,8 +654,9 @@ export function VideosOrigem({ character }: { character: Character }) {
           character={character}
           link={linkEncontrado}
           onClose={() => setLinkEncontrado(null)}
-          onEnviado={({ jobId, duracao }) => {
+          onEnviado={({ jobId, duracao, antesKey }) => {
             adicionarVideo({
+              antesKey,
               name: `${(linkEncontrado.titulo || `Vídeo do ${linkEncontrado.plataforma}`).slice(0, 60)} (com o personagem).mp4`,
               key: "",
               size: 0,
@@ -606,8 +677,9 @@ export function VideosOrigem({ character }: { character: Character }) {
           character={character}
           video={trocarDe}
           onClose={() => setTrocarDe(null)}
-          onEnviado={({ jobId, duracao }) => {
+          onEnviado={({ jobId, duracao, antesKey }) => {
             adicionarVideo({
+              antesKey,
               name: `${base(trocarDe)} (com o personagem).mp4`,
               key: "",
               size: 0,

@@ -69,6 +69,8 @@ export interface VideoArquivo {
   origemId?: string;
   /** Link de onde veio o vídeo de origem (quando a troca foi feita por link). */
   fonte?: string;
+  /** Vídeo original (o trecho que foi trocado), guardado para o "antes e depois". */
+  antesKey?: string;
   /** Duração em segundos, quando conhecida. */
   duracao?: number;
   /** Job de troca de pessoa (tabela video_jobs). */

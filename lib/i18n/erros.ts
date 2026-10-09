@@ -468,6 +468,19 @@ const ERROS_EN: Record<string, string> = {
   "Dê um nome ao token.": "Give the token a name.",
   "Token não encontrado.": "Token not found.",
   "JSON inválido.": "Invalid JSON.",
+  "O vídeo original desta troca não está mais disponível para comparar.":
+    "The original video of this swap is no longer available to compare.",
+  "Banco não configurado.": "Database not configured.",
+  "Não consegui falar com o Nido agora. Tente de novo em instantes.":
+    "I couldn't reach Nido right now. Try again in a moment.",
+  "Não consegui ler seus ganhos no Nido agora.":
+    "I couldn't read your Nido earnings right now.",
+  "Muitas consultas seguidas.":
+    "Too many requests in a row.",
+  "email inválido.":
+    "invalid e-mail.",
+  "Pedido inválido.":
+    "Invalid request.",
   "O Runway bloqueou a geração pela moderação de conteúdo.":
     "Runway blocked the generation through content moderation.",
   "Chave do Runway inválida. Confira RUNWAYML_API_SECRET.":

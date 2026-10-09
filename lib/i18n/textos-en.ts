@@ -1891,4 +1891,77 @@ export const TEXTOS_EN: Record<string, string> = {
     "This feature isn't available for your account yet.",
   "Voltar para o início":
     "Back to home",
+
+  "Antes e depois":
+    "Before and after",
+  "Antes":
+    "Before",
+  "Depois":
+    "After",
+  "O vídeo original não está mais disponível para comparar.":
+    "The original video is no longer available to compare.",
+  "Arraste a divisória para comparar o original com o vídeo novo.":
+    "Drag the divider to compare the original with the new video.",
+  "Posição do vídeo":
+    "Video position",
+  "Ligar o som":
+    "Unmute",
+  "Desligar o som":
+    "Mute",
+  "s · o trecho original fica guardado para o antes e depois":
+    "s · the original clip is kept for the before and after",
+
+  "Ver antes e depois": "See before and after",
+
+  // Nido (campanhas) no Dashboard
+  "Por campanha":
+    "By campaign",
+  "Ganhos em campanhas":
+    "Campaign earnings",
+  "Campanhas que participou":
+    "Campaigns joined",
+  "pagamentos confirmados no Nido":
+    "payments confirmed on Nido",
+  "com esta conta do Google":
+    "with this Google account",
+  "Campanhas exclusivas do NIDO AI Studio":
+    "NIDO AI Studio exclusive campaigns",
+  "Só para quem tem conta aqui. Entre no Nido com o mesmo Google.":
+    "Only for people with an account here. Sign in to Nido with the same Google account.",
+  "Campeonato de clipes":
+    "Clip championship",
+  "Campanha":
+    "Campaign",
+  "Participar":
+    "Join",
+  "A ligação com o Nido não está configurada neste deploy.":
+    "The Nido connection isn't configured on this deploy.",
+  "Não achei uma conta de creator no Nido com o e-mail do Google desta conta. Entre no Nido com o mesmo Google e participe de uma campanha: ela aparece aqui.":
+    "I couldn't find a creator account on Nido with this account's Google e-mail. Sign in to Nido with the same Google account and join a campaign: it shows up here.",
+  "Você ainda não participou de nenhuma campanha no Nido.":
+    "You haven't joined any campaign on Nido yet.",
+  "campanha":
+    "campaign",
+  "campanhas":
+    "campaigns",
+  "Campanhas do Nido em que você participou, e de qual influencer é cada uma.":
+    "Nido campaigns you joined, and which influencer each one belongs to.",
+  "Clipes":
+    "Clips",
+  "post":
+    "post",
+  "posts":
+    "posts",
+  "Ganho":
+    "Earned",
+  "Personagem desta campanha":
+    "Character for this campaign",
+  "Sem personagem":
+    "No character",
+  "ligado pelo link do post":
+    "linked by the post link",
+  "escolhido por você":
+    "chosen by you",
+  "escolha o influencer desta campanha":
+    "pick the influencer for this campaign",
 };

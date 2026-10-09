@@ -182,6 +182,16 @@ export function VideoMarcador({
   const [tocando, setTocando] = useState(false);
   /** O navegador não conseguiu abrir o vídeo (arquivo fora do ar ou formato que ele não toca). */
   const [semVideo, setSemVideo] = useState(false);
+  /**
+   * O arquivo da conta passa por uma rota que confere a sessão e redireciona
+   * para o S3; de vez em quando essa primeira resposta falha e o vídeo não
+   * abre. Antes de avisar, tenta de novo (até 3 vezes), sem usar o cache.
+   */
+  const [tentativa, setTentativa] = useState(0);
+  const fonte =
+    tentativa && src.startsWith("/")
+      ? `${src}${src.includes("?") ? "&" : "?"}r=${tentativa}`
+      : src;
 
   // Maior caixa com a proporção do vídeo que cabe na área.
   const largura = area.w && area.h ? Math.min(area.w, area.h * proporcao) : 0;
@@ -208,7 +218,7 @@ export function VideoMarcador({
         >
           <video
             ref={videoRef}
-            src={src}
+            src={fonte}
             muted
             playsInline
             preload="auto"
@@ -224,7 +234,11 @@ export function VideoMarcador({
             onPlay={() => setTocando(true)}
             onPause={() => setTocando(false)}
             onLoadedData={() => setSemVideo(false)}
-            onError={() => setSemVideo(true)}
+            onError={() => {
+              if (tentativa < 3 && src.startsWith("/"))
+                setTimeout(() => setTentativa((t) => t + 1), 700 * (tentativa + 1));
+              else setSemVideo(true);
+            }}
           />
           {semVideo ? (
             <div className="absolute inset-0 z-10 grid place-items-center bg-black p-5 text-center">
@@ -353,10 +367,70 @@ export interface OrigemMarca {
   src: string;
 }
 
+/** Tamanho da miniatura da pessoa marcada (px). */
+const MINI = { w: 48, h: 72 };
+
+/** Onde a pessoa está no quadro, lido da silhueta (frações 0–1) + proporção do quadro. */
+interface CaixaSilhueta {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  proporcao: number;
+}
+
+/** Caixa que envolve a silhueta (a máscara é um PNG local, dá pra ler os pixels). */
+function useCaixaDaSilhueta(mascara: string | null | undefined) {
+  const [caixa, setCaixa] = useState<CaixaSilhueta | null>(null);
+  useEffect(() => {
+    setCaixa(null);
+    if (!mascara) return;
+    let vivo = true;
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx || !w || !h) return;
+      ctx.drawImage(img, 0, 0);
+      const px = ctx.getImageData(0, 0, w, h).data;
+      let x0 = w;
+      let y0 = h;
+      let x1 = -1;
+      let y1 = -1;
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < w; x++)
+          if (px[(y * w + x) * 4 + 3] > 127) {
+            if (x < x0) x0 = x;
+            if (x > x1) x1 = x;
+            if (y < y0) y0 = y;
+            if (y > y1) y1 = y;
+          }
+      if (vivo && x1 >= x0 && y1 >= y0)
+        setCaixa({
+          x: x0 / w,
+          y: y0 / h,
+          w: (x1 - x0 + 1) / w,
+          h: (y1 - y0 + 1) / h,
+          proporcao: w / h,
+        });
+    };
+    img.src = mascara;
+    return () => {
+      vivo = false;
+    };
+  }, [mascara]);
+  return caixa;
+}
+
 /**
- * Miniatura da pessoa marcada: a altura toda do quadro (corpo inteiro), recortada
- * na horizontal em volta do clique. Sem canvas, pra funcionar com vídeo de outro
- * domínio. Se a origem não abrir, mostra só a cor da marca.
+ * Miniatura da pessoa marcada. Com a silhueta: só a pessoa, recortada do
+ * quadro e ampliada pra caber. Sem ela (ainda buscando, ou não veio): a altura
+ * toda do quadro em volta do clique. Não usa canvas no vídeo, pra funcionar com
+ * vídeo de outro domínio. Se a origem não abrir, mostra só a cor da marca.
  */
 function MiniaturaMarca({
   numero,
@@ -368,6 +442,7 @@ function MiniaturaMarca({
   origem?: OrigemMarca;
 }) {
   const [falhou, setFalhou] = useState(false);
+  const caixa = useCaixaDaSilhueta(marca.mascara);
   const cor = CORES_MARCA[numero - 1];
   if (!origem || falhou)
     return (
@@ -376,13 +451,46 @@ function MiniaturaMarca({
         style={{ background: cor }}
       />
     );
-  // Com `cover`, o ponto clicado cai na mesma fração da miniatura — o alvo abaixo fica em cima da pessoa.
-  const posicao = `${marca.x * 100}% ${marca.y * 100}%`;
   const t = Math.max(0.05, marca.t);
+  // Só a pessoa: o quadro é posicionado de modo que a caixa da silhueta ocupe
+  // a miniatura, e a silhueta esconde o resto.
+  let estilo: React.CSSProperties;
+  if (caixa && marca.mascara) {
+    const larguraPessoa = caixa.w * caixa.proporcao; // em "alturas de quadro"
+    const escala = Math.min(MINI.w / larguraPessoa, MINI.h / caixa.h);
+    const recorte = `url(${marca.mascara})`;
+    estilo = {
+      width: caixa.proporcao * escala,
+      height: escala,
+      left:
+        (MINI.w - larguraPessoa * escala) / 2 -
+        caixa.x * caixa.proporcao * escala,
+      top: (MINI.h - caixa.h * escala) / 2 - caixa.y * escala,
+      objectFit: "fill",
+      maskImage: recorte,
+      WebkitMaskImage: recorte,
+      maskSize: "100% 100%",
+      WebkitMaskSize: "100% 100%",
+      maskRepeat: "no-repeat",
+      WebkitMaskRepeat: "no-repeat",
+    };
+  } else {
+    // Com `cover`, o ponto clicado cai na mesma fração da miniatura.
+    estilo = {
+      inset: 0,
+      width: "100%",
+      height: "100%",
+      objectFit: "cover",
+      objectPosition: `${marca.x * 100}% ${marca.y * 100}%`,
+    };
+  }
   return (
     <span
-      className="relative h-[4.5rem] w-12 rounded-lg overflow-hidden border-2 bg-black shrink-0"
-      style={{ borderColor: cor }}
+      className={cn(
+        "relative shrink-0 overflow-hidden",
+        !caixa && "rounded-lg bg-black",
+      )}
+      style={{ width: MINI.w, height: MINI.h }}
     >
       {origem.tipo === "video" ? (
         <video
@@ -392,8 +500,8 @@ function MiniaturaMarca({
           muted
           playsInline
           preload="metadata"
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{ objectPosition: posicao }}
+          className="absolute max-w-none"
+          style={estilo}
           onLoadedMetadata={(e) => {
             e.currentTarget.currentTime = t;
           }}
@@ -405,19 +513,11 @@ function MiniaturaMarca({
           src={origem.src}
           alt=""
           draggable={false}
-          className="absolute inset-0 h-full w-full object-cover select-none"
-          style={{ objectPosition: posicao }}
+          className="absolute max-w-none select-none"
+          style={estilo}
           onError={() => setFalhou(true)}
         />
       )}
-      <span
-        className="absolute -translate-x-1/2 -translate-y-1/2 h-2 w-2 rounded-full ring-1 ring-black/60"
-        style={{
-          left: `${marca.x * 100}%`,
-          top: `${marca.y * 100}%`,
-          background: cor,
-        }}
-      />
     </span>
   );
 }

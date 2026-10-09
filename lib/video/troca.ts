@@ -116,6 +116,11 @@ export function promptTroca(
    * falta algum, o pedido avisa que esse também tem que ser trocado.
    */
   naAncora?: number[],
+  /**
+   * A âncora mostra também um personagem que NÃO aparece neste trecho (o
+   * trecho só tem parte das pessoas marcadas): o motor não pode trazê-lo.
+   */
+  sobraNaAncora = false,
 ): string {
   const ref = (i: number) =>
     motor === "kling" ? `@Element${i + 1}` : `@Image${i + 1}`;
@@ -141,11 +146,18 @@ export function promptTroca(
       : [
           `Keep each character's face, hair, style and outfit exactly as in ${refs}.`,
         ]),
+    ...(sobraNaAncora && ancora && motor === "kling"
+      ? [
+          "@Image1 also shows another replaced person who does NOT appear in @Video1: ignore that one and never add them, their face, hat or outfit to any frame.",
+        ]
+      : []),
     ...(alvos.length > 1
       ? [
           `All ${alvos.length} listed people must be replaced, each one only with their own character: never merge two characters, never leave one of the listed people unchanged, and never add a character's hat, hair or clothing as a loose object in the scene.`,
+          "A listed person may be off screen for part of the video: while they are not on screen their character does not appear at all. Never give one character's face, hair, hat or outfit to a different person.",
         ]
       : []),
+    "Each replaced person stays the SAME character from the first frame to the last, also when they turn around, stand up, walk away or are seen from behind. A back view stays a back view: show the character's back and the back of their head, never a face or a chest where the original shows a back.",
     "Every other person in @Video1 must stay exactly as they are — same face, hair, clothes and movements, appearing at the same moments, including when they pass in front of or behind the replaced person.",
     outras.length
       ? `Other people who appear in @Video1 and must NOT be changed in any way: ${outras.join("; ")}.`
@@ -169,6 +181,7 @@ function inputMotor(
     ancoraUrl?: string | null;
     outras?: string[];
     naAncora?: number[];
+    sobraNaAncora?: boolean;
   },
 ): Record<string, unknown> {
   if (motor === "kling")
@@ -180,6 +193,7 @@ function inputMotor(
         !!o.ancoraUrl,
         o.outras,
         o.naAncora,
+        o.sobraNaAncora,
       ),
       video_url: o.videoUrl,
       keep_audio: false,
@@ -280,6 +294,32 @@ export async function personagemSemFundo(
   }
 }
 
+/**
+ * Alvos de um trecho: só os que aparecem nele (`presentes`, índices da lista
+ * completa), com a âncora reindexada para essa lista menor. Lista vazia ou
+ * ausente = todos (na dúvida, o trecho recebe todo mundo, como sempre foi).
+ */
+export function alvosDoTrecho(
+  alvos: AlvoTroca[],
+  presentes: number[] | undefined,
+  naAncora: number[] | undefined,
+): { alvos: AlvoTroca[]; naAncora?: number[]; sobraNaAncora: boolean } {
+  const indices = presentes?.length
+    ? [...new Set(presentes)]
+        .filter((i) => i >= 0 && i < alvos.length)
+        .sort((a, b) => a - b)
+    : [];
+  if (!indices.length || indices.length === alvos.length)
+    return { alvos, naAncora, sobraNaAncora: false };
+  return {
+    alvos: indices.map((i) => alvos[i]),
+    naAncora: naAncora
+      ? indices.flatMap((i, novo) => (naAncora.includes(i) ? [novo] : []))
+      : undefined,
+    sobraNaAncora: !!naAncora?.some((i) => !indices.includes(i)),
+  };
+}
+
 /** Divide o vídeo (já baixado em `arquivo`), envia os trechos ao motor e guarda o áudio original. */
 export async function iniciarTroca(o: {
   fal: FalClient;
@@ -297,6 +337,12 @@ export async function iniciarTroca(o: {
   outras?: string[];
   /** Alvos que aparecem trocados na âncora (ver lib/video/ancora.ts). */
   naAncora?: number[];
+  /**
+   * Para cada trecho (mesma ordem de `trechosTroca`), os alvos que aparecem
+   * nele. Sem isso, todo trecho recebe todos os alvos — e, num trecho em que
+   * só uma das pessoas aparece, o motor "encaixa" o outro personagem nela.
+   */
+  alvosPorTrecho?: number[][];
 }): Promise<InputTroca> {
   const { maxTrecho } = MOTORES_TROCA[o.motor];
   const modelo =
@@ -324,12 +370,15 @@ export async function iniciarTroca(o: {
         const { request_id } = await o.fal.queue.submit(modelo, {
           input: inputMotor(o.motor, {
             videoUrl,
-            alvos: o.alvos,
             duracao: t.duracao,
             removerTexto: o.removerTexto,
             ancoraUrl,
             outras: o.outras,
-            naAncora: ancoraUrl ? o.naAncora : undefined,
+            ...alvosDoTrecho(
+              o.alvos,
+              o.alvosPorTrecho?.[i],
+              ancoraUrl ? o.naAncora : undefined,
+            ),
           }),
           webhookUrl: webhookUrl(o.jobId),
         });

@@ -139,7 +139,10 @@ async function vozesDoPersonagem(userId: string, c: Character) {
 export async function registrarVideo(
   userId: string,
   c: Character,
-  v: Pick<VideoArquivo, "name" | "jobId" | "origem" | "duracao" | "fonte">,
+  v: Pick<
+    VideoArquivo,
+    "name" | "jobId" | "origem" | "duracao" | "fonte" | "antesKey"
+  >,
 ): Promise<void> {
   const video: VideoArquivo = {
     id: nanoid(10),
@@ -589,6 +592,7 @@ export const FERRAMENTAS: Ferramenta[] = [
       await registrarVideo(userId, c, {
         name: "Vídeo por link (com o personagem · Claude Code).mp4",
         jobId: String(r.jobId),
+        antesKey: r.antesKey ? String(r.antesKey) : undefined,
         origem: "substituicao",
         duracao: Number(r.duracao) || undefined,
       });

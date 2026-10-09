@@ -41,6 +41,7 @@ import { INFO_REDES, REDES } from "@/lib/social/redes";
 import type { Character } from "@/lib/types";
 import { capaSrc } from "@/lib/storage/client";
 import { useCharacters } from "@/lib/store";
+import { FaixaNido, PorCampanha, useNido } from "./Nido";
 
 interface Resposta {
   configurado: boolean;
@@ -53,7 +54,7 @@ interface Resposta {
   error?: string;
 }
 
-type Aba = "geral" | "personagem";
+type Aba = "geral" | "personagem" | "campanha";
 
 const PERIODOS: Periodo[] = [7, 30, 90];
 const KPIS: Array<{ campo: keyof Metricas; rotulo: string; icon: LucideIcon }> =
@@ -87,6 +88,7 @@ export function Dashboard() {
   const [carregando, setCarregando] = useState(true);
   const [periodo, setPeriodo] = useState<Periodo>(30);
   const [aba, setAba] = useState<Aba>("geral");
+  const nido = useNido();
   const temPersonagens = useCharacters((s) => s.characters.length > 0);
   const [adicionando, setAdicionando] = useState(false);
 
@@ -353,6 +355,9 @@ export function Dashboard() {
         </div>
       ) : null}
 
+      {/* Nido: ganhos em campanhas e as exclusivas do Studio abertas. */}
+      {nido.dados ? <FaixaNido dados={nido.dados} /> : null}
+
       {!dados ? (
         carregando ? (
           <div className="grid place-items-center py-20 text-nido-dim">
@@ -378,6 +383,10 @@ export function Dashboard() {
               [
                 ["geral", "Visão geral"],
                 ["personagem", "Por personagem"],
+                // Campanhas do Nido: só quando a ligação entre os dois apps existe.
+                ...(nido.dados?.configurado
+                  ? ([["campanha", "Por campanha"]] as const)
+                  : []),
               ] as const
             ).map(([id, rotulo]) => (
               <button
@@ -424,9 +433,13 @@ export function Dashboard() {
             </div>
           ) : null}
 
-          <Kpis resumo={resumo} periodo={periodo} />
+          {aba === "campanha" ? (
+            <PorCampanha dados={nido.dados} onMudou={nido.recarregar} />
+          ) : (
+            <Kpis resumo={resumo} periodo={periodo} />
+          )}
 
-          {aba === "geral" ? (
+          {aba === "campanha" ? null : aba === "geral" ? (
             <>
               <Grafico resumo={resumo} periodo={periodo} />
               <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] gap-3.5">
@@ -450,10 +463,12 @@ export function Dashboard() {
             </>
           )}
 
-          <PostsPorLink
-            posts={posts.filter((p) => p.link)}
-            onMudou={() => carregar()}
-          />
+          {aba === "campanha" ? null : (
+            <PostsPorLink
+              posts={posts.filter((p) => p.link)}
+              onMudou={() => carregar()}
+            />
+          )}
 
           <p className={cn(mono, "text-[11px] text-nido-dim")}>
             {tx("Posts contam pela data de publicação.")}{" "}

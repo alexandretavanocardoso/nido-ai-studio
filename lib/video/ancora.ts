@@ -230,6 +230,115 @@ export async function descreverOutrasPessoas(
   }
 }
 
+/**
+ * Quais das pessoas marcadas aparecem em cada trecho do vídeo (índices da
+ * lista de alvos). Num trecho em que só uma aparece, mandar os dois
+ * personagens faz o motor misturá-los na pessoa que está em cena.
+ * Na dúvida — ou se a leitura falhar — o trecho fica com todos.
+ */
+export async function alvosPorTrecho(o: {
+  arquivo: string;
+  dir: string;
+  duracao: number;
+  trechos: Array<{ inicio: number; duracao: number }>;
+  marcadas: Array<{ t: number; x: number; y: number }>;
+  descricoes: string[];
+}): Promise<number[][]> {
+  const todos = o.descricoes.map((_, i) => i);
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey || o.trechos.length < 2 || todos.length < 2)
+    return o.trechos.map(() => todos);
+  try {
+    const marcados = await Promise.all(
+      o.marcadas.map(async (m, i) => {
+        const saida = path.join(o.dir, `trecho-marcada-${i}.jpg`);
+        await extrairQuadro(
+          o.arquivo,
+          Math.max(0.05, Math.min(m.t, o.duracao - 0.1)),
+          saida,
+        );
+        return {
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: await reduzido(await marcarPonto(await readFile(saida), m)),
+          },
+        };
+      }),
+    );
+    const ai = new GoogleGenAI({ apiKey });
+    return await Promise.all(
+      o.trechos.map(async (t, n) => {
+        try {
+          const quantos = Math.min(8, Math.max(4, Math.round(t.duracao)));
+          const quadros = await Promise.all(
+            Array.from({ length: quantos }, async (_, k) => {
+              const saida = path.join(o.dir, `trecho-${n}-${k}.jpg`);
+              await extrairQuadro(
+                o.arquivo,
+                Math.min(
+                  o.duracao - 0.1,
+                  t.inicio + ((k + 0.5) * t.duracao) / quantos,
+                ),
+                saida,
+              );
+              return {
+                inlineData: {
+                  mimeType: "image/jpeg",
+                  data: await reduzido(await readFile(saida)),
+                },
+              };
+            }),
+          );
+          const res = await ai.models.generateContent({
+            model: MODELO_VISAO,
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text:
+                      `The first ${marcados.length} images each show, with a red target, one TARGET person of a video, numbered in order: ${o.descricoes.map((d, i) => `${i + 1}) ${d}`).join("; ")}. ` +
+                      `After them come ${quantos} frames sampled, in order, from ONE part of that video. ` +
+                      "For each target, decide whether that same person appears anywhere in those frames — count them as present when they are seen from behind, partly cut off, blurred, far away or only for one frame. When in doubt, count them as present. " +
+                      'Answer with JSON only: {"present": [<numbers of the targets that appear>]}',
+                  },
+                  ...marcados,
+                  ...quadros,
+                ],
+              },
+            ],
+          });
+          const json = (res.text ?? "").match(/\{[\s\S]*\}/)?.[0];
+          const r = json ? (JSON.parse(json) as { present?: unknown }) : {};
+          const presentes = [
+            ...new Set(
+              (Array.isArray(r.present) ? r.present : [])
+                .filter(
+                  (x): x is number =>
+                    Number.isInteger(x) && x >= 1 && x <= todos.length,
+                )
+                .map((x) => x - 1),
+            ),
+          ].sort((a, b) => a - b);
+          return presentes.length ? presentes : todos;
+        } catch (e) {
+          console.warn(
+            `[ancora] não deu para ver quem aparece no trecho ${n + 1} (segue com todos):`,
+            (e as Error).message,
+          );
+          return todos;
+        }
+      }),
+    );
+  } catch (e) {
+    console.warn(
+      "[ancora] leitura dos trechos falhou (seguem com todos):",
+      (e as Error).message,
+    );
+    return o.trechos.map(() => todos);
+  }
+}
+
 /** Instantes para procurar outras pessoas: ~1 quadro por segundo, no máximo 16. */
 export function instantesVarredura(duracao: number): number[] {
   const n = Math.min(16, Math.max(4, Math.round(duracao)));

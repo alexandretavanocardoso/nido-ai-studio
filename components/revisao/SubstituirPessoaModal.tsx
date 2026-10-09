@@ -71,7 +71,12 @@ interface Props {
   video?: VideoArquivo;
   link?: VideoLink;
   onClose: () => void;
-  onEnviado: (job: { jobId: string; duracao: number }) => void;
+  onEnviado: (job: {
+    jobId: string;
+    duracao: number;
+    /** Vídeo original guardado para o "antes e depois". */
+    antesKey?: string;
+  }) => void;
 }
 
 /**
@@ -187,13 +192,18 @@ export function SubstituirPessoaModal({
         duracao?: number;
         error?: string;
         code?: string;
+        antesKey?: string | null;
       };
       avisarCreditos();
       if (!res.ok || !body.jobId) {
         setErroCode(body.code ?? null);
         return setErro(txErro(body.error ?? `Falha ao enviar (HTTP ${res.status}).`));
       }
-      onEnviado({ jobId: body.jobId, duracao: body.duracao ?? duracao });
+      onEnviado({
+        jobId: body.jobId,
+        duracao: body.duracao ?? duracao,
+        antesKey: body.antesKey ?? undefined,
+      });
     } catch (e) {
       setErro((e as Error).message);
     } finally {
@@ -261,7 +271,7 @@ export function SubstituirPessoaModal({
                   {link.plataforma}
                   {link.autor ? ` · @${link.autor}` : ""} ·{" "}
                   {link.duracao.toFixed(1)}
-                  {tx("s · origem não é salva")}
+                  {tx("s · o trecho original fica guardado para o antes e depois")}
                 </span>
               )}
             </div>
