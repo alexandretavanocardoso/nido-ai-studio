@@ -31,6 +31,7 @@ import {
   AVULSO_MIN,
   BONUS_USDC,
   CREDITOS_LEGENDA,
+  CREDITOS_POST_POR_REDE,
   CREDITOS_FIGURINHA,
   CREDITOS_TEXTO,
   CORPO_INTEIRO_POR_SEGUNDO,
@@ -638,7 +639,7 @@ function TabelaCustos() {
       "Radar do dia · notícias / notícias + X",
       `${creditosRadar(false)} / ${creditosRadar(true)}`,
     ],
-    ["Publicar ou agendar post (por rede)", "1"],
+    ["Publicar ou agendar post (por rede)", String(CREDITOS_POST_POR_REDE)],
     ["Ficha manual e exportar (PNG, PDF, JSON)", "grátis"],
   ];
   return (

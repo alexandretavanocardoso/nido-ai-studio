@@ -326,8 +326,13 @@ export const CREDITOS_RADAR = { noticias: 8, x: 18 } as const;
 export const creditosRadar = (comX: boolean) =>
   CREDITOS_RADAR.noticias + (comX ? CREDITOS_RADAR.x : 0);
 
-/** Publicar/agendar nas redes (bundle.social, ~US$ 0,01 por post): por rede. */
-export const CREDITOS_POST_POR_REDE = 1;
+/**
+ * Publicar/agendar nas redes: por rede. O preço segue o mercado, não o custo
+ * (bundle.social, ~US$ 0,01 por post): escrever (4) + publicar em uma rede (6)
+ * = 10 créditos, cerca de R$ 1,16 nos planos — uns 20% abaixo do post da Otto
+ * (R$ 1,41 no plano do meio).
+ */
+export const CREDITOS_POST_POR_REDE = 6;
 
 /** Colocar uma fala num vídeo (ffmpeg). */
 export const CREDITOS_APLICAR_AUDIO = 2;

@@ -252,7 +252,7 @@ Estúdio → **Publicar** (`BUNDLE_SOCIAL`; a partir do Starter). Redes: **Insta
 - **Post:** mídia do personagem (vídeo pronto ou imagem gerada, enviada ao bundle.social por URL pré-assinada do S3), legenda (com "Escrever com IA"), título (YouTube) e as redes. **Publicar agora** ou **Agendar** (data/hora local → UTC). Validação por rede antes de enviar: X até 280 caracteres, YouTube só vídeo e com título, Instagram/TikTok/YouTube exigem mídia, LinkedIn exige texto.
 - Tipos por rede: Instagram Reel (vídeo) ou Post (imagem), TikTok Vídeo/Imagem público, YouTube **Short**, X e LinkedIn com a mídia anexada. Todo post sai **marcado como conteúdo gerado por IA** onde a rede permite (`isAiGenerated` no Instagram/TikTok/X, `containsSyntheticMedia` no YouTube).
 - **Acompanhamento:** posts em `posts_agendados` com o status do bundle.social (Agendado, Publicando, Em análise, Publicado com link, Falhou com o motivo por rede). Atualiza pelo **webhook** `POST /api/social/webhook` (`post.published`, assinatura em `BUNDLE_SOCIAL_WEBHOOK_SECRET`) e, sem webhook, ao abrir a tela (e a cada 30s enquanto publica). Posts agendados podem ser cancelados.
-- **Custo:** 1 crédito por rede por post (o bundle.social cobra por post: Free 20/mês, Pro US$ 100 = 10 mil). `lib/social/{bundle,redes}.ts`, rotas em `app/api/social/*`.
+- **Custo:** 6 créditos por rede por post (`CREDITOS_POST_POR_REDE`; escrever + publicar em uma rede = 10 créditos, ~20% abaixo do post da Otto; o bundle.social cobra por post: Free 20/mês, Pro US$ 100 = 10 mil). `lib/social/{bundle,redes}.ts`, rotas em `app/api/social/*`.
 
 ## Planos, créditos e pagamentos
 

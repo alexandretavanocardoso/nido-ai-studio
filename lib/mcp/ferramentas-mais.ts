@@ -311,7 +311,7 @@ export const MAIS_FERRAMENTAS: Ferramenta[] = [
   {
     name: "publicar_nas_redes",
     description: [
-      `Publica agora, agenda ou guarda no backlog um post do personagem. Custa ${CREDITOS_POST_POR_REDE} crédito por rede ao publicar ou agendar. A conta da rede precisa estar conectada (veja redes_do_personagem).`,
+      `Publica agora, agenda ou guarda no backlog um post do personagem. Custa ${CREDITOS_POST_POR_REDE} créditos por rede ao publicar ou agendar. A conta da rede precisa estar conectada (veja redes_do_personagem).`,
       "É uma publicação de verdade, visível para o público: confirme o texto, as redes e o horário com a pessoa antes de chamar.",
       "midia_key é a key de um vídeo ou imagem do personagem. quando é a data e hora em UTC (ISO 8601); ausente = publicar agora.",
     ].join("\n"),

@@ -7,10 +7,14 @@ import { soAdminAgora } from "./em-teste-server";
 
 /**
  * Quem pode abrir a área admin (/app/admin e /api/admin/*).
- * Padrão: os dois donos do projeto. Para mudar sem mexer no código, defina
+ * Padrão: a lista abaixo. Para mudar sem mexer no código, defina
  * ADMIN_EMAILS no ambiente (e-mails separados por vírgula).
  */
-const PADRAO = ["dollarweb3@gmail.com", "tavanoalexandre56@gmail.com"];
+const PADRAO = [
+  "dollarweb3@gmail.com",
+  "tavanoalexandre56@gmail.com",
+  "romulodoprado@gmail.com",
+];
 
 export function emailsAdmin(): string[] {
   const env = process.env.ADMIN_EMAILS?.split(",")
