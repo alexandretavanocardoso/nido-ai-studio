@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { liberadoOuResponder } from "@/lib/admin/acesso";
 import { getUserId } from "@/lib/auth/server";
 import { getPool } from "@/lib/db";
 import { criarToken, listarTokens, revogarToken } from "@/lib/mcp/tokens";
@@ -8,6 +9,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 async function usuario(): Promise<string | NextResponse> {
+  const bloqueio = await liberadoOuResponder("mcp");
+  if (bloqueio) return bloqueio;
   const userId = getPool() ? await getUserId() : null;
   return (
     userId ??

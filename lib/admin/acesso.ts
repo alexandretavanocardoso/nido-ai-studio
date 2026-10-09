@@ -1,6 +1,8 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { getAuth } from "@/lib/auth/server";
+import { getPool } from "@/lib/db";
+import { SO_ADMIN, type RecursoEmTeste } from "@/lib/em-teste";
 
 /**
  * Quem pode abrir a área admin (/app/admin e /api/admin/*).
@@ -43,4 +45,30 @@ export async function adminOuResponder(): Promise<Admin | NextResponse> {
   return (
     admin ?? NextResponse.json({ error: "Não encontrado." }, { status: 404 })
   );
+}
+
+/**
+ * Recurso em teste (lib/em-teste.ts): só admin usa. Devolve a recusa pronta,
+ * ou null se a sessão atual pode usar. 404 para não revelar que existe.
+ */
+export async function liberadoOuResponder(
+  recurso: RecursoEmTeste,
+): Promise<NextResponse | null> {
+  if (!SO_ADMIN[recurso] || (await adminAtual())) return null;
+  return NextResponse.json({ error: "Não encontrado." }, { status: 404 });
+}
+
+/** O mesmo, por id de usuário — para quem não vem com sessão (token do MCP). */
+export async function usuarioLiberado(
+  recurso: RecursoEmTeste,
+  userId: string,
+): Promise<boolean> {
+  if (!SO_ADMIN[recurso]) return true;
+  const pool = getPool();
+  if (!pool) return false;
+  const { rows } = await pool.query<{ email: string; v: boolean }>(
+    'select email, "emailVerified" as v from "user" where id = $1',
+    [userId],
+  );
+  return !!rows[0]?.v && ehAdmin(rows[0].email);
 }

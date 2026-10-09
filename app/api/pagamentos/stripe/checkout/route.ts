@@ -1,3 +1,4 @@
+import { liberadoOuResponder } from "@/lib/admin/acesso";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -21,6 +22,8 @@ const BodySchema = z.object({
 
 /** POST — abre o Checkout do Stripe para um plano ou pacote. Devolve a URL. */
 export async function POST(req: Request) {
+  const bloqueio = await liberadoOuResponder("stripe");
+  if (bloqueio) return bloqueio;
   const stripe = getStripe();
   if (!stripe)
     return NextResponse.json(

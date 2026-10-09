@@ -1,5 +1,6 @@
 "use client";
 
+import { EmTeste } from "@/components/EmTeste";
 import { useCallback, useEffect, useState } from "react";
 import { Check, Copy, KeyRound, Loader2, Terminal, Trash2 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -36,6 +37,14 @@ const PODE = [
  * à conta e mostra o comando pronto. O token inteiro aparece uma vez só.
  */
 export default function Conexoes() {
+  return (
+    <EmTeste recurso="mcp">
+      <ConexoesLiberada />
+    </EmTeste>
+  );
+}
+
+function ConexoesLiberada() {
   const { user } = useAuth();
   const [tokens, setTokens] = useState<TokenApi[] | null>(null);
   const [nome, setNome] = useState("Claude Code");

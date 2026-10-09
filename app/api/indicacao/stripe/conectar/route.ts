@@ -1,3 +1,4 @@
+import { liberadoOuResponder } from "@/lib/admin/acesso";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { getAuth } from "@/lib/auth/server";
@@ -13,6 +14,8 @@ export const dynamic = "force-dynamic";
  * dados pessoais e conta bancária ficam no Stripe, não aqui. Devolve a URL.
  */
 export async function POST(req: Request) {
+  const bloqueio = await liberadoOuResponder("indicacoes");
+  if (bloqueio) return bloqueio;
   const stripe = getStripe();
   if (!stripe || !getPool())
     return NextResponse.json(

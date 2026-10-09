@@ -1,3 +1,4 @@
+import { liberadoOuResponder } from "@/lib/admin/acesso";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { allow } from "@/lib/ai/rate-limit";
@@ -25,6 +26,8 @@ const BodySchema = z.union([
  * Stripe do usuário; USDC vai on-chain para a carteira informada.
  */
 export async function POST(req: Request) {
+  const bloqueio = await liberadoOuResponder("indicacoes");
+  if (bloqueio) return bloqueio;
   const userId = await getUserId();
   if (!userId)
     return NextResponse.json(

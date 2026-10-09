@@ -1,5 +1,6 @@
 "use client";
 
+import { liberadoNaTela } from "@/lib/em-teste";
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -94,6 +95,8 @@ function Conteudo() {
   const recursos = useRecursos();
   const { user } = useAuth();
   const { conta, recarregar } = useCreditos();
+  // Stripe em teste: por enquanto só as contas admin compram por ele (lib/em-teste.ts).
+  const stripeLigado = recursos.stripe && liberadoNaTela("stripe", conta?.admin);
   const params = useSearchParams();
   const [intervalo, setIntervalo] = useState<Intervalo>("mensal");
   const [abrindo, setAbrindo] = useState<string | null>(null);
@@ -175,7 +178,7 @@ function Conteudo() {
     }
   }
 
-  const semPagamento = !recursos.stripe && !recursos.usdc;
+  const semPagamento = !stripeLigado && !recursos.usdc;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 grid gap-10">
@@ -251,7 +254,7 @@ function Conteudo() {
               cota={conta.armazenamento.cotaBytes}
             />
           </div>
-          {recursos.stripe && conta.plano !== "gratis" && (
+          {stripeLigado && conta.plano !== "gratis" && (
             <Button
               variant="ghost"
               size="sm"
@@ -363,7 +366,7 @@ function Conteudo() {
                   ))}
                 </ul>
                 <div className="grid gap-2">
-                  {recursos.stripe && (
+                  {stripeLigado && (
                     <Button
                       variant={id === "creator" ? "accent" : "primary"}
                       onClick={() => pagarStripe(compra, `${id}-stripe`)}
@@ -437,7 +440,7 @@ function Conteudo() {
                     </span>
                   )}
                 </div>
-                {recursos.stripe && (
+                {stripeLigado && (
                   <Button
                     size="sm"
                     onClick={() => pagarStripe(compra, `${id}-stripe`)}
@@ -473,7 +476,7 @@ function Conteudo() {
         </div>
         <CompraManual
           abrindo={abrindo}
-          stripe={recursos.stripe}
+          stripe={stripeLigado}
           usdc={recursos.usdc}
           onStripe={(compra) => pagarStripe(compra, "avulso-stripe")}
           onUsdc={(compra) =>

@@ -1,3 +1,4 @@
+import { liberadoOuResponder } from "@/lib/admin/acesso";
 import { NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth/server";
 import { getPool } from "@/lib/db";
@@ -10,6 +11,8 @@ export const dynamic = "force-dynamic";
 
 /** GET — programa de indicação do usuário: código, link, indicados, saldos e saques. */
 export async function GET(req: Request) {
+  const bloqueio = await liberadoOuResponder("indicacoes");
+  if (bloqueio) return bloqueio;
   const userId = await getUserId();
   if (!userId)
     return NextResponse.json(

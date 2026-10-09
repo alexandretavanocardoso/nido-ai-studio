@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
+import { liberadoNaTela } from "@/lib/em-teste";
 import { CreateDialog, type InicioCriar } from "@/components/home/CreateDialog";
 import { TutorialCriar } from "@/components/home/TutorialCriar";
 import { useRecursos } from "@/components/RecursosProvider";
@@ -407,20 +408,29 @@ function MenuLateral({
           href: "/app/planos",
           ativo: pathname === "/app/planos",
         },
-        {
-          rotulo: tx("Indique e ganhe"),
-          curto: tx("Indicar"),
-          icon: Gift,
-          href: "/app/indicacoes",
-          ativo: pathname === "/app/indicacoes",
-        },
-        {
-          rotulo: tx("Claude Code (MCP)"),
-          curto: tx("MCP"),
-          icon: Terminal,
-          href: "/app/conexoes",
-          ativo: pathname === "/app/conexoes",
-        },
+        // Em teste: por enquanto só as contas admin veem (lib/em-teste.ts).
+        ...(liberadoNaTela("indicacoes", conta?.admin)
+          ? [
+              {
+                rotulo: tx("Indique e ganhe"),
+                curto: tx("Indicar"),
+                icon: Gift,
+                href: "/app/indicacoes",
+                ativo: pathname === "/app/indicacoes",
+              },
+            ]
+          : []),
+        ...(liberadoNaTela("mcp", conta?.admin)
+          ? [
+              {
+                rotulo: tx("Claude Code (MCP)"),
+                curto: tx("MCP"),
+                icon: Terminal,
+                href: "/app/conexoes",
+                ativo: pathname === "/app/conexoes",
+              },
+            ]
+          : []),
       ],
     },
   ];

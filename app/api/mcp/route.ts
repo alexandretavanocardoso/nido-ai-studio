@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { usuarioLiberado } from "@/lib/admin/acesso";
 import { hit } from "@/lib/ai/rate-limit";
 import { comoUsuario } from "@/lib/auth/contexto";
 import { tratarMensagem } from "@/lib/mcp/protocolo";
@@ -31,7 +32,8 @@ export async function POST(req: Request) {
       "Envie o token de API no cabeçalho Authorization: Bearer nidoaistudio_…",
     );
   const dono = await usuarioDoToken(token);
-  if (!dono) return naoAutorizado("Token inválido ou revogado.");
+  if (!dono || !(await usuarioLiberado("mcp", dono.userId)))
+    return naoAutorizado("Token inválido ou revogado.");
 
   const gate = await hit(`mcp:${dono.tokenId}`, POR_MINUTO, 60);
   if (!gate.ok)

@@ -1,3 +1,4 @@
+import { liberadoOuResponder } from "@/lib/admin/acesso";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getUserId } from "@/lib/auth/server";
@@ -11,6 +12,8 @@ const BodySchema = z.object({ codigo: z.string().max(60) });
 
 /** POST — o usuário escolhe o código do seu link de indicação (uma vez só). */
 export async function POST(req: Request) {
+  const bloqueio = await liberadoOuResponder("indicacoes");
+  if (bloqueio) return bloqueio;
   const userId = await getUserId();
   if (!userId || !getPool())
     return NextResponse.json(

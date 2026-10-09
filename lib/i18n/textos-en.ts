@@ -1884,4 +1884,11 @@ export const TEXTOS_EN: Record<string, string> = {
   "Nome do token": "Token name",
   "só para você identificar na lista": "just for you to recognise it in the list",
   "Ex.: meu notebook": "E.g. my laptop",
+
+  "Em breve":
+    "Coming soon",
+  "Este recurso ainda não está disponível para a sua conta.":
+    "This feature isn't available for your account yet.",
+  "Voltar para o início":
+    "Back to home",
 };

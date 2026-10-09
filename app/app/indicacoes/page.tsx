@@ -1,5 +1,6 @@
 "use client";
 
+import { EmTeste } from "@/components/EmTeste";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -64,6 +65,14 @@ const ROTULO_SAQUE: Record<string, string> = {
 };
 
 export default function IndicacoesPage() {
+  return (
+    <EmTeste recurso="indicacoes">
+      <IndicacoesPageLiberada />
+    </EmTeste>
+  );
+}
+
+function IndicacoesPageLiberada() {
   const { user } = useAuth();
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
