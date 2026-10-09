@@ -253,7 +253,7 @@ function ConexoesLiberada() {
           <li>
             <strong>a.</strong>{" "}
             {tx(
-              "Abra Configurações → Conectores e clique em Adicionar → Adicionar conector personalizado.",
+              "No Claude, abra Configurações → Conectores e clique em Adicionar → Adicionar conector personalizado.",
             )}
           </li>
           <li>
@@ -269,17 +269,45 @@ function ConexoesLiberada() {
               </code>
               <BotaoCopiar texto={`${origem}/api/mcp`} chave="conector" />
             </div>
+            <p className="mt-1.5 text-[12px] text-ink-dim">
+              {tx(
+                "O Claude verifica o servidor sozinho. Quando aparecer “Servidor encontrado”, clique em Continuar.",
+              )}
+            </p>
           </li>
           <li>
             <strong>c.</strong>{" "}
             {tx(
-              "Clique em Conectar. Abre uma tela do NIDO: entre com a sua conta, se pedir, e clique em Permitir.",
+              "Na tela seguinte, não mude nada: deixe “Entrar agora” e “Registrar automaticamente” (os dois marcados como Detectado), sem adicionar cabeçalho. Clique em Adicionar.",
             )}
           </li>
           <li>
             <strong>d.</strong>{" "}
             {tx(
-              "Numa conversa nova, ative o conector e peça, por exemplo: “liste meus personagens do NIDO”. Ele aparece na lista de tokens abaixo como “Conector”, e você pode revogar quando quiser.",
+              "O Claude mostra “Você ainda não está conectado a NIDO AI Studio”. Clique em Vincular.",
+            )}
+          </li>
+          <li>
+            <strong>e.</strong>{" "}
+            {tx(
+              "Abre a tela do NIDO “Conectar à sua conta NIDO”. Se pedir, entre com o Google; confira a conta e clique em Permitir. Você volta para o Claude já conectado.",
+            )}
+          </li>
+          <li>
+            <strong>f.</strong>{" "}
+            {tx(
+              "Para usar: abra uma conversa nova no Claude, clique no botão de ferramentas da caixa de mensagem (ao lado de onde você digita) e ligue o NIDO AI Studio na lista de conectores.",
+            )}
+          </li>
+          <li>
+            <strong>g.</strong>{" "}
+            {tx(
+              "Peça normalmente, por exemplo: “liste meus personagens do NIDO” ou “qual é o meu saldo no NIDO?”. Na primeira vez que usar cada ferramenta, o Claude pede a sua permissão.",
+            )}
+          </li>
+          <li className="text-ink-mute">
+            {tx(
+              "O conector aparece na lista de tokens abaixo como “Conector”: é ali que você desliga. Se ele não aparecer na conversa, confira em Configurações → Conectores se está conectado.",
             )}
           </li>
         </ol>

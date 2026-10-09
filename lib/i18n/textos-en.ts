@@ -420,14 +420,24 @@ export const TEXTOS_EN: Record<string, string> = {
     "Or connect from the Claude app (connector)",
   "No Claude (claude.ai ou aplicativo), sem terminal e sem token: você autoriza com o seu login daqui.":
     "In Claude (claude.ai or the app), with no terminal and no token: you authorise with your sign-in here.",
-  "Abra Configurações → Conectores e clique em Adicionar → Adicionar conector personalizado.":
-    "Open Settings → Connectors and click Add → Add custom connector.",
+  "No Claude, abra Configurações → Conectores e clique em Adicionar → Adicionar conector personalizado.":
+    "In Claude, open Settings → Connectors and click Add → Add custom connector.",
+  "O Claude verifica o servidor sozinho. Quando aparecer “Servidor encontrado”, clique em Continuar.":
+    "Claude checks the server by itself. When “Server found” shows up, click Continue.",
+  "Na tela seguinte, não mude nada: deixe “Entrar agora” e “Registrar automaticamente” (os dois marcados como Detectado), sem adicionar cabeçalho. Clique em Adicionar.":
+    "On the next screen, change nothing: keep “Sign in now” and “Register automatically” (both marked Detected), with no header added. Click Add.",
+  "O Claude mostra “Você ainda não está conectado a NIDO AI Studio”. Clique em Vincular.":
+    "Claude shows “You're not connected to NIDO AI Studio yet”. Click Connect.",
+  "Abre a tela do NIDO “Conectar à sua conta NIDO”. Se pedir, entre com o Google; confira a conta e clique em Permitir. Você volta para o Claude já conectado.":
+    "The NIDO screen “Connect to your NIDO account” opens. Sign in with Google if asked; check the account and click Allow. You go back to Claude already connected.",
   "Dê um nome (por exemplo, NIDO AI Studio) e cole este endereço:":
     "Give it a name (for example, NIDO AI Studio) and paste this address:",
-  "Clique em Conectar. Abre uma tela do NIDO: entre com a sua conta, se pedir, e clique em Permitir.":
-    "Click Connect. A NIDO screen opens: sign in if asked, and click Allow.",
-  "Numa conversa nova, ative o conector e peça, por exemplo: “liste meus personagens do NIDO”. Ele aparece na lista de tokens abaixo como “Conector”, e você pode revogar quando quiser.":
-    "In a new chat, enable the connector and ask, for example: “list my NIDO characters”. It shows up in the token list below as “Conector”, and you can revoke it any time.",
+  "Para usar: abra uma conversa nova no Claude, clique no botão de ferramentas da caixa de mensagem (ao lado de onde você digita) e ligue o NIDO AI Studio na lista de conectores.":
+    "To use it: open a new chat in Claude, click the tools button in the message box (next to where you type) and turn on NIDO AI Studio in the list of connectors.",
+  "Peça normalmente, por exemplo: “liste meus personagens do NIDO” ou “qual é o meu saldo no NIDO?”. Na primeira vez que usar cada ferramenta, o Claude pede a sua permissão.":
+    "Ask as usual, for example: “list my NIDO characters” or “what's my NIDO balance?”. The first time each tool is used, Claude asks for your permission.",
+  "O conector aparece na lista de tokens abaixo como “Conector”: é ali que você desliga. Se ele não aparecer na conversa, confira em Configurações → Conectores se está conectado.":
+    "The connector shows up in the token list below as “Conector”: that's where you turn it off. If it doesn't appear in the chat, check under Settings → Connectors that it's connected.",
   "Ou use no Claude Code web (claude.ai/code)":
     "Or use it in Claude Code on the web (claude.ai/code)",
   "No navegador a sessão roda na nuvem, sem terminal: a conexão vem de um arquivo do seu repositório e o token fica guardado no ambiente.":
