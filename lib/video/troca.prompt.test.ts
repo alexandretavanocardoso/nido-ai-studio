@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alvosDoTrecho, promptTroca } from "./troca";
+import { alvosDoTrecho, PEDIDO_MAX, promptTroca } from "./troca";
 
 describe("promptTroca", () => {
   it("sem descrição: troca a pessoa principal e protege as outras pessoas", () => {
@@ -43,6 +43,28 @@ describe("promptTroca", () => {
     expect(p).toMatch(/exactly as in @Image1/);
     expect(p).not.toMatch(/replacement already done/);
     expect(p).toMatch(/Remove all on-screen text/);
+  });
+});
+
+describe("promptTroca — tamanho", () => {
+  const longa = (n: number) => "the man " + "word ".repeat(n).trim();
+
+  it("cabe no limite do Kling mesmo com 3 pessoas, âncora parcial e descrições no máximo", () => {
+    const alvos = [0, 1, 2].map(() => ({ descricao: longa(43).slice(0, 220) }));
+    const outras = [0, 1, 2].map(() => longa(47).slice(0, 240));
+    const p = promptTroca("kling", alvos, true, true, outras, [0], true);
+    expect(p.length).toBeLessThanOrEqual(PEDIDO_MAX);
+    // Encolheu as descrições, mas as regras e as 3 pessoas continuam lá.
+    expect(p).toMatch(/@Element3/);
+    expect(p).toMatch(/A back view stays a back view/);
+    expect(p).toMatch(/Remove all on-screen text/);
+  });
+
+  it("caso comum (2 pessoas, âncora, 2 outras) vai com as descrições inteiras", () => {
+    const d = "the stout man with a brown bob haircut with bangs, wearing glasses and a green pinstriped double-breasted suit jacket over a white shirt and mustard tie";
+    const p = promptTroca("kling", [{ descricao: d }, { descricao: d }], false, true, [d.slice(0, 140), d.slice(0, 140)], [0, 1]);
+    expect(p.length).toBeLessThanOrEqual(PEDIDO_MAX);
+    expect(p.split(d).length - 1).toBe(2);
   });
 });
 

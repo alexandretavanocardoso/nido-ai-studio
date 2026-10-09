@@ -122,12 +122,69 @@ export function promptTroca(
    */
   sobraNaAncora = false,
 ): string {
+  // O Kling recusa pedidos com mais de 2500 caracteres. As regras são fixas;
+  // o que cresce são as descrições (pessoas a trocar e "outras pessoas").
+  // Se não couber, elas encolhem — primeiro as das outras pessoas.
+  for (const [maxAlvo, maxOutra, nOutras] of CORTES_DO_PEDIDO) {
+    const texto = montarPedido(
+      motor,
+      alvos.map((a) => ({
+        descricao: a.descricao && encurtar(a.descricao, maxAlvo),
+      })),
+      removerTexto,
+      ancora,
+      outras.slice(0, nOutras).map((x) => encurtar(x, maxOutra)),
+      naAncora,
+      sobraNaAncora,
+    );
+    if (texto.length <= PEDIDO_MAX) return texto;
+  }
+  return montarPedido(
+    motor,
+    alvos.map((a) => ({ descricao: a.descricao && encurtar(a.descricao, 60) })),
+    removerTexto,
+    ancora,
+    [],
+    naAncora,
+    sobraNaAncora,
+  ).slice(0, PEDIDO_MAX);
+}
+
+/** Limite do Kling é 2500 caracteres; fica uma folga. */
+export const PEDIDO_MAX = 2400;
+/** [máx. por pessoa a trocar, máx. por "outra pessoa", quantas "outras"], do mais completo ao mais enxuto. */
+const CORTES_DO_PEDIDO: Array<[number, number, number]> = [
+  [220, 240, 3],
+  [150, 140, 3],
+  [110, 100, 2],
+  [90, 80, 1],
+  [70, 0, 0],
+];
+
+/** Corta no fim de uma palavra, sem passar de `max`. */
+function encurtar(texto: string, max: number): string {
+  if (texto.length <= max) return texto;
+  const corte = texto.slice(0, max);
+  return corte.slice(0, Math.max(corte.lastIndexOf(" "), max - 20)).trim();
+}
+
+function montarPedido(
+  motor: MotorTroca,
+  alvos: Array<Pick<AlvoTroca, "descricao">>,
+  removerTexto: boolean,
+  ancora: boolean,
+  outras: string[],
+  naAncora: number[] | undefined,
+  sobraNaAncora: boolean,
+): string {
   const ref = (i: number) =>
     motor === "kling" ? `@Element${i + 1}` : `@Image${i + 1}`;
   const refs = alvos.map((_, i) => ref(i)).join(", ");
   const foraDaAncora = naAncora
     ? alvos.map((_, i) => i).filter((i) => !naAncora.includes(i))
     : [];
+  const igualAncora =
+    "(same face, hair, facial hair, hat, outfit, proportions and lighting)";
   return [
     `In @Video1, replace ONLY ${alvos.length === 1 ? "this person" : "these people"}:`,
     ...alvos.map(
@@ -137,34 +194,34 @@ export function promptTroca(
     ...(ancora && motor === "kling"
       ? foraDaAncora.length
         ? [
-            `@Image1 is a frame of this same scene with the replacement already done ONLY for ${naAncora!.map((i) => ref(i)).join(", ")}: ${naAncora!.length === 1 ? "that character" : "those characters"} must look exactly like that in every frame (same face, hair, facial hair, hat, outfit, body proportions and lighting).`,
-            `@Image1 does NOT show the replacement of ${foraDaAncora.map((i) => `${alvos[i].descricao ?? "the main person"} (${ref(i)})`).join("; ")}: replace ${foraDaAncora.length === 1 ? "this person" : "these people"} too, in every frame where they appear, taking face, hair, style and outfit from ${foraDaAncora.map((i) => ref(i)).join(", ")}.`,
+            `@Image1 is a frame of this same scene with the replacement already done ONLY for ${naAncora!.map((i) => ref(i)).join(", ")}: match it exactly in every frame ${igualAncora}.`,
+            `@Image1 does NOT show the replacement of ${foraDaAncora.map((i) => `${alvos[i].descricao ?? "the main person"} (${ref(i)})`).join("; ")}: replace them too in every frame, taking face, hair and outfit from ${foraDaAncora.map((i) => ref(i)).join(", ")}.`,
           ]
         : [
-            "@Image1 is a frame of this same scene with the replacement already done: the character(s) must look exactly like that in every frame (same face, hair, facial hair, hat, outfit, body proportions and lighting).",
+            `@Image1 is a frame of this same scene with the replacement already done: the character(s) must look exactly like that in every frame ${igualAncora}.`,
           ]
       : [
           `Keep each character's face, hair, style and outfit exactly as in ${refs}.`,
         ]),
     ...(sobraNaAncora && ancora && motor === "kling"
       ? [
-          "@Image1 also shows another replaced person who does NOT appear in @Video1: ignore that one and never add them, their face, hat or outfit to any frame.",
+          "@Image1 also shows another replaced person who does NOT appear in @Video1: never add them, their face, hat or outfit.",
         ]
       : []),
     ...(alvos.length > 1
       ? [
-          `All ${alvos.length} listed people must be replaced, each one only with their own character: never merge two characters, never leave one of the listed people unchanged, and never add a character's hat, hair or clothing as a loose object in the scene.`,
-          "A listed person may be off screen for part of the video: while they are not on screen their character does not appear at all. Never give one character's face, hair, hat or outfit to a different person.",
+          `All ${alvos.length} listed people must be replaced, each only with their own character: never merge two characters, never leave a listed person unchanged, never add a character's hat, hair or clothing as a loose object.`,
+          "A listed person may leave the frame: while they are not on screen their character does not appear. Never give one character's face, hair, hat or outfit to a different person.",
         ]
       : []),
-    "Each replaced person stays the SAME character from the first frame to the last, also when they turn around, stand up, walk away or are seen from behind. A back view stays a back view: show the character's back and the back of their head, never a face or a chest where the original shows a back.",
-    "Every other person in @Video1 must stay exactly as they are — same face, hair, clothes and movements, appearing at the same moments, including when they pass in front of or behind the replaced person.",
+    "Each replaced person stays the SAME character in every frame, also when turning around, walking away or seen from behind. A back view stays a back view: never draw a face or chest where the original shows a back.",
+    "Every other person in @Video1 must stay exactly as they are (face, hair, clothes, movements), also when passing in front of or behind the replaced person.",
     outras.length
-      ? `Other people who appear in @Video1 and must NOT be changed in any way: ${outras.join("; ")}.`
+      ? `Other people who must NOT be changed in any way: ${outras.join("; ")}.`
       : "",
-    "Every replaced character must look like a real person filmed by this same camera, even if the reference image is a 3D render or an illustration: natural skin texture, the scene's own light and colours on skin and clothes, the same sharpness, grain and motion blur as the rest of @Video1. Never a pasted cutout, never smooth or plastic CGI skin.",
-    "Follow the replaced person's motion frame by frame: body pose, arms, hands and finger gestures, head direction and facial expression.",
-    "Keep the original background, scenery, objects, camera angle, framing and lighting of @Video1 unchanged.",
+    "Replaced characters must look like real people filmed by this camera, even if the reference is a 3D render or illustration: natural skin texture, the scene's light and colours, same sharpness, grain and motion blur. Never a pasted cutout or plastic CGI skin.",
+    "Follow the replaced person's motion frame by frame: pose, arms, hands and finger gestures, head direction and facial expression.",
+    "Keep the background, objects, camera angle, framing and lighting of @Video1 unchanged.",
     removerTexto ? "Remove all on-screen text, captions and subtitles." : "",
   ]
     .filter(Boolean)
