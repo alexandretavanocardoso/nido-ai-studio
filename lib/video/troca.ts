@@ -349,8 +349,14 @@ export async function closeDoRosto(
     const { width, height } = figura.info;
     // Só vale para figura em pé (corpo inteiro ou meio corpo); num close já não precisa.
     if (height < width * 1.3) return null;
+    // O terço de cima — mas nunca uma tira mais larga que 2:1: o Kling recusa
+    // imagem com proporção acima de 2,5 (figura larga, de braços abertos ou de capa).
+    const alto = Math.min(
+      height,
+      Math.max(Math.round(height * 0.3), Math.ceil(width / 2)),
+    );
     return await sharp(figura.data)
-      .extract({ left: 0, top: 0, width, height: Math.round(height * 0.3) })
+      .extract({ left: 0, top: 0, width, height: alto })
       .resize({ width: 1024 })
       .flatten({ background: "#ffffff" })
       .jpeg({ quality: 92 })
@@ -358,6 +364,43 @@ export async function closeDoRosto(
   } catch {
     return null;
   }
+}
+
+/** O Kling só aceita imagens com proporção (largura ÷ altura) entre 0,4 e 2,5. */
+const PROPORCAO_KLING = { min: 0.45, max: 2.2 } as const;
+
+/**
+ * Deixa a imagem numa proporção que o motor aceita, completando com branco nas
+ * laterais (imagem alta demais) ou em cima e embaixo (larga demais). A figura
+ * não é cortada nem deformada. Dentro da faixa, devolve como veio.
+ */
+export async function caberNaProporcao(imagem: Buffer): Promise<Buffer> {
+  const { width, height } = await sharp(imagem).metadata();
+  if (!width || !height) return imagem;
+  const proporcao = width / height;
+  if (proporcao >= PROPORCAO_KLING.min && proporcao <= PROPORCAO_KLING.max)
+    return imagem;
+  const largura =
+    proporcao < PROPORCAO_KLING.min
+      ? Math.ceil(height * PROPORCAO_KLING.min)
+      : width;
+  const altura =
+    proporcao > PROPORCAO_KLING.max
+      ? Math.ceil(width / PROPORCAO_KLING.max)
+      : height;
+  const lados = largura - width;
+  const cimaEBaixo = altura - height;
+  return sharp(imagem)
+    .flatten({ background: "#ffffff" })
+    .extend({
+      left: Math.floor(lados / 2),
+      right: Math.ceil(lados / 2),
+      top: Math.floor(cimaEBaixo / 2),
+      bottom: Math.ceil(cimaEBaixo / 2),
+      background: "#ffffff",
+    })
+    .png()
+    .toBuffer();
 }
 
 /**
@@ -370,7 +413,13 @@ export async function personagemSemFundo(
 ): Promise<{ url: string; rostoUrl: string | null }> {
   const subir = (b: Buffer, tipo: string) =>
     fal.storage.upload(new Blob([new Uint8Array(b)], { type: tipo }));
-  const original = await subir(imagem, "image/jpeg");
+  // Tudo o que vai ao motor passa por `caberNaProporcao`: uma imagem muito
+  // alta ou muito larga faz o Kling recusar o pedido inteiro.
+  const noLimite = await caberNaProporcao(imagem).catch(() => imagem);
+  const original = await subir(
+    noLimite,
+    noLimite === imagem ? "image/jpeg" : "image/png",
+  );
   try {
     const r = await fal.subscribe(MODELO_RECORTE, {
       input: {
@@ -388,8 +437,8 @@ export async function personagemSemFundo(
       .toBuffer();
     const rosto = await closeDoRosto(branco);
     const [figuraUrl, rostoUrl] = await Promise.all([
-      subir(branco, "image/png"),
-      rosto ? subir(rosto, "image/jpeg") : null,
+      subir(await caberNaProporcao(branco), "image/png"),
+      rosto ? subir(await caberNaProporcao(rosto), "image/png") : null,
     ]);
     return { url: figuraUrl, rostoUrl };
   } catch (e) {
