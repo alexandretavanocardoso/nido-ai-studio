@@ -1,13 +1,65 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import "@/components/landing/landing.css";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Button } from "@/components/ui/Button";
+import { Capsula } from "@/components/landing/Capsula";
 import { useRecursos } from "@/components/RecursosProvider";
 import { tx } from "@/lib/i18n/tx";
+
+/** Mesmas imagens da landing page (public/lp). */
+const WORDMARK = "/lp/wordmark.webp";
+/** Creators da casa, que se revezam na cápsula. */
+const CREATORS = [
+  { num: "#001", nome: "ARNALDO NITRO", img: "/lp/arn-front.webp" },
+  { num: "#002", nome: "ZÉ ZEN", img: "/lp/cut-ze.webp" },
+  { num: "#003", nome: "BETTY PIMENTA", img: "/lp/cut-betty.webp" },
+  { num: "#004", nome: "DIONE BRABO", img: "/lp/cut-dione.webp" },
+  { num: "#005", nome: "PATETA FI DUMA EGUA", img: "/lp/cut-pateta.webp" },
+  { num: "#006", nome: "ROMEU NOBRE", img: "/lp/cut-romeu.webp" },
+];
+/** Tempo de cada creator na cápsula, em ms. */
+const TROCA_MS = 4800;
+
+/**
+ * Cápsula do painel esquerdo: a cada troca ela pisca e o próximo creator se
+ * materializa (a `key` remonta a cápsula para as animações de entrada tocarem
+ * de novo; da segunda em diante o hardware não sobe outra vez, só acende).
+ */
+function CapsulaRotativa() {
+  const [i, setI] = useState(0);
+  const [trocou, setTrocou] = useState(false);
+  useEffect(() => {
+    // Baixa as imagens antes, para a troca não mostrar a cápsula vazia.
+    CREATORS.forEach((c) => (new Image().src = c.img));
+    const t = setInterval(() => {
+      setTrocou(true);
+      setI((n) => (n + 1) % CREATORS.length);
+    }, TROCA_MS);
+    return () => clearInterval(t);
+  }, []);
+  const c = CREATORS[i];
+  return (
+    <div className={`lg-cap${trocou ? " troca" : ""}`}>
+      <Capsula
+        key={c.num}
+        cx={0}
+        base={0}
+        w={210}
+        h={440}
+        img={c.img}
+        num={c.num}
+        nome={c.nome}
+        estado="IDENTITY LOCKED"
+        dl={trocou ? 0 : 0.5}
+        hw={0.1}
+      />
+    </div>
+  );
+}
 
 function LoginInner() {
   const recursos = useRecursos();
@@ -33,129 +85,109 @@ function LoginInner() {
 
   if (!recursos.login) {
     return (
-      <div className="card p-8 text-center">
-        <h1 className="display text-xl uppercase">
-          {tx("Login não configurado")}
+      <>
+        <h1 className="lp-h2">
+          <span>{tx("Login não configurado")}</span>
         </h1>
-        <p className="text-ink-mute text-sm mt-2 leading-relaxed">
+        <p className="lp-sub">
           {tx(
             "Este deploy ainda não tem login ativo. Pede pro admin preencher",
           )}
-          <code className="mono text-accent mx-1">{"DATABASE_URL"}</code>,
-          <code className="mono text-accent mx-1">{"BETTER_AUTH_SECRET"}</code>{" "}
+          <code>{"DATABASE_URL"}</code>,<code>{"BETTER_AUTH_SECRET"}</code>{" "}
           {tx("e as chaves do Google.")}
         </p>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="w-full max-w-sm">
-      <div className="eyebrow-accent mb-2 inline-flex items-center gap-1.5">
-        <Sparkles className="w-3 h-3" />
-        {tx("Entrar")}
-      </div>
-      <h1 className="display text-2xl sm:text-3xl text-ink uppercase leading-tight">
-        {tx("Seus personagens,")}
-        <br />
-        {tx("na sua conta.")}
+    <>
+      <span className="lg-ey">{tx("Entrar")}</span>
+      <h1 className="lp-h2">
+        <span>{tx("Seus personagens,")}</span>
+        <em>{tx("na sua conta.")}</em>
       </h1>
-      <p className="text-ink-mute text-[15px] mt-3 leading-relaxed">
+      <p className="lp-sub">
         {tx(
           "Com login, cada personagem fica salvo na sua conta e pode ser aberto de qualquer dispositivo.",
         )}
       </p>
 
-      <div className="mt-7 grid gap-4">
-        <Button
-          variant="primary"
-          size="lg"
+      <div className="lg-cartao">
+        <button
+          type="button"
+          className="lp-cta"
           onClick={onGoogle}
           disabled={loading}
-          className="w-full"
         >
-          <GoogleIcon />
-          {loading ? tx("Abrindo…") : tx("Continuar com Google")}
-        </Button>
+          <span className="lg-google">
+            <GoogleIcon />
+          </span>
+          <span className="lbl">
+            {loading ? tx("Abrindo…") : tx("Continuar com Google")}
+          </span>
+        </button>
 
         {err ? (
-          <div className="rounded-xl border border-pink/40 bg-pink/10 px-3.5 py-2.5 text-sm text-pink">
+          <div className="lg-erro" role="alert">
             {err}
           </div>
         ) : null}
+
+        <ul className="lg-lista">
+          {[
+            tx("Identidade completa"),
+            tx("Sem aparecer"),
+            tx("Múltiplos creators"),
+          ].map((item, i) => (
+            <li key={item}>
+              <b>{String(i + 1).padStart(2, "0")}</b>
+              {item}
+            </li>
+          ))}
+        </ul>
       </div>
-    </div>
+    </>
   );
 }
 
 export default function LoginPage() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 min-h-screen">
-      {/* LEFT: brand / promo panel */}
-      <div className="hidden md:flex flex-col justify-between bg-bg relative overflow-hidden p-10 lg:p-14 border-r border-line">
-        <div
-          aria-hidden="true"
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-accent/10 blur-[120px] rounded-full pointer-events-none"
+    <div className="lg">
+      {/* Esquerda: a mesma fábrica do topo da landing, com uma cápsula. */}
+      <div className="lg-cena hx" aria-hidden="true">
+        <div className="hx-floor" />
+        <div className="hx-fog" />
+        <img
+          className="hx-wmk"
+          src={WORDMARK}
+          alt=""
+          style={{ "--ad": "1.4s" } as CSSProperties}
         />
-
-        <div className="relative flex items-center gap-2">
-          <div className="h-7 w-7 rounded bg-accent flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-bg" strokeWidth={3} />
-          </div>
-          <span className="font-bold text-sm uppercase tracking-wider">
-            {tx("Influenciador Sintético")}
-          </span>
-        </div>
-
-        <div className="relative">
-          <h2 className="display text-4xl lg:text-5xl text-ink uppercase leading-[0.95]">
-            {tx("Construa um")}
-            <br />
-            influenciador <span className="text-accent">{"AI"}</span>
-            <br />
-            {tx("a partir da sua")}
-            <br />
-            criatividade.
+        <CapsulaRotativa />
+        <div className="lg-frase">
+          <h2>
+            {tx("Personagens são gerados.")}{" "}
+            <em>{tx("Creators são construídos.")}</em>
           </h2>
-          <p className="text-ink-mute text-[15px] mt-5 max-w-sm leading-relaxed">
-            {tx(
-              "Identidade, visual, voz e estratégia — tudo numa ficha completa, salva na sua conta.",
-            )}
-          </p>
-
-          <div className="mt-8 flex flex-wrap gap-2">
-            {[
-              tx("Identidade completa"),
-              tx("Sem aparecer"),
-              tx("Múltiplos creators"),
-            ].map((chip) => (
-              <span
-                key={chip}
-                className="label-cap !text-ink-mute border border-line-strong rounded-full px-3 py-1.5"
-              >
-                {chip}
-              </span>
-            ))}
-          </div>
         </div>
-
-        <div className="relative eyebrow">
-          {tx("Persistência local · Login opcional")}
-        </div>
+        <div className="hx-vig" />
       </div>
 
-      {/* RIGHT: auth card */}
-      <div className="flex items-center justify-center p-6 sm:p-10 bg-bg">
-        <div className="w-full max-w-sm">
-          <Link
-            href="/app"
-            className="inline-flex items-center gap-1.5 text-ink-mute hover:text-ink text-sm mb-6"
-          >
+      {/* Direita: entrar */}
+      <div className="lg-painel">
+        <div className="lg-caixa">
+          <Link href="/app" className="lg-voltar">
             <ArrowLeft className="w-4 h-4" /> {tx("Voltar")}
           </Link>
+          <img className="lg-marca" src={WORDMARK} alt="Nido AI Studio" />
           <Suspense fallback={null}>
             <LoginInner />
           </Suspense>
+          <div className="lg-legal">
+            <Link href="/termos">{tx("Termos")}</Link>
+            <Link href="/privacidade">{tx("Privacidade")}</Link>
+          </div>
         </div>
       </div>
     </div>
@@ -164,7 +196,7 @@ export default function LoginPage() {
 
 function GoogleIcon() {
   return (
-    <svg viewBox="0 0 48 48" className="w-4 h-4" aria-hidden="true">
+    <svg viewBox="0 0 48 48" className="w-3.5 h-3.5" aria-hidden="true">
       <path
         fill="#FFC107"
         d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"

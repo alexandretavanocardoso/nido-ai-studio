@@ -150,6 +150,7 @@ export function promptTroca(
     outras.length
       ? `Other people who appear in @Video1 and must NOT be changed in any way: ${outras.join("; ")}.`
       : "",
+    "Every replaced character must look like a real person filmed by this same camera, even if the reference image is a 3D render or an illustration: natural skin texture, the scene's own light and colours on skin and clothes, the same sharpness, grain and motion blur as the rest of @Video1. Never a pasted cutout, never smooth or plastic CGI skin.",
     "Follow the replaced person's motion frame by frame: body pose, arms, hands and finger gestures, head direction and facial expression.",
     "Keep the original background, scenery, objects, camera angle, framing and lighting of @Video1 unchanged.",
     removerTexto ? "Remove all on-screen text, captions and subtitles." : "",

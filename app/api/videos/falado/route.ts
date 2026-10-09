@@ -229,7 +229,7 @@ export async function POST(req: Request) {
     if (cobranca && creditos < cobranca.total) {
       // Mesma divisão do estorno parcial: os avulsos voltam primeiro.
       const devolver = cobranca.total - creditos;
-      await estornarParcial(cobranca, devolver, "video_falado_ajuste");
+      await estornarParcial(cobranca, devolver, "estorno_ajuste_falado");
       const doAvulso = Math.min(devolver, cobranca.doAvulso);
       cobranca = {
         ...cobranca,

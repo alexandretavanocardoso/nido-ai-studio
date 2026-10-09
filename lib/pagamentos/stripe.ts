@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { getPool } from "@/lib/db";
+import { situacaoDoReembolso } from "./reembolso";
 import { ativarPlano, carregarConta } from "@/lib/creditos";
 import {
   PACOTES,
@@ -317,6 +318,57 @@ async function pagamentoDaCobranca(
   });
   const fatura = faturas.data[0]?.invoice;
   return (typeof fatura === "string" ? fatura : fatura?.id) ?? null;
+}
+
+/** PaymentIntent da cobrança de um pagamento nosso (sessão de checkout ou fatura). */
+async function intencaoDoPagamento(
+  stripe: Stripe,
+  pagamentoId: string,
+): Promise<string | null> {
+  const id = (v: string | { id: string } | null | undefined) =>
+    typeof v === "string" ? v : (v?.id ?? null);
+  let fatura: string | null = pagamentoId.startsWith("in_") ? pagamentoId : null;
+  if (pagamentoId.startsWith("cs_")) {
+    const sessao = await stripe.checkout.sessions.retrieve(pagamentoId);
+    const direto = id(sessao.payment_intent);
+    if (direto) return direto;
+    // Assinatura: a cobrança está na primeira fatura.
+    fatura = id(sessao.invoice);
+  }
+  if (!fatura) return null;
+  const pagos = await stripe.invoicePayments.list({ invoice: fatura, limit: 5 });
+  for (const p of pagos.data) {
+    const pi = id(p.payment.payment_intent);
+    if (pi) return pi;
+  }
+  return null;
+}
+
+/**
+ * Reembolso pedido pelo painel: confere a regra (7 dias, nenhum crédito usado),
+ * devolve o dinheiro no Stripe e desfaz a compra na hora. O webhook do estorno
+ * chega depois e não faz nada (a compra já está como estornada).
+ */
+export async function reembolsarNoStripe(pagamentoId: string): Promise<void> {
+  const stripe = getStripe();
+  if (!stripe) throw new Error("Stripe não configurado no servidor.");
+  const situacao = await situacaoDoReembolso(pagamentoId);
+  if (!situacao) throw new Error("Pagamento não encontrado.");
+  if (!situacao.pode) throw new Error(situacao.motivo ?? "Sem reembolso.");
+  const pi = await intencaoDoPagamento(stripe, pagamentoId);
+  if (!pi)
+    throw new Error(
+      "Não achei a cobrança deste pagamento no Stripe. Faça o reembolso pelo painel do Stripe.",
+    );
+  await stripe.refunds.create(
+    { payment_intent: pi, reason: "requested_by_customer" },
+    { idempotencyKey: `reembolso-${pagamentoId}` },
+  );
+  const desfeito = await reverterCompra(pagamentoId);
+  if (desfeito?.assinatura)
+    await stripe.subscriptions
+      .cancel(desfeito.assinatura)
+      .catch((e) => console.error("[stripe] cancelar após reembolso:", e));
 }
 
 /**

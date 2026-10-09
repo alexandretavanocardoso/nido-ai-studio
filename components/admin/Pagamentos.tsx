@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ExternalLink, Loader2, RefreshCw, XCircle } from "lucide-react";
+import { Check, ExternalLink, Loader2, RefreshCw, XCircle,
+  Undo2,
+} from "lucide-react";
 import type { PagamentoAdmin } from "@/lib/admin/consultas";
 import { confirmar } from "@/components/ui/Confirmacao";
 import { PACOTES, type PacoteId } from "@/lib/planos";
@@ -49,6 +51,7 @@ export function descricaoCompra(p: PagamentoAdmin): string {
 export function SeloStatus({ status }: { status: string }) {
   if (status === "pago") return <Selo tom="ok">Pago</Selo>;
   if (status === "pendente") return <Selo tom="alerta">Pendente</Selo>;
+  if (status === "estornado") return <Selo>Reembolsado</Selo>;
   return <Selo>{status === "expirado" ? "Expirado" : status}</Selo>;
 }
 
@@ -86,21 +89,34 @@ export function Pagamentos({
     dados?.totais.find((t) => t.status === s)?.n ?? 0;
   const todos = dados?.totais.reduce((t, x) => t + x.n, 0) ?? 0;
 
-  async function agir(p: PagamentoAdmin, acao: "aprovar" | "expirar") {
+  async function agir(
+    p: PagamentoAdmin,
+    acao: "aprovar" | "expirar" | "reembolsar",
+  ) {
     const ok = await confirmar(
-      acao === "aprovar"
+      acao === "reembolsar"
         ? {
-            titulo: "Aprovar este pagamento à mão?",
-            mensagem: `${descricaoCompra(p)} para ${p.email ?? p.userId} — ${dinheiro(p.valor, p.moeda)}. A compra é aplicada agora (plano ou créditos), sem conferir na rede. Use só se você confirmou o recebimento.`,
-            confirmar: "Aprovar e aplicar",
-          }
-        : {
-            titulo: "Encerrar esta cobrança?",
+            titulo: "Reembolsar esta compra?",
             mensagem:
-              "Ela passa para expirada e não pode mais ser paga. Nenhum saldo é alterado.",
-            confirmar: "Encerrar",
+              p.provedor === "stripe"
+                ? `${descricaoCompra(p)} de ${p.email ?? p.userId} — ${dinheiro(p.valor, p.moeda)}. O valor volta pelo Stripe e o plano ou os créditos da compra saem da conta agora. Não dá para desfazer.`
+                : `${descricaoCompra(p)} de ${p.email ?? p.userId} — ${dinheiro(p.valor, p.moeda)}. O plano ou os créditos da compra saem da conta agora. O USDC NÃO é enviado sozinho: mande ${dinheiro(p.valor, p.moeda)} para a carteira de quem pagou${p.pagador ? ` (${p.pagador})` : ""}.`,
+            confirmar: "Reembolsar",
             tom: "perigo",
-          },
+          }
+        : acao === "aprovar"
+          ? {
+              titulo: "Aprovar este pagamento à mão?",
+              mensagem: `${descricaoCompra(p)} para ${p.email ?? p.userId} — ${dinheiro(p.valor, p.moeda)}. A compra é aplicada agora (plano ou créditos), sem conferir na rede. Use só se você confirmou o recebimento.`,
+              confirmar: "Aprovar e aplicar",
+            }
+          : {
+              titulo: "Encerrar esta cobrança?",
+              mensagem:
+                "Ela passa para expirada e não pode mais ser paga. Nenhum saldo é alterado.",
+              confirmar: "Encerrar",
+              tom: "perigo",
+            },
     );
     if (!ok) return;
     setAgindo(p.id);
@@ -209,6 +225,22 @@ export function Pagamentos({
                 </td>
                 <td className="px-3 py-3">
                   <SeloStatus status={p.status} />
+                  {p.status === "pago" ? (
+                    <div
+                      className={
+                        p.reembolso.pode
+                          ? "mt-1 text-[11px] text-ok"
+                          : "mt-1 text-[11px] text-ink-dim"
+                      }
+                      title={p.reembolso.motivo ?? undefined}
+                    >
+                      {p.reembolso.pode
+                        ? `Reembolsável até ${new Date(p.reembolso.ate!).toLocaleDateString("pt-BR")}`
+                        : p.reembolso.usados > 0
+                          ? `Sem reembolso · usou ${num(p.reembolso.usados)} créditos`
+                          : "Sem reembolso · passou de 7 dias"}
+                    </div>
+                  ) : null}
                 </td>
                 <td className="px-3 py-3 truncate">
                   {link ? (
@@ -264,6 +296,22 @@ export function Pagamentos({
                             </button>
                           ) : null}
                         </>
+                      )}
+                    </div>
+                  ) : p.reembolso.pode ? (
+                    <div className="flex justify-end">
+                      {agindo === p.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-ink-mute" />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => agir(p, "reembolsar")}
+                          title="Reembolsar: devolve o valor e tira a compra da conta"
+                          aria-label="Reembolsar"
+                          className="h-8 w-8 rounded-full border border-line grid place-items-center text-ink-mute hover:text-pink hover:border-pink/50"
+                        >
+                          <Undo2 className="w-4 h-4" />
+                        </button>
                       )}
                     </div>
                   ) : null}

@@ -126,8 +126,11 @@ export function TermosEn() {
             irreversible: check the network and address before sending.
           </li>
           <li>
-            Refund requests are reviewed in accordance with consumer
-            protection law. Write to{" "}
+            Refunds: you can ask for your money back within 7 days of the
+            purchase, as long as none of its credits have been used. Once any
+            credit from the purchase is used (even a single one), there is no
+            refund. Generations that failed and had their credits returned do
+            not count as use. Write to{" "}
             <a href={`mailto:${EMAIL_CONTATO}`}>{EMAIL_CONTATO}</a>.
           </li>
           <li>

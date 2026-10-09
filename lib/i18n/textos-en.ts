@@ -1807,4 +1807,81 @@ export const TEXTOS_EN: Record<string, string> = {
 
   "O navegador não conseguiu abrir este vídeo (arquivo indisponível ou formato que ele não toca, como HEVC/H.265). A troca ainda funciona: sem marcar ninguém, a IA troca a pessoa principal.":
     "The browser couldn't open this video (file unavailable or a format it can't play, such as HEVC/H.265). The swap still works: with nobody marked, the AI swaps the main person.",
+
+  // Claude Code (MCP)
+  "Claude Code (MCP)":
+    "Claude Code (MCP)",
+  "MCP":
+    "MCP",
+  "Conecte o Claude Code à sua conta e peça, pelo terminal, o que você faz aqui no app. Tudo roda na sua conta, com o seu plano e os seus créditos.":
+    "Connect Claude Code to your account and ask, from the terminal, for what you do here in the app. Everything runs on your account, with your plan and your credits.",
+  "1. Crie um token de acesso":
+    "1. Create an access token",
+  "Nome (ex.: meu notebook)":
+    "Name (e.g. my laptop)",
+  "Criar token":
+    "Create token",
+  "Copie agora: este token não aparece de novo. Quem tiver o token usa os seus créditos — trate como uma senha.":
+    "Copy it now: this token is not shown again. Whoever has the token spends your credits — treat it like a password.",
+  "2. Rode este comando no terminal":
+    "2. Run this command in your terminal",
+  "Depois abra o Claude Code e peça, por exemplo: “liste meus personagens do NIDO” ou “crie um vídeo falado do meu personagem com este roteiro”.":
+    "Then open Claude Code and ask, for example: “list my NIDO characters” or “create a spoken video of my character with this script”.",
+  "O que dá para fazer":
+    "What you can do",
+  "As gerações gastam créditos como no app, e o Claude avisa o custo antes. Compras, reembolsos e saques só são feitos aqui no app.":
+    "Generations spend credits just like in the app, and Claude tells you the cost first. Purchases, refunds and withdrawals are only done here in the app.",
+  "Tokens ativos":
+    "Active tokens",
+  "Nenhum token criado ainda.":
+    "No tokens created yet.",
+  "criado em":
+    "created on",
+  "último uso":
+    "last used",
+  "nunca usado":
+    "never used",
+  "Revogar":
+    "Revoke",
+  "Revogar este token?":
+    "Revoke this token?",
+  "Quem estiver conectado com ele perde o acesso na hora. Não dá para desfazer.":
+    "Anyone connected with it loses access immediately. This can't be undone.",
+  "Ver personagens, imagens, vozes, roteiros e vídeos":
+    "See characters, images, voices, scripts and videos",
+  "Escrever legendas, roteiros e respostas na voz do personagem":
+    "Write captions, scripts and replies in the character's voice",
+  "Gerar imagens do personagem":
+    "Generate character images",
+  "Criar vídeo falado (close ou corpo inteiro, com cenários)":
+    "Create spoken video (close-up or full body, with settings)",
+  "Criar vídeo de cena":
+    "Create scene video",
+  "Buscar vídeo por link e trocar a pessoa pelo personagem":
+    "Fetch a video by link and swap the person for the character",
+  "Escolher voz e gerar falas":
+    "Pick a voice and generate speech",
+  "Consultar o saldo de créditos":
+    "Check the credit balance",
+
+  "Criar e editar personagens":
+    "Create and edit characters",
+  "Gerar o radar do dia":
+    "Generate the daily radar",
+  "Publicar e agendar posts nas redes":
+    "Publish and schedule social posts",
+  "Remover ou trocar legenda de vídeo":
+    "Remove or replace video captions",
+  "Trocar pessoa em foto":
+    "Swap a person in a photo",
+  "Treinar a persona do personagem":
+    "Train the character's persona",
+  "Enviar arquivos do computador":
+    "Upload files from your computer",
+  "Trocar várias pessoas de um vídeo":
+    "Swap several people in a video",
+
+  "Nome do token": "Token name",
+  "só para você identificar na lista": "just for you to recognise it in the list",
+  "Ex.: meu notebook": "E.g. my laptop",
 };

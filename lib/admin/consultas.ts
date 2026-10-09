@@ -1,3 +1,8 @@
+import {
+  avaliarReembolso,
+  SQL_USADOS_DA_COMPRA,
+  type SituacaoReembolso,
+} from "@/lib/pagamentos/reembolso";
 import { getPool } from "@/lib/db";
 import { getS3, presignGet } from "@/lib/storage/s3";
 
@@ -280,6 +285,8 @@ export interface PagamentoAdmin {
   pagador: string | null;
   criadoEm: string;
   pagoEm: string | null;
+  /** Se esta compra ainda pode ser reembolsada (7 dias, nenhum crédito usado). */
+  reembolso: SituacaoReembolso;
 }
 
 function paraPagamento(r: Record<string, unknown>): PagamentoAdmin {
@@ -303,10 +310,15 @@ function paraPagamento(r: Record<string, unknown>): PagamentoAdmin {
     pagador: (r.pagador as string) ?? null,
     criadoEm: new Date(r.created_at as string).toISOString(),
     pagoEm: r.pago_em ? new Date(r.pago_em as string).toISOString() : null,
+    reembolso: avaliarReembolso({
+      status: String(r.status),
+      pagoEm: r.pago_em ? new Date(r.pago_em as string) : null,
+      usados: n(r.usados),
+    }),
   };
 }
 
-const SELECT_PAGAMENTO = `select p.*, u.email, u.name from pagamentos p left join "user" u on u.id = p.user_id`;
+const SELECT_PAGAMENTO = `select p.*, u.email, u.name, ${SQL_USADOS_DA_COMPRA} as usados from pagamentos p left join "user" u on u.id = p.user_id`;
 
 export async function listarPagamentos(o: {
   q?: string;

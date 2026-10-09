@@ -122,8 +122,11 @@ export function TermosPt() {
             irreversíveis: confira a rede e o endereço antes de enviar.
           </li>
           <li>
-            Pedidos de reembolso são analisados conforme a legislação de
-            defesa do consumidor. Escreva para{" "}
+            Reembolso: você pode pedir o valor de volta em até 7 dias depois
+            da compra, desde que nenhum crédito dela tenha sido usado. Usou
+            qualquer crédito da compra (mesmo um só), não há mais reembolso.
+            Gerações que falharam e tiveram os créditos devolvidos não contam
+            como uso. Escreva para{" "}
             <a href={`mailto:${EMAIL_CONTATO}`}>{EMAIL_CONTATO}</a>.
           </li>
           <li>

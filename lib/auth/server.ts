@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { headers } from "next/headers";
 import { getPool } from "@/lib/db";
 import { recursosDisponiveis } from "@/lib/recursos";
+import { usuarioDoContexto } from "./contexto";
 
 function createAuth() {
   const pool = getPool();
@@ -29,6 +30,9 @@ export function getAuth() {
 
 /** id do usuário logado na request atual (Route Handlers), ou null. */
 export async function getUserId(): Promise<string | null> {
+  // MCP: o token de API já foi validado e a rota roda em nome do dono dele.
+  const doContexto = usuarioDoContexto();
+  if (doContexto) return doContexto;
   const auth = getAuth();
   if (!auth) return null;
   const session = await auth.api.getSession({ headers: await headers() });

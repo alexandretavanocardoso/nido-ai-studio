@@ -208,6 +208,10 @@ const PADROES: Padrao[] = [
   [/^A ElevenLabs recusou a entrada: (.+)$/, "ElevenLabs rejected the input: $1"],
   [/^O Runway recusou a entrada: (.+)$/, "Runway rejected the input: $1"],
   [
+    /^Você já tem (\d+) tokens ativos\. Revogue um para criar outro\.$/,
+    "You already have $1 active tokens. Revoke one to create another.",
+  ],
+  [
     /^No corpo inteiro cada cena pode ter até (\d+)s de fala\. Divida a fala em mais cenas \(uma linha em branco entre elas\) ou encurte\.$/,
     "In full body each scene can have up to $1s of speech. Split the speech into more scenes (a blank line between them) or shorten it.",
   ],
@@ -234,6 +238,13 @@ const PADROES: Padrao[] = [
 
 /** Mensagens fixas do servidor, indexadas pelo texto em português. */
 const ERROS_EN: Record<string, string> = {
+  // Formulários da landing page (app/api/leads)
+  "Muitas tentativas seguidas. Tente de novo em alguns minutos.":
+    "Too many attempts in a row. Try again in a few minutes.",
+  "Confira os campos: nome e um e-mail válido são obrigatórios.":
+    "Check the fields: a name and a valid email are required.",
+  "Não foi possível registrar agora. Tente de novo mais tarde.":
+    "We couldn't save it right now. Try again later.",
   // Conta e pedido
   "Entre na sua conta para usar a IA.": "Sign in to your account to use the AI.",
   "Entre na sua conta para gerar imagens.":
@@ -453,6 +464,10 @@ const ERROS_EN: Record<string, string> = {
     "The ElevenLabs account reached its plan's voice limit. Delete unused voices or upgrade the ElevenLabs plan.",
   "Vídeo falado não configurado (RUNWAYML_API_SECRET e ELEVENLABS_API_KEY).":
     "Spoken video is not configured (RUNWAYML_API_SECRET and ELEVENLABS_API_KEY).",
+  "Informe o vídeo ou a foto.": "Provide the video or the photo.",
+  "Dê um nome ao token.": "Give the token a name.",
+  "Token não encontrado.": "Token not found.",
+  "JSON inválido.": "Invalid JSON.",
   "O Runway bloqueou a geração pela moderação de conteúdo.":
     "Runway blocked the generation through content moderation.",
   "Chave do Runway inválida. Confira RUNWAYML_API_SECRET.":

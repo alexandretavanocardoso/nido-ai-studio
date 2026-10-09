@@ -399,52 +399,57 @@ export async function prepararAncora(o: {
     if (!process.env.GEMINI_API_KEY?.trim())
       return { imagem: null, descricoes, outras: [], naAncora: [] };
 
-    // Uma imagem por personagem (repetidos entram uma vez): IMAGE 2, 3…
-    const unicos: Buffer[] = [];
-    const indices = naAncora.map((n) => {
-      const p = o.personagens[n];
-      let i = unicos.findIndex((u) => u.equals(p));
-      if (i < 0) i = unicos.push(p) - 1;
-      return 2 + i;
-    });
     const original = await sharp(quadro)
       .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
       .jpeg({ quality: 90 })
       .toBuffer();
     const outrasP = outrasDe(descricoes);
-    const geracao = generateImage({
-      prompt: promptTrocaImagem({
-        alvos: naAncora.map((n, i) => ({
-          descricao: descricoes[n],
-          imagem: indices[i],
-        })),
-        // No vídeo o personagem entra com o próprio look (como a troca em vídeo sempre fez).
-        roupa: "personagem",
-      }),
-      referencias: [
-        { mimeType: "image/jpeg", data: original.toString("base64") },
-        ...(await Promise.all(unicos.map((u) => shrinkReferencia(u)))),
-      ],
-      aspectRatio: proporcaoMaisProxima(o.info.largura, o.info.altura),
-      imageSize: "1K",
-      qualidade: "padrao",
-    });
-    // O Nano Banana às vezes demora: passado o limite, a troca segue sem âncora.
-    const imagem = await Promise.race([
-      geracao,
-      new Promise<null>((ok) => setTimeout(() => ok(null), LIMITE_MS)),
-    ]);
-    geracao.catch(() => {}); // se perdeu a corrida e falhar depois, não vira erro solto
-    if (!imagem)
+    // Uma pessoa por vez, cada passada em cima do resultado da anterior. Com
+    // todas no mesmo pedido, a segunda costuma sair "colada" (pose e luz da
+    // imagem de referência, de pé e de frente) — e o vídeo inteiro copia isso.
+    const prazo = Date.now() + LIMITE_MS;
+    let imagem: Buffer | null = null;
+    const feitos: number[] = [];
+    for (const n of naAncora) {
+      const restante = prazo - Date.now();
+      if (restante <= 0) break;
+      const geracao: Promise<Buffer | null> = generateImage({
+        prompt: promptTrocaImagem({
+          alvos: [{ descricao: descricoes[n], imagem: 2 }],
+          // No vídeo o personagem entra com o próprio look (como a troca em vídeo sempre fez).
+          roupa: "personagem",
+        }),
+        referencias: [
+          {
+            mimeType: "image/jpeg",
+            data: (imagem
+              ? await sharp(imagem).jpeg({ quality: 92 }).toBuffer()
+              : original
+            ).toString("base64"),
+          },
+          await shrinkReferencia(o.personagens[n]),
+        ],
+        aspectRatio: proporcaoMaisProxima(o.info.largura, o.info.altura),
+        imageSize: "1K",
+        qualidade: "padrao",
+      }).catch((e) => {
+        console.warn("[ancora] passada da âncora falhou:", (e as Error).message);
+        return null;
+      });
+      // O Nano Banana às vezes demora: passado o limite, segue com o que já tem.
+      const passada: Buffer | null = await Promise.race([
+        geracao,
+        new Promise<null>((ok) => setTimeout(() => ok(null), restante)),
+      ]);
+      if (!passada) break;
+      imagem = passada;
+      feitos.push(n);
+    }
+    if (feitos.length < naAncora.length)
       console.warn(
-        "[ancora] o quadro-âncora passou do tempo; a troca segue sem ele",
+        `[ancora] quadro-âncora com ${feitos.length} de ${naAncora.length} alvos (tempo ou falha)`,
       );
-    return {
-      imagem,
-      descricoes,
-      outras: await outrasP,
-      naAncora: imagem ? naAncora : [],
-    };
+    return { imagem, descricoes, outras: await outrasP, naAncora: feitos };
   } catch (e) {
     console.warn(
       "[ancora] sem quadro-âncora (a troca segue sem ele):",

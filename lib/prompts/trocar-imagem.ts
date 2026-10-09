@@ -44,6 +44,7 @@ export function promptTrocaImagem(o: {
     `- From IMAGE 1 keep: the exact position and scale in the frame, pose, body orientation, head angle and tilt, gaze direction, gesture, facial expression${
       deRoupa ? "" : ", clothing and accessories"
     }. Objects the person holds or touches stay the same, now held by the character's hands.`,
+    "- Redraw the character inside the scene, in the original person's place: same seated or standing posture, same size, and the same parts hidden behind the table, objects or other people. Never paste the character image as it is — its pose, framing and studio lighting do not belong in this scene.",
     "- The head keeps the angle of IMAGE 1: if the person looks down or away, the character looks down or away the same way. Do not turn the face towards the camera.",
     "- Hats and other head accessories of the character are real 3D objects worn on the head: they follow its tilt and perspective and take the scene's light. If one does not fit in the frame, let the frame edge crop it — never flatten it, shrink the person or change the framing to fit it.",
     ...(deRoupa
@@ -54,7 +55,7 @@ export function promptTrocaImagem(o: {
     "- Match the lighting, shadows, colour grading, focus and grain of IMAGE 1 so the character looks naturally photographed in that scene.",
     "",
     "STYLE",
-    "Keep exactly the visual style of IMAGE 1. If IMAGE 1 is a real photo, the result must be a real photo: render the character photorealistically, as a real person photographed in that scene — never as a cartoon, 3D render or illustration, even if the character image is stylized.",
+    "Keep exactly the visual style of IMAGE 1. If IMAGE 1 is a real photo, the result must be a real photo: render the character photorealistically, as a real person photographed in that scene — never as a cartoon, 3D render or illustration, even if the character image is stylized or a 3D render. Skin has real texture (pores, small imperfections, natural shine) and takes the colours of the scene's lights; no smooth, waxy or plastic CGI skin.",
     "",
     "KEEP UNCHANGED",
     "Background, setting, every other person, objects, text already present in the scene, colours, camera angle, framing, crop, aspect ratio and depth of field.",

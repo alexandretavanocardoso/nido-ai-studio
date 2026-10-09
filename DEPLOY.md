@@ -142,3 +142,8 @@ Authorization: Bearer <CRON_SECRET>
 - [ ] Estúdio → Publicar → conectar uma rede e publicar um post de teste (bundle.social + webhook).
 - [ ] Comprar o menor pacote de créditos no Stripe (modo teste) e ver o saldo subir.
 - [ ] Sugerir campo com IA (chave da Anthropic com workspace).
+
+## Landing page
+
+- [ ] Rodar a migration `db/migrations/0022_leads.sql` no Neon. Sem ela, os formulários da landing (whitelist e plano Agência) respondem "Não foi possível registrar agora".
+- Os vídeos da landing ficam no S3 em `site/lp/` e são lidos por `/midia-lp/<nome>.mp4`. Para trocar um vídeo: pôr o original em `public/video_lp/` (pasta fora do git) e rodar `node --env-file=.env scripts/lp-midia.mjs`, que comprime, gera a capa em `public/lp/capas/` e envia.

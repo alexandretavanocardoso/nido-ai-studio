@@ -1,3 +1,6 @@
+import { reverterCompra } from "@/lib/pagamentos/aplicar";
+import { situacaoDoReembolso } from "@/lib/pagamentos/reembolso";
+import { reembolsarNoStripe } from "@/lib/pagamentos/stripe";
 import { nanoid } from "nanoid";
 import { getPool } from "@/lib/db";
 import {
@@ -110,6 +113,31 @@ export async function aprovarPagamento(admin: Admin, id: string) {
     ref: id,
     usdc: p.provedor === "usdc",
   });
+}
+
+/**
+ * Reembolsa uma compra paga — só se a regra deixar (até 7 dias e nenhum
+ * crédito da compra usado; ver lib/pagamentos/reembolso.ts).
+ * Stripe: devolve o dinheiro pela API. USDC: a compra é desfeita aqui e o
+ * envio de volta para a carteira de quem pagou é feito à mão.
+ */
+export async function reembolsarPagamento(
+  id: string,
+): Promise<{ manual: string | null }> {
+  const situacao = await situacaoDoReembolso(id);
+  if (!situacao) throw new Error("Pagamento não encontrado.");
+  if (!situacao.pode) throw new Error(situacao.motivo ?? "Sem reembolso.");
+  if (situacao.provedor === "stripe") {
+    await reembolsarNoStripe(id);
+    return { manual: null };
+  }
+  const { rows } = await pool().query<{ pagador: string | null }>(
+    "select pagador from pagamentos where id = $1",
+    [id],
+  );
+  if (!(await reverterCompra(id)))
+    throw new Error("Este pagamento não está mais como pago.");
+  return { manual: rows[0]?.pagador ?? "" };
 }
 
 /** Encerra uma cobrança pendente (não mexe em saldo). */
