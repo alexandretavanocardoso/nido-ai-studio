@@ -138,10 +138,20 @@ describe("troca tomada por tomada", () => {
 
   it("as tomadas vão de corte a corte e cobrem o vídeo inteiro", () => {
     const t = tomadasDoVideo(cortes, 9.667);
-    expect(t).toHaveLength(10);
+    // 10 tomadas no vídeo; a de 0,4 s (aos 3,333 s) vai junto com a seguinte.
+    expect(t).toHaveLength(9);
     expect(t[0]).toEqual({ inicio: 0, duracao: 1.333 });
-    expect(t[2]).toEqual({ inicio: 3.333, duracao: 0.4 });
+    expect(t[2]).toEqual({ inicio: 3.333, duracao: 1.4 });
     expect(t.reduce((s, x) => s + x.duracao, 0)).toBeCloseTo(9.667, 2);
+  });
+
+  it("tomada minúscula no fim do vídeo se junta à anterior", () => {
+    expect(tomadasDoVideo([5, 9.6], 10)).toEqual([
+      { inicio: 0, duracao: 5 },
+      { inicio: 5, duracao: 5 },
+    ]);
+    // Duas minúsculas seguidas vão as duas com a próxima tomada de verdade.
+    expect(tomadasDoVideo([2, 2.4, 2.8], 6).map((x) => x.inicio)).toEqual([0, 2]);
   });
 
   it("um corte colado em outro (ou no fim) não cria tomada própria", () => {
@@ -149,7 +159,7 @@ describe("troca tomada por tomada", () => {
   });
 
   it("só entra no modo quando há tomada mais curta que o mínimo do motor", () => {
-    expect(trocaPorTomadas(cortes, 9.667)).toHaveLength(10);
+    expect(trocaPorTomadas(cortes, 9.667)).toHaveLength(9);
     // Sem cortes, ou só com tomadas longas: modo normal.
     expect(trocaPorTomadas([], 20)).toBeNull();
     expect(trocaPorTomadas([8, 14], 20)).toBeNull();
@@ -159,10 +169,10 @@ describe("troca tomada por tomada", () => {
   });
 
   it("cobra o que o Kling processa: cada tomada curta conta como TOMADA_MIN", () => {
-    // 10 tomadas, mas a de 0,4 s fica como no original: não é enviada nem cobrada.
+    // 9 pedidos: a tomada de 0,4 s vai junto com a seguinte, num pedido só.
     expect(segundosCobradosTroca(cortes, 9.667)).toBeCloseTo(9 * TOMADA_MIN, 2);
-    expect(segundosDaTomada({ inicio: 3.333, duracao: 0.4 })).toBe(0);
     expect(segundosDaTomada({ inicio: 0, duracao: 0.5 })).toBe(TOMADA_MIN);
+    expect(segundosDaTomada({ inicio: 0, duracao: 8 })).toBe(8);
     // Tomada longa conta pela duração dela.
     expect(segundosCobradosTroca([1, 9], 12)).toBeCloseTo(TOMADA_MIN + 8 + TOMADA_MIN, 2);
     // Modo normal: a duração do vídeo.

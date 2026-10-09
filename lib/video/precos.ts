@@ -37,6 +37,8 @@ export function custoTroca(
 export const TOMADA_MIN = 3.1;
 /** Tomadas menores que isto (um clarão, um quadro solto) se juntam à anterior. */
 const TOMADA_DESPREZIVEL = 0.3;
+/** Tomadas mais curtas que isto vão junto com a vizinha (ver `tomadasDoVideo`). */
+const TOMADA_MINUSCULA = 0.5;
 /** Acima disto o vídeo volta ao modo normal: seriam pedidos demais de uma vez. */
 export const MAX_TOMADAS = 24;
 
@@ -54,9 +56,23 @@ export function tomadasDoVideo(cortes: number[], duracao: number): Tomada[] {
       duracao - c >= TOMADA_DESPREZIVEL
     )
       pontos.push(c);
-  return pontos.map((inicio, i) => ({
+  // Tomada minúscula vai JUNTO com a seguinte, no mesmo pedido (a última, com a
+  // anterior). Sozinha ela seria esticada 6 vezes ou mais em câmera lenta, sobra
+  // pouco vídeo de verdade e o Kling inventa o cenário; deixá-la como no
+  // original faz a pessoa original piscar no meio do vídeo. Junto com a vizinha
+  // o cenário se mantém (testado) — e vai na frente porque o motor troca melhor
+  // o que está no começo do pedido.
+  const limites = pontos.filter(
+    (inicio, i) => i === 0 || inicio - pontos[i - 1] >= TOMADA_MINUSCULA,
+  );
+  if (
+    limites.length > 1 &&
+    duracao - limites[limites.length - 1] < TOMADA_MINUSCULA
+  )
+    limites.pop();
+  return limites.map((inicio, i) => ({
     inicio: Number(inicio.toFixed(3)),
-    duracao: Number(((pontos[i + 1] ?? duracao) - inicio).toFixed(3)),
+    duracao: Number(((limites[i + 1] ?? duracao) - inicio).toFixed(3)),
   }));
 }
 
@@ -76,24 +92,13 @@ export function trocaPorTomadas(
     : null;
 }
 
-/**
- * Tomadas mais curtas que isto ficam como no original: não vão ao motor nem
- * são cobradas. Esticadas 6 vezes ou mais em câmera lenta, sobra pouco vídeo de
- * verdade e o Kling inventa cenário (testado: fundo trocado, pessoa pela
- * metade). Menos de meio segundo do original chama menos atenção que isso.
- */
-export const TOMADA_SO_ORIGINAL = 0.5;
-export const tomadaFicaOriginal = (t: Tomada) => t.duracao < TOMADA_SO_ORIGINAL;
-
-/** Segundos que o Kling processa (e cobra) numa tomada (0 se ela fica como no original). */
-export const segundosDaTomada = (t: Tomada) =>
-  tomadaFicaOriginal(t) ? 0 : Math.max(TOMADA_MIN, t.duracao);
+/** Segundos que o Kling processa (e cobra) numa tomada. */
+export const segundosDaTomada = (t: Tomada) => Math.max(TOMADA_MIN, t.duracao);
 
 /**
  * Segundos cobrados pela troca no Kling: a duração do vídeo, ou — tomada por
- * tomada — a soma do que o motor processa em cada uma (as de menos de meio
- * segundo ficam de fora). É o valor máximo: uma tomada em que ninguém marcado
- * aparece não é enviada nem cobrada.
+ * tomada — a soma do que o motor processa em cada uma. É o valor máximo: uma
+ * tomada em que ninguém marcado aparece não é enviada nem cobrada.
  */
 export function segundosCobradosTroca(cortes: number[], duracao: number): number {
   const tomadas = trocaPorTomadas(cortes, duracao);

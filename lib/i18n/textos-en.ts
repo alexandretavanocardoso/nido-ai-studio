@@ -399,8 +399,8 @@ export const TEXTOS_EN: Record<string, string> = {
   Hoje: "Today",
   tomadas: "shots",
   "Vídeo com cortes rápidos": "Fast-cut video",
-  "Cada tomada é trocada separadamente, e as mais curtas contam como 3 segundos cada — por isso o valor é maior que o da duração do vídeo. Tomadas com menos de meio segundo, ou em que a pessoa marcada não aparece, ficam como no original e não são cobradas. Pode levar mais tempo que o normal.":
-    "Each shot is swapped separately, and the shortest ones count as 3 seconds each — that's why the price is higher than the video's length. Shots under half a second, or where the marked person doesn't appear, stay as in the original and aren't charged. It may take longer than usual.",
+  "Cada tomada é trocada separadamente, e as mais curtas contam como 3 segundos cada — por isso o valor é maior que o da duração do vídeo. Tomada em que a pessoa marcada não aparece fica como no original e não é cobrada. Pode levar mais tempo que o normal.":
+    "Each shot is swapped separately, and the shortest ones count as 3 seconds each — that's why the price is higher than the video's length. A shot where the marked person doesn't appear stays as in the original and isn't charged. It may take longer than usual.",
   "Não deu para destacar a pessoa inteira:":
     "Couldn't highlight the whole person:",
   hoje: "today",

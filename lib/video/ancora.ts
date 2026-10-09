@@ -10,7 +10,6 @@ import {
 } from "@/lib/ai/gemini";
 import { promptTrocaImagem } from "@/lib/prompts/trocar-imagem";
 import { extrairQuadro, type VideoInfo } from "./ffmpeg";
-import { tomadaFicaOriginal } from "./precos";
 import { marcarPonto } from "./pessoas";
 
 /**
@@ -512,9 +511,6 @@ export async function prepararTomadas(o: {
   ]);
   // Poucas por vez: cada tomada faz até uma geração de imagem por pessoa.
   return emLotes(o.tomadas, 6, async (t, k) => {
-    // Curta demais para o motor (ver TOMADA_SO_ORIGINAL): fica como no original.
-    if (tomadaFicaOriginal(t))
-      return { ...t, presentes: [], descricoes: [], ancora: null, naAncora: [] };
     try {
       const saida = path.join(o.dir, `tomada-${k}.jpg`);
       await extrairQuadro(

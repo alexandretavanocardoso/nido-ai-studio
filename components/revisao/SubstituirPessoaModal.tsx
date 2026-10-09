@@ -616,7 +616,7 @@ export function SubstituirPessoaModal({
                     {tx("tomadas")}
                   </strong>{" "}
                   {tx(
-                    "Cada tomada é trocada separadamente, e as mais curtas contam como 3 segundos cada — por isso o valor é maior que o da duração do vídeo. Tomadas com menos de meio segundo, ou em que a pessoa marcada não aparece, ficam como no original e não são cobradas. Pode levar mais tempo que o normal.",
+                    "Cada tomada é trocada separadamente, e as mais curtas contam como 3 segundos cada — por isso o valor é maior que o da duração do vídeo. Tomada em que a pessoa marcada não aparece fica como no original e não é cobrada. Pode levar mais tempo que o normal.",
                   )}
                 </div>
               ) : null}
