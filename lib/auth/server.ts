@@ -1,5 +1,7 @@
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { headers } from "next/headers";
+import { soAdminAgora } from "@/lib/admin/em-teste-server";
 import { getPool } from "@/lib/db";
 import { recursosDisponiveis } from "@/lib/recursos";
 import { usuarioDoContexto } from "./contexto";
@@ -27,6 +29,28 @@ function createAuth() {
             },
           }
         : {}),
+    },
+    // Login fechado pelo admin (área admin → "Em teste" → Login de usuários):
+    // só contas admin abrem sessão. Vale para qualquer forma de entrar, porque
+    // barra na criação da sessão.
+    databaseHooks: {
+      session: {
+        create: {
+          before: async (sessao) => {
+            if (!(await soAdminAgora("login"))) return;
+            const { rows } = await pool.query<{ email: string; v: boolean }>(
+              'select email, "emailVerified" as v from "user" where id = $1',
+              [sessao.userId],
+            );
+            // Importado aqui: lib/admin/acesso.ts importa este arquivo.
+            const { ehAdmin } = await import("@/lib/admin/acesso");
+            if (rows[0]?.v && ehAdmin(rows[0].email)) return;
+            throw new APIError("FORBIDDEN", {
+              message: "O acesso ao app está fechado no momento.",
+            });
+          },
+        },
+      },
     },
     account: {
       accountLinking: {

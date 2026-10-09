@@ -30,6 +30,11 @@ describe("recursos em teste na tela", () => {
     expect(liberadoNaTela("indicacoes", { admin: true, emTeste: estado })).toBe(true);
   });
 
+  it("o login é aberto por padrão: fechar é uma decisão do admin", () => {
+    expect(SO_ADMIN.login).toBe(false);
+    expect(SOBRE_O_RECURSO.login.aoFechar).toMatch(/desconectados AGORA/);
+  });
+
   it("todo recurso tem título e descrição para a aba do admin", () => {
     for (const r of RECURSOS_EM_TESTE) {
       expect(SOBRE_O_RECURSO[r].titulo.length).toBeGreaterThan(3);

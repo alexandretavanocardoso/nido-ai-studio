@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { adminOuResponder } from "@/lib/admin/acesso";
-import { definirEmTeste, listarEmTeste } from "@/lib/admin/em-teste-server";
+import { adminOuResponder, emailsAdmin } from "@/lib/admin/acesso";
+import {
+  definirEmTeste,
+  desconectarQuemNaoEAdmin,
+  listarEmTeste,
+} from "@/lib/admin/em-teste-server";
 import { RECURSOS_EM_TESTE, type RecursoEmTeste } from "@/lib/em-teste";
 
 export const runtime = "nodejs";
@@ -31,5 +35,10 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   await definirEmTeste(parsed.data.recurso, parsed.data.soAdmin, admin.email);
-  return NextResponse.json({ itens: await listarEmTeste() });
+  // Fechar o login também tira do app quem já estava dentro.
+  const desconectados =
+    parsed.data.recurso === "login" && parsed.data.soAdmin
+      ? await desconectarQuemNaoEAdmin(emailsAdmin())
+      : undefined;
+  return NextResponse.json({ itens: await listarEmTeste(), desconectados });
 }

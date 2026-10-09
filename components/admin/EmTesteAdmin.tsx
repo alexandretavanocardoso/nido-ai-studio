@@ -20,6 +20,7 @@ export function EmTesteAdmin() {
   const [itens, setItens] = useState<RecursoAdmin[] | null>(null);
   const [mudando, setMudando] = useState<RecursoEmTeste | null>(null);
   const [falha, setFalha] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
   useEffect(() => {
     if (dados) setItens(dados.itens);
   }, [dados]);
@@ -33,12 +34,14 @@ export function EmTesteAdmin() {
         : `Fechar “${sobre.titulo}”?`,
       mensagem: liberar
         ? "Todas as contas passam a ver e usar este recurso. Você pode fechar de novo quando quiser."
-        : "Só as contas admin continuam vendo e usando. Quem já estava usando perde o acesso — as telas somem e as rotas recusam.",
+        : (sobre.aoFechar ??
+          "Só as contas admin continuam vendo e usando. Quem já estava usando perde o acesso — as telas somem e as rotas recusam."),
       confirmar: liberar ? "Liberar para todos" : "Deixar só para admin",
       tom: liberar ? undefined : "perigo",
     });
     if (!ok) return;
     setFalha(null);
+    setAviso(null);
     setMudando(item.recurso);
     try {
       const res = await fetch("/api/admin/em-teste", {
@@ -48,11 +51,17 @@ export function EmTesteAdmin() {
       });
       const b = (await res.json().catch(() => ({}))) as {
         itens?: RecursoAdmin[];
+        desconectados?: number;
         error?: string;
       };
       if (!res.ok || !b.itens)
         return setFalha(b.error ?? `Não deu para salvar (HTTP ${res.status}).`);
       setItens(b.itens);
+      setAviso(
+        b.desconectados !== undefined
+          ? `Login fechado. ${b.desconectados} sessão(ões) de usuários encerrada(s).`
+          : null,
+      );
     } catch (e) {
       setFalha((e as Error).message);
     } finally {
@@ -69,6 +78,11 @@ export function EmTesteAdmin() {
         {falha ? (
           <div className="rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
             {falha}
+          </div>
+        ) : null}
+        {aviso ? (
+          <div className="rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-ink">
+            {aviso}
           </div>
         ) : null}
         {!itens ? (

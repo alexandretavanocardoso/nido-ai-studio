@@ -75,6 +75,22 @@ export async function listarEmTeste(): Promise<RecursoAdmin[]> {
   });
 }
 
+/**
+ * Encerra as sessões de quem não é admin (usado ao fechar o login). Devolve
+ * quantas sessões foram encerradas. As contas não são tocadas.
+ */
+export async function desconectarQuemNaoEAdmin(
+  emailsAdmin: string[],
+): Promise<number> {
+  const { rowCount } = await getPool()!.query(
+    `delete from "session" where "userId" not in (
+       select id from "user" where "emailVerified" and lower(email) = any($1::text[])
+     )`,
+    [emailsAdmin.map((e) => e.toLowerCase())],
+  );
+  return rowCount ?? 0;
+}
+
 /** Fecha (só admin) ou libera para todos. Vale na hora nesta instância; nas outras, em até 15 s. */
 export async function definirEmTeste(
   recurso: RecursoEmTeste,

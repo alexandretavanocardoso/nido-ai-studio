@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import "@/components/landing/landing.css";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Capsula } from "@/components/landing/Capsula";
+import { Idioma } from "@/components/landing/Idioma";
 import { useRecursos } from "@/components/RecursosProvider";
 import { tx } from "@/lib/i18n/tx";
 
@@ -133,19 +134,6 @@ function LoginInner() {
             {err}
           </div>
         ) : null}
-
-        <ul className="lg-lista">
-          {[
-            tx("Identidade completa"),
-            tx("Sem aparecer"),
-            tx("Múltiplos creators"),
-          ].map((item, i) => (
-            <li key={item}>
-              <b>{String(i + 1).padStart(2, "0")}</b>
-              {item}
-            </li>
-          ))}
-        </ul>
       </div>
     </>
   );
@@ -154,6 +142,7 @@ function LoginInner() {
 export default function LoginPage() {
   return (
     <div className="lg">
+      <Idioma />
       {/* Esquerda: a mesma fábrica do topo da landing, com uma cápsula. */}
       <div className="lg-cena hx" aria-hidden="true">
         <div className="hx-floor" />
@@ -165,12 +154,6 @@ export default function LoginPage() {
           style={{ "--ad": "1.4s" } as CSSProperties}
         />
         <CapsulaRotativa />
-        <div className="lg-frase">
-          <h2>
-            {tx("Personagens são gerados.")}{" "}
-            <em>{tx("Creators são construídos.")}</em>
-          </h2>
-        </div>
         <div className="hx-vig" />
       </div>
 

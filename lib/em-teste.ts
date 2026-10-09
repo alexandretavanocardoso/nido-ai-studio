@@ -15,6 +15,11 @@ export const SO_ADMIN = {
   indicacoes: true,
   /** Comprar plano e créditos pelo Stripe (o USDC segue aberto). */
   stripe: true,
+  /**
+   * Entrar no app. Aberto por padrão; fechado, só as contas admin conseguem
+   * entrar (ver o hook de sessão em lib/auth/server.ts).
+   */
+  login: false,
 } as const;
 
 export type RecursoEmTeste = keyof typeof SO_ADMIN;
@@ -27,7 +32,12 @@ export const RECURSOS_EM_TESTE = Object.keys(SO_ADMIN) as RecursoEmTeste[];
 /** O que cada recurso é, para a aba "Em teste" da área admin. */
 export const SOBRE_O_RECURSO: Record<
   RecursoEmTeste,
-  { titulo: string; descricao: string }
+  {
+    titulo: string;
+    descricao: string;
+    /** O que acontece ao fechar, quando é mais do que "só admin vê" (aviso da confirmação). */
+    aoFechar?: string;
+  }
 > = {
   mcp: {
     titulo: "Claude Code (MCP)",
@@ -43,6 +53,13 @@ export const SOBRE_O_RECURSO: Record<
     titulo: "Pagamento com cartão (Stripe)",
     descricao:
       "Comprar plano e créditos com cartão. Fechado, a página de planos mostra só o pagamento em USDC.",
+  },
+  login: {
+    titulo: "Login de usuários",
+    descricao:
+      "Entrar no app com o Google. Fechado, só as contas admin conseguem entrar: os outros usuários são desconectados na hora e não entram de novo até você liberar. As contas, os personagens e os créditos deles continuam guardados.",
+    aoFechar:
+      "Todos os usuários que não são admin são desconectados AGORA e não conseguem mais entrar até você liberar de novo. Nada é apagado: contas, personagens e créditos continuam guardados. Vídeos já em geração terminam normalmente.",
   },
 };
 

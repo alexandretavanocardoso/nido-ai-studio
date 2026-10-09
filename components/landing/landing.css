@@ -166,14 +166,23 @@
   transition-delay: 0.32s;
 }
 
-/* botão amarelo: sombra dura + separação de canais no hover */
+/* botão amarelo: sombra dura + separação de canais no hover.
+   O BOTÃO em si nunca sai do lugar: o amarelo é uma "placa" (::before) e é ela
+   — com o texto por cima — que sobe 2px no hover. Quando era o botão inteiro
+   que se deslocava, o cursor parado na borda ficava fora dele assim que ele se
+   mexia; o hover desligava, o botão voltava, ligava de novo, e a animação
+   ficava disparando sem parar. */
 .lp-cta {
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   white-space: nowrap;
-  background: var(--y);
+  /* Cor da placa: quem quiser outro fundo muda esta variável, não `background`. */
+  --cta-bg: var(--y);
+  background: transparent;
   color: #0b0a0a;
   font-family: var(--m);
   font-weight: 700;
@@ -185,24 +194,31 @@
   border-radius: 0;
   cursor: pointer;
   text-decoration: none;
-  transition:
-    transform 0.22s var(--e2),
-    box-shadow 0.22s var(--e2);
-  position: relative;
 }
-/* No hover o botão sobe e vai para a esquerda 2px. Sem esta área extra, o
-   cursor parado na borda de baixo ou da direita fica "fora" do botão assim que
-   ele se mexe, o hover desliga, o botão volta, liga de novo... e fica piscando.
-   A área invisível cobre o espaço que o botão deixa para trás. */
-.lp-cta::after {
+.lp-cta::before {
   content: "";
   position: absolute;
-  inset: 0 -4px -4px 0;
+  inset: 0;
+  z-index: -1;
+  background: var(--cta-bg);
+  transition:
+    translate 0.22s var(--e2),
+    box-shadow 0.22s var(--e2);
+}
+/* O conteúdo acompanha a placa (`translate`, e não `transform`: o texto usa
+   `transform` na animação de separação de canais). */
+.lp-cta > * {
+  transition: translate 0.22s var(--e2);
 }
 .lp-cta:hover:not(:disabled) {
   color: #0b0d12;
-  transform: translate(-2px, -2px);
+}
+.lp-cta:hover:not(:disabled)::before {
+  translate: -2px -2px;
   box-shadow: 4px 4px 0 #00e5ff;
+}
+.lp-cta:hover:not(:disabled) > * {
+  translate: -2px -2px;
 }
 .lp-cta .lbl {
   position: relative;
@@ -211,9 +227,12 @@
 .lp-cta:hover:not(:disabled) .lbl {
   animation: lp-chrom 0.42s steps(4) 1;
 }
-.lp-cta:active:not(:disabled) {
-  transform: none;
+.lp-cta:active:not(:disabled)::before {
+  translate: none;
   box-shadow: none;
+}
+.lp-cta:active:not(:disabled) > * {
+  translate: none;
 }
 .lp-cta:disabled {
   opacity: 0.6;
@@ -293,25 +312,13 @@
   transition:
     opacity 0.6s var(--e2),
     translate 0.6s var(--e2),
-    filter 0.6s var(--e2),
-    transform 0.2s var(--e2),
-    box-shadow 0.2s;
+    filter 0.6s var(--e2);
 }
 .lp-fixo.show {
   opacity: 1;
   pointer-events: auto;
   translate: 0 0;
   filter: none;
-}
-.lp-fixo.lp-cta:hover {
-  transform: translate(calc(-50% - 2px), -2px);
-  box-shadow:
-    4px 4px 0 #00e5ff,
-    0 10px 30px rgba(0, 0, 0, 0.45);
-}
-.lp-fixo.lp-cta:active {
-  transform: translate(-50%, 0);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
 }
 @media (max-width: 719px) {
   .lp-idioma {
@@ -322,12 +329,6 @@
     left: 16px;
     right: 16px;
     bottom: 16px;
-    transform: none;
-  }
-  .lp-fixo.lp-cta:hover {
-    transform: translate(-2px, -2px);
-  }
-  .lp-fixo.lp-cta:active {
     transform: none;
   }
 }
@@ -1556,13 +1557,8 @@
   padding: 14px 20px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
 }
-.dm-gen:hover:not(:disabled) {
-  box-shadow:
-    4px 4px 0 #00e5ff,
-    0 10px 30px rgba(0, 0, 0, 0.45);
-}
 .dm-gen:disabled {
-  background: rgba(255, 255, 255, 0.07);
+  --cta-bg: rgba(255, 255, 255, 0.07);
   color: var(--m2);
   box-shadow: none;
   opacity: 1;
@@ -3616,25 +3612,6 @@
 .lg-cap.troca .cx-cap > .cx-base {
   animation: hx-lit 0.8s linear both;
 }
-.lg-frase {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 7%;
-  z-index: 20;
-  padding: 0 40px;
-  text-align: center;
-  animation: lp-fadein 0.9s 2.4s both;
-}
-.lg-frase h2 {
-  font-size: clamp(20px, 2vw, 28px);
-  line-height: 1.1;
-  text-wrap: balance;
-}
-.lg-frase h2 em {
-  font-style: normal;
-  color: var(--y);
-}
 .lg-painel {
   position: relative;
   display: flex;
@@ -3743,31 +3720,6 @@
   height: 22px;
   border-radius: 50%;
   background: #fff;
-}
-.lg-lista {
-  list-style: none;
-  margin: 18px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-.lg-lista li {
-  display: grid;
-  grid-template-columns: 34px 1fr;
-  gap: 10px;
-  align-items: baseline;
-  padding: 11px 0;
-  border-top: 1px solid var(--ln);
-  font-size: 13.5px;
-  line-height: 1.45;
-  color: var(--t2);
-}
-.lg-lista li b {
-  font-family: var(--m);
-  font-weight: 500;
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  color: var(--y);
 }
 .lg-erro {
   margin-top: 14px;
