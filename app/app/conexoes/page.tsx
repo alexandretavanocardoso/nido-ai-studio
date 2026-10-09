@@ -322,25 +322,25 @@ function ConexoesLiberada() {
 
       <section className="card p-5">
         <div className="mb-1 flex items-center gap-2 text-[13px] font-semibold text-ink">
-          <Bot className="h-4 w-4" /> {tx("Ou conecte pelo ChatGPT (conector)")}
+          <Bot className="h-4 w-4" /> {tx("Ou conecte pelo ChatGPT (plugin)")}
         </div>
         <p className="mb-4 text-[12px] text-ink-dim">
           {tx(
-            "No ChatGPT (site ou aplicativo), sem terminal e sem token: você autoriza com o seu login daqui. Precisa de um plano pago do ChatGPT (Plus, Pro, Business, Enterprise ou Edu).",
+            "No ChatGPT, pelo navegador, sem terminal e sem token: você autoriza com o seu login daqui. Precisa de um plano pago do ChatGPT (Plus, Pro, Business, Enterprise ou Edu).",
           )}
         </p>
         <ol className="grid gap-3 text-[13px] text-ink">
           <li>
             <strong>a.</strong>{" "}
             {tx(
-              "No ChatGPT, abra Configurações → Aplicativos e conectores → Configurações avançadas e ligue o Modo de desenvolvedor.",
+              "No ChatGPT, abra Plugins (chatgpt.com/plugins) e clique em Explorar catálogo. No canto de cima à direita, clique em Adicionar → Adicionar servidor MCP personalizado.",
             )}
           </li>
           <li>
             <div className="mb-1.5">
               <strong>b.</strong>{" "}
               {tx(
-                "Volte para Aplicativos e conectores e clique em Criar. Dê um nome (por exemplo, NIDO AI Studio) e cole este endereço em URL do servidor MCP:",
+                "Em Nome, escreva NIDO AI Studio (ícone e descrição são opcionais). Em Conexão, deixe “URL do servidor” e cole este endereço:",
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -353,7 +353,7 @@ function ConexoesLiberada() {
           <li>
             <strong>c.</strong>{" "}
             {tx(
-              "Em Autenticação, deixe OAuth. Marque que você confia neste aplicativo e clique em Criar.",
+              "Em Autenticação, deixe OAuth — não precisa abrir as Configurações avançadas de OAuth. Marque “Entendo e quero continuar” e clique em Criar como plugin.",
             )}
           </li>
           <li>
@@ -365,12 +365,12 @@ function ConexoesLiberada() {
           <li>
             <strong>e.</strong>{" "}
             {tx(
-              "Para usar: abra uma conversa nova, clique no + da caixa de mensagem, escolha o NIDO AI Studio na lista de conectores e peça, por exemplo: “liste meus personagens do NIDO”. O ChatGPT pede a sua confirmação antes de cada ação.",
+              "Para usar: abra uma conversa nova, digite @ na caixa de mensagem, escolha o NIDO AI Studio e peça, por exemplo: “liste meus personagens do NIDO”. O ChatGPT pede a sua confirmação antes de cada ação.",
             )}
           </li>
           <li className="text-ink-mute">
             {tx(
-              "O conector aparece na lista de tokens abaixo como “Conector”: é ali que você desliga.",
+              "O plugin aparece na lista de tokens abaixo como “Conector”: é ali que você desliga. Se o Adicionar não mostra a opção de servidor MCP, o seu plano do ChatGPT não inclui esse recurso ou, em conta de empresa, o administrador precisa liberar.",
             )}
           </li>
         </ol>

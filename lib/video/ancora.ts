@@ -701,6 +701,88 @@ export function instantesCandidatos(duracao: number): number[] {
 }
 
 /**
+ * Confere uma passada do quadro-âncora: a pessoa pedida virou o personagem e
+ * ninguém mais mudou? O motor de vídeo copia a âncora em todos os quadros —
+ * uma passada que troca a pessoa errada (ou mistura dois personagens) estraga
+ * o vídeo inteiro. Sem chave, ou se a leitura falhar, aceita (como era antes).
+ */
+export async function passadaConfere(o: {
+  antes: Buffer;
+  depois: Buffer;
+  personagem: Buffer;
+  descricao: string;
+}): Promise<boolean> {
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey) return true;
+  try {
+    const res = await new GoogleGenAI({ apiKey }).models.generateContent({
+      model: MODELO_VISAO,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text:
+                "Image 1 is a frame of a video. Image 2 is an edit of image 1 in which exactly ONE person should have been replaced by the character shown in image 3; " +
+                `that person is: ${o.descricao}. Everyone else must still be the same people as in image 1 (small differences in pose or sharpness do not count). ` +
+                'Answer with JSON only: {"target_replaced": true|false, "others_changed": true|false, "character_count": <number>}. ' +
+                "target_replaced: in image 2 that person is gone and the character of image 3 (its face, hair or headwear and outfit) stands in their place. " +
+                "others_changed: some OTHER person of image 1 has a different head, hair, headwear or outfit in image 2, or received items of the character of image 3. " +
+                "character_count: how many people in image 2 look like, or wear distinctive items of, the character of image 3.",
+            },
+            {
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: await reduzido(o.antes),
+              },
+            },
+            {
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: await reduzido(o.depois),
+              },
+            },
+            {
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: await reduzido(o.personagem),
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const json = (res.text ?? "").match(/\{[\s\S]*\}/)?.[0];
+    if (!json) return true;
+    const r = JSON.parse(json) as {
+      target_replaced?: unknown;
+      others_changed?: unknown;
+      character_count?: unknown;
+    };
+    return (
+      r.target_replaced !== false &&
+      r.others_changed !== true &&
+      (typeof r.character_count !== "number" || r.character_count === 1)
+    );
+  } catch (e) {
+    console.warn(
+      "[ancora] conferência da passada falhou:",
+      (e as Error).message,
+    );
+    return true;
+  }
+}
+
+/** Lado do quadro em que o usuário clicou (fração 0–1), em palavras. */
+function ladoDoClique(x: number): string {
+  return x < 0.36
+    ? "on the left side of the frame"
+    : x > 0.64
+      ? "on the right side of the frame"
+      : "in the centre of the frame";
+}
+
+/**
  * Faz a troca num quadro parado: uma pessoa por vez, cada passada em cima do
  * resultado da anterior. Com todas no mesmo pedido, a segunda costuma sair
  * "colada" (pose e luz da imagem de referência, de pé e de frente) — e o vídeo
@@ -714,6 +796,8 @@ export async function trocarNoQuadro(o: {
   personagens: Buffer[];
   info: VideoInfo;
   estilo?: Parameters<typeof pedidoDoEstilo>[0];
+  /** Onde cada alvo está NESTE quadro ("on the left side of the frame"), quando se sabe. */
+  posicoes?: Array<string | undefined>;
 }): Promise<{ imagem: Buffer | null; feitos: number[] }> {
   const original = await sharp(o.quadro)
     .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
@@ -723,40 +807,69 @@ export async function trocarNoQuadro(o: {
   let imagem: Buffer | null = null;
   const feitos: number[] = [];
   for (const n of o.alvos) {
-    const restante = prazo - Date.now();
-    if (restante <= 0) break;
-    const geracao: Promise<Buffer | null> = generateImage({
-      prompt: promptTrocaImagem({
-        alvos: [{ descricao: o.descricoes[n], imagem: 2 }],
-        // No vídeo o personagem entra com o próprio look (como a troca em vídeo sempre fez).
-        roupa: "personagem",
-        estilo: pedidoDoEstilo(o.estilo),
-      }),
-      referencias: [
-        {
-          mimeType: "image/jpeg",
-          data: (imagem
-            ? await sharp(imagem).jpeg({ quality: 92 }).toBuffer()
-            : original
-          ).toString("base64"),
-        },
-        await shrinkReferencia(o.personagens[n]),
-      ],
-      aspectRatio: proporcaoMaisProxima(o.info.largura, o.info.altura),
-      imageSize: "1K",
-      qualidade: "padrao",
-    }).catch((e) => {
-      console.warn("[ancora] passada da âncora falhou:", (e as Error).message);
-      return null;
-    });
-    // O Nano Banana às vezes demora: passado o limite, segue com o que já tem.
-    const passada: Buffer | null = await Promise.race([
-      geracao,
-      new Promise<null>((ok) => setTimeout(() => ok(null), restante)),
-    ]);
-    if (!passada) break;
-    imagem = passada;
-    feitos.push(n);
+    const descricao = o.descricoes[n];
+    const base: Buffer = imagem
+      ? await sharp(imagem).jpeg({ quality: 92 }).toBuffer()
+      : original;
+    // Passada que troca a pessoa errada (ou mexe em quem já foi trocado) é
+    // refeita uma vez; se errar de novo, esse alvo fica fora da âncora.
+    for (let tentativa = 0; tentativa < 2; tentativa++) {
+      const restante = prazo - Date.now();
+      if (restante <= 0) break;
+      const geracao: Promise<Buffer | null> = generateImage({
+        prompt: promptTrocaImagem({
+          alvos: [
+            {
+              descricao:
+                descricao && o.posicoes?.[n]
+                  ? `${descricao}, ${o.posicoes[n]}`
+                  : descricao,
+              imagem: 2,
+            },
+          ],
+          // No vídeo o personagem entra com o próprio look (como a troca em vídeo sempre fez).
+          roupa: "personagem",
+          estilo: pedidoDoEstilo(o.estilo),
+        }),
+        referencias: [
+          { mimeType: "image/jpeg", data: base.toString("base64") },
+          await shrinkReferencia(o.personagens[n]),
+        ],
+        aspectRatio: proporcaoMaisProxima(o.info.largura, o.info.altura),
+        imageSize: "1K",
+        qualidade: "padrao",
+      }).catch((e) => {
+        console.warn(
+          "[ancora] passada da âncora falhou:",
+          (e as Error).message,
+        );
+        return null;
+      });
+      // O Nano Banana às vezes demora: passado o limite, segue com o que já tem.
+      const passada: Buffer | null = await Promise.race([
+        geracao,
+        new Promise<null>((ok) => setTimeout(() => ok(null), restante)),
+      ]);
+      if (!passada) break;
+      if (
+        descricao &&
+        !(await passadaConfere({
+          antes: base,
+          depois: passada,
+          personagem: o.personagens[n],
+          descricao,
+        }))
+      ) {
+        console.warn(
+          `[ancora] passada do alvo ${n + 1} trocou a pessoa errada ou mexeu em outra (tentativa ${tentativa + 1})`,
+        );
+        continue;
+      }
+      imagem = passada;
+      feitos.push(n);
+      break;
+    }
+    if (Date.now() >= prazo) break;
   }
   if (feitos.length < o.alvos.length)
     console.warn(
@@ -843,6 +956,12 @@ export async function prepararAncora(o: {
     let quadro: Buffer;
     /** Alvos que entram no quadro-âncora (todos, salvo quando só alguns aparecem bem nele). */
     let naAncora = o.personagens.map((_, i) => i);
+    /** Lado do quadro de cada alvo — só vale quando o quadro é o do próprio clique. */
+    const posicoesDoClique = () =>
+      o.marcadas?.map((m) =>
+        m.x === undefined ? undefined : ladoDoClique(m.x),
+      );
+    let posicoes: Array<string | undefined> | undefined;
     const comDescricao = descricoes.filter((d): d is string => !!d);
     if (
       o.marcadas &&
@@ -880,6 +999,7 @@ export async function prepararAncora(o: {
         : await escolherQuadroDosAlvos(quadros, comDescricao);
       quadro = quadros[escolha?.indice ?? 0];
       if (escolha) naAncora = escolha.visiveis;
+      else posicoes = posicoesDoClique();
       if (!naAncora.length) {
         console.warn(
           "[ancora] nenhum alvo aparece bem em um quadro limpo; a troca segue sem âncora",
@@ -900,6 +1020,7 @@ export async function prepararAncora(o: {
         saida,
       );
       quadro = await readFile(saida);
+      posicoes = posicoesDoClique();
     } else {
       const quadros = await Promise.all(
         instantesCandidatos(o.info.duracao).map(async (t, i) => {
@@ -923,6 +1044,7 @@ export async function prepararAncora(o: {
       personagens: o.personagens,
       info: o.info,
       estilo: o.estilo,
+      posicoes,
     });
     return { imagem, descricoes, outras: await outrasP, naAncora: feitos };
   } catch (e) {

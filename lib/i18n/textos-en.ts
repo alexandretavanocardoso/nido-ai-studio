@@ -418,22 +418,22 @@ export const TEXTOS_EN: Record<string, string> = {
     "Couldn't load the connection request. Try again.",
   "Conecte o Claude, o ChatGPT ou o Codex à sua conta e peça, numa conversa ou pelo terminal, o que você faz aqui no app. Tudo roda na sua conta, com o seu plano e os seus créditos.":
     "Connect Claude, ChatGPT or Codex to your account and ask, in a chat or from the terminal, for what you do here in the app. Everything runs on your account, with your plan and your credits.",
-  "Ou conecte pelo ChatGPT (conector)":
-    "Or connect from ChatGPT (connector)",
-  "No ChatGPT (site ou aplicativo), sem terminal e sem token: você autoriza com o seu login daqui. Precisa de um plano pago do ChatGPT (Plus, Pro, Business, Enterprise ou Edu).":
-    "In ChatGPT (web or app), with no terminal and no token: you authorise with your sign-in here. It needs a paid ChatGPT plan (Plus, Pro, Business, Enterprise or Edu).",
-  "No ChatGPT, abra Configurações → Aplicativos e conectores → Configurações avançadas e ligue o Modo de desenvolvedor.":
-    "In ChatGPT, open Settings → Apps & Connectors → Advanced settings and turn on Developer mode.",
-  "Volte para Aplicativos e conectores e clique em Criar. Dê um nome (por exemplo, NIDO AI Studio) e cole este endereço em URL do servidor MCP:":
-    "Go back to Apps & Connectors and click Create. Give it a name (for example, NIDO AI Studio) and paste this address into MCP Server URL:",
-  "Em Autenticação, deixe OAuth. Marque que você confia neste aplicativo e clique em Criar.":
-    "Under Authentication, leave OAuth. Tick that you trust this application and click Create.",
+  "Ou conecte pelo ChatGPT (plugin)":
+    "Or connect from ChatGPT (plugin)",
+  "No ChatGPT, pelo navegador, sem terminal e sem token: você autoriza com o seu login daqui. Precisa de um plano pago do ChatGPT (Plus, Pro, Business, Enterprise ou Edu).":
+    "In ChatGPT, from the browser, with no terminal and no token: you authorise with your sign-in here. It needs a paid ChatGPT plan (Plus, Pro, Business, Enterprise or Edu).",
+  "No ChatGPT, abra Plugins (chatgpt.com/plugins) e clique em Explorar catálogo. No canto de cima à direita, clique em Adicionar → Adicionar servidor MCP personalizado.":
+    "In ChatGPT, open Plugins (chatgpt.com/plugins) and click Browse catalogue. At the top right, click Add → Add custom MCP server.",
+  "Em Nome, escreva NIDO AI Studio (ícone e descrição são opcionais). Em Conexão, deixe “URL do servidor” e cole este endereço:":
+    "Under Name, type NIDO AI Studio (icon and description are optional). Under Connection, leave “Server URL” and paste this address:",
+  "Em Autenticação, deixe OAuth — não precisa abrir as Configurações avançadas de OAuth. Marque “Entendo e quero continuar” e clique em Criar como plugin.":
+    "Under Authentication, leave OAuth — no need to open the Advanced OAuth settings. Tick “I understand and want to continue” and click Create as a plugin.",
   "Abre a tela do NIDO “Conectar à sua conta NIDO”. Se pedir, entre com o Google; confira a conta e clique em Permitir. Você volta para o ChatGPT já conectado.":
     "The NIDO screen “Connect to your NIDO account” opens. If asked, sign in with Google; check the account and click Allow. You return to ChatGPT already connected.",
-  "Para usar: abra uma conversa nova, clique no + da caixa de mensagem, escolha o NIDO AI Studio na lista de conectores e peça, por exemplo: “liste meus personagens do NIDO”. O ChatGPT pede a sua confirmação antes de cada ação.":
-    "To use it: open a new chat, click the + in the message box, pick NIDO AI Studio from the connector list and ask, for example: “list my NIDO characters”. ChatGPT asks for your confirmation before each action.",
-  "O conector aparece na lista de tokens abaixo como “Conector”: é ali que você desliga.":
-    "The connector shows up in the token list below as “Conector”: that is where you turn it off.",
+  "Para usar: abra uma conversa nova, digite @ na caixa de mensagem, escolha o NIDO AI Studio e peça, por exemplo: “liste meus personagens do NIDO”. O ChatGPT pede a sua confirmação antes de cada ação.":
+    "To use it: open a new chat, type @ in the message box, pick NIDO AI Studio and ask, for example: “list my NIDO characters”. ChatGPT asks for your confirmation before each action.",
+  "O plugin aparece na lista de tokens abaixo como “Conector”: é ali que você desliga. Se o Adicionar não mostra a opção de servidor MCP, o seu plano do ChatGPT não inclui esse recurso ou, em conta de empresa, o administrador precisa liberar.":
+    "The plugin shows up in the token list below as “Conector”: that is where you turn it off. If Add doesn't show the MCP server option, your ChatGPT plan doesn't include it or, on a company account, the admin has to enable it.",
   "Ou use no Codex (terminal, extensão ou aplicativo)":
     "Or use it in Codex (terminal, extension or app)",
   "O Codex da OpenAI guarda a conexão no computador: o que você configurar no terminal vale também para a extensão do editor e para o aplicativo.":
