@@ -19,7 +19,7 @@ const POR_MINUTO = 30;
 /**
  * POST — troca o código de autorização pelo token (RFC 6749 §4.1.3, com PKCE).
  * O token é um token de API da conta, sem prazo: vale até o usuário revogar em
- * Conta → Claude Code (MCP) ou autorizar o mesmo conector de novo.
+ * Conta → Claude e ChatGPT (MCP) ou autorizar o mesmo conector de novo.
  */
 export async function POST(req: Request) {
   if (!getPool())

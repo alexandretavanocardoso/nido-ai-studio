@@ -83,6 +83,8 @@ interface Props {
     duracao: number;
     /** Vídeo original guardado para o "antes e depois". */
     antesKey?: string;
+    /** Outros personagens que entraram no vídeo (pessoas marcadas): o vídeo aparece no estúdio deles também. */
+    outros: string[];
   }) => void;
 }
 
@@ -248,6 +250,9 @@ export function SubstituirPessoaModal({
         jobId: body.jobId,
         duracao: body.duracao ?? duracao,
         antesKey: body.antesKey ?? undefined,
+        outros: [...new Set(marcas.map((m) => m.characterId))].filter(
+          (id) => id !== character.id,
+        ),
       });
     } catch (e) {
       setErro((e as Error).message);

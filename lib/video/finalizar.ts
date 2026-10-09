@@ -472,17 +472,30 @@ export async function finalizarJob(
   }
 }
 
-/** Atualiza o vídeo do job dentro do personagem salvo no banco (se o personagem já sincronizou). */
+/**
+ * Atualiza o vídeo do job dentro do personagem salvo no banco (se o personagem já sincronizou).
+ * Uma troca com vários personagens fica no estúdio de cada um: atualiza todos os que têm o job.
+ */
 async function atualizarPersonagem(
   job: Job,
   patch: Partial<VideoArquivo>,
 ): Promise<void> {
   const pool = getPool()!;
-  const { rows } = await pool.query<{ data: Character }>(
-    "select data from characters where id = $1 and user_id = $2",
-    [job.character_id, job.user_id],
+  const { rows } = await pool.query<{ id: string; data: Character }>(
+    `select id, data from characters
+      where user_id = $2 and (id = $1 or data->'videos' @> $3::jsonb)`,
+    [job.character_id, job.user_id, JSON.stringify([{ jobId: job.id }])],
   );
-  const data = rows[0]?.data;
+  for (const { id, data } of rows)
+    await atualizarVideoDoJob(id, data, job, patch);
+}
+
+async function atualizarVideoDoJob(
+  characterId: string,
+  data: Character,
+  job: Job,
+  patch: Partial<VideoArquivo>,
+): Promise<void> {
   // O job pode ser de um vídeo ou de uma figurinha animada do personagem.
   const video =
     data?.videos?.find((v) => v.jobId === job.id) ??
@@ -502,9 +515,9 @@ async function atualizarPersonagem(
     delete video.erro;
   }
   data.updatedAt = Date.now();
-  await pool.query(
+  await getPool()!.query(
     "update characters set data = $3, updated_at = now() where id = $1 and user_id = $2",
-    [job.character_id, job.user_id, JSON.stringify(data)],
+    [characterId, job.user_id, JSON.stringify(data)],
   );
 }
 

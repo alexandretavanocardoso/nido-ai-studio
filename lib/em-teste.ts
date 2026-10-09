@@ -9,7 +9,7 @@
  * (lib/admin/acesso.ts → liberadoOuResponder / usuarioLiberado).
  */
 export const SO_ADMIN = {
-  /** Conta → Claude Code (MCP): tokens de API e o servidor /api/mcp. */
+  /** Conta → Claude e ChatGPT (MCP): tokens de API e o servidor /api/mcp. */
   mcp: true,
   /** Indique e ganhe: link, comissões e saques. */
   indicacoes: true,
@@ -40,9 +40,9 @@ export const SOBRE_O_RECURSO: Record<
   }
 > = {
   mcp: {
-    titulo: "Claude Code (MCP)",
+    titulo: "Claude e ChatGPT (MCP)",
     descricao:
-      "A página Conta → Claude Code (MCP), a criação de tokens, o servidor /api/mcp e o conector do Claude (login por OAuth). Fechado, quem tenta conectar recebe que ainda não está liberado para a conta.",
+      "A página Conta → Claude e ChatGPT (MCP), a criação de tokens, o servidor /api/mcp e os conectores do Claude, do ChatGPT e do Codex (login por OAuth). Fechado, quem tenta conectar recebe que ainda não está liberado para a conta.",
   },
   indicacoes: {
     titulo: "Indique e ganhe",

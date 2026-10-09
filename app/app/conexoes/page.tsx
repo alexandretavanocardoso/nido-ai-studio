@@ -4,8 +4,10 @@ import { EmTeste } from "@/components/EmTeste";
 import { useCallback, useEffect, useState } from "react";
 import {
   Check,
+  Bot,
   Cloud,
   Plug,
+  SquareTerminal,
   Copy,
   KeyRound,
   Loader2,
@@ -42,7 +44,7 @@ const PODE = [
 ];
 
 /**
- * Conta → Claude Code (MCP): cria os tokens com que o Claude Code se conecta
+ * Conta → Claude e ChatGPT (MCP): cria os tokens com que o Claude Code se conecta
  * à conta e mostra o comando pronto. O token inteiro aparece uma vez só.
  */
 export default function Conexoes() {
@@ -142,6 +144,11 @@ function ConexoesLiberada() {
     2,
   );
   const variavel = `${VARIAVEL}=${novo ?? "SEU_TOKEN"}`;
+
+  // Codex (CLI, extensão e aplicativo dividem o mesmo ~/.codex/config.toml).
+  const codexAdicionar = `codex mcp add nido --url ${origem}/api/mcp`;
+  const codexEntrar = "codex mcp login nido";
+  const codexToml = `[mcp_servers.nido]\nurl = "${origem}/api/mcp"\nbearer_token_env_var = "${VARIAVEL}"`;
   const dominio = origem ? new URL(origem).host : "";
 
   const BotaoCopiar = ({ texto, chave }: { texto: string; chave: string }) => (
@@ -163,11 +170,11 @@ function ConexoesLiberada() {
     <div className="mx-auto grid w-full max-w-3xl gap-5 px-4 py-8 sm:px-6 [&>*]:min-w-0">
       <header>
         <h1 className="display text-2xl uppercase text-ink">
-          {tx("Claude Code (MCP)")}
+          {tx("Claude e ChatGPT (MCP)")}
         </h1>
         <p className="mt-1 text-[14px] text-ink-mute">
           {tx(
-            "Conecte o Claude Code à sua conta e peça, pelo terminal, o que você faz aqui no app. Tudo roda na sua conta, com o seu plano e os seus créditos.",
+            "Conecte o Claude, o ChatGPT ou o Codex à sua conta e peça, numa conversa ou pelo terminal, o que você faz aqui no app. Tudo roda na sua conta, com o seu plano e os seus créditos.",
           )}
         </p>
       </header>
@@ -315,6 +322,120 @@ function ConexoesLiberada() {
 
       <section className="card p-5">
         <div className="mb-1 flex items-center gap-2 text-[13px] font-semibold text-ink">
+          <Bot className="h-4 w-4" /> {tx("Ou conecte pelo ChatGPT (conector)")}
+        </div>
+        <p className="mb-4 text-[12px] text-ink-dim">
+          {tx(
+            "No ChatGPT (site ou aplicativo), sem terminal e sem token: você autoriza com o seu login daqui. Precisa de um plano pago do ChatGPT (Plus, Pro, Business, Enterprise ou Edu).",
+          )}
+        </p>
+        <ol className="grid gap-3 text-[13px] text-ink">
+          <li>
+            <strong>a.</strong>{" "}
+            {tx(
+              "No ChatGPT, abra Configurações → Aplicativos e conectores → Configurações avançadas e ligue o Modo de desenvolvedor.",
+            )}
+          </li>
+          <li>
+            <div className="mb-1.5">
+              <strong>b.</strong>{" "}
+              {tx(
+                "Volte para Aplicativos e conectores e clique em Criar. Dê um nome (por exemplo, NIDO AI Studio) e cole este endereço em URL do servidor MCP:",
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <code className="mono min-w-0 flex-1 truncate rounded-lg bg-black/40 px-3 py-2 text-[12px] text-ink">
+                {`${origem}/api/mcp`}
+              </code>
+              <BotaoCopiar texto={`${origem}/api/mcp`} chave="chatgpt" />
+            </div>
+          </li>
+          <li>
+            <strong>c.</strong>{" "}
+            {tx(
+              "Em Autenticação, deixe OAuth. Marque que você confia neste aplicativo e clique em Criar.",
+            )}
+          </li>
+          <li>
+            <strong>d.</strong>{" "}
+            {tx(
+              "Abre a tela do NIDO “Conectar à sua conta NIDO”. Se pedir, entre com o Google; confira a conta e clique em Permitir. Você volta para o ChatGPT já conectado.",
+            )}
+          </li>
+          <li>
+            <strong>e.</strong>{" "}
+            {tx(
+              "Para usar: abra uma conversa nova, clique no + da caixa de mensagem, escolha o NIDO AI Studio na lista de conectores e peça, por exemplo: “liste meus personagens do NIDO”. O ChatGPT pede a sua confirmação antes de cada ação.",
+            )}
+          </li>
+          <li className="text-ink-mute">
+            {tx(
+              "O conector aparece na lista de tokens abaixo como “Conector”: é ali que você desliga.",
+            )}
+          </li>
+        </ol>
+      </section>
+
+      <section className="card p-5">
+        <div className="mb-1 flex items-center gap-2 text-[13px] font-semibold text-ink">
+          <SquareTerminal className="h-4 w-4" />{" "}
+          {tx("Ou use no Codex (terminal, extensão ou aplicativo)")}
+        </div>
+        <p className="mb-4 text-[12px] text-ink-dim">
+          {tx(
+            "O Codex da OpenAI guarda a conexão no computador: o que você configurar no terminal vale também para a extensão do editor e para o aplicativo.",
+          )}
+        </p>
+        <ol className="grid gap-4 text-[13px] text-ink-mute">
+          <li>
+            <div className="mb-1.5 text-ink">
+              <strong>a.</strong> {tx("No terminal, adicione o servidor:")}
+            </div>
+            <div className="flex items-start gap-2">
+              <code className="mono min-w-0 flex-1 whitespace-pre-wrap break-all rounded-lg bg-black/40 px-3 py-2 text-[12px] leading-relaxed text-ink">
+                {codexAdicionar}
+              </code>
+              <BotaoCopiar texto={codexAdicionar} chave="codex-add" />
+            </div>
+          </li>
+          <li>
+            <div className="mb-1.5 text-ink">
+              <strong>b.</strong>{" "}
+              {tx(
+                "Faça o login. O navegador abre a tela do NIDO: confira a conta e clique em Permitir.",
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <code className="mono min-w-0 flex-1 truncate rounded-lg bg-black/40 px-3 py-2 text-[12px] text-ink">
+                {codexEntrar}
+              </code>
+              <BotaoCopiar texto={codexEntrar} chave="codex-login" />
+            </div>
+          </li>
+          <li className="text-ink">
+            <strong>c.</strong>{" "}
+            {tx(
+              "Abra o Codex e peça, por exemplo: “qual é o meu saldo no NIDO?”. Na extensão do editor, o servidor aparece nas configurações de MCP; se pedir, clique em Autenticar.",
+            )}
+          </li>
+          <li>
+            <div className="mb-1.5">
+              {tx(
+                "Prefere usar um token? Crie um no passo 1, guarde na variável de ambiente NIDO_MCP_TOKEN e ponha isto no arquivo ~/.codex/config.toml, no lugar dos passos a e b:",
+              )}
+            </div>
+            <div className="flex items-start gap-2">
+              <code className="mono min-w-0 flex-1 whitespace-pre-wrap break-all rounded-lg bg-black/40 px-3 py-2 text-[12px] leading-relaxed text-ink">
+                {codexToml}
+              </code>
+              <BotaoCopiar texto={codexToml} chave="codex-toml" />
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section className="card p-5">
+        <div className="mb-1 flex items-center gap-2 text-[13px] font-semibold text-ink">
           <Cloud className="h-4 w-4" />{" "}
           {tx("Ou use no Claude Code web (claude.ai/code)")}
         </div>
@@ -394,7 +515,7 @@ function ConexoesLiberada() {
         </ul>
         <p className="mt-3 text-[12px] text-ink-dim">
           {tx(
-            "As gerações gastam créditos como no app, e o Claude avisa o custo antes. Compras, reembolsos e saques só são feitos aqui no app.",
+            "As gerações gastam créditos como no app, e o assistente avisa o custo antes. Compras, reembolsos e saques só são feitos aqui no app.",
           )}
         </p>
       </section>

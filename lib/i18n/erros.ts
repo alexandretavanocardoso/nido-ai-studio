@@ -521,8 +521,8 @@ const ERROS_EN: Record<string, string> = {
   "Esse post do X não tem vídeo.": "That X post has no video.",
   "Pedido de conexão inválido. Tente conectar de novo.":
     "Invalid connection request. Try connecting again.",
-  "A conexão com o Claude ainda não está liberada para esta conta.":
-    "Connecting to Claude isn't enabled for this account yet.",
+  "A conexão por MCP ainda não está liberada para esta conta.":
+    "Connecting over MCP isn't enabled for this account yet.",
   "Não achei as pessoas marcadas em nenhuma tomada do vídeo. Marque de novo, num momento em que elas aparecem bem.":
     "I couldn't find the marked people in any shot of the video. Mark them again at a moment where they show clearly.",
   "Sem créditos no Apify.": "No credits on Apify.",

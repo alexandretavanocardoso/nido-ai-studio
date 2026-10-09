@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     return invalido();
   const retorno = new URL(redirectUri);
   if (typeof corpo.state === "string" && corpo.state)
-    retorno.searchParams.set("state", corpo.state.slice(0, 500));
+    retorno.searchParams.set("state", corpo.state.slice(0, 2000));
 
   if (corpo.permitir !== true) {
     retorno.searchParams.set("error", "access_denied");
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error:
-          "A conexão com o Claude ainda não está liberada para esta conta.",
+          "A conexão por MCP ainda não está liberada para esta conta.",
       },
       { status: 403 },
     );

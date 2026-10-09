@@ -164,21 +164,33 @@ export function VideosOrigem({ character }: { character: Character }) {
     v.origem !== "substituicao"
       ? null
       : (v.antesKey ??
-        (character.videos ?? []).find((x) => x.id === v.origemId)?.key ??
-        null) || null;
+          (character.videos ?? []).find((x) => x.id === v.origemId)?.key ??
+          null) ||
+        null;
   const [criarAberto, setCriarAberto] = useState(false);
 
   const videos = character.videos ?? [];
 
   if (!recursos.armazenamento) return null;
 
-  function adicionarVideo(v: Omit<VideoArquivo, "id" | "createdAt">) {
+  /** Com `outros`, o vídeo entra também no estúdio desses personagens (troca com várias pessoas). */
+  function adicionarVideo(
+    v: Omit<VideoArquivo, "id" | "createdAt">,
+    outros: string[] = [],
+  ) {
+    const createdAt = Date.now();
     update(character.id, (c) => {
-      c.videos = [
-        { ...v, id: nanoid(8), createdAt: Date.now() },
-        ...(c.videos ?? []),
-      ];
+      c.videos = [{ ...v, id: nanoid(8), createdAt }, ...(c.videos ?? [])];
     });
+    // O vídeo de origem só existe na lista deste personagem.
+    const copia = { ...v, origemId: undefined };
+    for (const id of outros)
+      update(id, (c) => {
+        c.videos = [
+          { ...copia, id: nanoid(8), createdAt },
+          ...(c.videos ?? []),
+        ];
+      });
   }
 
   async function onFile(file: File | undefined) {
@@ -468,7 +480,9 @@ export function VideosOrigem({ character }: { character: Character }) {
                                   className="inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full bg-accent px-3 text-[13px] font-bold text-bg transition hover:bg-accent-strong"
                                 >
                                   <Download className="h-3.5 w-3.5 shrink-0" />
-                                  <span className="truncate">{tx("Baixar")}</span>
+                                  <span className="truncate">
+                                    {tx("Baixar")}
+                                  </span>
                                 </a>
                               ) : null}
                               {/* Leva o vídeo pronto para Estúdio → Publicar, já escolhido como mídia do post. */}
@@ -654,19 +668,22 @@ export function VideosOrigem({ character }: { character: Character }) {
           character={character}
           link={linkEncontrado}
           onClose={() => setLinkEncontrado(null)}
-          onEnviado={({ jobId, duracao, antesKey }) => {
-            adicionarVideo({
-              antesKey,
-              name: `${(linkEncontrado.titulo || `Vídeo do ${linkEncontrado.plataforma}`).slice(0, 60)} (com o personagem).mp4`,
-              key: "",
-              size: 0,
-              duracao,
-              contentType: "video/mp4",
-              origem: "substituicao",
-              fonte: linkEncontrado.url,
-              jobId,
-              status: "processando",
-            });
+          onEnviado={({ jobId, duracao, antesKey, outros }) => {
+            adicionarVideo(
+              {
+                antesKey,
+                name: `${(linkEncontrado.titulo || `Vídeo do ${linkEncontrado.plataforma}`).slice(0, 60)} (com o personagem).mp4`,
+                key: "",
+                size: 0,
+                duracao,
+                contentType: "video/mp4",
+                origem: "substituicao",
+                fonte: linkEncontrado.url,
+                jobId,
+                status: "processando",
+              },
+              outros,
+            );
             setLinkEncontrado(null);
           }}
         />
@@ -677,19 +694,22 @@ export function VideosOrigem({ character }: { character: Character }) {
           character={character}
           video={trocarDe}
           onClose={() => setTrocarDe(null)}
-          onEnviado={({ jobId, duracao, antesKey }) => {
-            adicionarVideo({
-              antesKey,
-              name: `${base(trocarDe)} (com o personagem).mp4`,
-              key: "",
-              size: 0,
-              duracao,
-              contentType: "video/mp4",
-              origem: "substituicao",
-              origemId: trocarDe.id,
-              jobId,
-              status: "processando",
-            });
+          onEnviado={({ jobId, duracao, antesKey, outros }) => {
+            adicionarVideo(
+              {
+                antesKey,
+                name: `${base(trocarDe)} (com o personagem).mp4`,
+                key: "",
+                size: 0,
+                duracao,
+                contentType: "video/mp4",
+                origem: "substituicao",
+                origemId: trocarDe.id,
+                jobId,
+                status: "processando",
+              },
+              outros,
+            );
             setTrocarDe(null);
           }}
         />

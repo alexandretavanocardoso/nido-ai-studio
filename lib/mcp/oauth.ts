@@ -5,7 +5,9 @@ import { nanoid } from "nanoid";
 
 /**
  * Login por OAuth 2.1 no servidor MCP — o que o "conector personalizado" do
- * Claude (claude.ai → Conectores) usa para se conectar a /api/mcp:
+ * Claude (claude.ai → Conectores), o do ChatGPT (modo de desenvolvedor) e o
+ * `codex mcp login` usam para se conectar a /api/mcp (escrito abaixo com o
+ * Claude de exemplo; os outros seguem os mesmos passos):
  *
  *  1. o Claude chama /api/mcp sem token e recebe 401 com o endereço dos dados
  *     do recurso (/.well-known/oauth-protected-resource);

@@ -98,6 +98,8 @@ function useAcompanharVideos() {
     if (!pronto || !pendentesKey) return;
     let ativo = true;
     async function consultar() {
+      // Uma troca com vários personagens aparece no estúdio de cada um: avisa uma vez só.
+      const avisados = new Set<string>();
       for (const c of useCharacters.getState().characters) {
         for (const v of (c.videos ?? []).filter(
           (x) => x.status === "processando" && x.jobId,
@@ -122,7 +124,8 @@ function useAcompanharVideos() {
                     : x,
                 );
               });
-              avisarTermino(v.name);
+              if (!avisados.has(v.jobId!)) avisarTermino(v.name);
+              avisados.add(v.jobId!);
             } else if (job.status === "erro" || res.status === 404) {
               update(c.id, (p) => {
                 p.videos = (p.videos ?? []).map((x) =>

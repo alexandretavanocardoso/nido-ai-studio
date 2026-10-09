@@ -404,8 +404,8 @@ export const TEXTOS_EN: Record<string, string> = {
     "It will be able to see your characters, images and videos, and create content on your behalf.",
   "As gerações gastam os seus créditos, como no app. Compras e saques continuam só aqui.":
     "Generations spend your credits, just like in the app. Purchases and withdrawals stay here only.",
-  "Você pode desligar quando quiser em Conta → Claude Code (MCP), na lista de tokens.":
-    "You can turn it off any time under Account → Claude Code (MCP), in the token list.",
+  "Você pode desligar quando quiser em Conta → Claude e ChatGPT (MCP), na lista de tokens.":
+    "You can turn it off any time under Account → Claude & ChatGPT (MCP), in the token list.",
   "Depois de permitir, você volta para": "After you allow, you go back to",
   "O login não está configurado neste ambiente.":
     "Sign-in isn't configured in this environment.",
@@ -416,6 +416,38 @@ export const TEXTOS_EN: Record<string, string> = {
   Recusar: "Deny",
   "Não consegui carregar o pedido de conexão. Tente de novo.":
     "Couldn't load the connection request. Try again.",
+  "Conecte o Claude, o ChatGPT ou o Codex à sua conta e peça, numa conversa ou pelo terminal, o que você faz aqui no app. Tudo roda na sua conta, com o seu plano e os seus créditos.":
+    "Connect Claude, ChatGPT or Codex to your account and ask, in a chat or from the terminal, for what you do here in the app. Everything runs on your account, with your plan and your credits.",
+  "Ou conecte pelo ChatGPT (conector)":
+    "Or connect from ChatGPT (connector)",
+  "No ChatGPT (site ou aplicativo), sem terminal e sem token: você autoriza com o seu login daqui. Precisa de um plano pago do ChatGPT (Plus, Pro, Business, Enterprise ou Edu).":
+    "In ChatGPT (web or app), with no terminal and no token: you authorise with your sign-in here. It needs a paid ChatGPT plan (Plus, Pro, Business, Enterprise or Edu).",
+  "No ChatGPT, abra Configurações → Aplicativos e conectores → Configurações avançadas e ligue o Modo de desenvolvedor.":
+    "In ChatGPT, open Settings → Apps & Connectors → Advanced settings and turn on Developer mode.",
+  "Volte para Aplicativos e conectores e clique em Criar. Dê um nome (por exemplo, NIDO AI Studio) e cole este endereço em URL do servidor MCP:":
+    "Go back to Apps & Connectors and click Create. Give it a name (for example, NIDO AI Studio) and paste this address into MCP Server URL:",
+  "Em Autenticação, deixe OAuth. Marque que você confia neste aplicativo e clique em Criar.":
+    "Under Authentication, leave OAuth. Tick that you trust this application and click Create.",
+  "Abre a tela do NIDO “Conectar à sua conta NIDO”. Se pedir, entre com o Google; confira a conta e clique em Permitir. Você volta para o ChatGPT já conectado.":
+    "The NIDO screen “Connect to your NIDO account” opens. If asked, sign in with Google; check the account and click Allow. You return to ChatGPT already connected.",
+  "Para usar: abra uma conversa nova, clique no + da caixa de mensagem, escolha o NIDO AI Studio na lista de conectores e peça, por exemplo: “liste meus personagens do NIDO”. O ChatGPT pede a sua confirmação antes de cada ação.":
+    "To use it: open a new chat, click the + in the message box, pick NIDO AI Studio from the connector list and ask, for example: “list my NIDO characters”. ChatGPT asks for your confirmation before each action.",
+  "O conector aparece na lista de tokens abaixo como “Conector”: é ali que você desliga.":
+    "The connector shows up in the token list below as “Conector”: that is where you turn it off.",
+  "Ou use no Codex (terminal, extensão ou aplicativo)":
+    "Or use it in Codex (terminal, extension or app)",
+  "O Codex da OpenAI guarda a conexão no computador: o que você configurar no terminal vale também para a extensão do editor e para o aplicativo.":
+    "OpenAI's Codex keeps the connection on your computer: what you set up in the terminal also applies to the editor extension and the app.",
+  "No terminal, adicione o servidor:":
+    "In the terminal, add the server:",
+  "Faça o login. O navegador abre a tela do NIDO: confira a conta e clique em Permitir.":
+    "Sign in. The browser opens the NIDO screen: check the account and click Allow.",
+  "Abra o Codex e peça, por exemplo: “qual é o meu saldo no NIDO?”. Na extensão do editor, o servidor aparece nas configurações de MCP; se pedir, clique em Autenticar.":
+    "Open Codex and ask, for example: “what's my NIDO balance?”. In the editor extension, the server shows up in the MCP settings; if asked, click Authenticate.",
+  "Prefere usar um token? Crie um no passo 1, guarde na variável de ambiente NIDO_MCP_TOKEN e ponha isto no arquivo ~/.codex/config.toml, no lugar dos passos a e b:":
+    "Prefer a token? Create one in step 1, store it in the NIDO_MCP_TOKEN environment variable and put this in ~/.codex/config.toml, instead of steps a and b:",
+  "As gerações gastam créditos como no app, e o assistente avisa o custo antes. Compras, reembolsos e saques só são feitos aqui no app.":
+    "Generations spend credits just like in the app, and the assistant tells you the cost first. Purchases, refunds and withdrawals are only done here in the app.",
   "Ou conecte pelo aplicativo do Claude (conector)":
     "Or connect from the Claude app (connector)",
   "No Claude (claude.ai ou aplicativo), sem terminal e sem token: você autoriza com o seu login daqui.":
@@ -1868,8 +1900,8 @@ export const TEXTOS_EN: Record<string, string> = {
     "The browser couldn't open this video (file unavailable or a format it can't play, such as HEVC/H.265). The swap still works: with nobody marked, the AI swaps the main person.",
 
   // Claude Code (MCP)
-  "Claude Code (MCP)":
-    "Claude Code (MCP)",
+  "Claude e ChatGPT (MCP)":
+    "Claude & ChatGPT (MCP)",
   "MCP":
     "MCP",
   "Conecte o Claude Code à sua conta e peça, pelo terminal, o que você faz aqui no app. Tudo roda na sua conta, com o seu plano e os seus créditos.":

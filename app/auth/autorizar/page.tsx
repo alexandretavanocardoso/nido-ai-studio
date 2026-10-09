@@ -127,7 +127,7 @@ function Tela() {
               <li>
                 •{" "}
                 {tx(
-                  "Você pode desligar quando quiser em Conta → Claude Code (MCP), na lista de tokens.",
+                  "Você pode desligar quando quiser em Conta → Claude e ChatGPT (MCP), na lista de tokens.",
                 )}
               </li>
             </ul>

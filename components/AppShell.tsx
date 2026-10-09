@@ -432,7 +432,7 @@ function MenuLateral({
         ...(liberadoNaTela("mcp", conta)
           ? [
               {
-                rotulo: tx("Claude Code (MCP)"),
+                rotulo: tx("Claude e ChatGPT (MCP)"),
                 curto: tx("MCP"),
                 icon: Terminal,
                 href: "/app/conexoes",
