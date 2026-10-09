@@ -29,7 +29,7 @@ const BodySchema = z.object({
 });
 
 /**
- * POST — busca o vídeo de um link (TikTok, Instagram, YouTube Shorts ou .mp4
+ * POST — busca o vídeo de um link (TikTok, Instagram, YouTube Shorts, X ou .mp4
  * direto) e deixa uma cópia temporária no storage do fal, de onde a IA lê.
  * Nada vai pro S3. Devolve o id do link + título/autor/miniatura/duração
  * pra pessoa conferir antes de gerar. Válido por 24h.
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error:
-          "Link não suportado. Use TikTok, Instagram (reel/post), YouTube Shorts ou um link direto de .mp4.",
+          "Link não suportado. Use TikTok, Instagram (reel/post), YouTube Shorts, X (post com vídeo) ou um link direto de .mp4.",
         code: "BAD_INPUT",
       },
       { status: 400 },

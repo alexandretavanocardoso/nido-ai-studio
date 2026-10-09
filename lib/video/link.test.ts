@@ -18,16 +18,58 @@ describe("detectarPlataforma", () => {
     );
     expect(detectarPlataforma("https://youtu.be/abc")).toBe("youtube");
     expect(detectarPlataforma("https://cdn.site.com/a/b.mp4")).toBe("direto");
+    expect(
+      detectarPlataforma("https://x.com/alguem/status/2108344428255686694"),
+    ).toBe("x");
+    expect(
+      detectarPlataforma("https://twitter.com/alguem/status/123456789?s=20"),
+    ).toBe("x");
   });
   it("recusa perfis, outros sites e protocolos estranhos", () => {
     expect(detectarPlataforma("https://www.instagram.com/perfil/")).toBeNull();
     expect(detectarPlataforma("https://example.com/pagina")).toBeNull();
+    expect(detectarPlataforma("https://x.com/alguem")).toBeNull();
     expect(detectarPlataforma("ftp://x.com/a.mp4")).toBeNull();
     expect(detectarPlataforma("não é link")).toBeNull();
   });
 });
 
 describe("lerItem", () => {
+  it("X: fica com o .mp4 de maior bitrate e tira o link curto do título", () => {
+    const v = lerItem("x", {
+      text: "olha isso https://t.co/9EHDz5fFbt",
+      author: { userName: "alguem" },
+      extendedEntities: {
+        media: [
+          {
+            type: "video",
+            media_url_https: "https://pbs.twimg.com/thumb.jpg",
+            video_info: {
+              duration_millis: 7894,
+              variants: [
+                { content_type: "application/x-mpegURL", url: "https://video.twimg.com/a.m3u8" },
+                { bitrate: 832000, content_type: "video/mp4", url: "https://video.twimg.com/480.mp4" },
+                { bitrate: 10368000, content_type: "video/mp4", url: "https://video.twimg.com/1080.mp4" },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    expect(v).toMatchObject({
+      plataforma: "x",
+      videoUrl: "https://video.twimg.com/1080.mp4",
+      duracao: 7.894,
+      titulo: "olha isso",
+      autor: "alguem",
+      thumb: "https://pbs.twimg.com/thumb.jpg",
+    });
+    // Post só com texto e link: não tem vídeo (nada de "procura genérica").
+    expect(
+      lerItem("x", { text: "sem vídeo", url: "https://x.com/a/status/1", entities: {} }),
+    ).toBeNull();
+  });
+
   it("TikTok: mediaUrls + videoMeta", () => {
     const v = lerItem("tiktok", {
       text: "dança",

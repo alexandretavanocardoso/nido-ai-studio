@@ -216,20 +216,39 @@
 }
 
 /* "Entrar" no topo e CTA fixo no rodapé da tela */
-.lp-entrar {
-  position: absolute;
-  top: 22px;
+.lp-idioma {
+  position: fixed;
+  top: 20px;
   right: 32px;
   z-index: 40;
-  font-family: var(--b);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--tx);
-  text-decoration: none;
-  padding: 6px 4px;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(11, 10, 10, 0.55);
+  backdrop-filter: blur(6px);
 }
-.lp-entrar:hover {
-  color: var(--y);
+.lp-idioma button {
+  font-family: var(--b);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--tx);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  padding: 5px 11px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.lp-idioma button:hover {
+  opacity: 1;
+}
+.lp-idioma button.on {
+  background: var(--y);
+  color: #0b0a0a;
+  opacity: 1;
 }
 .lp-fixo {
   position: fixed;
@@ -266,9 +285,9 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
 }
 @media (max-width: 719px) {
-  .lp-entrar {
-    top: 14px;
-    right: 18px;
+  .lp-idioma {
+    top: 12px;
+    right: 14px;
   }
   .lp-fixo {
     left: 16px;

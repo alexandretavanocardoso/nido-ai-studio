@@ -1,5 +1,6 @@
 "use client";
 
+import { tx } from "@/lib/i18n/tx";
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { IMG } from "./cenas";
 import { useCena, useProgresso } from "./palco";
@@ -42,7 +43,7 @@ function Wizard({ n, children }: { n: number; children: ReactNode }) {
           >
             <span className="c">{i + 1 < n ? "✓" : i + 1}</span>
             <span>
-              {nome}
+              {tx(nome)}
               <i className="pg">
                 <b />
               </i>
@@ -52,8 +53,10 @@ function Wizard({ n, children }: { n: number; children: ReactNode }) {
       </div>
       <div className="cf-wc">
         <div className="cf-wh">
-          <b>{ETAPAS[n - 1]}</b>
-          <span>Etapa {n} de 7</span>
+          <b>{tx(ETAPAS[n - 1])}</b>
+          <span>
+            {tx("Etapa")} {n} {tx("de")} 7
+          </span>
         </div>
         {children}
       </div>
@@ -100,8 +103,8 @@ const OPCOES: Array<[string, string, ReactNode]> = [
 const Comeco = () => (
   <div className="cf-vs">
     <div className="mh cf-an" style={d(0.05)}>
-      <span>Novo AI Creator</span>
-      <b>Como você quer começar?</b>
+      <span>{tx("Novo AI Creator")}</span>
+      <b>{tx("Como você quer começar?")}</b>
     </div>
     <div className="cf-og">
       {OPCOES.map(([titulo, texto, icone], i) => (
@@ -115,9 +118,9 @@ const Comeco = () => (
           </span>
           <div>
             <b>
-              {titulo} {i ? null : <em>Recomendado</em>}
+              {tx(titulo)} {i ? null : <em>{tx("Recomendado")}</em>}
             </b>
-            <span>{texto}</span>
+            <span>{tx(texto)}</span>
           </div>
         </div>
       ))}
@@ -152,8 +155,8 @@ const Identidade = () => (
           className={`cf-fd ${classe}`}
           style={{ "--fd": `${caixa}s`, ...d(texto) } as CSSProperties}
         >
-          <small>{rotulo}</small>
-          <span>{valor}</span>
+          <small>{tx(rotulo)}</small>
+          <span>{tx(valor)}</span>
         </div>
       ))}
     </div>
@@ -179,12 +182,12 @@ const Visual = () => (
             "Plano americano",
           ].map((t, i) => (
             <span key={t} style={d(0.5 + i * 0.25)}>
-              {t}
+              {tx(t)}
             </span>
           ))}
         </div>
         <p className="cf-lk cf-an" style={d(2.2)}>
-          Rosto travado · mesmo em todo vídeo
+          {tx("Rosto travado · mesmo em todo vídeo")}
         </p>
       </div>
     </div>
@@ -203,7 +206,7 @@ const Personalidade = () => (
     <div className="cf-sls">
       {TRACOS.map(([traco, v], i) => (
         <div key={traco} className="cf-sk cf-an" style={d(0.1 + i * 0.1)}>
-          <span>{traco}</span>
+          <span>{tx(traco)}</span>
           <span className="tb">
             <i
               className="f"
@@ -237,21 +240,21 @@ const Nicho = () => (
           className={atraso ? "s" : undefined}
           style={atraso ? d(atraso) : undefined}
         >
-          {nicho}
+          {tx(nicho)}
         </span>
       ))}
     </div>
     <div className="cf-rd cf-an" style={d(1.2)}>
-      <span>Instagram</span>
-      <span>TikTok</span>
-      <span>YouTube</span>
+      <span>{tx("Instagram")}</span>
+      <span>{tx("TikTok")}</span>
+      <span>{tx("YouTube")}</span>
     </div>
     <div className="cf-an" style={d(1.3)}>
       <div className="cf-wh" style={{ marginBottom: 7 }}>
-        <span>Calendário · 1 post por dia</span>
+        <span>{tx("Calendário · 1 post por dia")}</span>
       </div>
       <div className="cf-cal">
-        {[..."STQQSSD"].map((dia, i) => (
+        {[...tx("STQQSSD")].map((dia, i) => (
           <i key={i}>
             <b style={d(1.5 + i * 0.12)} />
             {dia}
@@ -280,13 +283,13 @@ const Voz = () => (
       ))}
     </div>
     <div className="cf-wh vh cf-an" style={d(0.2)}>
-      <span>Timbre · grave e quente</span>
-      <span>Bordões · 3</span>
+      <span>{tx("Timbre · grave e quente")}</span>
+      <span>{tx("Bordões · 3")}</span>
     </div>
-    <p className="cf-qt">“Elegância não é roupa cara, meu filho. É postura.”</p>
+    <p className="cf-qt">{tx("“Elegância não é roupa cara, meu filho. É postura.”")}</p>
     <div className="cf-tg">
-      <span style={d(2.3)}>Fala devagar</span>
-      <span style={d(2.5)}>Nunca diz gíria de internet</span>
+      <span style={d(2.3)}>{tx("Fala devagar")}</span>
+      <span style={d(2.5)}>{tx("Nunca diz gíria de internet")}</span>
     </div>
   </Wizard>
 );
@@ -302,7 +305,7 @@ const Monetizacao = () => (
     <div className="cf-bm">
       {MARCAS.map(([marca, v], i) => (
         <div key={marca} className="cf-br cf-an" style={d(0.1 + i * 0.1)}>
-          <span>{marca}</span>
+          <span>{tx(marca)}</span>
           <span className="tb">
             <i
               style={{ "--v": `${v}%`, ...d(0.3 + i * 0.15) } as CSSProperties}
@@ -314,10 +317,10 @@ const Monetizacao = () => (
     </div>
     <div className="cf-fx cf-an" style={d(1.2)}>
       <span>
-        Formatos <b>Reels · Story · Live</b>
+        {tx("Formatos")} <b>{tx("Reels · Story · Live")}</b>
       </span>
       <span>
-        Faixa <b>$180–$420 / post</b>
+        {tx("Faixa")} <b>{tx("$180–$420 / post")}</b>
       </span>
     </div>
   </Wizard>
@@ -328,8 +331,8 @@ const Revisao = () => (
     <div className="cf-rv cf-an" style={d(0.05)}>
       <img src={IMG.arnaldo} alt="Arnaldo Nitro" />
       <div>
-        <b>#001 Arnaldo Nitro</b>
-        <span>Moda masculina · Lifestyle · Humor</span>
+        <b>{tx("#001 Arnaldo Nitro")}</b>
+        <span>{tx("Moda masculina · Lifestyle · Humor")}</span>
       </div>
     </div>
     <div className="cf-cks">
@@ -346,11 +349,11 @@ const Revisao = () => (
               <path d="M2.5 6.2 5 8.5l4.5-5" />
             </svg>
           </span>
-          {etapa}
+          {tx(etapa)}
         </div>
       ))}
     </div>
-    <span className="cf-stp">Identity locked</span>
+    <span className="cf-stp">{tx("Identity locked")}</span>
   </Wizard>
 );
 
@@ -475,15 +478,14 @@ export function ComoFunciona() {
         }}
       >
         <h2 className="lp-h2 lp-rv" style={{ fontSize: mob ? 34 : 54 }}>
-          <span>Da ideia</span>
-          <em>ao creator.</em>
+          <span>{tx("Da ideia")}</span>
+          <em>{tx("ao creator.")}</em>
         </h2>
         <p
           className="lp-sub lp-rv d1"
           style={mob ? { fontSize: 14 } : { fontSize: 16, maxWidth: 400 }}
         >
-          Do primeiro clique à identidade travada: o mesmo caminho que você
-          percorre dentro da plataforma.
+          {tx("Do primeiro clique à identidade travada: o mesmo caminho que você percorre dentro da plataforma.")}
         </p>
       </div>
       <div
@@ -502,13 +504,13 @@ export function ComoFunciona() {
             key={passo.titulo}
             type="button"
             className={`cf-sl${i === atual ? " on" : i < atual ? " dn" : ""}`}
-            aria-label={`Passo ${i + 1}: ${passo.titulo}`}
+            aria-label={`${tx("Passo")} ${i + 1}: ${tx(passo.titulo)}`}
             aria-current={i === atual ? "step" : undefined}
             // Meio do trecho do passo: o scroll para com o cartão dele já na tela.
             onClick={() => irPara((i + 0.5) / N)}
           >
             <span className="k">{dois(i + 1)}</span>
-            <span className="t">{passo.titulo}</span>
+            <span className="t">{tx(passo.titulo)}</span>
           </button>
         ))}
       </div>
@@ -529,11 +531,11 @@ export function ComoFunciona() {
             <div className="cf-vz">{passo.visual}</div>
             <div className="cf-bd">
               <span className="pk">Passo {dois(i + 1)}</span>
-              <h3>{passo.titulo}</h3>
-              <p>{passo.texto}</p>
+              <h3>{tx(passo.titulo)}</h3>
+              <p>{tx(passo.texto)}</p>
               <ul>
                 {passo.itens.map((item) => (
-                  <li key={item}>{item}</li>
+                  <li key={item}>{tx(item)}</li>
                 ))}
               </ul>
             </div>

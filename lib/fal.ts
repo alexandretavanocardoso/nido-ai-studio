@@ -19,8 +19,14 @@ export function mensagemDeErro(e: unknown): string {
     if (semSaldo) return "Sem créditos no fal.ai. Adicione saldo na conta.";
     if (e.status === 401 || e.status === 403) return "Chave do fal inválida ou sem permissão. Confira FAL_KEY.";
     if (e.status === 422) {
-      const body = e.body as { detail?: Array<{ msg?: string }> | string };
+      const body = e.body as { detail?: Array<{ msg?: string; type?: string }> | string };
       const det = Array.isArray(body?.detail) ? body.detail.map((d) => d.msg).join("; ") : body?.detail;
+      // Filtro de conteúdo do modelo (cena de filme, famoso, marca, conteúdo sensível): não adianta repetir o pedido.
+      const filtro =
+        (Array.isArray(body?.detail) && body.detail.some((d) => d.type === "content_policy_violation")) ||
+        (det && /flagged by a content checker/i.test(det));
+      if (filtro)
+        return "O filtro de conteúdo da IA barrou este vídeo ou as imagens enviadas. Isso costuma acontecer com cenas de filmes e séries, pessoas famosas, marcas ou conteúdo sensível. Tente com outro vídeo ou outra imagem.";
       // Seedance bloqueia vídeos/imagens com rosto de pessoa real reconhecível.
       if (det && /likeness|real people|private information/i.test(det))
         return "O motor Premium (Seedance) recusa vídeos em que aparece o rosto de uma pessoa real. Use o motor Padrão (Kling O3) para este vídeo.";

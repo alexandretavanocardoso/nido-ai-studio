@@ -4,7 +4,7 @@ import { TermosEn } from "./en";
 import { TermosPt } from "./pt";
 
 export const metadata: Metadata = {
-  title: "Termos de Serviço (Terms of Service) · NIDO Studio",
+  title: "Terms of Service (Termos de Serviço) · NIDO Studio",
   description:
     "Regras de uso do NIDO Studio: conta, conteúdo, uso aceitável, planos, créditos e pagamentos.",
 };

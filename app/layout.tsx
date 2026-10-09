@@ -10,9 +10,9 @@ import { CreditosProvider } from "@/components/creditos/CreditosProvider";
 import { recursosDisponiveis } from "@/lib/recursos";
 import { ComIdioma, IdiomaDoDocumento } from "@/lib/i18n";
 
-const TITULO = "NIDO AI Studio — Crie seu Influenciador Sintético";
+const TITULO = "NIDO AI Studio — Create your AI Influencer";
 const DESCRICAO =
-  "Defina quem é o seu influenciador sintético e produza imagens, vídeos, legendas e posts agendados no Estúdio — tudo em um só lugar.";
+  "Define who your AI influencer is and produce images, videos, captions and scheduled posts in the Studio — all in one place.";
 /** Imagem que aparece ao compartilhar o link (WhatsApp, X, LinkedIn…). JPEG de 1905×825. */
 const BANNER = { url: "/banner/banner.jpg", width: 1905, height: 825 };
 
@@ -44,7 +44,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" className="dark">
+    <html lang="en" className="dark">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link

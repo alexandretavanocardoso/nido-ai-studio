@@ -661,8 +661,8 @@ export const TEXTOS_EN: Record<string, string> = {
   'Texto na imagem (ex.: "PROMO DE SEXTA" na placa atrás dela)':
     'Text in the image (e.g.: "FRIDAY SALE" on the sign behind her)',
   Textos: "Text",
-  "TikTok, Instagram (reel/post), YouTube Shorts ou":
-    "TikTok, Instagram (reel/post), YouTube Shorts or",
+  "TikTok, Instagram (reel/post), YouTube Shorts, X ou":
+    "TikTok, Instagram (reel/post), YouTube Shorts, X or",
   Timbre: "Timbre",
   "Tipos de conteúdo": "Content types",
   "Tipos de marca que NÃO combinam": "Brand types that DON'T fit",
@@ -1964,4 +1964,527 @@ export const TEXTOS_EN: Record<string, string> = {
     "chosen by you",
   "escolha o influencer desta campanha":
     "pick the influencer for this campaign",
+
+  // Landing page
+  "Personagens são gerados.":
+    "Characters are generated.",
+  "Creators são construídos.":
+    "Creators are built.",
+  "Crie identidade, visual, personalidade, voz e estratégia para creators de IA que continuam sendo eles mesmos em cada post.":
+    "Build identity, look, personality, voice and strategy for AI creators who stay themselves in every post.",
+  "O próximo grande creator":
+    "The next big creator",
+  "pode não ser humano.":
+    "may not be human.",
+  "Uma nova geração de creators está começando. Eles não têm corpo.":
+    "A new generation of creators is beginning. They have no body.",
+  "Têm identidade.":
+    "They have identity.",
+  "FEITO NA NIDO":
+    "MADE AT NIDO",
+  "VIRAL LÁ FORA":
+    "VIRAL ABROAD",
+  "Lá fora, creators de IA já viralizam todo dia. No Brasil, o espaço ainda está livre.":
+    "Abroad, AI creators already go viral every day. In Brazil, the space is still open.",
+  "A Nido usa a mesma tecnologia":
+    "Nido uses the same technology",
+  "e já colocou os primeiros no ar.":
+    "and has already put the first ones on air.",
+  "Eles não existem.":
+    "They don't exist.",
+  "de pessoas assistiram mesmo assim.":
+    "people watched anyway.",
+  "Uma imagem":
+    "An image",
+  "não é um creator.":
+    "is not a creator.",
+  "Personagens têm aparência.":
+    "Characters have looks.",
+  "Creators têm identidade, voz, universo, estratégia e audiência.":
+    "Creators have identity, voice, a universe, strategy and an audience.",
+  "SEU CREATOR":
+    "YOUR CREATOR",
+  "VOCÊ":
+    "YOU",
+  "UMA NOVA GERAÇÃO DE CREATORS ESTÁ COMEÇANDO":
+    "A NEW GENERATION OF CREATORS IS BEGINNING",
+  "ELES NÃO TÊM CORPO":
+    "THEY HAVE NO BODY",
+  "TÊM IDENTIDADE":
+    "THEY HAVE IDENTITY",
+  "// ESSAS PESSOAS NÃO EXISTEM":
+    "// THESE PEOPLE DON'T EXIST",
+  "#001 · 5 dias no ar":
+    "#001 · 5 days on air",
+  "#002 · comportamento":
+    "#002 · behaviour",
+  "Identidade":
+    "Identity",
+  "terno verde · 68 anos":
+    "green suit · 68 years old",
+  "veterano elétrico":
+    "electric veteran",
+  "rouca, ritmo acelerado":
+    "raspy, fast-paced",
+  "Linguagem":
+    "Language",
+  "gíria dos anos 80":
+    "80s slang",
+  "energia & lifestyle":
+    "energy & lifestyle",
+  "Estratégia":
+    "Strategy",
+  "3 reels/semana · humor":
+    "3 reels/week · humour",
+  "bebidas · fitness":
+    "drinks · fitness",
+  "Conteúdo":
+    "Content",
+  "desafios e reações":
+    "challenges and reactions",
+  "Memória":
+    "Memory",
+  "persiste entre sessões":
+    "persists across sessions",
+  "Etapa":
+    "Step",
+  "Como você quer começar?":
+    "How do you want to start?",
+  "Rosto travado · mesmo em todo vídeo":
+    "Face locked · the same in every video",
+  "Calendário · 1 post por dia":
+    "Calendar · 1 post a day",
+  "STQQSSD":
+    "MTWTFSS",
+  "Timbre · grave e quente":
+    "Timbre · deep and warm",
+  "Bordões · 3":
+    "Catchphrases · 3",
+  "“Elegância não é roupa cara, meu filho. É postura.”":
+    "“Elegance isn't expensive clothes, my boy. It's posture.”",
+  "Fala devagar":
+    "Speaks slowly",
+  "Nunca diz gíria de internet":
+    "Never uses internet slang",
+  "Faixa":
+    "Range",
+  "Moda masculina · Lifestyle · Humor":
+    "Menswear · Lifestyle · Humour",
+  "Da ideia":
+    "From idea",
+  "ao creator.":
+    "to creator.",
+  "Do primeiro clique à identidade travada: o mesmo caminho que você percorre dentro da plataforma.":
+    "From the first click to the locked identity: the same path you take inside the platform.",
+  "Passo":
+    "Step",
+  "Voz e Linguagem":
+    "Voice and Language",
+  "Monetização e Marcas":
+    "Monetisation and Brands",
+  "Revisão":
+    "Review",
+  "Uma frase e a IA preenche a ficha.":
+    "One sentence and AI fills in the profile.",
+  "Gere o rosto e vá para a ficha.":
+    "Generate the face and go to the profile.",
+  "Criar manualmente":
+    "Create manually",
+  "Wizard em branco, no seu ritmo.":
+    "Blank wizard, at your own pace.",
+  "Importar personagem":
+    "Import character",
+  "Envie a ficha em .json.":
+    "Upload the profile as .json.",
+  "Nome":
+    "Name",
+  "Nº na fábrica":
+    "Factory no.",
+  "Idade":
+    "Age",
+  "34 anos":
+    "34 years old",
+  "O galã debochado":
+    "The cheeky heartthrob",
+  "Ex-alfaiate que virou referência de estilo":
+    "Former tailor turned style icon",
+  "Veludo verde":
+    "Green velvet",
+  "Bigode clássico":
+    "Classic moustache",
+  "Luz de estúdio":
+    "Studio lighting",
+  "Paleta quente":
+    "Warm palette",
+  "Plano americano":
+    "Medium shot",
+  "Extroversão":
+    "Extroversion",
+  "Ousadia":
+    "Boldness",
+  "Paciência":
+    "Patience",
+  "Vaidade":
+    "Vanity",
+  "Moda masculina":
+    "Menswear",
+  "Beleza":
+    "Beauty",
+  "Finanças":
+    "Finance",
+  "Viagem":
+    "Travel",
+  "Alfaiataria":
+    "Tailoring",
+  "Barbearia":
+    "Barbershop",
+  "Café especial":
+    "Specialty coffee",
+  "Relógios":
+    "Watches",
+  "Comece do seu jeito":
+    "Start your way",
+  "Escolha como criar. A IA do estúdio monta a ficha a partir de uma frase, ou você começa pela imagem, preenche campo a campo ou importa um personagem pronto.":
+    "Choose how to create. The studio's AI builds the profile from one sentence, or you start from the image, fill it in field by field, or import a ready character.",
+  "Expandir com IA é o caminho mais rápido":
+    "Expand with AI is the fastest path",
+  "Começar pela imagem ou criar manualmente":
+    "Start from the image or create manually",
+  "Importar uma ficha .json já exportada":
+    "Import an already exported .json profile",
+  "Nome, idade, origem e arquétipo. É a base que todas as outras etapas vão respeitar.":
+    "Name, age, origin and archetype. It's the base every other step will respect.",
+  "Número próprio na fábrica":
+    "Its own factory number",
+  "Backstory antes de qualquer pixel":
+    "Backstory before any pixel",
+  "Arquétipo que guia o comportamento":
+    "An archetype that guides behaviour",
+  "O estúdio gera o rosto e o estilo do creator. Depois de aprovado, ele fica travado e é o mesmo em todos os vídeos.":
+    "The studio generates the creator's face and style. Once approved, it is locked and stays the same in every video.",
+  "Rosto, figurino e luz definidos":
+    "Face, wardrobe and lighting defined",
+  "Consistência entre todos os posts":
+    "Consistency across every post",
+  "Ajuste qualquer detalhe antes de travar":
+    "Adjust any detail before locking",
+  "Traços que definem como ele reage, opina e conta histórias.":
+    "Traits that define how they react, give opinions and tell stories.",
+  "Escalas de temperamento ajustáveis":
+    "Adjustable temperament scales",
+  "Crenças e aversões do personagem":
+    "The character's beliefs and dislikes",
+  "Comportamento previsível em todo roteiro":
+    "Predictable behaviour in every script",
+  "Nicho e estratégia":
+    "Niche and strategy",
+  "Em que nicho ele fala, em quais redes publica e com que frequência.":
+    "Which niche they talk about, which networks they post on and how often.",
+  "Até três nichos por creator":
+    "Up to three niches per creator",
+  "Redes e formato por plataforma":
+    "Networks and format per platform",
+  "Calendário de publicação definido":
+    "Posting calendar defined",
+  "Voz e linguagem":
+    "Voice and language",
+  "Timbre, ritmo, bordões e o que ele nunca diria.":
+    "Timbre, pace, catchphrases and what they would never say.",
+  "Voz própria e reconhecível":
+    "A recognisable voice of their own",
+  "Bordões e vocabulário do personagem":
+    "The character's catchphrases and vocabulary",
+  "Lista do que ele não fala":
+    "A list of what they don't say",
+  "Monetização e marcas":
+    "Monetisation and brands",
+  "As marcas que combinam com ele, os formatos de publi e a faixa de valor por post.":
+    "The brands that fit them, the sponsored formats and the price range per post.",
+  "Afinidade de marca calculada":
+    "Calculated brand affinity",
+  "Formatos aceitos por campanha":
+    "Accepted formats per campaign",
+  "Faixa de preço sugerida":
+    "Suggested price range",
+  "Confira a ficha completa e trave a identidade. A partir daqui, o creator está pronto para publicar.":
+    "Review the full profile and lock the identity. From here, the creator is ready to post.",
+  "Ficha completa em uma tela":
+    "Full profile on one screen",
+  "Exportar ficha em .json":
+    "Export the profile as .json",
+  "Identidade travada para sempre":
+    "Identity locked for good",
+  "novo":
+    "new",
+  "Seu creator":
+    "Your creator",
+  "GERANDO":
+    "GENERATING",
+  "Definido na plataforma":
+    "Defined on the platform",
+  "Seu creator · arquétipo a definir":
+    "Your creator · archetype to be defined",
+  "SALVO NO SISTEMA":
+    "SAVED TO THE SYSTEM",
+  "SUA IDEIA ESTÁ PRONTA PARA VIRAR CREATOR":
+    "YOUR IDEA IS READY TO BECOME A CREATOR",
+  "Gerado":
+    "Generated",
+  "Ficha":
+    "Profile",
+  "Construir o meu na plataforma":
+    "Build mine on the platform",
+  "Descreva seu creator em uma frase…":
+    "Describe your creator in one sentence…",
+  "Descreva seu creator em uma frase":
+    "Describe your creator in one sentence",
+  "Uma frase.":
+    "One sentence.",
+  "Um creator inteiro.":
+    "A whole creator.",
+  "Você escreve uma ideia. O sistema constrói identidade, visual, personalidade, voz e nicho.":
+    "You write an idea. The system builds identity, look, personality, voice and niche.",
+  "Você escreve uma ideia. O sistema constrói identidade, visual, personalidade, voz e nicho, camada por camada.":
+    "You write an idea. The system builds identity, look, personality, voice and niche, layer by layer.",
+  "Ou veja":
+    "Or see",
+  "Nome e arquétipo":
+    "Name and archetype",
+  "Aposentado de terno de veludo verde que vive de energético e dá conselho de vida em 15 segundos.":
+    "A retiree in a green velvet suit who lives on energy drinks and gives life advice in 15 seconds.",
+  "Arnaldo Energy · o avô acelerado":
+    "Arnaldo Energy · the turbo grandpa",
+  "Otimista e impaciente. Bordão: \"o tempo não espera ninguém\"":
+    "Optimistic and impatient. Catchphrase: \"time waits for no one\"",
+  "Terno de veludo verde, cabelo branco, lata na mão":
+    "Green velvet suit, white hair, can in hand",
+  "Grave e rápida, sotaque carioca":
+    "Deep and fast, Rio accent",
+  "Lifestyle 60+ · energia · humor":
+    "60+ lifestyle · energy · humour",
+  "Hippie que mora numa kombi no litoral e ensina finanças pessoais com a calma de um monge.":
+    "A hippie who lives in a van by the coast and teaches personal finance with a monk's calm.",
+  "Zé Zen · o guru tranquilo":
+    "Zé Zen · the laid-back guru",
+  "Paciente e irônico. Frases curtas, pausas longas":
+    "Patient and ironic. Short sentences, long pauses",
+  "Dreads, colares, linho tingido à mão":
+    "Dreads, necklaces, hand-dyed linen",
+  "Baixa e lenta, quase um sussurro":
+    "Low and slow, almost a whisper",
+  "Finanças pessoais · minimalismo":
+    "Personal finance · minimalism",
+  "Pin-up de cachos curtos e batom vermelho que dá dicas de beleza com o charme dos anos 30.":
+    "A pin-up with short curls and red lipstick who gives beauty tips with 1930s charm.",
+  "Betty Pimenta · a pin-up atrevida":
+    "Betty Pimenta · the sassy pin-up",
+  "Charmosa e debochada. Pisca antes de cada dica":
+    "Charming and cheeky. Winks before every tip",
+  "Cachos curtos, batom vermelho, saia lápis":
+    "Short curls, red lipstick, pencil skirt",
+  "Doce e aguda, com risada no fim":
+    "Sweet and high, with a laugh at the end",
+  "Beleza · moda retrô":
+    "Beauty · retro fashion",
+  "Fortão de topete loiro e óculos escuros que transforma qualquer situação em desafio de academia.":
+    "A big guy with a blond quiff and sunglasses who turns any situation into a gym challenge.",
+  "Dione Brabo · o marombeiro confiante":
+    "Dione Brabo · the confident gym bro",
+  "Exagerado e motivador. Nunca tira os óculos":
+    "Over the top and motivating. Never takes off the sunglasses",
+  "Topete loiro, camiseta preta justa, jeans":
+    "Blond quiff, tight black T-shirt, jeans",
+  "Grave e alta, cheia de gíria":
+    "Deep and loud, full of slang",
+  "Fitness · desafios · motivação":
+    "Fitness · challenges · motivation",
+  "Desastrado de touca listrada que narra o dia a dia como se vivesse dentro de um desenho animado.":
+    "A clumsy guy in a striped beanie who narrates daily life as if he lived inside a cartoon.",
+  "Pateta Fi Duma Egua · o atrapalhado":
+    "Pateta Fi Duma Egua · the bumbling one",
+  "Ingênuo e caótico. Ri das próprias trapalhadas":
+    "Naive and chaotic. Laughs at his own blunders",
+  "Touca listrada, blazer largo, bermuda cargo":
+    "Striped beanie, oversized blazer, cargo shorts",
+  "Rouca e esganiçada, risada marcante":
+    "Raspy and squeaky, with a memorable laugh",
+  "Humor · cotidiano · vlogs":
+    "Humour · everyday life · vlogs",
+  "Galã de franja reta e jaqueta vermelha que dá conselhos amorosos com toda a pompa da nobreza.":
+    "A heartthrob with a straight fringe and a red jacket who gives love advice with all the pomp of nobility.",
+  "Romeu Nobre · o lorde vaidoso":
+    "Romeu Nobre · the vain lord",
+  "Arrogante e teatral. Se acha da realeza":
+    "Arrogant and theatrical. Thinks he's royalty",
+  "Franja reta, jaqueta vermelha, calça pantalona":
+    "Straight fringe, red jacket, wide-leg trousers",
+  "Empostada e lenta, cheia de pausas":
+    "Affected and slow, full of pauses",
+  "Relacionamento · moda · humor":
+    "Relationships · fashion · humour",
+  "Agenciamento personalizado":
+    "Custom management",
+  "Vamos montar o seu estúdio":
+    "Let's set up your studio",
+  "Recebemos":
+    "Received",
+  "O time Nido responde em até 1 dia útil com uma proposta para a sua operação.":
+    "The Nido team replies within 1 business day with a proposal for your operation.",
+  "Seu nome":
+    "Your name",
+  "Empresa":
+    "Company",
+  "Nome da marca":
+    "Brand name",
+  "E-mail":
+    "E-mail",
+  "Quantos creators você quer operar?":
+    "How many creators do you want to run?",
+  "1 a 3":
+    "1 to 3",
+  "4 a 10":
+    "4 to 10",
+  "11 a 30":
+    "11 to 30",
+  "Mais de 30":
+    "More than 30",
+  "Conte o objetivo":
+    "Tell us the goal",
+  "Nicho, redes, meta de publicação ou conversão":
+    "Niche, networks, posting or conversion goal",
+  "Enviar proposta":
+    "Send proposal",
+  "ou":
+    "or",
+  "imagens":
+    "images",
+  "de troca de pessoa em vídeo":
+    "of person swap in video",
+  "Sob medida":
+    "Tailor-made",
+  "Agenciamento personalizado: o time Nido opera seus creators por você":
+    "Custom management: the Nido team runs your creators for you",
+  "Sob consulta":
+    "On request",
+  "proposta montada para o volume e a meta da sua marca":
+    "a proposal built for your brand's volume and goal",
+  "Créditos sob demanda":
+    "Credits on demand",
+  "Volume calibrado ao calendário de publicação":
+    "Volume tuned to the posting calendar",
+  "Falar com a Nido":
+    "Talk to Nido",
+  "Escolha":
+    "Choose",
+  "o seu estúdio.":
+    "your studio.",
+  "Comece com um creator e escale quando o resultado aparecer. Sem fidelidade.":
+    "Start with one creator and scale when results show up. No lock-in.",
+  "Personagens ilimitados":
+    "Unlimited characters",
+  "Criação e roteiro feitos pelo time Nido":
+    "Creation and scripts done by the Nido team",
+  "Publicação e agendamento em todas as redes":
+    "Posting and scheduling on every network",
+  "Gestão de campanhas com marcas":
+    "Brand campaign management",
+  "Relatório mensal de resultado":
+    "Monthly results report",
+  "Gerente de conta dedicado":
+    "Dedicated account manager",
+  "Perguntas":
+    "Frequently asked",
+  "frequentes.":
+    "questions.",
+  "O creator parece uma pessoa real?":
+    "Does the creator look like a real person?",
+  "Sim. Cada creator tem rosto, voz e jeito de falar consistentes em todos os vídeos. Sinalizamos o conteúdo como gerado por IA conforme as regras de cada rede.":
+    "Yes. Each creator has a consistent face, voice and way of speaking in every video. We flag the content as AI-generated according to each network's rules.",
+  "De quem é o creator que eu gerei?":
+    "Who owns the creator I generated?",
+  "Da sua marca. A identidade fica exclusiva enquanto o plano estiver ativo e você pode exportar os vídeos a qualquer momento.":
+    "Your brand. The identity stays exclusive while the plan is active, and you can export the videos at any time.",
+  "Em quais redes ele publica?":
+    "Which networks do they post on?",
+  "Instagram, TikTok, YouTube e X. Você escolhe as redes e o calendário; o estúdio adapta formato e duração para cada uma.":
+    "Instagram, TikTok, YouTube and X. You choose the networks and the calendar; the studio adapts format and length for each one.",
+  "Posso ajustar o que ele fala?":
+    "Can I adjust what they say?",
+  "Pode. Cada roteiro passa pela sua aprovação, e você define temas proibidos, tom de voz e chamadas para ação.":
+    "You can. Every script goes through your approval, and you set banned topics, tone of voice and calls to action.",
+  "Como eu meço o resultado?":
+    "How do I measure results?",
+  "No painel da Nido: views, engajamento e conversão por vídeo e por creator, com links rastreados e atualização em tempo real.":
+    "On the Nido dashboard: views, engagement and conversion per video and per creator, with tracked links and real-time updates.",
+  "Seu creator.":
+    "Your creator.",
+  "Pronto hoje.":
+    "Ready today.",
+  "Descreva em uma frase. Em segundos ele tem nome, rosto, voz e nicho — e começa a publicar.":
+    "Describe it in one sentence. In seconds they have a name, face, voice and niche — and start posting.",
+  "Inscrição confirmada":
+    "Sign-up confirmed",
+  "Você está na lista.":
+    "You're on the list.",
+  "Sua posição":
+    "Your position",
+  "Avisamos por e-mail e WhatsApp assim que o seu acesso abrir.":
+    "We'll let you know by e-mail and WhatsApp as soon as your access opens.",
+  "Entrar na whitelist":
+    "Join the whitelist",
+  "Leva menos de um minuto.":
+    "Takes less than a minute.",
+  "Você é":
+    "You are",
+  "Nicho do seu creator":
+    "Your creator's niche",
+  "Moda, beleza, finanças…":
+    "Fashion, beauty, finance…",
+  "Garantir meu lugar":
+    "Save my spot",
+  "Termos":
+    "Terms",
+  "Privacidade":
+    "Privacy",
+  "Contato":
+    "Contact",
+  "Nido AI Studio no X":
+    "Nido AI Studio on X",
+  "Acesso antecipado":
+    "Early access",
+  "começa aqui.":
+    "starts here.",
+  "O estúdio abre por ordem de inscrição. Entre na lista e garanta seu lugar antes da abertura.":
+    "The studio opens in sign-up order. Join the list and save your spot before launch.",
+  "Acesso antes da abertura":
+    "Access before launch",
+  "Entra na plataforma na primeira leva":
+    "Get on the platform in the first wave",
+  "Créditos extras de boas-vindas":
+    "Extra welcome credits",
+  "Para gerar o seu primeiro creator":
+    "To generate your first creator",
+  "Onboarding com o time Nido":
+    "Onboarding with the Nido team",
+  "Uma conversa para montar sua estratégia":
+    "A conversation to shape your strategy",
+  "Marca":
+    "Brand",
+  "Agência":
+    "Agency",
+  "Construir meu creator":
+    "Build my creator",
+
+  "voce@empresa.com":
+    "you@company.com",
+  "voce@email.com":
+    "you@email.com",
+  "Prova":
+    "Proof",
+  "A tese":
+    "The thesis",
+  "Uma frase, um creator":
+    "One sentence, one creator",
+  "Perguntas frequentes":
+    "Frequently asked questions",
 };

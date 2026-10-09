@@ -1,8 +1,9 @@
 "use client";
 
+import { tx } from "@/lib/i18n/tx";
 import { useEffect, useState } from "react";
 import "./landing.css";
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useIdioma } from "@/lib/i18n";
 import { Hero, Manifesto, Prova, Tese } from "./cenas";
 import { ComoFunciona } from "./ComoFunciona";
 import { Demo } from "./Demo";
@@ -17,9 +18,9 @@ import { Landing, Palco } from "./palco";
 export function LandingPage() {
   return (
     <Landing>
-      <Entrar />
+      <Idioma />
       <Palco
-        rotulo="Nido AI Studio"
+        rotulo={tx("Nido AI Studio")}
         h={720}
         hm={844}
         caber
@@ -28,14 +29,14 @@ export function LandingPage() {
       >
         <Hero />
       </Palco>
-      <Palco rotulo="Manifesto" h={720} hm={844}>
+      <Palco rotulo={tx("Manifesto")} h={720} hm={844}>
         <Manifesto />
       </Palco>
-      <Palco rotulo="Prova" h={900} hm={790}>
+      <Palco rotulo={tx("Prova")} h={900} hm={790}>
         <Prova />
       </Palco>
       <Palco
-        rotulo="A tese"
+        rotulo={tx("A tese")}
         h={720}
         hm={844}
         pin={2.6}
@@ -44,19 +45,19 @@ export function LandingPage() {
       >
         <Tese />
       </Palco>
-      <Palco rotulo="Uma frase, um creator" h={720} hm={844}>
+      <Palco rotulo={tx("Uma frase, um creator")} h={720} hm={844}>
         <Demo />
       </Palco>
-      <Palco rotulo="Como funciona" h={720} hm={844} pin={6}>
+      <Palco rotulo={tx("Como funciona")} h={720} hm={844} pin={6}>
         <ComoFunciona />
       </Palco>
-      <Palco id="planos" rotulo="Planos" h={1080} hm={1180}>
+      <Palco id="planos" rotulo={tx("Planos")} h={1080} hm={1180}>
         <Planos />
       </Palco>
-      <Palco rotulo="Perguntas frequentes" h={620} hm={720}>
+      <Palco rotulo={tx("Perguntas frequentes")} h={620} hm={720}>
         <Faq />
       </Palco>
-      <Palco id="whitelist" rotulo="Whitelist" h={860} hm={1290}>
+      <Palco id="whitelist" rotulo={tx("Whitelist")} h={860} hm={1290}>
         <Whitelist />
       </Palco>
       <CtaFixo />
@@ -64,14 +65,23 @@ export function LandingPage() {
   );
 }
 
-/** Canto superior direito: quem já tem conta entra por aqui. */
-function Entrar() {
-  const { user, disabled } = useAuth();
-  const dentro = disabled || !!user;
+/** Canto superior direito: troca o idioma da página (português ou inglês). */
+function Idioma() {
+  const { idioma, setIdioma } = useIdioma();
   return (
-    <a className="lp-entrar" href={dentro ? "/app" : "/auth/login"}>
-      {dentro ? "Abrir o app" : "Entrar"}
-    </a>
+    <div className="lp-idioma" role="group" aria-label="Idioma / Language">
+      {(["pt", "en"] as const).map((i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => setIdioma(i)}
+          aria-pressed={idioma === i}
+          className={idioma === i ? "on" : undefined}
+        >
+          {i.toUpperCase()}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -101,7 +111,7 @@ function CtaFixo() {
           ?.scrollIntoView({ behavior: "smooth" });
       }}
     >
-      <span className="lbl">Construir meu creator</span>
+      <span className="lbl">{tx("Construir meu creator")}</span>
     </a>
   );
 }

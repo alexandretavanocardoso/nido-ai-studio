@@ -1,5 +1,6 @@
 "use client";
 
+import { tx } from "@/lib/i18n/tx";
 import { useEffect, useRef } from "react";
 import { IMG } from "./cenas";
 import { useCena } from "./palco";
@@ -193,7 +194,7 @@ export function Demo() {
       limpar();
       zerar();
       gerar.disabled = true;
-      rotulo.textContent = "Gerando…";
+      rotulo.textContent = tx("Gerando…");
       const e = id ? EXEMPLOS[id] : null;
       chips.forEach((c) => c.classList.toggle("on", c.dataset.ex === id));
       q(".dm-ch .cn").textContent = e
@@ -201,19 +202,21 @@ export function Demo() {
           ? e.num
           : `Creator ${e.num}`
         : mob
-          ? "novo"
-          : "Seu creator";
+          ? tx("novo")
+          : tx("Seu creator");
 
       let inicio = 0;
       if (e) {
         area.value = "";
-        const letra = Math.max(14, Math.round(1100 / e.frase.length));
-        for (let i = 1; i <= e.frase.length; i++)
+        // A frase e as camadas do exemplo saem no idioma da página.
+        const frase = tx(e.frase);
+        const letra = Math.max(14, Math.round(1100 / frase.length));
+        for (let i = 1; i <= frase.length; i++)
           em(i * letra, () => {
-            area.value = e.frase.slice(0, i);
+            area.value = frase.slice(0, i);
             conta.textContent = `${i}/240`;
           });
-        inicio = e.frase.length * letra + 250;
+        inicio = frase.length * letra + 250;
       }
 
       const tm = q(".dm-ch .tm");
@@ -231,12 +234,12 @@ export function Demo() {
         em(inicio + i * PASSO, () => {
           const r = linhas[i];
           r.classList.add("on");
-          r.querySelector(".st")!.textContent = "GERANDO";
+          r.querySelector(".st")!.textContent = tx("GERANDO");
           const texto = e
-            ? e.camadas[i]
+            ? tx(e.camadas[i])
             : i
-              ? "Definido na plataforma"
-              : "Seu creator · arquétipo a definir";
+              ? tx("Definido na plataforma")
+              : tx("Seu creator · arquétipo a definir");
           embaralhar(r.querySelector<HTMLElement>(".v")!, texto, PASSO - 120);
           q(".dm-bar i").style.width = `${((i + 1) / CAMADAS.length) * 100}%`;
           if (i === 2 && e) {
@@ -255,11 +258,11 @@ export function Demo() {
         tm.textContent = `${e ? e.tempo : "3,2"}s`;
         const selo = q(".dm-stamp");
         selo.textContent = e
-          ? `CREATOR ${e.num} — ${e.camadas[0].split(" · ")[0].toUpperCase()} SALVO NO SISTEMA · ${e.tempo}s`
-          : "SUA IDEIA ESTÁ PRONTA PARA VIRAR CREATOR";
+          ? `CREATOR ${e.num} — ${tx(e.camadas[0]).split(" · ")[0].toUpperCase()} ${tx("SALVO NO SISTEMA")} · ${e.tempo}s`
+          : tx("SUA IDEIA ESTÁ PRONTA PARA VIRAR CREATOR");
         selo.classList.add("on");
         q(".dm-nx").classList.add("on");
-        rotulo.textContent = "Gerado";
+        rotulo.textContent = tx("Gerado");
         if (id && automatico)
           proximo = setTimeout(
             () => rodar(ORDEM[(ORDEM.indexOf(id) + 1) % ORDEM.length]),
@@ -272,7 +275,7 @@ export function Demo() {
       pararAutomatico();
       conta.textContent = `${area.value.length}/240`;
       gerar.disabled = !area.value.trim();
-      rotulo.textContent = "Gerar";
+      rotulo.textContent = tx("Gerar");
       chips.forEach((c) => c.classList.remove("on"));
     };
     const aoTeclar = (ev: KeyboardEvent) => {
@@ -305,7 +308,7 @@ export function Demo() {
 
   const linhas = CAMADAS.map((camada, i) => (
     <div key={camada} className={`dm-row${i ? "" : " nm"}`}>
-      <span className="lb">{camada}</span>
+      <span className="lb">{tx(camada)}</span>
       <span className="st">—</span>
       <span className="v" />
     </div>
@@ -320,7 +323,7 @@ export function Demo() {
     <>
       <div className="dm-ch">
         <span className="k">
-          Ficha · <b className="cn">{mob ? "#—" : "Creator #—"}</b>
+          {tx("Ficha")} · <b className="cn">{mob ? "#—" : "Creator #—"}</b>
         </span>
         <span className="tm">0,0s</span>
       </div>
@@ -332,7 +335,7 @@ export function Demo() {
         style={{ gridTemplateColumns: `${colunaFoto}px minmax(0,1fr)` }}
       >
         <div className="dm-por">
-          <span className="ph">Visual</span>
+          <span className="ph">{tx("Visual")}</span>
           <img alt="" />
           <i className="sc" />
         </div>
@@ -341,7 +344,7 @@ export function Demo() {
       <div className="dm-cf">
         <span className="dm-stamp" />
         <a className="dm-nx" href="/app">
-          Construir o meu na plataforma
+          {tx("Construir o meu na plataforma")}
         </a>
       </div>
     </>
@@ -352,8 +355,8 @@ export function Demo() {
         rows={3}
         maxLength={240}
         style={{ fontSize: fonte, minHeight: minimo }}
-        placeholder="Descreva seu creator em uma frase…"
-        aria-label="Descreva seu creator em uma frase"
+        placeholder={tx("Descreva seu creator em uma frase…")}
+        aria-label={tx("Descreva seu creator em uma frase")}
       />
       <div className="dm-prow">
         <span className="dm-cnt">0/240</span>
@@ -363,7 +366,7 @@ export function Demo() {
           style={mob ? { padding: "12px 16px" } : undefined}
           disabled
         >
-          <span className="lbl">Gerar</span>
+          <span className="lbl">{tx("Gerar")}</span>
         </button>
       </div>
     </>
@@ -386,12 +389,13 @@ export function Demo() {
           }}
         >
           <h2 className="lp-h2" style={{ fontSize: 32 }}>
-            <span>Uma frase.</span>
-            <em>Um creator inteiro.</em>
+            <span>{tx("Uma frase.")}</span>
+            <em>{tx("Um creator inteiro.")}</em>
           </h2>
           <p className="lp-sub" style={{ fontSize: 14 }}>
-            Você escreve uma ideia. O sistema constrói identidade, visual,
-            personalidade, voz e nicho.
+            {tx(
+              "Você escreve uma ideia. O sistema constrói identidade, visual, personalidade, voz e nicho.",
+            )}
           </p>
           <div className="dm-pbox" style={{ padding: 12, borderRadius: 16 }}>
             {caixa(14.5, 64)}
@@ -421,16 +425,17 @@ export function Demo() {
         }}
       >
         <h2 className="lp-h2" style={{ fontSize: 58 }}>
-          <span>Uma frase.</span>
-          <em>Um creator inteiro.</em>
+          <span>{tx("Uma frase.")}</span>
+          <em>{tx("Um creator inteiro.")}</em>
         </h2>
         <p className="lp-sub" style={{ fontSize: 16, maxWidth: "46ch" }}>
-          Você escreve uma ideia. O sistema constrói identidade, visual,
-          personalidade, voz e nicho, camada por camada.
+          {tx(
+            "Você escreve uma ideia. O sistema constrói identidade, visual, personalidade, voz e nicho, camada por camada.",
+          )}
         </p>
         <div className="dm-pbox">{caixa(16, 76)}</div>
         <div className="dm-ex">
-          <span className="t">Ou veja</span>
+          <span className="t">{tx("Ou veja")}</span>
           {chips}
         </div>
       </div>

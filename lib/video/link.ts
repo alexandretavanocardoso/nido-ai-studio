@@ -6,8 +6,9 @@ import { pipeline } from "node:stream/promises";
 import { abrirDownloadSeguro } from "./destino-seguro";
 
 /**
- * Vídeo por link (TikTok, Instagram, YouTube Shorts ou arquivo direto).
- * O Apify ("actors" de scraping) acha o arquivo do vídeo; o servidor baixa
+ * Vídeo por link (TikTok, Instagram, YouTube Shorts, X ou arquivo direto).
+ * O Apify ("actors" de scraping) acha o arquivo do vídeo — no X, quem acha é
+ * o twitterapi.io (TWITTER_API_KEY), que já devolve o .mp4; o servidor baixa
  * pra uma pasta temporária, mede e entrega à IA pelo storage temporário do
  * fal — o vídeo de origem NÃO vai pro S3. Só o vídeo gerado é salvo.
  *
@@ -16,7 +17,21 @@ import { abrirDownloadSeguro } from "./destino-seguro";
  *   APIFY_ACTOR_INSTAGRAM  padrão apify/instagram-scraper
  *   APIFY_ACTOR_YOUTUBE    padrão maximedupre/youtube-shorts-downloader (só Shorts)
  */
-export type Plataforma = "tiktok" | "instagram" | "youtube" | "direto";
+export type Plataforma = "tiktok" | "instagram" | "youtube" | "x" | "direto";
+/** Redes buscadas pelo Apify. */
+type PlataformaApify = Exclude<Plataforma, "direto" | "x">;
+
+/** Id do post num link do X/Twitter (x.com/perfil/status/123…), ou null. */
+export function idDoPostNoX(url: string): string | null {
+  try {
+    const u = new URL(url.trim());
+    const host = u.hostname.replace(/^www\.|^m\.|^mobile\./, "");
+    if (host !== "x.com" && host !== "twitter.com") return null;
+    return u.pathname.match(/^\/[^/]+\/status(?:es)?\/(\d{5,25})/)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /** Maior arquivo de vídeo aceito por link. */
 export const LINK_MAX_BYTES = 300 * 1024 * 1024;
@@ -41,11 +56,12 @@ export function detectarPlataforma(url: string): Plataforma | null {
     (/(^|\.)youtube\.com$/.test(host) && /^\/(shorts|watch)/.test(u.pathname))
   )
     return "youtube";
+  if (idDoPostNoX(url)) return "x";
   if (/\.(mp4|mov|webm)$/i.test(u.pathname)) return "direto";
   return null;
 }
 
-function ator(p: Exclude<Plataforma, "direto">): string {
+function ator(p: PlataformaApify): string {
   const padrao = {
     tiktok: "clockworks/tiktok-scraper",
     instagram: "apify/instagram-scraper",
@@ -60,7 +76,7 @@ function ator(p: Exclude<Plataforma, "direto">): string {
 }
 
 function entradaAtor(
-  p: Exclude<Plataforma, "direto">,
+  p: PlataformaApify,
   url: string,
 ): Record<string, unknown> {
   if (p === "tiktok")
@@ -127,8 +143,31 @@ export function lerItem(p: Plataforma, item: Item): VideoDoLink | null {
     titulo = txt(item.title);
     autor = txt(item.channelName);
     thumb = txt(item.thumbnailUrl);
+  } else if (p === "x") {
+    // Post do twitterapi.io: o vídeo vem em várias qualidades; fica o .mp4 de
+    // maior bitrate. Sem vídeo no post, vale o do post citado ou repostado.
+    const midiaDe = (t: Item) =>
+      ((obj(t.extendedEntities).media as Item[] | undefined) ?? []).find(
+        (m) => m.type === "video" || m.type === "animated_gif",
+      );
+    const midia =
+      midiaDe(item) ??
+      midiaDe(obj(item.quoted_tweet)) ??
+      midiaDe(obj(item.retweeted_tweet));
+    const info = obj(midia?.video_info);
+    const melhor = ((info.variants as Item[] | undefined) ?? [])
+      .filter((v) => v.content_type === "video/mp4" && txt(v.url))
+      .sort((a, b) => (num(b.bitrate) ?? 0) - (num(a.bitrate) ?? 0))[0];
+    videoUrl = txt(melhor?.url);
+    const ms = num(info.duration_millis);
+    duracao = ms ? ms / 1000 : null;
+    // O texto do post termina com o link curto da própria mídia: sai do título.
+    titulo = txt(txt(item.text)?.replace(/\s*https:\/\/t\.co\/\w+\s*$/, ""));
+    autor = txt(obj(item.author).userName);
+    thumb = txt(midia?.media_url_https);
   }
-  if (!videoUrl) {
+  // No X não há "procura genérica": o post tem muitos links que não são o vídeo.
+  if (!videoUrl && p !== "x") {
     // Actor trocado por env: procura qualquer campo com cara de link de vídeo.
     for (const [k, v] of Object.entries(item)) {
       const s = txt(v);
@@ -166,13 +205,47 @@ export function tokenApify(): string | null {
   );
 }
 
-/** Acha o arquivo de vídeo do link (Apify para redes sociais; direto para .mp4/.mov/.webm). */
+/** Post do X pelo twitterapi.io (devolve os .mp4 do vídeo em todas as qualidades). */
+async function resolverPostDoX(url: string): Promise<VideoDoLink> {
+  const chave = process.env.TWITTER_API_KEY?.trim();
+  if (!chave)
+    throw new LinkError("Busca de vídeos do X não configurada (TWITTER_API_KEY).");
+  let res: Response;
+  try {
+    res = await fetch(
+      `https://api.twitterapi.io/twitter/tweets?tweet_ids=${idDoPostNoX(url)}`,
+      { headers: { "X-API-Key": chave }, signal: AbortSignal.timeout(30_000) },
+    );
+  } catch {
+    throw new LinkError("A busca do vídeo demorou demais. Tente de novo.");
+  }
+  if (!res.ok) {
+    const corpo = await res.text().catch(() => "");
+    console.error("[link] twitterapi", res.status, corpo.slice(0, 300));
+    if (res.status === 402) throw new LinkError("Sem créditos no twitterapi.io.");
+    throw new LinkError(
+      `Não consegui buscar o vídeo (twitterapi.io HTTP ${res.status}).`,
+    );
+  }
+  const corpo = (await res.json().catch(() => null)) as {
+    tweets?: Item[];
+  } | null;
+  const post = corpo?.tweets?.[0];
+  if (!post)
+    throw new LinkError("Não achei esse post no X (é público? foi apagado?).");
+  const video = lerItem("x", post);
+  if (!video) throw new LinkError("Esse post do X não tem vídeo.");
+  return video;
+}
+
+/** Acha o arquivo de vídeo do link (Apify ou twitterapi.io para redes sociais; direto para .mp4/.mov/.webm). */
 export async function resolverLink(url: string): Promise<VideoDoLink> {
   const p = detectarPlataforma(url);
   if (!p)
     throw new LinkError(
-      "Link não suportado. Use TikTok, Instagram (reel/post), YouTube Shorts ou um link direto de .mp4.",
+      "Link não suportado. Use TikTok, Instagram (reel/post), YouTube Shorts, X (post com vídeo) ou um link direto de .mp4.",
     );
+  if (p === "x") return resolverPostDoX(url);
   if (p === "direto")
     return {
       plataforma: p,

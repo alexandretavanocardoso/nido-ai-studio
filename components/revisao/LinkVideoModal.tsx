@@ -23,7 +23,7 @@ interface Props {
 }
 
 /**
- * Vídeo por link (TikTok, Instagram, YouTube Shorts ou .mp4 direto), em dois passos:
+ * Vídeo por link (TikTok, Instagram, YouTube Shorts, X ou .mp4 direto), em dois passos:
  *  1. Carregar — o servidor busca o vídeo (Apify) e o usuário ASSISTE para conferir
  *     se é o certo. Nada é trocado aqui.
  *  2. Substituir — só depois de confirmar ele segue para a tela de troca.
@@ -163,7 +163,7 @@ export function LinkVideoModal({ onClose, onEncontrado }: Props) {
             />
             <p className="text-[11px] text-ink-dim mt-1.5 mb-4">
               {recursos.apify
-                ? tx("TikTok, Instagram (reel/post), YouTube Shorts ou ")
+                ? tx("TikTok, Instagram (reel/post), YouTube Shorts, X ou ")
                 : ""}
               {tx("link direto de .mp4. Até 3 minutos.")}
             </p>

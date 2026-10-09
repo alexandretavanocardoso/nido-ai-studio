@@ -1,5 +1,7 @@
 "use client";
 
+import { tx } from "@/lib/i18n/tx";
+import { txErro } from "@/lib/i18n/erros";
 import {
   useEffect,
   useRef,
@@ -101,7 +103,7 @@ const Lista = ({ itens }: { itens: string[] }) => (
     {itens.map((item) => (
       <li key={item}>
         <Certo />
-        <span>{item}</span>
+        <span>{tx(item)}</span>
       </li>
     ))}
   </ul>
@@ -143,30 +145,29 @@ function FormAgencia({
       className={`pl-fm${aberto ? " open" : ""}`}
       role="dialog"
       aria-modal="true"
-      aria-label="Agenciamento personalizado"
+      aria-label={tx("Agenciamento personalizado")}
       onClick={(e) => e.target === e.currentTarget && fechar()}
     >
       <div className="bx" ref={caixa}>
         <div className="hd">
           <div>
-            <span>Agenciamento personalizado</span>
-            <b>Vamos montar o seu estúdio</b>
+            <span>{tx("Agenciamento personalizado")}</span>
+            <b>{tx("Vamos montar o seu estúdio")}</b>
           </div>
           <button
             type="button"
             className="x"
             onClick={fechar}
-            aria-label="Fechar"
+            aria-label={tx("Fechar")}
           >
             ✕
           </button>
         </div>
         {envio.ok ? (
           <div className="ok">
-            <b>Recebemos</b>
+            <b>{tx("Recebemos")}</b>
             <p>
-              O time Nido responde em até 1 dia útil com uma proposta para a sua
-              operação.
+              {tx("O time Nido responde em até 1 dia útil com uma proposta para a sua operação.")}
             </p>
             <button
               type="button"
@@ -174,45 +175,45 @@ function FormAgencia({
               style={{ marginTop: 22 }}
               onClick={fechar}
             >
-              <span className="lbl">Fechar</span>
+              <span className="lbl">{tx("Fechar")}</span>
             </button>
           </div>
         ) : (
           <form onSubmit={envio.aoEnviar}>
             <div className="lp-fs" style={{ gap: 10, marginTop: 18 }}>
               <label>
-                Nome
+                {tx("Nome")}
                 <input
                   name="nome"
                   required
                   maxLength={120}
-                  placeholder="Seu nome"
+                  placeholder={tx("Seu nome")}
                   autoComplete="name"
                 />
               </label>
               <label>
-                Empresa
+                {tx("Empresa")}
                 <input
                   name="empresa"
                   required
                   maxLength={160}
-                  placeholder="Nome da marca"
+                  placeholder={tx("Nome da marca")}
                   autoComplete="organization"
                 />
               </label>
               <label>
-                E-mail
+                {tx("E-mail")}
                 <input
                   name="email"
                   type="email"
                   required
                   maxLength={200}
-                  placeholder="voce@empresa.com"
+                  placeholder={tx("voce@empresa.com")}
                   autoComplete="email"
                 />
               </label>
               <label>
-                WhatsApp
+                {tx("WhatsApp")}
                 <input
                   name="whatsapp"
                   type="tel"
@@ -222,31 +223,31 @@ function FormAgencia({
                 />
               </label>
               <label className="w">
-                Quantos creators você quer operar?
+                {tx("Quantos creators você quer operar?")}
                 <select name="creators">
                   <option>1 a 3</option>
                   <option>4 a 10</option>
                   <option>11 a 30</option>
-                  <option>Mais de 30</option>
+                  <option>{tx("Mais de 30")}</option>
                 </select>
               </label>
               <label className="w">
-                Conte o objetivo
+                {tx("Conte o objetivo")}
                 <textarea
                   name="objetivo"
                   maxLength={2000}
-                  placeholder="Nicho, redes, meta de publicação ou conversão"
+                  placeholder={tx("Nicho, redes, meta de publicação ou conversão")}
                 />
               </label>
             </div>
             {envio.erro ? (
               <p className="lp-erro" role="alert">
-                {envio.erro}
+                {txErro(envio.erro)}
               </p>
             ) : null}
             <button className="lp-cta" type="submit" disabled={envio.enviando}>
               <span className="lbl">
-                {envio.enviando ? "Enviando…" : "Enviar proposta"}
+                {envio.enviando ? tx("Enviando…") : tx("Enviar proposta")}
               </span>
             </button>
           </form>
@@ -276,34 +277,34 @@ export function Planos() {
       >
         <span className="nm">
           {p.nome}
-          {id === "creator" ? <em>Mais escolhido</em> : null}
+          {id === "creator" ? <em>{tx("Mais escolhido")}</em> : null}
         </span>
-        <p className="ds">{p.descricao}</p>
+        <p className="ds">{tx(p.descricao)}</p>
         <div className="pr">
           <b>
             <small>R$</small>
             {num(porMes)}
           </b>
-          <span>/mês</span>
+          <span>{tx("/mês")}</span>
         </div>
         <p className="cb">
           {intervalo === "anual"
-            ? `R$ ${num(total)} à vista por 12 meses`
-            : "cobrado todo mês no cartão"}
+            ? `R$ ${num(total)} ${tx("à vista por 12 meses")}`
+            : tx("cobrado todo mês no cartão")}
           {usdc
-            ? ` · ou US$ ${num(precoPlano(id, intervalo, "USD"))} em USDC`
+            ? ` · ${tx("ou")} US$ ${num(precoPlano(id, intervalo, "USD"))} ${tx("em USDC")}`
             : ""}
         </p>
         <div className="cr">
           <b>
             <Raio />
-            {num(p.creditos)} créditos/mês
+            {num(p.creditos)} {tx("créditos/mês")}
           </b>
           <span>
-            ≈ {num(Math.floor(p.creditos / 5))} imagens · ou{" "}
-            {num(Math.floor(p.creditos / 10))} Nano Banana Pro · ou{" "}
-            {num(Math.floor(p.creditos / TROCA_POR_SEGUNDO))}s de troca de
-            pessoa em vídeo
+            ≈ {num(Math.floor(p.creditos / 5))} {tx("imagens")} · {tx("ou")}{" "}
+            {num(Math.floor(p.creditos / 10))} Nano Banana Pro · {tx("ou")}{" "}
+            {num(Math.floor(p.creditos / TROCA_POR_SEGUNDO))}s{" "}
+            {tx("de troca de pessoa em vídeo")}
           </span>
         </div>
         <Lista itens={recursosDoPlano(id)} />
@@ -313,26 +314,26 @@ export function Planos() {
   cartoes.push(
     <div key="agencia" className="pl-pc ag lp-rv d4">
       <span className="nm">
-        Agência<em>Sob medida</em>
+        {tx("Agência")}<em>{tx("Sob medida")}</em>
       </span>
       <p className="ds">
-        Agenciamento personalizado: o time Nido opera seus creators por você
+        {tx("Agenciamento personalizado: o time Nido opera seus creators por você")}
       </p>
       <div className="pr">
-        <b>Sob consulta</b>
+        <b>{tx("Sob consulta")}</b>
       </div>
-      <p className="cb">proposta montada para o volume e a meta da sua marca</p>
+      <p className="cb">{tx("proposta montada para o volume e a meta da sua marca")}</p>
       <div className="cr">
         <b>
           <Raio />
-          Créditos sob demanda
+          {tx("Créditos sob demanda")}
         </b>
-        <span>Volume calibrado ao calendário de publicação</span>
+        <span>{tx("Volume calibrado ao calendário de publicação")}</span>
       </div>
       <Lista itens={AGENCIA} />
       <span className="gap" />
       <button type="button" className="lp-cta" onClick={() => setForm(true)}>
-        <span className="lbl">Falar com a Nido</span>
+        <span className="lbl">{tx("Falar com a Nido")}</span>
       </button>
     </div>,
   );
@@ -340,15 +341,14 @@ export function Planos() {
   const titulo = (
     <>
       <h2 className="lp-h2 lp-rv" style={{ fontSize: mob ? 34 : 64 }}>
-        <span>Escolha</span>
-        <em>o seu estúdio.</em>
+        <span>{tx("Escolha")}</span>
+        <em>{tx("o seu estúdio.")}</em>
       </h2>
       <p
         className="lp-sub lp-rv d1"
         style={mob ? { fontSize: 14.5 } : { fontSize: 16, maxWidth: 400 }}
       >
-        Comece com um creator e escale quando o resultado aparecer. Sem
-        fidelidade.
+        {tx("Comece com um creator e escale quando o resultado aparecer. Sem fidelidade.")}
       </p>
     </>
   );
@@ -359,14 +359,14 @@ export function Planos() {
         className={intervalo === "mensal" ? "on" : ""}
         onClick={() => setIntervalo("mensal")}
       >
-        Mensal
+        {tx("Mensal")}
       </button>
       <button
         type="button"
         className={intervalo === "anual" ? "on" : ""}
         onClick={() => setIntervalo("anual")}
       >
-        Anual <em>−{Math.round(DESCONTO_ANUAL * 100)}%</em>
+        {tx("Anual")} <em>−{Math.round(DESCONTO_ANUAL * 100)}%</em>
       </button>
     </div>
   );
@@ -472,15 +472,14 @@ export function Faq() {
   const titulo = (
     <>
       <h2 className="lp-h2 lp-rv" style={{ fontSize: mob ? 38 : 72 }}>
-        <span>Seu creator.</span>
-        <em>Pronto hoje.</em>
+        <span>{tx("Seu creator.")}</span>
+        <em>{tx("Pronto hoje.")}</em>
       </h2>
       <p
         className="lp-sub lp-rv d1"
         style={mob ? { fontSize: 14.5 } : { fontSize: 16, maxWidth: 400 }}
       >
-        Descreva em uma frase. Em segundos ele tem nome, rosto, voz e nicho — e
-        começa a publicar.
+        {tx("Descreva em uma frase. Em segundos ele tem nome, rosto, voz e nicho — e começa a publicar.")}
       </p>
     </>
   );
@@ -500,12 +499,12 @@ export function Faq() {
             aria-expanded={aberta === i}
             onClick={() => setAberta(aberta === i ? null : i)}
           >
-            {pergunta}
+            {tx(pergunta)}
             <span className="pl" />
           </button>
           <div className="an">
             <div>
-              <p>{resposta}</p>
+              <p>{tx(resposta)}</p>
             </div>
           </div>
         </div>
@@ -586,35 +585,35 @@ function FormWhitelist() {
   if (envio.ok)
     return (
       <div className="wl-ok" role="status">
-        <span className="tk">Inscrição confirmada</span>
-        <b>Você está na lista.</b>
+        <span className="tk">{tx("Inscrição confirmada")}</span>
+        <b>{tx("Você está na lista.")}</b>
         {envio.ok.posicao ? (
           <div className="pos">
-            <span>Sua posição</span>
+            <span>{tx("Sua posição")}</span>
             <strong>#{num(envio.ok.posicao)}</strong>
           </div>
         ) : null}
-        <p>Avisamos por e-mail e WhatsApp assim que o seu acesso abrir.</p>
+        <p>{tx("Avisamos por e-mail e WhatsApp assim que o seu acesso abrir.")}</p>
       </div>
     );
   return (
     <form onSubmit={envio.aoEnviar}>
       <div className="hd">
-        Entrar na whitelist<small>Leva menos de um minuto.</small>
+        Entrar na whitelist<small>{tx("Leva menos de um minuto.")}</small>
       </div>
       <div className="lp-fs">
         <label>
-          Nome
+          {tx("Nome")}
           <input
             name="nome"
             required
             maxLength={120}
-            placeholder="Seu nome"
+            placeholder={tx("Seu nome")}
             autoComplete="name"
           />
         </label>
         <label>
-          WhatsApp
+          {tx("WhatsApp")}
           <input
             name="whatsapp"
             type="tel"
@@ -624,18 +623,18 @@ function FormWhitelist() {
           />
         </label>
         <label className="w">
-          E-mail
+          {tx("E-mail")}
           <input
             name="email"
             type="email"
             required
             maxLength={200}
-            placeholder="voce@email.com"
+            placeholder={tx("voce@email.com")}
             autoComplete="email"
           />
         </label>
-        <div className="campo w" role="group" aria-label="Você é">
-          Você é
+        <div className="campo w" role="group" aria-label={tx("Você é")}>
+          {tx("Você é")}
           <div className="wl-seg">
             {PERFIS.map(([id, rotulo]) => (
               <button
@@ -645,28 +644,28 @@ function FormWhitelist() {
                 aria-pressed={perfil === id}
                 onClick={() => setPerfil(id)}
               >
-                {rotulo}
+                {tx(rotulo)}
               </button>
             ))}
           </div>
         </div>
         <label className="w">
-          Nicho do seu creator
+          {tx("Nicho do seu creator")}
           <input
             name="nicho"
             maxLength={200}
-            placeholder="Moda, beleza, finanças…"
+            placeholder={tx("Moda, beleza, finanças…")}
           />
         </label>
       </div>
       {envio.erro ? (
         <p className="lp-erro" role="alert">
-          {envio.erro}
+          {txErro(envio.erro)}
         </p>
       ) : null}
       <button className="lp-cta" type="submit" disabled={envio.enviando}>
         <span className="lbl">
-          {envio.enviando ? "Enviando…" : "Garantir meu lugar"}
+          {envio.enviando ? tx("Enviando…") : tx("Garantir meu lugar")}
         </span>
       </button>
     </form>
@@ -693,9 +692,9 @@ function Rodape() {
     >
       <img src={IMG.wordmark} alt="Nido AI Studio" />
       <nav>
-        <a href="/termos">Termos</a>
-        <a href="/privacidade">Privacidade</a>
-        <a href={`mailto:${EMAIL_CONTATO}`}>Contato</a>
+        <a href="/termos">{tx("Termos")}</a>
+        <a href="/privacidade">{tx("Privacidade")}</a>
+        <a href={`mailto:${EMAIL_CONTATO}`}>{tx("Contato")}</a>
       </nav>
       <div className="dir">
         <a
@@ -703,13 +702,13 @@ function Rodape() {
           href="https://x.com/nidoaistudio"
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="Nido AI Studio no X"
+          aria-label={tx("Nido AI Studio no X")}
         >
           <svg viewBox="0 0 90 90" width="15" height="15" fill="currentColor">
             <path d="M0.219 2.882l34.748 46.461L0 87.118h7.87l30.614-33.073 24.735 33.073H90L53.297 38.043 85.844 2.882h-7.87L49.781 33.341 27.001 2.882H0.219zM11.793 8.679h12.303L78.425 81.32H66.122L11.793 8.679z" />
           </svg>
         </a>
-        <span>© 2026 Nido</span>
+        <span>{tx("© 2026 Nido")}</span>
       </div>
     </footer>
   );
@@ -719,25 +718,24 @@ export function Whitelist() {
   const { mob } = useCena();
   const texto = (
     <>
-      <span className="wl-ey lp-rv">Acesso antecipado</span>
+      <span className="wl-ey lp-rv">{tx("Acesso antecipado")}</span>
       <h2 className="lp-h2 lp-rv d1" style={{ fontSize: mob ? 36 : 66 }}>
-        <span>Seu creator</span>
-        <em>começa aqui.</em>
+        <span>{tx("Seu creator")}</span>
+        <em>{tx("começa aqui.")}</em>
       </h2>
       <p
         className="lp-sub lp-rv d2"
         style={mob ? { fontSize: 14.5 } : { fontSize: 16, maxWidth: 430 }}
       >
-        O estúdio abre por ordem de inscrição. Entre na lista e garanta seu
-        lugar antes da abertura.
+        {tx("O estúdio abre por ordem de inscrição. Entre na lista e garanta seu lugar antes da abertura.")}
       </p>
       <ul className="wl-perks lp-rv d3">
         {VANTAGENS.map(([titulo, detalhe], i) => (
           <li key={titulo}>
             <b>{String(i + 1).padStart(2, "0")}</b>
             <span>
-              {titulo}
-              <small>{detalhe}</small>
+              {tx(titulo)}
+              <small>{tx(detalhe)}</small>
             </span>
           </li>
         ))}

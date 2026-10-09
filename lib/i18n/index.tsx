@@ -21,13 +21,20 @@ export const IDIOMAS: Array<{ id: Idioma; rotulo: string; bandeira: string }> =
     { id: "en", rotulo: "English", bandeira: "🇺🇸" },
   ];
 
+/** Idioma de quem ainda não escolheu nenhum (e o da primeira renderização, no servidor). */
+export const IDIOMA_PADRAO: Idioma = "en";
+
 export const useIdioma = create<{
   idioma: Idioma;
   setIdioma: (i: Idioma) => void;
 }>()(
-  persist((set) => ({ idioma: "pt", setIdioma: (idioma) => set({ idioma }) }), {
-    name: "nido-idioma",
-  }),
+  persist(
+    (set) => ({
+      idioma: IDIOMA_PADRAO,
+      setIdioma: (idioma) => set({ idioma }),
+    }),
+    { name: "nido-idioma" },
+  ),
 );
 
 const DICIONARIOS: Record<Idioma, Record<Chave, string>> = { pt, en };
@@ -44,7 +51,7 @@ export function traduzir(
 }
 
 export function useT() {
-  // Assina o idioma para re-renderizar; o valor efetivo vem de <ComIdioma> (pt até montar).
+  // Assina o idioma para re-renderizar; o valor efetivo vem de <ComIdioma> (o padrão até montar).
   useIdioma((s) => s.idioma);
   const idioma = idiomaAtual();
   return (chave: Chave, vars?: Record<string, string | number>) =>
@@ -64,14 +71,14 @@ export function IdiomaDoDocumento() {
 
 /**
  * Aplica o idioma escolhido a tx()/useT() e remonta a árvore quando ele muda.
- * O servidor e a primeira renderização no navegador saem em português (sem
- * diferença de hidratação); depois de montar, troca para o idioma salvo.
+ * O servidor e a primeira renderização no navegador saem no idioma padrão
+ * (sem diferença de hidratação); depois de montar, troca para o idioma salvo.
  */
 export function ComIdioma({ children }: { children: ReactNode }) {
   const idioma = useIdioma((s) => s.idioma);
   const [montado, setMontado] = useState(false);
   useEffect(() => setMontado(true), []);
-  const efetivo = montado ? idioma : "pt";
+  const efetivo = montado ? idioma : IDIOMA_PADRAO;
   definirIdiomaAtivo(efetivo);
   return <Fragment key={efetivo}>{children}</Fragment>;
 }

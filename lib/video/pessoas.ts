@@ -56,6 +56,8 @@ export async function marcarPonto(
 }
 
 const MODELO_SILHUETA = "fal-ai/sam2/image";
+/** Acha cada pessoa da imagem inteira (uma máscara por pessoa). */
+const MODELO_PESSOAS = "fal-ai/sam-3/image";
 /** Lado maior da silhueta devolvida à tela (é só um destaque, não precisa de mais). */
 const LADO_SILHUETA = 512;
 
@@ -84,6 +86,77 @@ async function finalizarSilhueta(mascara: Sharp): Promise<Buffer | null> {
     .joinChannel(alfa, { raw: { width, height, channels: 1 } })
     .png()
     .toBuffer();
+}
+
+/**
+ * Silhueta pelo SAM 3: ele separa cada PESSOA da imagem e fica a que contém o
+ * clique. Só com o ponto (SAM 2), um clique na camiseta devolve só a camiseta.
+ * Null se nenhuma pessoa achada contém o clique.
+ */
+async function silhuetaPessoaInteira(
+  fal: FalClient,
+  imagem: Buffer,
+  p: Pick<PessoaMarcada, "x" | "y">,
+): Promise<Buffer | null> {
+  const base = await sharp(imagem)
+    .rotate()
+    .resize(1024, 1024, { fit: "inside" })
+    .jpeg({ quality: 88 })
+    .toBuffer();
+  const url = await fal.storage.upload(
+    new Blob([new Uint8Array(base)], { type: "image/jpeg" }),
+  );
+  const r = await fal.subscribe(MODELO_PESSOAS, {
+    input: {
+      image_url: url,
+      prompt: "person",
+      return_multiple_masks: true,
+      include_boxes: true,
+      max_masks: 12,
+      output_format: "png",
+    },
+  });
+  const d = r.data as {
+    masks?: Array<{ url?: string }>;
+    /** Caixa de cada máscara: [centro x, centro y, largura, altura], em frações. */
+    boxes?: number[][];
+  };
+  // Candidatas: as pessoas cuja caixa contém o clique, da menor para a maior
+  // (com gente sobreposta, a caixa menor costuma ser a de quem está na frente).
+  const candidatas = (d.masks ?? [])
+    .map((m, i) => ({ url: m.url, caixa: d.boxes?.[i] }))
+    .filter((c): c is { url: string; caixa: number[] } => {
+      if (!c.url || !c.caixa || c.caixa.length < 4) return false;
+      const [cx, cy, w, h] = c.caixa;
+      return Math.abs(p.x - cx) <= w / 2 && Math.abs(p.y - cy) <= h / 2;
+    })
+    .sort((a, b) => a.caixa[2] * a.caixa[3] - b.caixa[2] * b.caixa[3]);
+  for (const c of candidatas) {
+    const res = await fetch(c.url);
+    if (!res.ok) continue;
+    // A máscara vem como recorte da pessoa: o que vale é a transparência.
+    const alfa = sharp(Buffer.from(await res.arrayBuffer()))
+      .ensureAlpha()
+      .extractChannel(3)
+      .resize(LADO_SILHUETA, LADO_SILHUETA, { fit: "inside" });
+    const px = await alfa.clone().raw().toBuffer({ resolveWithObject: true });
+    const { width, height } = px.info;
+    // O clique tem que cair em cima da pessoa (com uma folga de poucos pixels).
+    const x0 = Math.round(p.x * (width - 1));
+    const y0 = Math.round(p.y * (height - 1));
+    let dentro = false;
+    for (let dy = -4; dy <= 4 && !dentro; dy++)
+      for (let dx = -4; dx <= 4 && !dentro; dx++) {
+        const x = x0 + dx;
+        const y = y0 + dy;
+        if (x >= 0 && y >= 0 && x < width && y < height)
+          dentro = px.data[y * width + x] > 127;
+      }
+    if (!dentro) continue;
+    const pronta = await finalizarSilhueta(alfa);
+    if (pronta) return pronta;
+  }
+  return null;
 }
 
 /** Silhueta pelo SAM 2 (fal.ai), a partir do ponto clicado. */
@@ -129,15 +202,26 @@ async function silhuetaSam(
 
 /**
  * Silhueta da pessoa clicada: PNG branco com transparência fora da pessoa, pra
- * tela pintar por cima do quadro. Null sem fal ou se o recorte não servir — a
- * tela fica só com o ponto.
+ * tela pintar por cima do quadro. Primeiro procura a pessoa inteira (SAM 3);
+ * se nenhuma pessoa achada contém o clique, vale o recorte pelo ponto (SAM 2).
+ * Null sem fal ou se nenhum recorte servir — a tela fica só com o ponto.
  */
 export async function silhuetaDaPessoa(
   imagem: Buffer,
   p: Pick<PessoaMarcada, "x" | "y">,
   fal: FalClient | null,
 ): Promise<Buffer | null> {
-  return fal ? silhuetaSam(fal, imagem, p) : null;
+  if (!fal) return null;
+  try {
+    const inteira = await silhuetaPessoaInteira(fal, imagem, p);
+    if (inteira) return inteira;
+  } catch (e) {
+    console.warn(
+      "[pessoas] silhueta da pessoa inteira falhou (tenta pelo ponto):",
+      (e as Error).message,
+    );
+  }
+  return silhuetaSam(fal, imagem, p);
 }
 
 /** Descreve UMA pessoa marcada numa imagem (inglês, curto). Sem Gemini ou se falhar, usa a posição. */

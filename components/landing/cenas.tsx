@@ -1,5 +1,6 @@
 "use client";
 
+import { tx } from "@/lib/i18n/tx";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { capaLp, videoLp, type VideoLp } from "@/lib/lp-midia";
 import { Capsula } from "./Capsula";
@@ -151,7 +152,7 @@ export function Hero() {
         img={IMG.tattoo}
         tipo="build"
         num="#004"
-        nome={c.visitante.nome}
+        nome={tx(c.visitante.nome)}
         estado={
           <Construindo
             prefixo={c.visitante.prefixo}
@@ -174,12 +175,11 @@ export function Hero() {
         }
       >
         <h1 style={{ fontSize: c.texto.h1 }}>
-          <span>Personagens são gerados.</span>{" "}
-          <em>Creators são construídos.</em>
+          <span>{tx("Personagens são gerados.")}</span>{" "}
+          <em>{tx("Creators são construídos.")}</em>
         </h1>
         <p style={{ fontSize: c.texto.sub, marginTop: c.texto.margem }}>
-          Crie identidade, visual, personalidade, voz e estratégia para creators
-          de IA que continuam sendo eles mesmos em cada post.
+          {tx("Crie identidade, visual, personalidade, voz e estratégia para creators de IA que continuam sendo eles mesmos em cada post.")}
         </p>
       </div>
       <div className="hx-vig" />
@@ -256,8 +256,8 @@ export function Manifesto() {
         style={{ left: lado, right: lado, top: mob ? 200 : 206 }}
       >
         <h2 className="mf-m3" style={{ fontSize: mob ? 44 : 94 }}>
-          <Decifra como="span" texto="O próximo grande creator" atraso={300} />
-          <Decifra como="em" texto="pode não ser humano." atraso={1000} />
+          <Decifra como="span" texto={tx("O próximo grande creator")} atraso={300} />
+          <Decifra como="em" texto={tx("pode não ser humano.")} atraso={1000} />
         </h2>
         <p
           className="mf-s"
@@ -267,8 +267,8 @@ export function Manifesto() {
               : { fontSize: 18, maxWidth: 560, marginTop: 30 }
           }
         >
-          Uma nova geração de creators está começando. Eles não têm corpo.{" "}
-          <b>Têm identidade.</b>
+          {tx("Uma nova geração de creators está começando. Eles não têm corpo.")}{" "}
+          <b>{tx("Têm identidade.")}</b>
         </p>
       </div>
       <div
@@ -278,7 +278,7 @@ export function Manifesto() {
       >
         <div className="mq">
           {[0, 1, 2, 3].flatMap((n) =>
-            LETREIRO.map((t) => <span key={`${n}${t}`}>{t}</span>),
+            LETREIRO.map((t) => <span key={`${n}${t}`}>{tx(t)}</span>),
           )}
         </div>
       </div>
@@ -478,11 +478,11 @@ function Parede({
                 <img src={r.img} alt={r.nome} loading="lazy" />
               )}
               <span className="og">
-                {r.nido ? "FEITO NA NIDO" : "VIRAL LÁ FORA"}
+                {r.nido ? tx("FEITO NA NIDO") : tx("VIRAL LÁ FORA")}
               </span>
               <div className="ft">
                 <div className="nm">{r.nome}</div>
-                <div className="hd">{r.linha}</div>
+                <div className="hd">{tx(r.linha)}</div>
                 {r.views ? (
                   <div className="vw">
                     <b>{r.views}</b>views
@@ -497,11 +497,14 @@ function Parede({
   );
 }
 
-const LEAD = (
+// Componente (e não constante): o texto é traduzido na hora de desenhar.
+const Lead = () => (
   <>
-    Lá fora, creators de IA já viralizam todo dia. No Brasil, o espaço ainda
-    está livre. <b>A Nido usa a mesma tecnologia</b> e já colocou os primeiros
-    no ar.
+    {tx(
+      "Lá fora, creators de IA já viralizam todo dia. No Brasil, o espaço ainda está livre.",
+    )}{" "}
+    <b>{tx("A Nido usa a mesma tecnologia")}</b>{" "}
+    {tx("e já colocou os primeiros no ar.")}
   </>
 );
 
@@ -515,7 +518,7 @@ export function Prova() {
         <div className="pv-bg" />
         <div className="pv-rv" style={{ left: 22, top: 118, ...rd(0.1) }}>
           <h2 className="pv-h3" style={{ fontSize: 28 }}>
-            Eles não existem.
+            {tx("Eles não existem.")}
           </h2>
         </div>
         <div className="pv-rv" style={{ left: 21, top: 154, ...rd(0.3) }}>
@@ -528,10 +531,10 @@ export function Prova() {
           style={{ left: 22, right: 22, top: 222, ...rd(0.5) }}
         >
           <h2 className="pv-h3" style={{ fontSize: 24 }}>
-            <i>de pessoas assistiram mesmo assim.</i>
+            <i>{tx("de pessoas assistiram mesmo assim.")}</i>
           </h2>
           <p className="pv-lead" style={{ fontSize: 14, marginTop: 16 }}>
-            {LEAD}
+            <Lead />
           </p>
         </div>
         <Parede top={400} w={170} h={303} vao={12} />
@@ -542,7 +545,7 @@ export function Prova() {
       <div className="pv-bg" />
       <div className="pv-rv" style={{ left: 60, top: 132, ...rd(0.1) }}>
         <h2 className="pv-h3" style={{ fontSize: 64 }}>
-          Eles não existem.
+          {tx("Eles não existem.")}
         </h2>
       </div>
       <div className="pv-rv" style={{ left: 57, top: 212, ...rd(0.3) }}>
@@ -552,7 +555,7 @@ export function Prova() {
       </div>
       <div className="pv-rv" style={{ left: 60, top: 352, ...rd(0.5) }}>
         <h2 className="pv-h3" style={{ fontSize: 38 }}>
-          <i>de pessoas assistiram mesmo assim.</i>
+          <i>{tx("de pessoas assistiram mesmo assim.")}</i>
         </h2>
       </div>
       <div
@@ -560,7 +563,7 @@ export function Prova() {
         style={{ left: 820, top: 236, width: 400, ...rd(0.7) }}
       >
         <p className="pv-lead" style={{ fontSize: 15.5 }}>
-          {LEAD}
+          <Lead />
         </p>
       </div>
       <Parede top={432} w={200} h={356} vao={18} />
@@ -704,8 +707,8 @@ function TeseCena() {
   return (
     <div ref={raiz}>
       <h2 className="ts-t4" style={c.titulo}>
-        <span>Uma imagem</span>
-        <em>não é um creator.</em>
+        <span>{tx("Uma imagem")}</span>
+        <em>{tx("não é um creator.")}</em>
       </h2>
       <div className="ts-cnt" style={c.conta}>
         camadas <b>00</b> / 10
@@ -726,8 +729,8 @@ function TeseCena() {
           >
             <span className="n">{String(i + 1).padStart(2, "0")}</span>
             <div className="k">
-              {camada}
-              <span>{valor}</span>
+              {tx(camada)}
+              <span>{tx(valor)}</span>
             </div>
           </div>
         );
@@ -749,11 +752,11 @@ function TeseCena() {
       />
       <div className="ts-ov" />
       <div className="ts-stamp" style={c.selo}>
-        CREATOR #001 · IDENTITY LOCKED
+        {tx("CREATOR #001 · IDENTITY LOCKED")}
       </div>
       <p className="ts-f4" style={c.fecho}>
-        Personagens têm aparência.{" "}
-        <b>Creators têm identidade, voz, universo, estratégia e audiência.</b>
+        {tx("Personagens têm aparência.")}{" "}
+        <b>{tx("Creators têm identidade, voz, universo, estratégia e audiência.")}</b>
       </p>
     </div>
   );

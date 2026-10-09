@@ -449,6 +449,8 @@ const ERROS_EN: Record<string, string> = {
     "Invalid fal key, or it lacks permission. Check FAL_KEY.",
   "O motor Premium (Seedance) recusa vídeos em que aparece o rosto de uma pessoa real. Use o motor Padrão (Kling O3) para este vídeo.":
     "The Premium engine (Seedance) refuses videos showing a real person's face. Use the Standard engine (Kling O3) for this video.",
+  "O filtro de conteúdo da IA barrou este vídeo ou as imagens enviadas. Isso costuma acontecer com cenas de filmes e séries, pessoas famosas, marcas ou conteúdo sensível. Tente com outro vídeo ou outra imagem.":
+    "The AI's content filter blocked this video or the images you sent. This usually happens with scenes from films and series, famous people, brands or sensitive content. Try another video or another image.",
   "Falha no fal.ai.": "fal.ai failed.",
   "O Runway não devolveu vídeo.": "Runway returned no video.",
   "Geração cancelada no Runway.": "Generation cancelled on Runway.",
@@ -481,6 +483,8 @@ const ERROS_EN: Record<string, string> = {
     "invalid e-mail.",
   "Pedido inválido.":
     "Invalid request.",
+  "Não foi possível enviar. Confira sua conexão e tente de novo.":
+    "Couldn't send. Check your connection and try again.",
   "O Runway bloqueou a geração pela moderação de conteúdo.":
     "Runway blocked the generation through content moderation.",
   "Chave do Runway inválida. Confira RUNWAYML_API_SECRET.":
@@ -493,8 +497,14 @@ const ERROS_EN: Record<string, string> = {
 
   // Vídeo por link
   "Cole um link válido.": "Paste a valid link.",
-  "Link não suportado. Use TikTok, Instagram (reel/post), YouTube Shorts ou um link direto de .mp4.":
-    "Link not supported. Use TikTok, Instagram (reel/post), YouTube Shorts or a direct .mp4 link.",
+  "Link não suportado. Use TikTok, Instagram (reel/post), YouTube Shorts, X (post com vídeo) ou um link direto de .mp4.":
+    "Link not supported. Use TikTok, Instagram (reel/post), YouTube Shorts, X (post with video) or a direct .mp4 link.",
+  "Busca de vídeos do X não configurada (TWITTER_API_KEY).":
+    "X video lookup not configured (TWITTER_API_KEY).",
+  "Sem créditos no twitterapi.io.": "No credits left on twitterapi.io.",
+  "Não achei esse post no X (é público? foi apagado?).":
+    "Couldn't find that post on X (is it public? was it deleted?).",
+  "Esse post do X não tem vídeo.": "That X post has no video.",
   "Sem créditos no Apify.": "No credits on Apify.",
   "A busca do vídeo demorou demais. Tente de novo.":
     "Looking up the video took too long. Try again.",
