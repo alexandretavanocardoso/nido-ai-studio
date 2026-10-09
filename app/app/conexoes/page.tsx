@@ -2,7 +2,16 @@
 
 import { EmTeste } from "@/components/EmTeste";
 import { useCallback, useEffect, useState } from "react";
-import { Check, Copy, KeyRound, Loader2, Terminal, Trash2 } from "lucide-react";
+import {
+  Check,
+  Cloud,
+  Plug,
+  Copy,
+  KeyRound,
+  Loader2,
+  Terminal,
+  Trash2,
+} from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -115,6 +124,26 @@ function ConexoesLiberada() {
   const comando = (token: string) =>
     `claude mcp add --transport http nido ${origem}/api/mcp --header "Authorization: Bearer ${token}"`;
 
+  // Claude Code web (claude.ai/code): a sessão roda na nuvem, sem `claude mcp
+  // add`. O servidor entra por um arquivo do repositório e o token fica numa
+  // variável do ambiente — nunca no arquivo, que vai para o GitHub.
+  const VARIAVEL = "NIDO_MCP_TOKEN";
+  const arquivoMcp = JSON.stringify(
+    {
+      mcpServers: {
+        nido: {
+          type: "http",
+          url: `${origem}/api/mcp`,
+          headers: { Authorization: `Bearer \${${VARIAVEL}}` },
+        },
+      },
+    },
+    null,
+    2,
+  );
+  const variavel = `${VARIAVEL}=${novo ?? "SEU_TOKEN"}`;
+  const dominio = origem ? new URL(origem).host : "";
+
   const BotaoCopiar = ({ texto, chave }: { texto: string; chave: string }) => (
     <button
       type="button"
@@ -208,6 +237,119 @@ function ConexoesLiberada() {
             "Depois abra o Claude Code e peça, por exemplo: “liste meus personagens do NIDO” ou “crie um vídeo falado do meu personagem com este roteiro”.",
           )}
         </p>
+      </section>
+
+      <section className="card p-5">
+        <div className="mb-1 flex items-center gap-2 text-[13px] font-semibold text-ink">
+          <Plug className="h-4 w-4" />{" "}
+          {tx("Ou conecte pelo aplicativo do Claude (conector)")}
+        </div>
+        <p className="mb-4 text-[12px] text-ink-dim">
+          {tx(
+            "No Claude (claude.ai ou aplicativo), sem terminal e sem token: você autoriza com o seu login daqui.",
+          )}
+        </p>
+        <ol className="grid gap-3 text-[13px] text-ink">
+          <li>
+            <strong>a.</strong>{" "}
+            {tx(
+              "Abra Configurações → Conectores e clique em Adicionar → Adicionar conector personalizado.",
+            )}
+          </li>
+          <li>
+            <div className="mb-1.5">
+              <strong>b.</strong>{" "}
+              {tx(
+                "Dê um nome (por exemplo, NIDO AI Studio) e cole este endereço:",
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <code className="mono min-w-0 flex-1 truncate rounded-lg bg-black/40 px-3 py-2 text-[12px] text-ink">
+                {`${origem}/api/mcp`}
+              </code>
+              <BotaoCopiar texto={`${origem}/api/mcp`} chave="conector" />
+            </div>
+          </li>
+          <li>
+            <strong>c.</strong>{" "}
+            {tx(
+              "Clique em Conectar. Abre uma tela do NIDO: entre com a sua conta, se pedir, e clique em Permitir.",
+            )}
+          </li>
+          <li>
+            <strong>d.</strong>{" "}
+            {tx(
+              "Numa conversa nova, ative o conector e peça, por exemplo: “liste meus personagens do NIDO”. Ele aparece na lista de tokens abaixo como “Conector”, e você pode revogar quando quiser.",
+            )}
+          </li>
+        </ol>
+      </section>
+
+      <section className="card p-5">
+        <div className="mb-1 flex items-center gap-2 text-[13px] font-semibold text-ink">
+          <Cloud className="h-4 w-4" />{" "}
+          {tx("Ou use no Claude Code web (claude.ai/code)")}
+        </div>
+        <p className="mb-4 text-[12px] text-ink-dim">
+          {tx(
+            "No navegador a sessão roda na nuvem, sem terminal: a conexão vem de um arquivo do seu repositório e o token fica guardado no ambiente.",
+          )}
+        </p>
+        <ol className="grid gap-4 text-[13px] text-ink-mute">
+          <li>
+            <div className="mb-1.5 text-ink">
+              <strong>a.</strong>{" "}
+              {tx(
+                "Crie o arquivo .mcp.json na raiz do repositório, com este conteúdo, e envie para o GitHub (commit e push):",
+              )}
+            </div>
+            <div className="flex items-start gap-2">
+              <code className="mono min-w-0 flex-1 whitespace-pre-wrap break-all rounded-lg bg-black/40 px-3 py-2 text-[12px] leading-relaxed text-ink">
+                {arquivoMcp}
+              </code>
+              <BotaoCopiar texto={arquivoMcp} chave="arquivo" />
+            </div>
+            <p className="mt-1.5 text-[12px] text-ink-dim">
+              {tx(
+                "O token não vai no arquivo: o Claude troca ${NIDO_MCP_TOKEN} pelo valor guardado no passo seguinte.",
+              )}
+            </p>
+          </li>
+          <li>
+            <div className="mb-1.5 text-ink">
+              <strong>b.</strong>{" "}
+              {tx(
+                "Em claude.ai/code, abra as configurações do ambiente (o “Default”, se só tiver um) e adicione esta variável de ambiente:",
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <code className="mono min-w-0 flex-1 truncate rounded-lg bg-black/40 px-3 py-2 text-[12px] text-ink">
+                {variavel}
+              </code>
+              <BotaoCopiar texto={variavel} chave="variavel" />
+            </div>
+          </li>
+          <li>
+            <div className="mb-1.5 text-ink">
+              <strong>c.</strong>{" "}
+              {tx(
+                "Na mesma tela, em acesso à rede, libere este domínio (o ambiente só alcança os domínios da lista):",
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <code className="mono min-w-0 flex-1 truncate rounded-lg bg-black/40 px-3 py-2 text-[12px] text-ink">
+                {dominio}
+              </code>
+              <BotaoCopiar texto={dominio} chave="dominio" />
+            </div>
+          </li>
+          <li className="text-ink">
+            <strong>d.</strong>{" "}
+            {tx(
+              "Abra uma sessão nova nesse repositório e peça, por exemplo: “qual é o meu saldo no NIDO?”. Tem que ser uma sessão nova: o arquivo e a variável são lidos quando ela começa.",
+            )}
+          </li>
+        </ol>
       </section>
 
       <section className="card p-5">

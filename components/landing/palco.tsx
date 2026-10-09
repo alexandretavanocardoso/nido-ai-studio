@@ -22,6 +22,8 @@ import {
 const LARGURA = { dk: 1280, mb: 390 } as const;
 /** Acima disso o quadro para de crescer e fica centralizado. */
 const LARGURA_MAX = 1920;
+/** Quanto o quadro pode passar da altura da tela para ocupar a largura toda. */
+const FOLGA_NA_ALTURA = 1.14;
 const CELULAR = "(max-width: 719px)";
 
 interface Tela {
@@ -128,9 +130,19 @@ export function Palco({
   const W = mob ? LARGURA.mb : LARGURA.dk;
   const H = mob ? hm : h;
   let s = Math.min(tela.largura || W, LARGURA_MAX) / W;
-  if ((caber || pin) && tela.altura) s = Math.min(s, tela.altura / H);
+  // O quadro ocupa a largura toda da tela. Só encolhe pela altura quando
+  // passaria muito dela: até FOLGA_NA_ALTURA a mais, ele fica na largura cheia
+  // e o que sobra em cima e embaixo (as margens do desenho) fica fora da tela.
+  if ((caber || pin) && tela.altura)
+    s = Math.min(s, (tela.altura / H) * FOLGA_NA_ALTURA);
   const sh = H * s;
-  const topo = pin ? Math.max(0, (tela.altura - sh) / 2) : 0;
+  // O quadro ficou mais estreito que a tela (encolhido pela altura, ou tela
+  // mais larga que o máximo): as bordas dele se desfazem no fundo da página,
+  // senão aparecem duas faixas pretas com um degrau de cor nas laterais.
+  const comFaixas = tela.largura > 0 && W * s < tela.largura - 1;
+  // Seção presa: centralizada na altura (negativo quando o quadro é mais alto
+  // que a tela — corta por igual em cima e embaixo).
+  const topo = pin ? (tela.altura - sh) / 2 : 0;
   const curso = pin ? pin * tela.altura : 0;
 
   useEffect(() => {
@@ -197,7 +209,7 @@ export function Palco({
       ref={sec}
       id={id}
       aria-label={rotulo}
-      className={`lp-sec${pin ? " pin" : ""} ${classe}`}
+      className={`lp-sec${pin ? " pin" : ""}${comFaixas ? " faixas" : ""} ${classe}`}
       style={estilo}
     >
       <div className="lp-stage">

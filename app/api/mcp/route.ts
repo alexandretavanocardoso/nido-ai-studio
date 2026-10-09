@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { usuarioLiberado } from "@/lib/admin/acesso";
 import { hit } from "@/lib/ai/rate-limit";
 import { comoUsuario } from "@/lib/auth/contexto";
+import { CAMINHOS, origemPublica } from "@/lib/mcp/oauth";
 import { tratarMensagem } from "@/lib/mcp/protocolo";
 import { tokenDoCabecalho, usuarioDoToken } from "@/lib/mcp/tokens";
 
@@ -13,15 +14,25 @@ export const maxDuration = 300;
 /** Chamadas por minuto de cada token. */
 const POR_MINUTO = 60;
 
-const naoAutorizado = (mensagem: string) =>
+/**
+ * 401 com o endereço dos dados do recurso (RFC 9728): é por ele que um cliente
+ * sem token — o conector do Claude — descobre como fazer o login por OAuth.
+ */
+const naoAutorizado = (req: Request, mensagem: string) =>
   NextResponse.json(
     { jsonrpc: "2.0", id: null, error: { code: -32001, message: mensagem } },
-    { status: 401, headers: { "WWW-Authenticate": 'Bearer realm="nido-mcp"' } },
+    {
+      status: 401,
+      headers: {
+        "WWW-Authenticate": `Bearer realm="nido-mcp", resource_metadata="${origemPublica(req)}${CAMINHOS.dadosDoRecurso}"`,
+      },
+    },
   );
 
 /**
  * POST — servidor MCP da conta (Claude Code e outros clientes). Quem conecta
- * se identifica com um token de API criado em Conta → Claude Code (MCP):
+ * se identifica com um token de API da conta — criado em Conta → Claude Code
+ * (MCP), ou recebido pelo login por OAuth do conector (lib/mcp/oauth.ts):
  *   Authorization: Bearer nidoaistudio_…
  * As ferramentas rodam como o dono do token, com o plano e os créditos dele.
  */
@@ -29,11 +40,12 @@ export async function POST(req: Request) {
   const token = tokenDoCabecalho(req.headers.get("authorization"));
   if (!token)
     return naoAutorizado(
+      req,
       "Envie o token de API no cabeçalho Authorization: Bearer nidoaistudio_…",
     );
   const dono = await usuarioDoToken(token);
   if (!dono || !(await usuarioLiberado("mcp", dono.userId)))
-    return naoAutorizado("Token inválido ou revogado.");
+    return naoAutorizado(req, "Token inválido ou revogado.");
 
   const gate = await hit(`mcp:${dono.tokenId}`, POR_MINUTO, 60);
   if (!gate.ok)

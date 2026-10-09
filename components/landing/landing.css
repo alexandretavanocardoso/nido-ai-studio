@@ -53,6 +53,25 @@
 .lp:not(.pronto) .lp-stage {
   visibility: hidden;
 }
+/* Quadro mais estreito que a tela: as laterais ficam transparentes aos poucos
+   e deixam ver o fundo da própria seção (máscara, e não um degradê de cor: cada
+   seção tem um preto diferente). */
+.lp-sec.faixas .lp-stage {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 9%,
+    #000 91%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 9%,
+    #000 91%,
+    transparent
+  );
+}
 .lp-svh {
   position: fixed;
   left: 0;

@@ -397,6 +397,51 @@ export const TEXTOS_EN: Record<string, string> = {
   Gírias: "Slang",
   "História de origem": "Origin story",
   Hoje: "Today",
+  "Conectar à sua conta NIDO": "Connect to your NIDO account",
+  "quer se conectar à sua conta do NIDO AI Studio.":
+    "wants to connect to your NIDO AI Studio account.",
+  "Vai poder ver seus personagens, imagens e vídeos, e criar conteúdo em seu nome.":
+    "It will be able to see your characters, images and videos, and create content on your behalf.",
+  "As gerações gastam os seus créditos, como no app. Compras e saques continuam só aqui.":
+    "Generations spend your credits, just like in the app. Purchases and withdrawals stay here only.",
+  "Você pode desligar quando quiser em Conta → Claude Code (MCP), na lista de tokens.":
+    "You can turn it off any time under Account → Claude Code (MCP), in the token list.",
+  "Depois de permitir, você volta para": "After you allow, you go back to",
+  "O login não está configurado neste ambiente.":
+    "Sign-in isn't configured in this environment.",
+  "Entre na sua conta para continuar.": "Sign in to your account to continue.",
+  "Entrar com Google": "Sign in with Google",
+  "Conta:": "Account:",
+  Permitir: "Allow",
+  Recusar: "Deny",
+  "Não consegui carregar o pedido de conexão. Tente de novo.":
+    "Couldn't load the connection request. Try again.",
+  "Ou conecte pelo aplicativo do Claude (conector)":
+    "Or connect from the Claude app (connector)",
+  "No Claude (claude.ai ou aplicativo), sem terminal e sem token: você autoriza com o seu login daqui.":
+    "In Claude (claude.ai or the app), with no terminal and no token: you authorise with your sign-in here.",
+  "Abra Configurações → Conectores e clique em Adicionar → Adicionar conector personalizado.":
+    "Open Settings → Connectors and click Add → Add custom connector.",
+  "Dê um nome (por exemplo, NIDO AI Studio) e cole este endereço:":
+    "Give it a name (for example, NIDO AI Studio) and paste this address:",
+  "Clique em Conectar. Abre uma tela do NIDO: entre com a sua conta, se pedir, e clique em Permitir.":
+    "Click Connect. A NIDO screen opens: sign in if asked, and click Allow.",
+  "Numa conversa nova, ative o conector e peça, por exemplo: “liste meus personagens do NIDO”. Ele aparece na lista de tokens abaixo como “Conector”, e você pode revogar quando quiser.":
+    "In a new chat, enable the connector and ask, for example: “list my NIDO characters”. It shows up in the token list below as “Conector”, and you can revoke it any time.",
+  "Ou use no Claude Code web (claude.ai/code)":
+    "Or use it in Claude Code on the web (claude.ai/code)",
+  "No navegador a sessão roda na nuvem, sem terminal: a conexão vem de um arquivo do seu repositório e o token fica guardado no ambiente.":
+    "In the browser the session runs in the cloud, with no terminal: the connection comes from a file in your repository and the token is stored in the environment.",
+  "Crie o arquivo .mcp.json na raiz do repositório, com este conteúdo, e envie para o GitHub (commit e push):":
+    "Create the file .mcp.json at the root of the repository with this content, and send it to GitHub (commit and push):",
+  "O token não vai no arquivo: o Claude troca ${NIDO_MCP_TOKEN} pelo valor guardado no passo seguinte.":
+    "The token doesn't go in the file: Claude replaces ${NIDO_MCP_TOKEN} with the value stored in the next step.",
+  "Em claude.ai/code, abra as configurações do ambiente (o “Default”, se só tiver um) e adicione esta variável de ambiente:":
+    "At claude.ai/code, open the environment settings (“Default”, if you only have one) and add this environment variable:",
+  "Na mesma tela, em acesso à rede, libere este domínio (o ambiente só alcança os domínios da lista):":
+    "On the same screen, under network access, allow this domain (the environment only reaches the domains on the list):",
+  "Abra uma sessão nova nesse repositório e peça, por exemplo: “qual é o meu saldo no NIDO?”. Tem que ser uma sessão nova: o arquivo e a variável são lidos quando ela começa.":
+    "Open a new session in that repository and ask, for example: “what's my NIDO balance?”. It has to be a new session: the file and the variable are read when it starts.",
   tomadas: "shots",
   "Vídeo com cortes rápidos": "Fast-cut video",
   "Cada tomada é trocada separadamente, e as mais curtas contam como 3 segundos cada — por isso o valor é maior que o da duração do vídeo. Tomada em que a pessoa marcada não aparece fica como no original e não é cobrada. Pode levar mais tempo que o normal.":
