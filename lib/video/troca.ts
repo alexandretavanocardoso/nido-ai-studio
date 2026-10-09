@@ -395,7 +395,12 @@ export async function iniciarTroca(o: {
   /** Alvos que aparecem trocados na âncora (ver lib/video/ancora.ts). */
   naAncora?: number[];
   /**
-   * Para cada trecho (mesma ordem de `trechosTroca`), os alvos que aparecem
+   * Divisão do vídeo já calculada (nas viradas de cena). Sem isso: partes
+   * iguais do tamanho máximo do motor.
+   */
+  trechos?: Array<{ inicio: number; duracao: number }>;
+  /**
+   * Para cada trecho (mesma ordem de `trechos`), os alvos que aparecem
    * nele. Sem isso, todo trecho recebe todos os alvos — e, num trecho em que
    * só uma das pessoas aparece, o motor "encaixa" o outro personagem nela.
    */
@@ -420,7 +425,7 @@ export async function iniciarTroca(o: {
           )
         : null;
     const segmentos = await Promise.all(
-      trechosTroca(o.info.duracao, maxTrecho).map(async (t, i) => {
+      (o.trechos ?? trechosTroca(o.info.duracao, maxTrecho)).map(async (t, i) => {
         const seg = path.join(dir, `seg-${i}.mp4`);
         await prepararTrechoTroca(o.arquivo, t.inicio, t.duracao, seg, o.info);
         const videoUrl = await enviar(o.fal, seg, "video/mp4");

@@ -1,5 +1,44 @@
 import { describe, expect, it } from "vitest";
-import { dimensoesTroca, trechosTroca } from "./ffmpeg";
+import { dimensoesTroca, lerViradas, trechosTroca } from "./ffmpeg";
+
+describe("divisão nas viradas de cena", () => {
+  it("lê instante e força da saída do ffmpeg", () => {
+    expect(
+      lerViradas(
+        "[Parsed_metadata_2 @ 0x1] frame:0    pts:192000  pts_time:8\n" +
+          "[Parsed_metadata_2 @ 0x1] lavfi.scene_score=0.090643\n" +
+          "[Parsed_metadata_2 @ 0x1] frame:1    pts:276000  pts_time:11.5\n" +
+          "[Parsed_metadata_2 @ 0x1] lavfi.scene_score=0.095507\n",
+      ),
+    ).toEqual([
+      { t: 8, forca: 0.090643 },
+      { t: 11.5, forca: 0.095507 },
+    ]);
+    expect(lerViradas("nada aqui")).toEqual([]);
+  });
+
+  it("divide nas viradas e, dentro de cada pedaço, em partes de até o máximo", () => {
+    const viradas = [
+      { t: 8, forca: 0.09 },
+      { t: 11.5, forca: 0.095 },
+      { t: 11.7, forca: 0.088 }, // colada na anterior: fica de fora
+    ];
+    const t = trechosTroca(26.19, 15, viradas, 3);
+    expect(t.map((x) => x.inicio)).toEqual([0, 8, 11.5]);
+    expect(t.map((x) => x.duracao)).toEqual([8, 3.5, 14.69]);
+    // Somam o vídeo inteiro e respeitam os limites do motor.
+    expect(t.reduce((s, x) => s + x.duracao, 0)).toBeCloseTo(26.19, 2);
+    expect(t.every((x) => x.duracao >= 3 && x.duracao <= 15)).toBe(true);
+  });
+
+  it("virada perto demais do começo ou do fim não divide; a mais forte ganha", () => {
+    expect(trechosTroca(10, 15, [{ t: 1, forca: 0.9 }, { t: 8.5, forca: 0.9 }], 3)).toEqual([
+      { inicio: 0, duracao: 10 },
+    ]);
+    const t = trechosTroca(12, 15, [{ t: 5, forca: 0.1 }, { t: 7, forca: 0.6 }], 3);
+    expect(t.map((x) => x.inicio)).toEqual([0, 7]);
+  });
+});
 
 describe("trechos da troca", () => {
   it("Kling O3 aceita até 15s: 15s vai inteiro, 20s vira 2 de 10s, nenhum abaixo de 3s", () => {

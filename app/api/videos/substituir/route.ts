@@ -32,7 +32,12 @@ import {
   ownsKey,
   uploadFromFile,
 } from "@/lib/storage/s3";
-import { cortarInicio, probe, trechosTroca } from "@/lib/video/ffmpeg";
+import {
+  cortarInicio,
+  detectarViradas,
+  probe,
+  trechosTroca,
+} from "@/lib/video/ffmpeg";
 import { getFal, mensagemDeErro } from "@/lib/video/fal";
 import {
   iniciarTroca,
@@ -317,6 +322,15 @@ export async function POST(req: Request) {
       const personagens = await Promise.all(
         imagens.map((key) => getObjectBuffer(s3, key)),
       );
+      // Kling: o vídeo é dividido nos cortes e movimentos bruscos (depois deles o
+      // motor perde a pessoa até o trecho acabar). O Seedance faz até 30s de uma
+      // vez e não tem quadro-âncora: lá mais emendas atrapalham, fica como era.
+      const trechos = trechosTroca(
+        duracao,
+        MOTORES_TROCA[body.motor].maxTrecho,
+        premium ? [] : await detectarViradas(arquivo),
+        minimo,
+      );
       // Em paralelo: (1) quadro-âncora (só Kling) — a troca feita num quadro do
       // vídeo guia todos os trechos (mesmo visual nas emendas, outras pessoas
       // preservadas) e, sem ninguém marcado, descreve a pessoa principal;
@@ -346,10 +360,7 @@ export async function POST(req: Request) {
               arquivo,
               dir,
               duracao,
-              trechos: trechosTroca(
-                duracao,
-                MOTORES_TROCA[body.motor].maxTrecho,
-              ),
+              trechos,
               marcadas: body.pessoas,
               descricoes,
             })
@@ -372,6 +383,7 @@ export async function POST(req: Request) {
         ancora: ancora.imagem,
         outras: ancora.outras,
         naAncora: ancora.naAncora,
+        trechos,
         alvosPorTrecho: porTrecho,
       });
       const custo = premium

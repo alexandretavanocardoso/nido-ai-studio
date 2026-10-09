@@ -510,13 +510,92 @@ export function dimensoesTroca(
 export function trechosTroca(
   duracao: number,
   maximo = 10,
+  /**
+   * Viradas de cena (`detectarViradas`): o vídeo é dividido nelas, e só depois
+   * em partes iguais de até `maximo`. Depois de um corte ou de um movimento
+   * brusco o motor perde a pessoa e devolve o resto do trecho como no
+   * original — começando um trecho novo ali, ele refaz a troca.
+   */
+  viradas: Virada[] = [],
+  /** Menor trecho que o motor aceita: nenhuma divisão fica mais perto que isso de outra. */
+  minimo = 3,
 ): Array<{ inicio: number; duracao: number }> {
-  const n = Math.max(1, Math.ceil(duracao / maximo - 1e-6));
-  const tamanho = duracao / n;
-  return Array.from({ length: n }, (_, i) => ({
-    inicio: Number((i * tamanho).toFixed(3)),
-    duracao: Number((i === n - 1 ? duracao - i * tamanho : tamanho).toFixed(3)),
-  }));
+  // As viradas mais fortes primeiro; cada uma só entra se sobrar `minimo` dos dois lados.
+  const pontos = [0, duracao];
+  for (const v of [...viradas].sort((a, b) => b.forca - a.forca))
+    if (pontos.every((p) => Math.abs(p - v.t) >= minimo)) pontos.push(v.t);
+  pontos.sort((a, b) => a - b);
+  const trechos: Array<{ inicio: number; duracao: number }> = [];
+  for (let k = 0; k < pontos.length - 1; k++) {
+    const de = pontos[k];
+    const tamanhoTotal = pontos[k + 1] - de;
+    const n = Math.max(1, Math.ceil(tamanhoTotal / maximo - 1e-6));
+    const tamanho = tamanhoTotal / n;
+    for (let i = 0; i < n; i++)
+      trechos.push({
+        inicio: Number((de + i * tamanho).toFixed(3)),
+        duracao: Number(
+          (i === n - 1 ? tamanhoTotal - i * tamanho : tamanho).toFixed(3),
+        ),
+      });
+  }
+  return trechos;
+}
+
+/** Instante (s) em que a imagem muda de repente e o quanto muda (0–1). */
+export interface Virada {
+  t: number;
+  forca: number;
+}
+
+/**
+ * A partir daqui a mudança entre dois quadros conta como "virada": pega cortes
+ * de câmera (0,3 ou mais) e também giros rápidos de câmera na mão e movimentos
+ * bruscos (perto de 0,1), que é onde a troca de pessoa costuma se perder.
+ */
+const LIMIAR_VIRADA = 0.08;
+
+/** Lê as viradas da saída do ffmpeg (`metadata=print` depois de `select`). */
+export function lerViradas(saida: string): Virada[] {
+  const viradas: Virada[] = [];
+  let t: number | null = null;
+  for (const m of saida.matchAll(
+    /pts_time:([\d.]+)|lavfi\.scene_score=([\d.]+)/g,
+  )) {
+    if (m[1] !== undefined) t = Number(m[1]);
+    else if (t !== null) {
+      viradas.push({ t, forca: Number(m[2]) });
+      t = null;
+    }
+  }
+  return viradas.filter((v) => Number.isFinite(v.t) && Number.isFinite(v.forca));
+}
+
+/** Cortes e movimentos bruscos do vídeo. Se a leitura falhar, devolve vazio (divide em partes iguais). */
+export async function detectarViradas(arquivo: string): Promise<Virada[]> {
+  try {
+    return lerViradas(
+      await run(
+        [
+          "-i",
+          arquivo,
+          "-vf",
+          `scale=320:-2,select='gt(scene,${LIMIAR_VIRADA})',metadata=print`,
+          "-an",
+          "-f",
+          "null",
+          "-",
+        ],
+        60_000,
+      ),
+    );
+  } catch (e) {
+    console.warn(
+      "[ffmpeg] leitura das viradas de cena falhou:",
+      (e as Error).message,
+    );
+    return [];
+  }
 }
 
 /** Corta um trecho já no formato que os motores aceitam (resolução e 24–60 fps), sem áudio. */
