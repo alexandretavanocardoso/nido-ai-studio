@@ -188,6 +188,16 @@
   transition:
     transform 0.22s var(--e2),
     box-shadow 0.22s var(--e2);
+  position: relative;
+}
+/* No hover o botão sobe e vai para a esquerda 2px. Sem esta área extra, o
+   cursor parado na borda de baixo ou da direita fica "fora" do botão assim que
+   ele se mexe, o hover desliga, o botão volta, liga de novo... e fica piscando.
+   A área invisível cobre o espaço que o botão deixa para trás. */
+.lp-cta::after {
+  content: "";
+  position: absolute;
+  inset: 0 -4px -4px 0;
 }
 .lp-cta:hover:not(:disabled) {
   color: #0b0d12;
