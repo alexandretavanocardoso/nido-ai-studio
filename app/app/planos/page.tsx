@@ -31,6 +31,7 @@ import {
   AVULSO_MIN,
   BONUS_USDC,
   CREDITOS_LEGENDA,
+  CREDITOS_FIGURINHA,
   CREDITOS_TEXTO,
   CORPO_INTEIRO_POR_SEGUNDO,
   FALADO_POR_SEGUNDO,
@@ -620,6 +621,7 @@ function TabelaCustos() {
       `${FALADO_POR_SEGUNDO} / ${CORPO_INTEIRO_POR_SEGUNDO} ${tx("por segundo")}`,
     ],
     ["Editar legenda de vídeo", String(CREDITOS_LEGENDA)],
+    ["Figurinha de WhatsApp (criar ou trocar o personagem)", String(CREDITOS_FIGURINHA)],
     [
       "IA de texto · sugerir campo / checar / regenerar / expandir ficha",
       `${CREDITOS_TEXTO.sugerirCampo} / ${CREDITOS_TEXTO.checarConsistencia} / ${CREDITOS_TEXTO.regenerarSecao} / ${CREDITOS_TEXTO.expandirFicha}`,

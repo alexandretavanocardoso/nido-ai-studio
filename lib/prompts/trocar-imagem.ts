@@ -15,6 +15,11 @@ export interface AlvoImagem {
 export function promptTrocaImagem(o: {
   alvos: AlvoImagem[];
   roupa: RoupaTroca;
+  /**
+   * Estilo em que a imagem inteira deve ser redesenhada (ex.: anime). É o
+   * quadro-guia de um vídeo estilizado. Ausente: mantém o estilo da foto.
+   */
+  estilo?: string | null;
 }): string {
   const alvos = o.alvos.length ? o.alvos : [{ imagem: 2 }];
   const linhas = alvos.map(
@@ -40,6 +45,7 @@ export function promptTrocaImagem(o: {
     `- From the character image take the identity: face and facial structure, hair, facial hair, skin tone, body type${
       deRoupa ? ", and the character's outfit and accessories" : ""
     }. Keep the character recognizable as the same character.`,
+    "- Nothing of the original person's head remains: no trace of their hair, wig, hat, glasses or facial hair, not even under the character's hat. The head is only the character's.",
     "- Hands and arms: IMAGE 1 only gives their position, pose and grip. Their skin is the character's — exactly the same skin colour and complexion as the character's face. Never copy the original person's hands.",
     `- From IMAGE 1 keep: the exact position and scale in the frame, pose, body orientation, head angle and tilt, gaze direction, gesture, facial expression${
       deRoupa ? "" : ", clothing and accessories"
@@ -55,10 +61,12 @@ export function promptTrocaImagem(o: {
     "- Match the lighting, shadows, colour grading, focus and grain of IMAGE 1 so the character looks naturally photographed in that scene.",
     "",
     "STYLE",
-    "Keep exactly the visual style of IMAGE 1. If IMAGE 1 is a real photo, the result must be a real photo: render the character photorealistically, as a real person photographed in that scene — never as a cartoon, 3D render or illustration, even if the character image is stylized or a 3D render. Skin has real texture (pores, small imperfections, natural shine) and takes the colours of the scene's lights; no smooth, waxy or plastic CGI skin.",
+    o.estilo
+      ? `Redraw the WHOLE image — the replaced characters, every other person, the background and the objects — as ${o.estilo}. One consistent style across the entire image: not a photo, and not a mix of photo and drawing. Same composition, poses and framing as IMAGE 1.`
+      : "Keep exactly the visual style of IMAGE 1. If IMAGE 1 is a real photo, the result must be a real photo: render the character photorealistically, as a real person photographed in that scene — never as a cartoon, 3D render or illustration, even if the character image is stylized or a 3D render. Skin has real texture (pores, small imperfections, natural shine) and takes the colours of the scene's lights; no smooth, waxy or plastic CGI skin.",
     "",
     "KEEP UNCHANGED",
-    "Background, setting, every other person, objects, text already present in the scene, colours, camera angle, framing, crop, aspect ratio and depth of field.",
+    "Background, setting, every other person, objects, text already present in the scene, colours, camera angle, framing, crop, aspect ratio and depth of field. Add no person or object that is not in IMAGE 1, and remove none.",
     "",
     "REFERENCE IMAGES",
     "The character images are identity references only: do not copy their background, layout, pose or framing. If a character image is a reference sheet with several views, use it only to understand the character.",

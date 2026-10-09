@@ -1,5 +1,65 @@
 import { describe, expect, it } from "vitest";
-import { alvosDoTrecho, PEDIDO_MAX, promptTroca } from "./troca";
+import {
+  acaoDoTrecho,
+  alvosDoTrecho,
+  alvosNosTrechos,
+  entradasDosAlvos,
+  PEDIDO_MAX,
+  promptTroca,
+} from "./troca";
+import { trechosTroca } from "./ffmpeg";
+
+describe("quem aparece quando", () => {
+  // 1 quadro por segundo: A fica até 7 s, some, volta aos 12 s e sai aos 15 s;
+  // B fica até 10 s, some e volta aos 16 s.
+  const instantes = Array.from({ length: 26 }, (_, k) => k + 0.5);
+  const linha = {
+    instantes,
+    visiveis: instantes.map((t) => [
+      ...(t < 8 || (t > 12 && t < 15) ? [0] : []),
+      ...(t < 11 || t > 16 ? [1] : []),
+    ]),
+  };
+
+  it("acha o instante em que cada pessoa volta à cena", () => {
+    expect(entradasDosAlvos(linha, 2)).toEqual([12.5, 16.5]);
+    // Um quadro só de ausência (alguém passou na frente) não é uma entrada.
+    expect(
+      entradasDosAlvos({ instantes: [0.5, 1.5, 2.5, 3.5], visiveis: [[0], [], [0], [0]] }, 1),
+    ).toEqual([]);
+  });
+
+  it("começa um trecho novo em cada entrada e manda a cada trecho só quem aparece nele", () => {
+    // As entradas têm prioridade; o golpe dos 8 s abre um trecho 0,75 s antes
+    // dele, e o movimento dos 11,5 s fica perto demais da entrada dos 12,5 s.
+    const viradas = [{ t: 8, forca: 0.09 }, { t: 11.5, forca: 0.095 }];
+    const trechos = trechosTroca(26.19, 15, viradas, 3, entradasDosAlvos(linha, 2));
+    expect(trechos.map((t) => t.inicio)).toEqual([0, 7.25, 12.5, 16.5]);
+    expect(alvosNosTrechos(trechos, linha, 2)).toEqual([[0, 1], [0, 1], [0], [1]]);
+    expect(trechos.every((t) => t.duracao >= 3 && t.duracao <= 15)).toBe(true);
+  });
+
+  it("a ação do trecho troca [[n]] pela referência do motor, na numeração do trecho", () => {
+    const acao = "[[1]] stands up and slaps [[2]], who falls backwards.";
+    expect(acaoDoTrecho(acao, undefined, 2, "kling")).toBe(
+      "@Element1 stands up and slaps @Element2, who falls backwards.",
+    );
+    // Trecho só com a 2ª pessoa: ela é o @Element1 dali; a 1ª vira "another person".
+    expect(acaoDoTrecho(acao, [1], 2, "kling")).toBe(
+      "another person stands up and slaps @Element1, who falls backwards.",
+    );
+    expect(acaoDoTrecho(acao, [0, 1], 2, "seedance")).toMatch(/@Image1 .* @Image2/);
+    expect(acaoDoTrecho("  ", [0], 1, "kling")).toBeUndefined();
+    const p = promptTroca("kling", [{ descricao: "a" }], false, false, [], undefined, false, undefined, "@Element1 jumps.");
+    expect(p).toMatch(/What happens in @Video1 .*: @Element1 jumps\./);
+  });
+
+  it("trecho sem ninguém visto fica com todos", () => {
+    expect(
+      alvosNosTrechos([{ inicio: 0, duracao: 5 }], { instantes: [1, 3], visiveis: [[], []] }, 2),
+    ).toEqual([[0, 1]]);
+  });
+});
 
 describe("promptTroca", () => {
   it("sem descrição: troca a pessoa principal e protege as outras pessoas", () => {
@@ -141,5 +201,30 @@ describe("troca de várias pessoas", () => {
     const todos = promptTroca("kling", alvos, false, true, [], [0, 1]);
     expect(todos).not.toMatch(/ONLY for/);
     expect(todos).toMatch(/replacement already done:/);
+  });
+});
+
+describe("estilo do vídeo", () => {
+  it("realista (padrão): o pedido de sempre, parecendo filmado", () => {
+    const p = promptTroca("kling", [{ descricao: "a" }], false);
+    expect(p).toMatch(/look like real people filmed by this camera/);
+    expect(p).toMatch(/Keep the background, objects, on-screen text, camera angle/);
+    expect(promptTroca("kling", [{ descricao: "a" }], false, false, [], undefined, false, "realista")).toBe(p);
+  });
+
+  it("anime: redesenha o vídeo inteiro e não pede mais aparência de filmagem", () => {
+    const p = promptTroca("kling", [{ descricao: "a" }], false, false, [], undefined, false, "anime");
+    expect(p).toMatch(/Render the ENTIRE video/);
+    expect(p).toMatch(/2D anime illustration/);
+    expect(p).toMatch(/drawn in the same style/);
+    expect(p).not.toMatch(/real people filmed/);
+    expect(p).not.toMatch(/lighting of @Video1 unchanged/);
+    expect(p.length).toBeLessThanOrEqual(2500);
+  });
+
+  it("vale para o motor premium também", () => {
+    expect(
+      promptTroca("seedance", [{ descricao: "a" }], false, false, [], undefined, false, "desenho"),
+    ).toMatch(/hand-drawn 2D cartoon/);
   });
 });

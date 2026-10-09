@@ -280,6 +280,9 @@ export function creditosVideoFalado(
   );
 }
 
+/** Figurinha de WhatsApp: uma imagem (Nano Banana) + a remoção do fundo. */
+export const CREDITOS_FIGURINHA = 6;
+
 export const CREDITOS_LEGENDA = 2;
 
 /** Remoção de legenda com IA (Bria Video Eraser, US$ 0,14/s) — até 60s por vídeo. */

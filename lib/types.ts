@@ -42,6 +42,23 @@ export interface AudioArquivo {
   createdAt: number;
 }
 
+/** Figurinha de WhatsApp do personagem (WebP 512×512, fundo transparente), no S3. */
+export interface FigurinhaArquivo {
+  id: string;
+  key: string;
+  /** A situação pedida (gerada) ou o nome do arquivo original (substituída). */
+  texto: string;
+  origem: "gerada" | "substituida";
+  size: number;
+  createdAt: number;
+  /** Figurinha animada (WebP animado): a troca passa pelo motor de vídeo. */
+  animada?: boolean;
+  /** Job da troca em vídeo (tabela video_jobs), enquanto a animada é feita. */
+  jobId?: string;
+  status?: "processando" | "erro";
+  erro?: string;
+}
+
 /** Texto escrito na voz do personagem (legenda, roteiro ou resposta), com as opções geradas. */
 export interface TextoEscrito {
   id: string;
@@ -237,6 +254,8 @@ export interface Character {
   audios?: AudioArquivo[];
   /** Textos escritos em Estúdio → Textos, salvos na hora (mais recentes primeiro, até 30). */
   textos?: TextoEscrito[];
+  /** Figurinhas de WhatsApp criadas em Estúdio → Figurinhas (mais recentes primeiro). */
+  figurinhas?: FigurinhaArquivo[];
   /** Voz pronta escolhida na biblioteca da ElevenLabs (as criadas/clonadas ficam na tabela `vozes`). */
   vozBiblioteca?: { voiceId: string; nome: string; previewUrl?: string };
   /** fieldId → "contexto"|"suposicao". Enquanto estiver aqui, o campo mostra badge. */

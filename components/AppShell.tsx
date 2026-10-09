@@ -34,6 +34,7 @@ import {
   Send,
   ShieldCheck,
   Users,
+  Sticker,
   Terminal,
   Wallet,
   X,
@@ -253,6 +254,12 @@ export const FERRAMENTAS: Array<{
   { secao: "videos", rotulo: "Vídeos", curto: "Vídeos", icon: Clapperboard },
   { secao: "textos", rotulo: "Textos", curto: "Textos", icon: PenLine },
   { secao: "imagens", rotulo: "Imagens", curto: "Imagens", icon: ImageIcon },
+  {
+    secao: "figurinhas",
+    rotulo: "Figurinhas",
+    curto: "Figurinhas",
+    icon: Sticker,
+  },
   { secao: "publicar", rotulo: "Publicar", curto: "Publicar", icon: Send },
   {
     secao: "agendamentos",

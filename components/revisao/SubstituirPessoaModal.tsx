@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import {
+  ESTILOS_TROCA,
+  ESTILOS_TROCA_IDS,
+  type EstiloTroca,
+} from "@/lib/video/estilos";
+import { useEffect, useState } from "react";
 import { Loader2, UserRound, X } from "lucide-react";
 import type { Character, VideoArquivo } from "@/lib/types";
 import { fileUrl } from "@/lib/storage/client";
@@ -24,6 +29,8 @@ import {
   KLING_TROCA,
   QUALIDADES_TROCA,
   SEEDANCE_TROCA,
+  segundosCobradosTroca,
+  trocaPorTomadas,
   type QualidadeTroca,
 } from "@/lib/video/precos";
 import { Button } from "@/components/ui/Button";
@@ -108,6 +115,8 @@ export function SubstituirPessoaModal({
   /** Formato do Kling O3 (só vale no motor padrão). */
   const [qualidade, setQualidade] = useState<QualidadeTroca>("pro");
   const [removerTexto, setRemoverTexto] = useState(false);
+  /** Estilo visual do vídeo: realista ou redesenhado (desenho, anime, 3D). */
+  const [estilo, setEstilo] = useState<EstiloTroca>("realista");
   /** Duração do vídeo inteiro. */
   const [duracaoTotal, setDuracao] = useState(
     link?.duracao ?? video?.duracao ?? 0,
@@ -136,16 +145,51 @@ export function SubstituirPessoaModal({
     null,
   );
   const premium = motor === "seedance";
+  /**
+   * Cortes de câmera do vídeo (s). Num vídeo de cortes rápidos o motor Padrão
+   * processa cada tomada sozinha e cobra mais segundos do que o vídeo tem.
+   */
+  const [cortes, setCortes] = useState<number[]>([]);
+  const videoKey = link ? undefined : video?.key;
+  const linkId = link?.linkId;
+  useEffect(() => {
+    if (!videoKey && !linkId) return;
+    let vivo = true;
+    fetch("/api/videos/cortes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ videoKey, linkId }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { cortes?: number[] } | null) => {
+        if (vivo && Array.isArray(b?.cortes)) setCortes(b.cortes);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [videoKey, linkId]);
+  /** Só os cortes dentro dos `segundos` usados (o servidor corta o vídeo antes de medir). */
+  const cortesAte = (segundos: number) =>
+    cortes.filter((c) => c < segundos - 0.05);
   /** Créditos e custo de `segundos` de vídeo no motor e formato escolhidos. */
-  const precoDe = (segundos: number) => ({
-    creditos: premium
-      ? creditosTrocaPremium(segundos)
-      : creditosTroca(segundos, qualidade),
-    custo: premium
-      ? custoTrocaPremium(segundos)
-      : custoTroca(segundos, qualidade),
-  });
+  const precoDe = (segundos: number) => {
+    if (premium)
+      return {
+        creditos: creditosTrocaPremium(segundos),
+        custo: custoTrocaPremium(segundos),
+      };
+    // Padrão: os segundos que o motor processa (iguais aos do vídeo, salvo cortes rápidos).
+    const cobrados = segundosCobradosTroca(cortesAte(segundos), segundos);
+    return {
+      creditos: creditosTroca(cobrados, qualidade),
+      custo: custoTroca(cobrados, qualidade),
+    };
+  };
   const { creditos, custo } = precoDe(duracao);
+  /** Tomadas do vídeo, quando ele vai tomada por tomada (só no motor Padrão). */
+  const tomadas =
+    premium || !duracao ? null : trocaPorTomadas(cortesAte(duracao), duracao);
   // Trechos menores que o vídeo, do menor para o maior, e o vídeo inteiro por último.
   const opcoesDeCorte = [
     ...CORTES.filter((c) => c < duracaoTotal - 0.2),
@@ -184,6 +228,7 @@ export function SubstituirPessoaModal({
           motor,
           qualidade: premium ? undefined : qualidade,
           removerTexto,
+          estilo,
           segundos: cortando ? corte : undefined,
         }),
       });
@@ -436,6 +481,38 @@ export function SubstituirPessoaModal({
               ) : null}
 
               <div>
+                <div className="mb-2 text-[13px] font-semibold text-ink">
+                  {tx("Estilo do vídeo")}
+                </div>
+                {/* Pílulas que quebram linha: o nome de cada estilo aparece inteiro. */}
+                <div className="flex flex-wrap gap-1.5">
+                  {ESTILOS_TROCA_IDS.map((id) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setEstilo(id)}
+                      aria-pressed={estilo === id}
+                      title={tx(ESTILOS_TROCA[id].nota)}
+                      className={cn(
+                        "h-8 whitespace-nowrap rounded-full border px-3 text-[12.5px] font-bold transition",
+                        estilo === id
+                          ? "border-accent bg-accent text-bg"
+                          : "border-line text-ink-mute hover:border-line-strong hover:text-ink",
+                      )}
+                    >
+                      {tx(ESTILOS_TROCA[id].label)}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-ink-dim">
+                  {tx(ESTILOS_TROCA[estilo].nota)} ·{" "}
+                  {estilo === "realista"
+                    ? tx("só a pessoa muda")
+                    : tx("o vídeo inteiro é redesenhado neste estilo")}
+                </p>
+              </div>
+
+              <div>
                 <div className="text-[13px] font-semibold text-ink mb-2">
                   {tx("Motor")}
                 </div>
@@ -532,6 +609,17 @@ export function SubstituirPessoaModal({
                 </p>
               )}
 
+              {tomadas ? (
+                <div className="rounded-xl border border-accent/30 bg-accent/5 px-3.5 py-3 text-[12px] text-ink-mute leading-relaxed">
+                  <strong className="text-ink">
+                    {tx("Vídeo com cortes rápidos")} · {tomadas.length}{" "}
+                    {tx("tomadas")}
+                  </strong>{" "}
+                  {tx(
+                    "Cada tomada é trocada separadamente, e as mais curtas contam como 3 segundos cada — por isso o valor é maior que o da duração do vídeo. Tomadas com menos de meio segundo, ou em que a pessoa marcada não aparece, ficam como no original e não são cobradas. Pode levar mais tempo que o normal.",
+                  )}
+                </div>
+              ) : null}
               {curtoDemais && (
                 <p className="text-[12px] text-pink">
                   {tx("O vídeo precisa ter pelo menos")} {minimo}s.
@@ -555,7 +643,7 @@ export function SubstituirPessoaModal({
                 <strong className="text-ink">
                   {duracao
                     ? conta
-                      ? `${creditos} créditos`
+                      ? `${tomadas ? `${tx("até")} ` : ""}${creditos} créditos`
                       : `~US$ ${custo.toFixed(2)}`
                     : "…"}
                 </strong>

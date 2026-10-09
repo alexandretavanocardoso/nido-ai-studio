@@ -8,6 +8,7 @@ import {
   PenLine,
   Radar as IconeRadar,
   type LucideIcon,
+  Sticker,
 } from "lucide-react";
 import type { Character } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -18,12 +19,19 @@ import { EscreverComoPersonagem } from "@/components/revisao/EscreverComoPersona
 import { GerarImagem } from "@/components/revisao/GerarImagem";
 import { Publicar } from "@/components/estudio/Publicar";
 import { Agendamentos } from "@/components/estudio/Agendamentos";
+import { Figurinhas } from "@/components/estudio/Figurinhas";
 import { useT, type Chave } from "@/lib/i18n";
 import { tx } from "@/lib/i18n/tx";
 import { Radar } from "@/components/estudio/Radar";
 
 export type SecaoEstudio =
-  "videos" | "textos" | "imagens" | "publicar" | "agendamentos" | "radar";
+  | "videos"
+  | "textos"
+  | "imagens"
+  | "figurinhas"
+  | "publicar"
+  | "agendamentos"
+  | "radar";
 
 export const SECOES_ESTUDIO: Array<{
   id: SecaoEstudio;
@@ -51,6 +59,13 @@ export const SECOES_ESTUDIO: Array<{
     descricao:
       "Card de referência com posicionamentos e retratos fiéis ao personagem.",
     icon: ImageIcon,
+  },
+  {
+    id: "figurinhas",
+    titulo: "Figurinhas",
+    descricao:
+      "Figurinhas de WhatsApp do personagem: crie novas ou troque o personagem de uma figurinha pronta.",
+    icon: Sticker,
   },
   {
     id: "publicar",
@@ -187,6 +202,7 @@ export function EstudioConteudo({
       {secao === "radar" && <Radar character={character} />}
 
       {secao === "imagens" && <GerarImagem character={character} />}
+      {secao === "figurinhas" && <Figurinhas character={character} />}
     </section>
   );
 }

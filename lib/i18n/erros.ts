@@ -141,6 +141,10 @@ const PADROES: Padrao[] = [
   ],
   [/^Não consegui pegar o vídeo: (.+)$/, "Couldn't get the video: $1"],
   [
+    /^Esse post é restrito \(conta privada, restrição de idade ou de país\) e só abre para quem está logado, então não dá para pegar pelo link\. Baixe o vídeo e envie o arquivo\.$/,
+    "This post is restricted (private account, age or country restriction) and only opens for logged-in users, so it can't be fetched by link. Download the video and upload the file.",
+  ],
+  [
     /^O vídeo não pôde ser baixado \(HTTP (\d+)\)\. O link pode ter expirado\.$/,
     "The video couldn't be downloaded (HTTP $1). The link may have expired.",
   ],
@@ -485,6 +489,16 @@ const ERROS_EN: Record<string, string> = {
     "Invalid request.",
   "Não foi possível enviar. Confira sua conexão e tente de novo.":
     "Couldn't send. Check your connection and try again.",
+  "Descreva a figurinha ou envie a figurinha original.":
+    "Describe the sticker or upload the original sticker.",
+  "Não consegui montar a figurinha. Tente de novo.":
+    "I couldn't build the sticker. Try again.",
+  "Não consegui iniciar a troca da figurinha.":
+    "I couldn't start the sticker swap.",
+  "Não consegui preparar a figurinha animada.":
+    "I couldn't prepare the animated sticker.",
+  "A troca da figurinha falhou.":
+    "The sticker swap failed.",
   "O Runway bloqueou a geração pela moderação de conteúdo.":
     "Runway blocked the generation through content moderation.",
   "Chave do Runway inválida. Confira RUNWAYML_API_SECRET.":
@@ -505,6 +519,8 @@ const ERROS_EN: Record<string, string> = {
   "Não achei esse post no X (é público? foi apagado?).":
     "Couldn't find that post on X (is it public? was it deleted?).",
   "Esse post do X não tem vídeo.": "That X post has no video.",
+  "Não achei as pessoas marcadas em nenhuma tomada do vídeo. Marque de novo, num momento em que elas aparecem bem.":
+    "I couldn't find the marked people in any shot of the video. Mark them again at a moment where they show clearly.",
   "Sem créditos no Apify.": "No credits on Apify.",
   "A busca do vídeo demorou demais. Tente de novo.":
     "Looking up the video took too long. Try again.",

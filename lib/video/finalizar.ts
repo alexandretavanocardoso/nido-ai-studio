@@ -1,3 +1,7 @@
+import {
+  videoParaFigurinha,
+  type FigurinhaAnimada,
+} from "./figurinha-animada";
 import { getPool } from "@/lib/db";
 import { getFal } from "@/lib/fal";
 import { estornarSeHouver, type Cobranca } from "@/lib/creditos";
@@ -357,6 +361,16 @@ export async function finalizarJob(
         input: job.input as unknown as InputTroca,
         urls: concluido.urls,
       }));
+      // Troca feita para uma figurinha animada: o resultado volta a ser WebP animado.
+      const figurinha = (job.input as { figurinha?: FigurinhaAnimada })
+        .figurinha;
+      if (figurinha)
+        ({ key, size } = await videoParaFigurinha({
+          s3,
+          userId: job.user_id,
+          videoKey: key,
+          figurinha,
+        }));
     } else if (concluido.urls) {
       ({ key, size } = await comporLegendaIA({
         s3,
@@ -469,9 +483,20 @@ async function atualizarPersonagem(
     [job.character_id, job.user_id],
   );
   const data = rows[0]?.data;
-  const video = data?.videos?.find((v) => v.jobId === job.id);
+  // O job pode ser de um vídeo ou de uma figurinha animada do personagem.
+  const video =
+    data?.videos?.find((v) => v.jobId === job.id) ??
+    data?.figurinhas?.find((f) => f.jobId === job.id);
   if (!data || !video) return;
-  Object.assign(video, patch);
+  Object.assign(video, {
+    ...(patch.key !== undefined ? { key: patch.key } : {}),
+    ...(patch.size !== undefined ? { size: patch.size } : {}),
+    ...(patch.status !== undefined ? { status: patch.status } : {}),
+    ...(patch.erro !== undefined ? { erro: patch.erro } : {}),
+    ...("contentType" in video && patch.duracao !== undefined
+      ? { duracao: patch.duracao }
+      : {}),
+  });
   if (patch.status === undefined) {
     delete video.status;
     delete video.erro;

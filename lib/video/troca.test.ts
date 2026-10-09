@@ -17,11 +17,17 @@ describe("divisão nas viradas de cena", () => {
     expect(lerViradas("nada aqui")).toEqual([]);
   });
 
-  it("divide nas viradas e, dentro de cada pedaço, em partes de até o máximo", () => {
+  it("movimento brusco: o trecho novo começa 0,75 s antes do gesto, não em cima dele", () => {
+    // O segundo golpe ficaria a menos de 3 s do fim: não divide.
+    const golpes = [{ t: 8, forca: 0.09 }, { t: 11.5, forca: 0.095 }];
+    expect(trechosTroca(13, 15, golpes, 3).map((x) => x.inicio)).toEqual([0, 7.25]);
+  });
+
+  it("divide nos cortes de câmera e, dentro de cada pedaço, em partes de até o máximo", () => {
     const viradas = [
-      { t: 8, forca: 0.09 },
-      { t: 11.5, forca: 0.095 },
-      { t: 11.7, forca: 0.088 }, // colada na anterior: fica de fora
+      { t: 8, forca: 0.4 },
+      { t: 11.5, forca: 0.45 },
+      { t: 11.7, forca: 0.38 }, // colado no anterior: fica de fora
     ];
     const t = trechosTroca(26.19, 15, viradas, 3);
     expect(t.map((x) => x.inicio)).toEqual([0, 8, 11.5]);
@@ -35,7 +41,7 @@ describe("divisão nas viradas de cena", () => {
     expect(trechosTroca(10, 15, [{ t: 1, forca: 0.9 }, { t: 8.5, forca: 0.9 }], 3)).toEqual([
       { inicio: 0, duracao: 10 },
     ]);
-    const t = trechosTroca(12, 15, [{ t: 5, forca: 0.1 }, { t: 7, forca: 0.6 }], 3);
+    const t = trechosTroca(12, 15, [{ t: 5, forca: 0.35 }, { t: 7, forca: 0.6 }], 3);
     expect(t.map((x) => x.inicio)).toEqual([0, 7]);
   });
 });

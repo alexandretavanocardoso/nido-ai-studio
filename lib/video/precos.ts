@@ -27,6 +27,82 @@ export function custoTroca(
 }
 
 /**
+ * Troca "tomada por tomada" (só Kling). Num vídeo editado com cortes rápidos,
+ * mandar várias tomadas juntas faz o motor trocar a primeira e se perder nas
+ * seguintes. Aí cada tomada (o pedaço entre dois cortes de câmera) vai sozinha;
+ * as com menos de 3 s — o mínimo do Kling — são esticadas em câmera lenta até
+ * TOMADA_MIN e aceleradas de volta no resultado. O Kling cobra pelo que
+ * processa, então cada tomada curta custa TOMADA_MIN segundos.
+ */
+export const TOMADA_MIN = 3.1;
+/** Tomadas menores que isto (um clarão, um quadro solto) se juntam à anterior. */
+const TOMADA_DESPREZIVEL = 0.3;
+/** Acima disto o vídeo volta ao modo normal: seriam pedidos demais de uma vez. */
+export const MAX_TOMADAS = 24;
+
+export interface Tomada {
+  inicio: number;
+  duracao: number;
+}
+
+/** As tomadas do vídeo, a partir dos instantes dos cortes de câmera. */
+export function tomadasDoVideo(cortes: number[], duracao: number): Tomada[] {
+  const pontos = [0];
+  for (const c of [...cortes].sort((a, b) => a - b))
+    if (
+      c - pontos[pontos.length - 1] >= TOMADA_DESPREZIVEL &&
+      duracao - c >= TOMADA_DESPREZIVEL
+    )
+      pontos.push(c);
+  return pontos.map((inicio, i) => ({
+    inicio: Number(inicio.toFixed(3)),
+    duracao: Number(((pontos[i + 1] ?? duracao) - inicio).toFixed(3)),
+  }));
+}
+
+/**
+ * O vídeo vai tomada por tomada? Só quando tem alguma tomada mais curta que o
+ * mínimo do motor (senão o modo normal resolve) e não tem tomadas demais.
+ */
+export function trocaPorTomadas(
+  cortes: number[],
+  duracao: number,
+): Tomada[] | null {
+  const tomadas = tomadasDoVideo(cortes, duracao);
+  return tomadas.length > 1 &&
+    tomadas.length <= MAX_TOMADAS &&
+    tomadas.some((t) => t.duracao < KLING_TROCA.minSegundos)
+    ? tomadas
+    : null;
+}
+
+/**
+ * Tomadas mais curtas que isto ficam como no original: não vão ao motor nem
+ * são cobradas. Esticadas 6 vezes ou mais em câmera lenta, sobra pouco vídeo de
+ * verdade e o Kling inventa cenário (testado: fundo trocado, pessoa pela
+ * metade). Menos de meio segundo do original chama menos atenção que isso.
+ */
+export const TOMADA_SO_ORIGINAL = 0.5;
+export const tomadaFicaOriginal = (t: Tomada) => t.duracao < TOMADA_SO_ORIGINAL;
+
+/** Segundos que o Kling processa (e cobra) numa tomada (0 se ela fica como no original). */
+export const segundosDaTomada = (t: Tomada) =>
+  tomadaFicaOriginal(t) ? 0 : Math.max(TOMADA_MIN, t.duracao);
+
+/**
+ * Segundos cobrados pela troca no Kling: a duração do vídeo, ou — tomada por
+ * tomada — a soma do que o motor processa em cada uma (as de menos de meio
+ * segundo ficam de fora). É o valor máximo: uma tomada em que ninguém marcado
+ * aparece não é enviada nem cobrada.
+ */
+export function segundosCobradosTroca(cortes: number[], duracao: number): number {
+  const tomadas = trocaPorTomadas(cortes, duracao);
+  return tomadas
+    ? Number(tomadas.reduce((s, t) => s + segundosDaTomada(t), 0).toFixed(2))
+    : duracao;
+}
+
+/**
  * Seedance 2.5 (modo edição, 720p): troca Premium — até 30s por envio. Gera no mínimo 4s.
  * O fal cobra ~US$ 0,284 por segundo de vídeo de ENTRADA e de SAÍDA (os tokens
  * somam as duas durações); na troca elas são iguais, então cada segundo custa o dobro.

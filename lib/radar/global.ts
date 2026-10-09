@@ -50,6 +50,14 @@ export const NICHOS_GLOBAIS: NichoGlobal[] = [
       en: ["AI influencers", "virtual influencers and synthetic creators"],
     },
   },
+  {
+    id: "politica",
+    nome: { pt: "Política", en: "Politics" },
+    temas: {
+      pt: ["política", "governo, Congresso, eleições e política internacional"],
+      en: ["politics", "government, elections and international politics"],
+    },
+  },
 ];
 
 export const nichoGlobal = (id: string | null | undefined) =>

@@ -7,12 +7,13 @@ import {
 } from "./global";
 
 describe("radar global", () => {
-  it("tem os quatro nichos, com nome e temas nos dois idiomas", () => {
+  it("tem os cinco nichos, com nome e temas nos dois idiomas", () => {
     expect(NICHOS_GLOBAIS.map((n) => n.id)).toEqual([
       "tecnologia",
       "ia",
       "startups",
       "influencer-ia",
+      "politica",
     ]);
     for (const n of NICHOS_GLOBAIS)
       for (const idioma of ["pt", "en"] as const) {

@@ -285,9 +285,17 @@ export async function resolverLink(url: string): Promise<VideoDoLink> {
   const video = item ? lerItem(p, item) : null;
   if (!video) {
     const motivo = txt(item?.error) ?? txt(item?.errorDescription);
+    // A rede só mostra o post para quem está logado (conta privada, restrição
+    // de idade ou de país): quem busca o vídeo entra sem login e não o vê.
+    if (motivo && /restricted|private|login|not_?found/i.test(motivo)) {
+      console.warn("[link] post restrito:", p, motivo);
+      throw new LinkError(
+        "Esse post é restrito (conta privada, restrição de idade ou de país) e só abre para quem está logado, então não dá para pegar pelo link. Baixe o vídeo e envie o arquivo.",
+      );
+    }
     throw new LinkError(
       motivo
-        ? `Não consegui pegar o vídeo: ${motivo}`
+        ? `Não consegui pegar o vídeo: ${motivo}.`
         : p === "youtube"
           ? "Não achei o vídeo. Para YouTube, só Shorts públicos são aceitos."
           : "Não achei o vídeo nesse link (é público? é um vídeo?).",

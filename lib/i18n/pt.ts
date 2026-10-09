@@ -87,6 +87,9 @@ export const pt = {
   "estudio.imagens.titulo": "Imagens",
   "estudio.imagens.descricao":
     "Card de referência com posicionamentos e retratos fiéis ao personagem.",
+  "estudio.figurinhas.titulo": "Figurinhas",
+  "estudio.figurinhas.descricao":
+    "Figurinhas de WhatsApp do personagem: crie novas a partir de uma situação ou troque o personagem de uma figurinha pronta.",
   "estudio.publicar.titulo": "Publicar",
   "estudio.publicar.descricao":
     "Conecte as redes do influencer e publique agora, agende ou guarde no backlog — Instagram, TikTok, YouTube Shorts, X e LinkedIn.",

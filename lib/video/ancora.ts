@@ -1,3 +1,4 @@
+import { pedidoDoEstilo, type EstiloTroca } from "./estilos";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import sharp from "sharp";
@@ -9,6 +10,7 @@ import {
 } from "@/lib/ai/gemini";
 import { promptTrocaImagem } from "@/lib/prompts/trocar-imagem";
 import { extrairQuadro, type VideoInfo } from "./ffmpeg";
+import { tomadaFicaOriginal } from "./precos";
 import { marcarPonto } from "./pessoas";
 
 /**
@@ -230,57 +232,401 @@ export async function descreverOutrasPessoas(
   }
 }
 
+/** Quem aparece em cada quadro amostrado do vídeo (índices da lista de alvos). */
+export interface LinhaDoTempo {
+  /** Instante (s) de cada quadro amostrado, em ordem. */
+  instantes: number[];
+  /** Para cada quadro, os alvos visíveis nele. */
+  visiveis: number[][];
+}
+
 /**
- * Quais das pessoas marcadas aparecem em cada trecho do vídeo (índices da
- * lista de alvos). Num trecho em que só uma aparece, mandar os dois
- * personagens faz o motor misturá-los na pessoa que está em cena.
- * Na dúvida — ou se a leitura falhar — o trecho fica com todos.
+ * Linha do tempo das pessoas marcadas: ~1 quadro por segundo, e em cada um
+ * quais delas aparecem. Serve para (1) começar um trecho novo no momento em
+ * que alguém ENTRA em cena — o motor só troca bem quem já está na tela quando
+ * o trecho começa — e (2) mandar a cada trecho só os personagens de quem
+ * aparece nele. Null se a leitura falhar (o vídeo segue dividido como antes).
  */
-export async function alvosPorTrecho(o: {
+export async function linhaDoTempoDosAlvos(o: {
+  arquivo: string;
+  dir: string;
+  duracao: number;
+  marcadas: Array<{ t: number; x: number; y: number }>;
+  descricoes: string[];
+}): Promise<LinhaDoTempo | null> {
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey || !o.descricoes.length || o.duracao < 4) return null;
+  try {
+    const quantos = Math.min(30, Math.max(4, Math.round(o.duracao)));
+    const instantes = Array.from(
+      { length: quantos },
+      (_, k) =>
+        Math.round(
+          Math.min(o.duracao - 0.1, ((k + 0.5) * o.duracao) / quantos) * 100,
+        ) / 100,
+    );
+    const [marcados, quadros] = await Promise.all([
+      Promise.all(
+        o.marcadas.map(async (m, i) => {
+          const saida = path.join(o.dir, `linha-marcada-${i}.jpg`);
+          await extrairQuadro(
+            o.arquivo,
+            Math.max(0.05, Math.min(m.t, o.duracao - 0.1)),
+            saida,
+          );
+          return {
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: await reduzido(await marcarPonto(await readFile(saida), m)),
+            },
+          };
+        }),
+      ),
+      Promise.all(
+        instantes.map(async (t, k) => {
+          const saida = path.join(o.dir, `linha-${k}.jpg`);
+          await extrairQuadro(o.arquivo, t, saida);
+          return {
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: await reduzido(await readFile(saida)),
+            },
+          };
+        }),
+      ),
+    ]);
+    const ai = new GoogleGenAI({ apiKey });
+    const res = await ai.models.generateContent({
+      model: MODELO_VISAO,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text:
+                `The first ${marcados.length} image(s) each show, with a red target, one TARGET person of a video, numbered in order: ${o.descricoes.map((d, i) => `${i + 1}) ${d}`).join("; ")}. ` +
+                `After them come ${quantos} frames of that video in chronological order, numbered 1 to ${quantos}. ` +
+                "For EACH frame, list which targets are visible in it. Count a target as visible when seen from behind, lying down, partly cut off, blurred or far away, as long as it is that same person. Do not count a different person who merely looks similar. " +
+                `Answer with JSON only, one entry per frame: {"frames": [{"n": 1, "present": [<target numbers>]}, ...]}`,
+            },
+            ...marcados,
+            ...quadros,
+          ],
+        },
+      ],
+    });
+    const json = (res.text ?? "").match(/\{[\s\S]*\}/)?.[0];
+    const r = json ? (JSON.parse(json) as { frames?: unknown }) : {};
+    const lidos = new Map<number, number[]>();
+    for (const f of Array.isArray(r.frames) ? r.frames : []) {
+      const { n, present } = (f ?? {}) as { n?: unknown; present?: unknown };
+      if (!Number.isInteger(n) || !Array.isArray(present)) continue;
+      lidos.set(
+        (n as number) - 1,
+        [
+          ...new Set(
+            present
+              .filter(
+                (x): x is number =>
+                  Number.isInteger(x) && x >= 1 && x <= o.descricoes.length,
+              )
+              .map((x) => x - 1),
+          ),
+        ].sort((a, b) => a - b),
+      );
+    }
+    // Resposta pela metade não serve: um quadro sem leitura viraria "ninguém em cena".
+    if (lidos.size < quantos) return null;
+    return { instantes, visiveis: instantes.map((_, k) => lidos.get(k)!) };
+  } catch (e) {
+    console.warn(
+      "[ancora] linha do tempo das pessoas falhou (vídeo dividido só pelas viradas):",
+      (e as Error).message,
+    );
+    return null;
+  }
+}
+
+/** Roda `fn` em todos os itens, no máximo `n` ao mesmo tempo (mantém a ordem). */
+async function emLotes<T, R>(
+  itens: T[],
+  n: number,
+  fn: (item: T, i: number) => Promise<R>,
+): Promise<R[]> {
+  const saida = new Array<R>(itens.length);
+  let proximo = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(n, itens.length) }, async () => {
+      for (let i = proximo++; i < itens.length; i = proximo++)
+        saida[i] = await fn(itens[i], i);
+    }),
+  );
+  return saida;
+}
+
+/** Uma tomada pronta para ir sozinha ao motor (ver `prepararTomadas`). */
+export interface TomadaPreparada {
+  inicio: number;
+  duracao: number;
+  /** Quem aparece nela (índices da lista de alvos). Vazio: ninguém — fica como no original. */
+  presentes: number[];
+  /** Como cada um aparece NESTA tomada (mesma ordem de `presentes`). */
+  descricoes: string[];
+  /** Quadro do meio da tomada com a troca feita (null se a geração falhou). */
+  ancora: Buffer | null;
+  /** Posições (em `presentes`) de quem aparece trocado na âncora. */
+  naAncora: number[];
+  /** O que acontece na tomada, com as pessoas como [[1]], [[2]]… (numeração geral). */
+  acao?: string;
+}
+
+/**
+ * Quem aparece num quadro de OUTRA tomada e como aparece ali. A descrição feita
+ * no quadro em que o usuário marcou não serve para as outras tomadas: a pessoa
+ * pode estar de costas, longe, sem a peruca — e o motor não a reconhece.
+ * Null se a leitura falhar.
+ */
+async function alvosNoQuadro(
+  ai: GoogleGenAI,
+  quadro: Buffer,
+  marcados: Array<{ inlineData: { mimeType: string; data: string } }>,
+  alvos: Array<{ d: string; i: number }>,
+): Promise<Array<{ i: number; descricao: string }> | null> {
+  try {
+    const res = await ai.models.generateContent({
+      model: MODELO_VISAO,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text:
+                (marcados.length
+                  ? `The first ${marcados.length} image(s) each show, with a red target, one TARGET person of a video. `
+                  : "") +
+                `Targets: ${alvos.map((a) => `${a.i + 1}) ${a.d}`).join("; ")}. ` +
+                "The last image is a frame from a shot of the same video. The targets may look different there (seen from behind, far away, hair or accessories changed, motion blur). " +
+                "For each target that appears in the last image, describe how to find them IN THAT FRAME: where they are (left/right/centre, foreground/background), how much of them is in the frame (only the back of the head, only the legs, full body), whether seen from the front, side or behind, and their clothing and hair as they look there. " +
+                'Answer with JSON only: {"targets": [{"n": <target number>, "description": "the person ... (max 32 words, English)"}]} — leave out targets that are not in the last image.',
+            },
+            ...marcados,
+            {
+              inlineData: { mimeType: "image/jpeg", data: await reduzido(quadro) },
+            },
+          ],
+        },
+      ],
+    });
+    const json = (res.text ?? "").match(/\{[\s\S]*\}/)?.[0];
+    if (!json) return null;
+    const r = JSON.parse(json) as { targets?: unknown };
+    const vistos = new Map<number, string>();
+    for (const t of Array.isArray(r.targets) ? r.targets : []) {
+      const { n, description } = (t ?? {}) as {
+        n?: unknown;
+        description?: unknown;
+      };
+      if (
+        Number.isInteger(n) &&
+        typeof description === "string" &&
+        description.trim().length > 8 &&
+        alvos.some((a) => a.i === (n as number) - 1)
+      )
+        vistos.set(
+          (n as number) - 1,
+          description.trim().replace(/\s+/g, " ").replace(/[."]+$/, "").slice(0, 220),
+        );
+    }
+    return [...vistos]
+      .sort((a, b) => a[0] - b[0])
+      .map(([i, descricao]) => ({ i, descricao }));
+  } catch (e) {
+    console.warn("[ancora] leitura da tomada falhou:", (e as Error).message);
+    return null;
+  }
+}
+
+/**
+ * Prepara cada tomada de um vídeo de cortes rápidos para ir sozinha ao motor:
+ * quem aparece nela e como, o que acontece nela e um quadro-âncora próprio.
+ * Mandar várias tomadas juntas faz o motor trocar a primeira e se perder nas
+ * seguintes; com âncora e descrição da própria tomada, ele mantém o
+ * enquadramento e acha as pessoas (testado no Kling).
+ * Tomada cuja leitura falha segue com todos os alvos e a descrição geral.
+ */
+export async function prepararTomadas(o: {
+  arquivo: string;
+  dir: string;
+  info: VideoInfo;
+  tomadas: Array<{ inicio: number; duracao: number }>;
+  marcadas?: Array<{ t: number; x?: number; y?: number }>;
+  /** Descrição geral de cada alvo (a do quadro em que foi marcado). */
+  descricoes: Array<string | undefined>;
+  personagens: Buffer[];
+  estilo?: Parameters<typeof pedidoDoEstilo>[0];
+}): Promise<TomadaPreparada[]> {
+  const alvos = o.descricoes
+    .map((d, i) => ({ d, i }))
+    .filter((a): a is { d: string; i: number } => !!a.d);
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const semLeitura = (t: { inicio: number; duracao: number }): TomadaPreparada => ({
+    ...t,
+    presentes: alvos.map((a) => a.i),
+    descricoes: alvos.map((a) => a.d),
+    ancora: null,
+    naAncora: [],
+  });
+  if (!apiKey || !alvos.length) return o.tomadas.map(semLeitura);
+  const ai = new GoogleGenAI({ apiKey });
+  const [marcados, acoes] = await Promise.all([
+    Promise.all(
+      (o.marcadas ?? [])
+        .filter(
+          (m): m is { t: number; x: number; y: number } =>
+            m.x !== undefined && m.y !== undefined,
+        )
+        .map(async (m, i) => {
+          const saida = path.join(o.dir, `tomada-marcada-${i}.jpg`);
+          await extrairQuadro(
+            o.arquivo,
+            Math.max(0.05, Math.min(m.t, o.info.duracao - 0.1)),
+            saida,
+          );
+          return {
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: await reduzido(await marcarPonto(await readFile(saida), m)),
+            },
+          };
+        }),
+    ).catch(() => []),
+    acoesDosTrechos({
+      arquivo: o.arquivo,
+      dir: o.dir,
+      duracao: o.info.duracao,
+      trechos: o.tomadas,
+      viradas: [],
+      marcadas: o.marcadas,
+      descricoes: o.descricoes,
+    }),
+  ]);
+  // Poucas por vez: cada tomada faz até uma geração de imagem por pessoa.
+  return emLotes(o.tomadas, 6, async (t, k) => {
+    // Curta demais para o motor (ver TOMADA_SO_ORIGINAL): fica como no original.
+    if (tomadaFicaOriginal(t))
+      return { ...t, presentes: [], descricoes: [], ancora: null, naAncora: [] };
+    try {
+      const saida = path.join(o.dir, `tomada-${k}.jpg`);
+      await extrairQuadro(
+        o.arquivo,
+        Math.min(o.info.duracao - 0.05, t.inicio + t.duracao / 2),
+        saida,
+      );
+      const quadro = await readFile(saida);
+      const vistos = await alvosNoQuadro(ai, quadro, marcados, alvos);
+      if (!vistos) return { ...semLeitura(t), acao: acoes[k] };
+      if (!vistos.length)
+        return { ...t, presentes: [], descricoes: [], ancora: null, naAncora: [] };
+      const presentes = vistos.map((v) => v.i);
+      const porAlvo: Array<string | undefined> = o.descricoes.map(() => undefined);
+      for (const v of vistos) porAlvo[v.i] = v.descricao;
+      const { imagem, feitos } = await trocarNoQuadro({
+        quadro,
+        alvos: presentes,
+        descricoes: porAlvo,
+        personagens: o.personagens,
+        info: o.info,
+        estilo: o.estilo,
+      });
+      return {
+        ...t,
+        presentes,
+        descricoes: vistos.map((v) => v.descricao),
+        ancora: imagem,
+        naAncora: imagem ? feitos.map((n) => presentes.indexOf(n)) : [],
+        acao: acoes[k],
+      };
+    } catch (e) {
+      console.warn(
+        `[ancora] preparação da tomada ${k + 1} falhou (segue com a descrição geral):`,
+        (e as Error).message,
+      );
+      return { ...semLeitura(t), acao: acoes[k] };
+    }
+  });
+}
+
+/**
+ * O que as pessoas a trocar FAZEM em cada trecho, em uma ou duas frases — vai
+ * no pedido ao motor. Só com "siga o movimento", gestos rápidos e borrados
+ * (um tapa, um soco, uma queda) somem do resultado ou a pessoa volta a ser a
+ * original depois deles; com a ação escrita, o motor a reproduz.
+ * As pessoas saem como [[1]], [[2]]… (a ordem dos alvos). Trecho sem leitura
+ * fica sem ação (`undefined`) e segue como antes.
+ */
+export async function acoesDosTrechos(o: {
   arquivo: string;
   dir: string;
   duracao: number;
   trechos: Array<{ inicio: number; duracao: number }>;
-  marcadas: Array<{ t: number; x: number; y: number }>;
-  descricoes: string[];
-}): Promise<number[][]> {
-  const todos = o.descricoes.map((_, i) => i);
+  /** Movimentos bruscos e cortes: ganham quadros extras em volta, pra IA ver o gesto. */
+  viradas: Array<{ t: number; forca: number }>;
+  marcadas?: Array<{ t: number; x?: number; y?: number }>;
+  descricoes: Array<string | undefined>;
+}): Promise<Array<string | undefined>> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey || o.trechos.length < 2 || todos.length < 2)
-    return o.trechos.map(() => todos);
+  const alvos = o.descricoes
+    .map((d, i) => ({ d, i }))
+    .filter((a): a is { d: string; i: number } => !!a.d);
+  if (!apiKey || !alvos.length) return o.trechos.map(() => undefined);
   try {
     const marcados = await Promise.all(
-      o.marcadas.map(async (m, i) => {
-        const saida = path.join(o.dir, `trecho-marcada-${i}.jpg`);
-        await extrairQuadro(
-          o.arquivo,
-          Math.max(0.05, Math.min(m.t, o.duracao - 0.1)),
-          saida,
-        );
-        return {
-          inlineData: {
-            mimeType: "image/jpeg",
-            data: await reduzido(await marcarPonto(await readFile(saida), m)),
-          },
-        };
-      }),
+      (o.marcadas ?? [])
+        .filter(
+          (m): m is { t: number; x: number; y: number } =>
+            m.x !== undefined && m.y !== undefined,
+        )
+        .map(async (m, i) => {
+          const saida = path.join(o.dir, `acao-marcada-${i}.jpg`);
+          await extrairQuadro(
+            o.arquivo,
+            Math.max(0.05, Math.min(m.t, o.duracao - 0.1)),
+            saida,
+          );
+          return {
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: await reduzido(await marcarPonto(await readFile(saida), m)),
+            },
+          };
+        }),
     );
     const ai = new GoogleGenAI({ apiKey });
     return await Promise.all(
       o.trechos.map(async (t, n) => {
         try {
-          const quantos = Math.min(8, Math.max(4, Math.round(t.duracao)));
+          const fim = t.inicio + t.duracao;
+          // Quadros espalhados pelo trecho + três em volta de cada movimento
+          // brusco (os 3 mais fortes): um gesto de 0,3 s não cai entre dois quadros.
+          const espalhados = Array.from(
+            { length: 6 },
+            (_, k) => t.inicio + ((k + 0.5) * t.duracao) / 6,
+          );
+          const emVolta = o.viradas
+            .filter((v) => v.t > t.inicio + 0.2 && v.t < fim - 0.2)
+            .sort((a, b) => b.forca - a.forca)
+            .slice(0, 3)
+            .flatMap((v) => [v.t - 0.2, v.t, v.t + 0.25]);
+          const instantes = [...new Set([...espalhados, ...emVolta])]
+            .map((x) =>
+              Math.round(Math.min(o.duracao - 0.1, Math.max(0.05, x)) * 100) /
+              100,
+            )
+            .sort((a, b) => a - b);
           const quadros = await Promise.all(
-            Array.from({ length: quantos }, async (_, k) => {
-              const saida = path.join(o.dir, `trecho-${n}-${k}.jpg`);
-              await extrairQuadro(
-                o.arquivo,
-                Math.min(
-                  o.duracao - 0.1,
-                  t.inicio + ((k + 0.5) * t.duracao) / quantos,
-                ),
-                saida,
-              );
+            instantes.map(async (x, k) => {
+              const saida = path.join(o.dir, `acao-${n}-${k}.jpg`);
+              await extrairQuadro(o.arquivo, x, saida);
               return {
                 inlineData: {
                   mimeType: "image/jpeg",
@@ -297,10 +643,14 @@ export async function alvosPorTrecho(o: {
                 parts: [
                   {
                     text:
-                      `The first ${marcados.length} images each show, with a red target, one TARGET person of a video, numbered in order: ${o.descricoes.map((d, i) => `${i + 1}) ${d}`).join("; ")}. ` +
-                      `After them come ${quantos} frames sampled, in order, from ONE part of that video. ` +
-                      "For each target, decide whether that same person appears anywhere in those frames — count them as present when they are seen from behind, partly cut off, blurred, far away or only for one frame. When in doubt, count them as present. " +
-                      'Answer with JSON only: {"present": [<numbers of the targets that appear>]}',
+                      (marcados.length
+                        ? `The first ${marcados.length} image(s) each show, with a red target, one TARGET person of a video. `
+                        : "") +
+                      `Targets: ${alvos.map((a) => `[[${a.i + 1}]] = ${a.d}`).join("; ")}. ` +
+                      `Then come ${instantes.length} frames of ONE part of that video, in order, taken at these seconds of the part: ${instantes.map((x) => (x - t.inicio).toFixed(1)).join(", ")} (the part lasts ${t.duracao.toFixed(1)} s). ` +
+                      "Describe what the targets DO in this part, in order, in at most 45 words: body actions only (stands up, swings an arm and slaps, falls backwards, walks away, hugs, jumps), who does it to whom, and roughly when (at the start, about halfway, at the end). " +
+                      "Give most of the words to fast or decisive actions — a hit, a fall, a throw — even when they last a fraction of a second. Write only what you can see in the frames; do not guess what happens between them, and do not describe clothes, faces or the place. " +
+                      'Always call the targets [[1]], [[2]] (never by description). Answer with JSON only: {"action": "..."} — use {"action": ""} if the targets barely move.',
                   },
                   ...marcados,
                   ...quadros,
@@ -309,33 +659,27 @@ export async function alvosPorTrecho(o: {
             ],
           });
           const json = (res.text ?? "").match(/\{[\s\S]*\}/)?.[0];
-          const r = json ? (JSON.parse(json) as { present?: unknown }) : {};
-          const presentes = [
-            ...new Set(
-              (Array.isArray(r.present) ? r.present : [])
-                .filter(
-                  (x): x is number =>
-                    Number.isInteger(x) && x >= 1 && x <= todos.length,
-                )
-                .map((x) => x - 1),
-            ),
-          ].sort((a, b) => a - b);
-          return presentes.length ? presentes : todos;
+          const r = json ? (JSON.parse(json) as { action?: unknown }) : {};
+          const acao =
+            typeof r.action === "string"
+              ? r.action.trim().replace(/\s+/g, " ").slice(0, 320)
+              : "";
+          return acao.length > 12 ? acao : undefined;
         } catch (e) {
           console.warn(
-            `[ancora] não deu para ver quem aparece no trecho ${n + 1} (segue com todos):`,
+            `[ancora] não deu para descrever a ação do trecho ${n + 1} (segue sem):`,
             (e as Error).message,
           );
-          return todos;
+          return undefined;
         }
       }),
     );
   } catch (e) {
     console.warn(
-      "[ancora] leitura dos trechos falhou (seguem com todos):",
+      "[ancora] descrição das ações falhou (seguem sem):",
       (e as Error).message,
     );
-    return o.trechos.map(() => todos);
+    return o.trechos.map(() => undefined);
   }
 }
 
@@ -358,6 +702,71 @@ export function instantesCandidatos(duracao: number): number[] {
       100,
   );
   return [...new Set(t)];
+}
+
+/**
+ * Faz a troca num quadro parado: uma pessoa por vez, cada passada em cima do
+ * resultado da anterior. Com todas no mesmo pedido, a segunda costuma sair
+ * "colada" (pose e luz da imagem de referência, de pé e de frente) — e o vídeo
+ * inteiro copia isso. Devolve o quadro e quais alvos (índices) entraram nele.
+ */
+export async function trocarNoQuadro(o: {
+  quadro: Buffer;
+  /** Índices dos alvos a trocar neste quadro. */
+  alvos: number[];
+  descricoes: Array<string | undefined>;
+  personagens: Buffer[];
+  info: VideoInfo;
+  estilo?: Parameters<typeof pedidoDoEstilo>[0];
+}): Promise<{ imagem: Buffer | null; feitos: number[] }> {
+  const original = await sharp(o.quadro)
+    .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+  const prazo = Date.now() + LIMITE_MS;
+  let imagem: Buffer | null = null;
+  const feitos: number[] = [];
+  for (const n of o.alvos) {
+    const restante = prazo - Date.now();
+    if (restante <= 0) break;
+    const geracao: Promise<Buffer | null> = generateImage({
+      prompt: promptTrocaImagem({
+        alvos: [{ descricao: o.descricoes[n], imagem: 2 }],
+        // No vídeo o personagem entra com o próprio look (como a troca em vídeo sempre fez).
+        roupa: "personagem",
+        estilo: pedidoDoEstilo(o.estilo),
+      }),
+      referencias: [
+        {
+          mimeType: "image/jpeg",
+          data: (imagem
+            ? await sharp(imagem).jpeg({ quality: 92 }).toBuffer()
+            : original
+          ).toString("base64"),
+        },
+        await shrinkReferencia(o.personagens[n]),
+      ],
+      aspectRatio: proporcaoMaisProxima(o.info.largura, o.info.altura),
+      imageSize: "1K",
+      qualidade: "padrao",
+    }).catch((e) => {
+      console.warn("[ancora] passada da âncora falhou:", (e as Error).message);
+      return null;
+    });
+    // O Nano Banana às vezes demora: passado o limite, segue com o que já tem.
+    const passada: Buffer | null = await Promise.race([
+      geracao,
+      new Promise<null>((ok) => setTimeout(() => ok(null), restante)),
+    ]);
+    if (!passada) break;
+    imagem = passada;
+    feitos.push(n);
+  }
+  if (feitos.length < o.alvos.length)
+    console.warn(
+      `[ancora] quadro-âncora com ${feitos.length} de ${o.alvos.length} alvos (tempo ou falha)`,
+    );
+  return { imagem, feitos };
 }
 
 export interface Ancora {
@@ -385,6 +794,8 @@ export async function prepararAncora(o: {
   descricoes: Array<string | undefined>;
   /** Imagem do personagem de cada alvo (mesma ordem). */
   personagens: Buffer[];
+  /** Estilo visual do vídeo: o quadro-guia já sai nele. */
+  estilo?: EstiloTroca;
 }): Promise<Ancora> {
   let descricoes = o.descricoes;
   // Em paralelo com o resto: quem mais aparece no vídeo (varre ~1 quadro por segundo).
@@ -508,56 +919,15 @@ export async function prepararAncora(o: {
     if (!process.env.GEMINI_API_KEY?.trim())
       return { imagem: null, descricoes, outras: [], naAncora: [] };
 
-    const original = await sharp(quadro)
-      .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
-      .jpeg({ quality: 90 })
-      .toBuffer();
     const outrasP = outrasDe(descricoes);
-    // Uma pessoa por vez, cada passada em cima do resultado da anterior. Com
-    // todas no mesmo pedido, a segunda costuma sair "colada" (pose e luz da
-    // imagem de referência, de pé e de frente) — e o vídeo inteiro copia isso.
-    const prazo = Date.now() + LIMITE_MS;
-    let imagem: Buffer | null = null;
-    const feitos: number[] = [];
-    for (const n of naAncora) {
-      const restante = prazo - Date.now();
-      if (restante <= 0) break;
-      const geracao: Promise<Buffer | null> = generateImage({
-        prompt: promptTrocaImagem({
-          alvos: [{ descricao: descricoes[n], imagem: 2 }],
-          // No vídeo o personagem entra com o próprio look (como a troca em vídeo sempre fez).
-          roupa: "personagem",
-        }),
-        referencias: [
-          {
-            mimeType: "image/jpeg",
-            data: (imagem
-              ? await sharp(imagem).jpeg({ quality: 92 }).toBuffer()
-              : original
-            ).toString("base64"),
-          },
-          await shrinkReferencia(o.personagens[n]),
-        ],
-        aspectRatio: proporcaoMaisProxima(o.info.largura, o.info.altura),
-        imageSize: "1K",
-        qualidade: "padrao",
-      }).catch((e) => {
-        console.warn("[ancora] passada da âncora falhou:", (e as Error).message);
-        return null;
-      });
-      // O Nano Banana às vezes demora: passado o limite, segue com o que já tem.
-      const passada: Buffer | null = await Promise.race([
-        geracao,
-        new Promise<null>((ok) => setTimeout(() => ok(null), restante)),
-      ]);
-      if (!passada) break;
-      imagem = passada;
-      feitos.push(n);
-    }
-    if (feitos.length < naAncora.length)
-      console.warn(
-        `[ancora] quadro-âncora com ${feitos.length} de ${naAncora.length} alvos (tempo ou falha)`,
-      );
+    const { imagem, feitos } = await trocarNoQuadro({
+      quadro,
+      alvos: naAncora,
+      descricoes,
+      personagens: o.personagens,
+      info: o.info,
+      estilo: o.estilo,
+    });
     return { imagem, descricoes, outras: await outrasP, naAncora: feitos };
   } catch (e) {
     console.warn(

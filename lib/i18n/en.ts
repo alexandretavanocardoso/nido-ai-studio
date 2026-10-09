@@ -84,6 +84,9 @@ export const en: Record<Chave, string> = {
   "estudio.imagens.titulo": "Images",
   "estudio.imagens.descricao":
     "Reference sheet with poses and portraits faithful to the character.",
+  "estudio.figurinhas.titulo": "Stickers",
+  "estudio.figurinhas.descricao":
+    "WhatsApp stickers of the character: create new ones from a situation or swap the character into an existing sticker.",
   "estudio.publicar.titulo": "Publish",
   "estudio.publicar.descricao":
     "Connect the influencer's accounts and post now, schedule or save to the backlog — Instagram, TikTok, YouTube Shorts, X and LinkedIn.",

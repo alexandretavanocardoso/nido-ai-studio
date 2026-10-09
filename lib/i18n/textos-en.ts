@@ -397,6 +397,10 @@ export const TEXTOS_EN: Record<string, string> = {
   Gírias: "Slang",
   "História de origem": "Origin story",
   Hoje: "Today",
+  tomadas: "shots",
+  "Vídeo com cortes rápidos": "Fast-cut video",
+  "Cada tomada é trocada separadamente, e as mais curtas contam como 3 segundos cada — por isso o valor é maior que o da duração do vídeo. Tomadas com menos de meio segundo, ou em que a pessoa marcada não aparece, ficam como no original e não são cobradas. Pode levar mais tempo que o normal.":
+    "Each shot is swapped separately, and the shortest ones count as 3 seconds each — that's why the price is higher than the video's length. Shots under half a second, or where the marked person doesn't appear, stay as in the original and aren't charged. It may take longer than usual.",
   "Não deu para destacar a pessoa inteira:":
     "Couldn't highlight the whole person:",
   hoje: "today",
@@ -2487,4 +2491,155 @@ export const TEXTOS_EN: Record<string, string> = {
     "One sentence, one creator",
   "Perguntas frequentes":
     "Frequently asked questions",
+
+  "Estilo do vídeo":
+    "Video style",
+  "só a pessoa muda":
+    "only the person changes",
+  "o vídeo inteiro é redesenhado":
+    "the whole video is redrawn",
+  "Como foi filmado":
+    "As filmed",
+  "Desenho":
+    "Cartoon",
+  "Ilustração 2D":
+    "2D illustration",
+  "Traço japonês":
+    "Japanese style",
+  "Animação 3D":
+    "3D animation",
+  "Estilo boneco":
+    "Doll-like look",
+
+  "Quadrinhos":
+    "Comic",
+  "Gibi, traço forte":
+    "Comic book, bold lines",
+  "Aquarela":
+    "Watercolour",
+  "Pintura suave":
+    "Soft painting",
+  "Massinha":
+    "Claymation",
+  "Jogo retrô":
+    "Retro game",
+  "Blocos":
+    "Bricks",
+  "Brinquedo de montar":
+    "Building toy",
+
+  "o vídeo inteiro é redesenhado neste estilo":
+    "the whole video is redrawn in this style",
+
+  // Figurinhas
+  "Figurinhas":
+    "Stickers",
+  "Figurinha":
+    "Sticker",
+  "Figurinhas de WhatsApp do personagem: crie novas ou troque o personagem de uma figurinha pronta.":
+    "WhatsApp stickers of the character: create new ones or swap the character into an existing sticker.",
+  "As figurinhas não estão configuradas neste deploy (GEMINI_API_KEY).":
+    "Stickers aren't configured on this deploy (GEMINI_API_KEY).",
+  "Formato não aceito. Envie a figurinha em WebP, PNG ou JPEG.":
+    "Format not accepted. Upload the sticker as WebP, PNG or JPEG.",
+  "É a referência do rosto, da roupa e do estilo: a figurinha sai parecida com esta imagem.":
+    "It's the reference for face, outfit and style: the sticker comes out looking like this image.",
+  "Criar figurinha":
+    "Create sticker",
+  "Trocar o personagem de uma figurinha":
+    "Swap the character in a sticker",
+  "Trocar o personagem":
+    "Swap the character",
+  "Rindo muito, com a mão na barriga":
+    "Laughing hard, hand on belly",
+  "Fazendo joinha e piscando":
+    "Giving a thumbs up and winking",
+  "Chorando de emoção":
+    "Crying with emotion",
+  "Bravo, de braços cruzados":
+    "Angry, arms crossed",
+  "Apaixonado, com corações em volta":
+    "In love, with hearts around",
+  "Com sono, bocejando":
+    "Sleepy, yawning",
+  "Surpreso, de boca aberta":
+    "Surprised, mouth open",
+  "Comemorando, com os braços para cima":
+    "Celebrating, arms up",
+  "Mandando beijo":
+    "Blowing a kiss",
+  "Pensativo, com a mão no queixo":
+    "Thoughtful, hand on chin",
+  "O que o personagem está fazendo na figurinha. Ex.: tomando café com cara de segunda-feira":
+    "What the character is doing in the sticker. E.g.: drinking coffee with a Monday face",
+  "Trocar a figurinha":
+    "Change the sticker",
+  "Enviar a figurinha original":
+    "Upload the original sticker",
+  "Envie a figurinha (WebP, PNG ou JPEG). O personagem entra no lugar de quem está nela, com a mesma pose, expressão e estilo.":
+    "Upload the sticker (WebP, PNG or JPEG). The character takes the place of whoever is in it, with the same pose, expression and style.",
+  "Criando a figurinha…":
+    "Creating the sticker…",
+  "Figurinhas do personagem":
+    "Character's stickers",
+  "Nenhuma figurinha ainda. Crie a primeira acima.":
+    "No stickers yet. Create the first one above.",
+  "Excluir esta figurinha?":
+    "Delete this sticker?",
+  "Ela sai da lista do personagem. Não dá para desfazer.":
+    "It is removed from the character's list. This can't be undone.",
+  "Para usar no WhatsApp: baixe a figurinha e, na conversa, abra as figurinhas → Criar → escolha o arquivo. Elas já saem no formato do WhatsApp (512×512, fundo transparente).":
+    "To use on WhatsApp: download the sticker and, in the chat, open stickers → Create → pick the file. They already come in WhatsApp's format (512×512, transparent background).",
+  "Figurinha de WhatsApp (criar ou trocar o personagem)":
+    "WhatsApp sticker (create or swap the character)",
+  "Criando figurinha":
+    "Creating sticker",
+
+  "Envie a figurinha (o arquivo do “Salvar como” do WhatsApp serve, mesmo sem extensão). O personagem entra no lugar de quem está nela, com a mesma pose, expressão e estilo. De figurinha animada, vale um quadro do meio: o resultado é parado.":
+    "Upload the sticker (the file from WhatsApp's “Save as” works, even without an extension). The character takes the place of whoever is in it, with the same pose, expression and style. For an animated sticker, a middle frame is used: the result is a still sticker.",
+
+  "O que trocar":
+    "What to swap",
+  "Só o rosto":
+    "Face only",
+  "Rosto e roupa":
+    "Face and outfit",
+  "a roupa da figurinha continua":
+    "the sticker's outfit stays",
+  "ele entra com a roupa dele":
+    "they come in with their own outfit",
+  "Envie a figurinha (o arquivo do “Salvar como” do WhatsApp serve, mesmo sem extensão). O personagem entra no lugar de quem está nela, com a mesma pose, expressão e estilo.":
+    "Upload the sticker (the file from WhatsApp's “Save as” works, even without an extension). The character takes the place of whoever is in it, with the same pose, expression and style.",
+  "Figurinha animada continua animada: é feita pela troca em vídeo, leva alguns minutos e custa a partir de":
+    "An animated sticker stays animated: it goes through the video swap, takes a few minutes and costs from",
+  "Animando…":
+    "Animating…",
+  "Animada":
+    "Animated",
+  "Compartilhar":
+    "Share",
+  "Levar para o WhatsApp":
+    "Take it to WhatsApp",
+  "Baixar pacote de figurinhas":
+    "Download sticker pack",
+  "Baixar pacote das animadas":
+    "Download animated pack",
+  "O WhatsApp pede pelo menos 3 figurinhas por pacote.":
+    "WhatsApp requires at least 3 stickers per pack.",
+  "O pacote (.wastickers) abre num aplicativo de figurinhas, como o Sticker Maker, que adiciona todas ao WhatsApp de uma vez. O WhatsApp pede de 3 a 30 figurinhas por pacote e não mistura paradas com animadas.":
+    "The pack (.wastickers) opens in a sticker app, such as Sticker Maker, which adds them all to WhatsApp at once. WhatsApp requires 3 to 30 stickers per pack and doesn't mix still and animated ones.",
+  "Uma só: baixe ou compartilhe a figurinha e, na conversa, abra as figurinhas → Criar → escolha o arquivo.":
+    "Just one: download or share the sticker and, in the chat, open stickers → Create → pick the file.",
+
+  "Cada pessoa marcada vira o personagem escolhido para ela. Clique no número para desmarcar.":
+    "Each marked person becomes the character chosen for them. Click the number to unmark.",
+  "Clique em quem você quer trocar (até 3 pessoas). Sem marcar ninguém, a IA troca a pessoa principal.":
+    "Click on who you want to swap (up to 3 people). With nobody marked, the AI swaps the main person.",
+
+  "Trocando o personagem…":
+    "Swapping the character…",
+  "Costuma levar de 5 a 10 min":
+    "Usually takes 5 to 10 min",
+  "Está demorando mais que o normal. Pode deixar aberto.":
+    "Taking longer than usual. You can leave it open.",
 };

@@ -1,3 +1,4 @@
+import { ESTILOS_TROCA_IDS } from "@/lib/video/estilos";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
@@ -6,8 +7,10 @@ import { hit, readIp } from "@/lib/ai/rate-limit";
 import { DECLARACAO_VIDEO_LINK } from "@/lib/declaracoes";
 import { baixarVideo } from "@/lib/video/link";
 import {
+  cobrancaRestante,
   cobrarOuResponder,
   creditosAtivos,
+  estornarParcial,
   estornarSeHouver,
   planoAtual,
   type Cobranca,
@@ -34,22 +37,33 @@ import {
 } from "@/lib/storage/s3";
 import {
   cortarInicio,
+  cortesDeCamera,
   detectarViradas,
   probe,
   trechosTroca,
 } from "@/lib/video/ffmpeg";
 import { getFal, mensagemDeErro } from "@/lib/video/fal";
 import {
+  acaoDoTrecho,
+  alvosNosTrechos,
+  entradasDosAlvos,
   iniciarTroca,
   MOTORES_TROCA,
   personagemSemFundo,
 } from "@/lib/video/troca";
 import { descreverPessoas } from "@/lib/video/pessoas";
-import { alvosPorTrecho, prepararAncora } from "@/lib/video/ancora";
+import {
+  acoesDosTrechos,
+  linhaDoTempoDosAlvos,
+  prepararAncora,
+  prepararTomadas,
+} from "@/lib/video/ancora";
 import {
   custoTroca,
   custoTrocaPremium,
   KLING_TROCA,
+  segundosDaTomada,
+  trocaPorTomadas,
   QUALIDADES_TROCA,
   SEEDANCE_TROCA,
 } from "@/lib/video/precos";
@@ -95,6 +109,8 @@ const BodySchema = z.object({
   qualidade: z.enum(QUALIDADES_TROCA).default("pro"),
   /** Pede pra remover legendas/textos da tela no mesmo passo. */
   removerTexto: z.boolean().default(false),
+  /** Estilo visual do vídeo: realista (padrão) ou redesenhado (desenho, anime, 3D). */
+  estilo: z.enum(ESTILOS_TROCA_IDS).default("realista"),
   /** Usar só os primeiros N segundos do vídeo (ausente = o vídeo inteiro). */
   segundos: z.union([z.literal(10), z.literal(15), z.literal(30)]).optional(),
 });
@@ -279,9 +295,20 @@ export async function POST(req: Request) {
           );
       }
 
-      const creditos = premium
+      // Cortes de câmera e movimentos bruscos (o Seedance não usa: faz até 30s de uma vez).
+      const viradas = premium ? [] : await detectarViradas(arquivo);
+      // Vídeo de cortes rápidos (Kling): cada tomada vai sozinha ao motor, as
+      // curtas em câmera lenta. O Kling cobra pelo que processa — é isso que é
+      // cobrado aqui (o máximo; tomada sem ninguém a trocar é devolvida abaixo).
+      const tomadas = premium
+        ? null
+        : trocaPorTomadas(cortesDeCamera(viradas), duracao);
+      let segundosCobrados = tomadas
+        ? Number(tomadas.reduce((t, x) => t + segundosDaTomada(x), 0).toFixed(2))
+        : duracao;
+      let creditos = premium
         ? creditosTrocaPremium(duracao)
-        : creditosTroca(duracao, body.qualidade);
+        : creditosTroca(segundosCobrados, body.qualidade);
       const cobrado = await cobrarOuResponder(
         userId,
         creditos,
@@ -322,22 +349,20 @@ export async function POST(req: Request) {
       const personagens = await Promise.all(
         imagens.map((key) => getObjectBuffer(s3, key)),
       );
-      // Kling: o vídeo é dividido nos cortes e movimentos bruscos (depois deles o
-      // motor perde a pessoa até o trecho acabar). O Seedance faz até 30s de uma
-      // vez e não tem quadro-âncora: lá mais emendas atrapalham, fica como era.
-      const trechos = trechosTroca(
-        duracao,
-        MOTORES_TROCA[body.motor].maxTrecho,
-        premium ? [] : await detectarViradas(arquivo),
-        minimo,
-      );
       // Em paralelo: (1) quadro-âncora (só Kling) — a troca feita num quadro do
       // vídeo guia todos os trechos (mesmo visual nas emendas, outras pessoas
       // preservadas) e, sem ninguém marcado, descreve a pessoa principal;
-      // (2) personagens sem fundo; (3) com mais de uma pessoa marcada e vídeo
-      // em trechos, quem aparece em cada trecho.
-      const [ancora, personagensUrl, porTrecho] = await Promise.all([
-        body.motor === "kling"
+      // (2) personagens sem fundo; (3) com pessoas marcadas, em que momentos
+      // cada uma aparece. Tomada por tomada, cada tomada tem a sua âncora: a do
+      // vídeo inteiro só é feita se for preciso descrever a pessoa principal.
+      const semAncoraGeral = {
+        imagem: null,
+        descricoes: descricoes as Array<string | undefined>,
+        outras: [] as string[],
+        naAncora: [] as number[],
+      };
+      const [ancora, personagensUrl, linha] = await Promise.all([
+        body.motor === "kling" && !(tomadas && body.pessoas)
           ? prepararAncora({
               arquivo,
               dir,
@@ -345,50 +370,149 @@ export async function POST(req: Request) {
               marcadas: body.pessoas,
               descricoes,
               personagens,
+              estilo: body.estilo,
             })
-          : {
-              imagem: null,
-              descricoes,
-              outras: [] as string[],
-              naAncora: [] as number[],
-            },
+          : semAncoraGeral,
         Promise.all(
           personagens.map((imagem) => personagemSemFundo(fal, imagem)),
         ),
-        body.pessoas && body.pessoas.length > 1
-          ? alvosPorTrecho({
+        body.pessoas && !tomadas
+          ? linhaDoTempoDosAlvos({
               arquivo,
               dir,
               duracao,
-              trechos,
               marcadas: body.pessoas,
               descricoes,
             })
-          : undefined,
+          : null,
       ]);
       const alvos = personagensUrl.map((figura, i) => ({
         personagemUrl: figura.url,
         rostoUrl: figura.rostoUrl,
         descricao: ancora.descricoes[i],
       }));
-      const troca = await iniciarTroca({
-        fal,
-        motor: body.motor,
-        qualidade: body.qualidade,
-        arquivo,
-        info,
-        alvos,
-        removerTexto: body.removerTexto,
-        jobId,
-        ancora: ancora.imagem,
-        outras: ancora.outras,
-        naAncora: ancora.naAncora,
-        trechos,
-        alvosPorTrecho: porTrecho,
-      });
+
+      let troca: Awaited<ReturnType<typeof iniciarTroca>>;
+      let porTrecho: number[][] | undefined;
+      let acoes: Array<string | undefined> | undefined;
+      /** Para entender um resultado ruim depois: o que foi lido de cada tomada. */
+      let resumoDasTomadas:
+        | Array<{ inicio: number; duracao: number; alvos: number[]; acao?: string }>
+        | undefined;
+      if (tomadas) {
+        const preparadas = await prepararTomadas({
+          arquivo,
+          dir,
+          info,
+          tomadas,
+          marcadas: body.pessoas,
+          descricoes: ancora.descricoes,
+          personagens,
+          estilo: body.estilo,
+        });
+        const enviadas = preparadas.filter((t) => t.presentes.length);
+        if (!enviadas.length) {
+          await estornarSeHouver(cobranca);
+          cobranca = null;
+          return NextResponse.json(
+            {
+              error:
+                "Não achei as pessoas marcadas em nenhuma tomada do vídeo. Marque de novo, num momento em que elas aparecem bem.",
+              code: "BAD_INPUT",
+            },
+            { status: 400 },
+          );
+        }
+        // Só as tomadas que vão ao motor são cobradas: a diferença volta agora.
+        segundosCobrados = Number(
+          enviadas.reduce((t, x) => t + segundosDaTomada(x), 0).toFixed(2),
+        );
+        const reais = creditosTroca(segundosCobrados, body.qualidade);
+        if (cobranca && reais < creditos) {
+          await estornarParcial(cobranca, creditos - reais);
+          cobranca = cobrancaRestante(cobranca, creditos - reais);
+        }
+        creditos = Math.min(creditos, reais);
+        resumoDasTomadas = preparadas.map((t) => ({
+          inicio: t.inicio,
+          duracao: t.duracao,
+          alvos: t.presentes,
+          acao: t.acao,
+        }));
+        troca = await iniciarTroca({
+          fal,
+          motor: body.motor,
+          qualidade: body.qualidade,
+          arquivo,
+          info,
+          alvos,
+          removerTexto: body.removerTexto,
+          estilo: body.estilo,
+          jobId,
+          tomadas: preparadas.map((t) => ({
+            inicio: t.inicio,
+            duracao: t.duracao,
+            alvos: t.presentes.map((n, k) => ({
+              ...alvos[n],
+              descricao: t.descricoes[k],
+            })),
+            ancora: t.ancora,
+            naAncora: t.naAncora,
+            acao: acaoDoTrecho(t.acao, t.presentes, alvos.length, body.motor),
+          })),
+        });
+      } else {
+        // Kling: um trecho novo começa quando uma pessoa marcada entra em cena (o
+        // motor só troca bem quem já está na tela no começo do trecho) e nos cortes
+        // de câmera. O Seedance faz até 30s de uma vez e não tem quadro-âncora: lá
+        // mais emendas atrapalham, fica dividido só pelo tamanho.
+        const trechos = trechosTroca(
+          duracao,
+          MOTORES_TROCA[body.motor].maxTrecho,
+          viradas,
+          minimo,
+          linha && !premium ? entradasDosAlvos(linha, imagens.length) : [],
+        );
+        // Cada trecho recebe só os personagens de quem aparece nele: com todos,
+        // o motor "encaixa" o personagem de quem está fora em quem está em cena.
+        porTrecho =
+          linha && imagens.length > 1
+            ? alvosNosTrechos(trechos, linha, imagens.length)
+            : undefined;
+        // O que acontece em cada trecho, em palavras: sem isso gestos rápidos (um
+        // golpe, uma queda) somem do resultado.
+        acoes = premium
+          ? undefined
+          : await acoesDosTrechos({
+              arquivo,
+              dir,
+              duracao,
+              trechos,
+              viradas,
+              marcadas: body.pessoas,
+              descricoes: ancora.descricoes,
+            });
+        troca = await iniciarTroca({
+          fal,
+          motor: body.motor,
+          qualidade: body.qualidade,
+          arquivo,
+          info,
+          alvos,
+          removerTexto: body.removerTexto,
+          estilo: body.estilo,
+          jobId,
+          ancora: ancora.imagem,
+          outras: ancora.outras,
+          naAncora: ancora.naAncora,
+          trechos,
+          alvosPorTrecho: porTrecho,
+          acoesPorTrecho: acoes,
+        });
+      }
       const custo = premium
         ? custoTrocaPremium(duracao)
-        : custoTroca(duracao, body.qualidade);
+        : custoTroca(segundosCobrados, body.qualidade);
 
       await pool.query(
         `insert into video_jobs (id, user_id, character_id, provedor, tipo, modelo, fal_request_id, input, duracao)
@@ -399,7 +523,8 @@ export async function POST(req: Request) {
           body.characterId,
           "fal",
           troca.modelo ?? MOTORES_TROCA[body.motor].modelo,
-          troca.segmentos[0].requestId,
+          // O primeiro trecho pode ser uma tomada sem troca (sem pedido no motor).
+          troca.segmentos.find((g) => g.requestId)?.requestId ?? "",
           JSON.stringify({
             videoKey: body.videoKey,
             link: link
@@ -410,6 +535,7 @@ export async function POST(req: Request) {
                 }
               : undefined,
             imageKey: imagens[0],
+            estilo: body.estilo,
             antesKey,
             pessoas: body.pessoas?.map((p, i) => ({
               ...p,
@@ -421,6 +547,10 @@ export async function POST(req: Request) {
             outras: ancora.outras,
             // Quais pessoas marcadas a IA viu em cada trecho (só as vistas vão ao motor).
             alvosPorTrecho: porTrecho,
+            // A ação descrita de cada trecho (como foi lida, com [[1]], [[2]]…).
+            acoesPorTrecho: acoes,
+            // Modo tomada por tomada: quem foi visto e o que acontece em cada uma.
+            tomadas: resumoDasTomadas,
             // Trechos na fila e o áudio original (volta no vídeo final).
             ...troca,
             removerTexto: body.removerTexto,

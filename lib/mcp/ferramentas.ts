@@ -1,3 +1,4 @@
+import { ESTILOS_TROCA_IDS } from "@/lib/video/estilos";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { POST as escreverPost } from "@/app/api/escrever/route";
@@ -556,6 +557,10 @@ export const FERRAMENTAS: Ferramenta[] = [
         .describe("Usar só os primeiros N segundos. Ausente: o vídeo inteiro."),
       qualidade: z.enum(["standard", "pro", "4k"]).default("pro"),
       imagem_key: z.string().optional(),
+      estilo: z
+        .enum(ESTILOS_TROCA_IDS)
+        .default("realista")
+        .describe("Estilo visual do vídeo: realista (só a pessoa muda) ou o vídeo inteiro redesenhado no estilo escolhido (desenho, anime, animação 3D, quadrinhos, aquarela, massinha, pixel art, neon ou blocos)."),
     }),
     executar: async ({ userId, args, req }) => {
       const a = args as {
@@ -564,6 +569,7 @@ export const FERRAMENTAS: Ferramenta[] = [
         direitos_confirmados: boolean;
         segundos?: number;
         qualidade: string;
+        estilo: string;
         imagem_key?: string;
       };
       if (!a.direitos_confirmados)
@@ -586,6 +592,7 @@ export const FERRAMENTAS: Ferramenta[] = [
           motor: "kling",
           qualidade: a.qualidade,
           segundos: a.segundos,
+          estilo: a.estilo,
         },
         req,
       );

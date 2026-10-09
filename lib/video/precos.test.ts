@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { custoCriar, custoTroca, custoTrocaPremium } from "./precos";
+import {
+  custoCriar,
+  custoTroca,
+  custoTrocaPremium,
+  MAX_TOMADAS,
+  segundosCobradosTroca,
+  segundosDaTomada,
+  TOMADA_MIN,
+  tomadasDoVideo,
+  trocaPorTomadas,
+} from "./precos";
 
 describe("estimativas de custo de vídeo", () => {
   it("troca (Kling O3 Pro) cobra US$ 0,168/s, mínimo 3s", () => {
@@ -119,5 +129,44 @@ describe("leitura das cenas do roteiro (resposta da IA)", () => {
     expect(cenasDaResposta("Gente, bora treinar junto!")).toEqual([
       { fala: "Gente, bora treinar junto!", cenario: "" },
     ]);
+  });
+});
+
+describe("troca tomada por tomada", () => {
+  // O reel de teste: 9 cortes de câmera em 9,667 s.
+  const cortes = [1.333, 3.333, 3.733, 4.733, 5.567, 6.4, 7.167, 8.133, 9.0];
+
+  it("as tomadas vão de corte a corte e cobrem o vídeo inteiro", () => {
+    const t = tomadasDoVideo(cortes, 9.667);
+    expect(t).toHaveLength(10);
+    expect(t[0]).toEqual({ inicio: 0, duracao: 1.333 });
+    expect(t[2]).toEqual({ inicio: 3.333, duracao: 0.4 });
+    expect(t.reduce((s, x) => s + x.duracao, 0)).toBeCloseTo(9.667, 2);
+  });
+
+  it("um corte colado em outro (ou no fim) não cria tomada própria", () => {
+    expect(tomadasDoVideo([2, 2.1, 9.9], 10).map((x) => x.inicio)).toEqual([0, 2]);
+  });
+
+  it("só entra no modo quando há tomada mais curta que o mínimo do motor", () => {
+    expect(trocaPorTomadas(cortes, 9.667)).toHaveLength(10);
+    // Sem cortes, ou só com tomadas longas: modo normal.
+    expect(trocaPorTomadas([], 20)).toBeNull();
+    expect(trocaPorTomadas([8, 14], 20)).toBeNull();
+    // Tomadas demais: modo normal.
+    const muitos = Array.from({ length: MAX_TOMADAS + 3 }, (_, i) => (i + 1) * 1.5);
+    expect(trocaPorTomadas(muitos, 60)).toBeNull();
+  });
+
+  it("cobra o que o Kling processa: cada tomada curta conta como TOMADA_MIN", () => {
+    // 10 tomadas, mas a de 0,4 s fica como no original: não é enviada nem cobrada.
+    expect(segundosCobradosTroca(cortes, 9.667)).toBeCloseTo(9 * TOMADA_MIN, 2);
+    expect(segundosDaTomada({ inicio: 3.333, duracao: 0.4 })).toBe(0);
+    expect(segundosDaTomada({ inicio: 0, duracao: 0.5 })).toBe(TOMADA_MIN);
+    // Tomada longa conta pela duração dela.
+    expect(segundosCobradosTroca([1, 9], 12)).toBeCloseTo(TOMADA_MIN + 8 + TOMADA_MIN, 2);
+    // Modo normal: a duração do vídeo.
+    expect(segundosCobradosTroca([], 20)).toBe(20);
+    expect(segundosCobradosTroca([8, 14], 20)).toBe(20);
   });
 });

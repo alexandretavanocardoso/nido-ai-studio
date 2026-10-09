@@ -1,3 +1,4 @@
+import { ESTILOS_TROCA_IDS } from "@/lib/video/estilos";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { nanoid } from "nanoid";
@@ -409,6 +410,10 @@ export const MAIS_FERRAMENTAS: Ferramenta[] = [
         .max(3),
       segundos: z.union([z.literal(10), z.literal(15), z.literal(30)]).optional(),
       qualidade: z.enum(["standard", "pro", "4k"]).default("pro"),
+      estilo: z
+        .enum(ESTILOS_TROCA_IDS)
+        .default("realista")
+        .describe("Estilo visual do vídeo: realista (só a pessoa muda) ou o vídeo inteiro redesenhado no estilo escolhido (desenho, anime, animação 3D, quadrinhos, aquarela, massinha, pixel art, neon ou blocos)."),
     }),
     executar: async ({ userId, args, req }) => {
       const a = args as {
@@ -419,6 +424,7 @@ export const MAIS_FERRAMENTAS: Ferramenta[] = [
         pessoas: Array<{ x: number; y: number; t: number; imagem_key: string }>;
         segundos?: number;
         qualidade: string;
+        estilo: string;
       };
       if (!a.link_id === !a.video_key)
         throw new ErroDaFerramenta("Informe link_id OU video_key.");
@@ -443,6 +449,7 @@ export const MAIS_FERRAMENTAS: Ferramenta[] = [
           motor: "kling",
           qualidade: a.qualidade,
           segundos: a.segundos,
+          estilo: a.estilo,
         },
         req,
       );

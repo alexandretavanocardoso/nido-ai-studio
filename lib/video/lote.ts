@@ -6,9 +6,15 @@ import { mensagemDeErro } from "@/lib/fal";
  * na fila. O job só termina quando todos terminam; qualquer falha derruba tudo.
  */
 export interface Segmento {
+  /** Pedido na fila do fal. Vazio quando o trecho já está pronto (`urlPronta`). */
   requestId: string;
   inicio: number;
   duracao: number;
+  /**
+   * Trecho que não passa pelo motor (uma tomada em que ninguém a trocar
+   * aparece): o próprio original, já no storage do fal, entra direto na montagem.
+   */
+  urlPronta?: string;
 }
 
 export type EstadoLote =
@@ -22,7 +28,11 @@ export async function estadoLote(
   segmentos: Segmento[],
 ): Promise<EstadoLote> {
   const status = await Promise.all(
-    segmentos.map((s) => fal.queue.status(modelo, { requestId: s.requestId })),
+    segmentos.map((s) =>
+      s.urlPronta
+        ? { status: "COMPLETED" as const }
+        : fal.queue.status(modelo, { requestId: s.requestId }),
+    ),
   );
   const prontos = status.filter((s) => s.status === "COMPLETED").length;
   if (prontos < segmentos.length) {
@@ -33,6 +43,7 @@ export async function estadoLote(
   try {
     const urls = await Promise.all(
       segmentos.map(async (s) => {
+        if (s.urlPronta) return s.urlPronta;
         const r = await fal.queue.result(modelo, { requestId: s.requestId });
         const url = (r.data as { video?: { url?: string } })?.video?.url;
         if (!url) throw new Error("A IA não devolveu um dos trechos.");

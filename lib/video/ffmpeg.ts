@@ -519,11 +519,29 @@ export function trechosTroca(
   viradas: Virada[] = [],
   /** Menor trecho que o motor aceita: nenhuma divisão fica mais perto que isso de outra. */
   minimo = 3,
+  /**
+   * Instantes em que uma pessoa a trocar ENTRA em cena (`entradasDosAlvos`).
+   * Têm prioridade sobre as viradas: o motor só troca bem quem já está na tela
+   * quando o trecho começa — quem entra no meio costuma ficar como no original.
+   */
+  entradas: number[] = [],
 ): Array<{ inicio: number; duracao: number }> {
-  // As viradas mais fortes primeiro; cada uma só entra se sobrar `minimo` dos dois lados.
   const pontos = [0, duracao];
-  for (const v of [...viradas].sort((a, b) => b.forca - a.forca))
-    if (pontos.every((p) => Math.abs(p - v.t) >= minimo)) pontos.push(v.t);
+  for (const t of entradas)
+    if (pontos.every((p) => Math.abs(p - t) >= minimo)) pontos.push(t);
+  // Depois as viradas, das mais fortes para as mais fracas; cada ponto só entra
+  // se sobrar `minimo` dos dois lados.
+  // Corte de câmera: divide em cima dele. Movimento brusco (um golpe, um giro
+  // de câmera): um trecho novo começa um pouco ANTES, para o gesto e o que vem
+  // depois dele (a queda) ficarem juntos no começo de um trecho. Testado no
+  // Kling com um tapa, sempre com a ação descrita no pedido (`acoesDosTrechos`
+  // em ./ancora.ts): dividindo em cima do gesto, ele some; sem dividir, num
+  // trecho longo o gesto sai mas a pessoa atingida volta a ser a original
+  // depois dele; começando 0,75 s antes, saem o gesto e a queda com a troca.
+  for (const v of [...viradas].sort((a, b) => b.forca - a.forca)) {
+    const t = v.forca >= CORTE_DE_CAMERA ? v.t : v.t - ANTES_DO_GESTO;
+    if (pontos.every((p) => Math.abs(p - t) >= minimo)) pontos.push(t);
+  }
   pontos.sort((a, b) => a - b);
   const trechos: Array<{ inicio: number; duracao: number }> = [];
   for (let k = 0; k < pontos.length - 1; k++) {
@@ -554,6 +572,17 @@ export interface Virada {
  * bruscos (perto de 0,1), que é onde a troca de pessoa costuma se perder.
  */
 const LIMIAR_VIRADA = 0.08;
+/** A partir desta força a virada é um corte de câmera, não um movimento brusco. */
+export const CORTE_DE_CAMERA = 0.3;
+/** Um movimento brusco começa um trecho novo este tanto (s) antes do seu pico. */
+const ANTES_DO_GESTO = 0.75;
+
+/** Só os cortes de câmera (instantes, em ordem). */
+export const cortesDeCamera = (viradas: Virada[]): number[] =>
+  viradas
+    .filter((v) => v.forca >= CORTE_DE_CAMERA)
+    .map((v) => v.t)
+    .sort((a, b) => a - b);
 
 /** Lê as viradas da saída do ffmpeg (`metadata=print` depois de `select`). */
 export function lerViradas(saida: string): Virada[] {
@@ -605,6 +634,11 @@ export async function prepararTrechoTroca(
   duracao: number,
   saida: string,
   info: VideoInfo,
+  /**
+   * Câmera lenta: o trecho sai `lentidao` vezes mais longo (tomadas mais curtas
+   * que o mínimo do motor). Na montagem, `juntarTrechos` devolve a velocidade.
+   */
+  lentidao = 1,
 ): Promise<void> {
   const { largura, altura } = dimensoesTroca(info.largura, info.altura);
   const fps = info.fps < 24 ? 24 : info.fps > 60 ? 30 : info.fps;
@@ -612,13 +646,14 @@ export async function prepararTrechoTroca(
     "-y",
     "-ss",
     inicio.toFixed(3),
-    "-i",
-    entrada,
+    // Antes do -i: limita o que é LIDO. Depois dele cortaria a saída já esticada.
     "-t",
     duracao.toFixed(3),
+    "-i",
+    entrada,
     "-an",
     "-vf",
-    `scale=${largura}:${altura},setsar=1,fps=${fps}`,
+    `${lentidao > 1 ? `setpts=${lentidao.toFixed(4)}*PTS,` : ""}scale=${largura}:${altura},setsar=1,fps=${fps}`,
     "-c:v",
     "libx264",
     "-preset",
@@ -769,6 +804,67 @@ export async function juntarFalas(
     "yuv420p",
     "-movflags",
     "+faststart",
+    saida,
+  ]);
+}
+
+/** Quadros numerados (PNG, ex.: q-%05d.png) → MP4 sem som, no ritmo dado. */
+export async function quadrosParaVideo(
+  padrao: string,
+  fps: number,
+  saida: string,
+): Promise<void> {
+  await run([
+    "-y",
+    "-framerate",
+    String(fps),
+    "-i",
+    padrao,
+    "-vf",
+    "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "16",
+    "-movflags",
+    "+faststart",
+    saida,
+  ]);
+}
+
+/**
+ * Começo de um vídeo → WebP animado quadrado (figurinha). `qualidade` vai de
+ * 0 a 100; menos quadros por segundo e menos qualidade deixam o arquivo menor.
+ */
+export async function videoParaWebpAnimado(
+  video: string,
+  segundos: number,
+  lado: number,
+  fps: number,
+  qualidade: number,
+  saida: string,
+): Promise<void> {
+  await run([
+    "-y",
+    "-i",
+    video,
+    "-t",
+    segundos.toFixed(3),
+    "-vf",
+    `fps=${fps},scale=${lado}:${lado}:force_original_aspect_ratio=increase,crop=${lado}:${lado}`,
+    "-an",
+    "-c:v",
+    "libwebp_anim",
+    "-lossless",
+    "0",
+    "-q:v",
+    String(qualidade),
+    "-compression_level",
+    "5",
+    "-loop",
+    "0",
     saida,
   ]);
 }

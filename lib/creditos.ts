@@ -341,3 +341,15 @@ export async function estornarParcial(c: Cobranca | null | undefined, qtd: numbe
     console.error("[creditos] estorno parcial falhou:", e)
   );
 }
+
+/** A cobrança que sobra depois de um `estornarParcial(c, qtd)` (mesma regra: devolve primeiro o avulso). */
+export function cobrancaRestante(c: Cobranca, qtd: number): Cobranca {
+  const devolvido = Math.max(0, Math.min(qtd, c.total));
+  const doAvulso = Math.min(devolvido, c.doAvulso);
+  return {
+    ...c,
+    total: c.total - devolvido,
+    doAvulso: c.doAvulso - doAvulso,
+    doPlano: c.doPlano - (devolvido - doAvulso),
+  };
+}
