@@ -117,6 +117,26 @@ describe("lerItem", () => {
   });
 });
 
+describe("YouTube com o arquivo guardado no Apify", () => {
+  it("usa o arquivo guardado (já com áudio) e monta a capa pelo id", () => {
+    const v = lerItem("youtube", {
+      id: "-DuWGX8xbmQ",
+      downloadedFileUrl:
+        "https://api.apify.com/v2/key-value-stores/abc/records/v.mp4",
+      // Links diretos do YouTube: presos ao IP do Apify, não servem daqui.
+      videoOnlyUrl: "https://manifest.googlevideo.com/api/manifest/hls",
+      audioOnlyUrl: "https://manifest.googlevideo.com/api/manifest/hls-a",
+      durationSeconds: 38,
+    });
+    expect(v).toMatchObject({
+      videoUrl: "https://api.apify.com/v2/key-value-stores/abc/records/v.mp4",
+      audioUrl: null,
+      duracao: 38,
+      thumb: "https://i.ytimg.com/vi/-DuWGX8xbmQ/hqdefault.jpg",
+    });
+  });
+});
+
 describe("YouTube com áudio separado", () => {
   it("pega o áudio só quando o melhor formato não tem som", () => {
     const base = {

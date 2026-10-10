@@ -8,7 +8,7 @@ import {
   proporcaoMaisProxima,
   shrinkReferencia,
 } from "@/lib/ai/gemini";
-import { promptTrocaImagem } from "@/lib/prompts/trocar-imagem";
+import { promptTrocaImagem, type RoupaTroca } from "@/lib/prompts/trocar-imagem";
 import {
   extrairQuadro,
   extrairQuadroMarcado,
@@ -471,6 +471,7 @@ export async function prepararTomadas(o: {
   descricoes: Array<string | undefined>;
   personagens: Buffer[];
   estilo?: Parameters<typeof pedidoDoEstilo>[0];
+  roupa?: RoupaTroca;
 }): Promise<TomadaPreparada[]> {
   const alvos = o.descricoes
     .map((d, i) => ({ d, i }))
@@ -544,6 +545,7 @@ export async function prepararTomadas(o: {
         personagens: o.personagens,
         info: o.info,
         estilo: o.estilo,
+        roupa: o.roupa,
         prazo,
         tentativas: 2,
       });
@@ -724,6 +726,8 @@ export async function passadaConfere(o: {
   depois: Buffer;
   personagem: Buffer;
   descricao: string;
+  /** "foto": a roupa continua a do quadro original — não é sinal de troca falha. */
+  roupa?: RoupaTroca;
 }): Promise<boolean> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) return true;
@@ -739,7 +743,9 @@ export async function passadaConfere(o: {
                 "Image 1 is a frame of a video. Image 2 is an edit of image 1 in which exactly ONE person should have been replaced by the character shown in image 3; " +
                 `that person is: ${o.descricao}. Everyone else must still be the same people as in image 1 (small differences in pose or sharpness do not count). ` +
                 'Answer with JSON only: {"target_replaced": true|false, "others_changed": true|false, "character_count": <number>}. ' +
-                "target_replaced: in image 2 that person is gone and the character of image 3 (its face, hair or headwear and outfit) stands in their place. " +
+                (o.roupa === "foto"
+                  ? "target_replaced: in image 2 that person now has the head of the character of image 3 (its face, hair or headwear, skin tone). They are expected to keep their own body and clothes from image 1 — that is correct, not a failure. "
+                  : "target_replaced: in image 2 that person is gone and the character of image 3 (its face, hair or headwear and outfit) stands in their place. ") +
                 "others_changed: some OTHER person is no longer the same person or character as in image 1 — a different head, face, hair or headwear, or a different outfit. A small change (pose, sharpness, the colour of one small garment detail) does not count. " +
                 "character_count: how many people in image 2 look like, or wear distinctive items of, the character of image 3.",
             },
@@ -810,6 +816,8 @@ export async function trocarNoQuadro(o: {
   personagens: Buffer[];
   info: VideoInfo;
   estilo?: Parameters<typeof pedidoDoEstilo>[0];
+  /** Roupa de quem é trocado: do personagem (padrão) ou a do vídeo ("foto"). */
+  roupa?: RoupaTroca;
   /** Onde cada alvo está NESTE quadro ("on the left side of the frame"), quando se sabe. */
   posicoes?: Array<string | undefined>;
   /** Instante (ms) em que tudo tem que ter acabado — quem chama divide o tempo da rota. */
@@ -849,8 +857,10 @@ export async function trocarNoQuadro(o: {
               imagem: 2,
             },
           ],
-          // No vídeo o personagem entra com o próprio look (como a troca em vídeo sempre fez).
-          roupa: "personagem",
+          // Por padrão o personagem entra com o próprio look; com "foto", só a
+          // cabeça e a pele mudam e a roupa do vídeo fica.
+          roupa: o.roupa ?? "personagem",
+          soCabeca: o.roupa === "foto",
           estilo: pedidoDoEstilo(o.estilo),
         }),
         referencias: [
@@ -880,6 +890,7 @@ export async function trocarNoQuadro(o: {
           depois: passada,
           personagem: o.personagens[n],
           descricao,
+          roupa: o.roupa,
         }))
       ) {
         console.warn(
@@ -927,6 +938,8 @@ export async function prepararAncora(o: {
   personagens: Buffer[];
   /** Estilo visual do vídeo: o quadro-guia já sai nele. */
   estilo?: EstiloTroca;
+  /** Roupa de quem é trocado: do personagem (padrão) ou a do vídeo ("foto"). */
+  roupa?: RoupaTroca;
 }): Promise<Ancora> {
   let descricoes = o.descricoes;
   // Em paralelo com o resto: quem mais aparece no vídeo (varre ~1 quadro por segundo).
@@ -1066,6 +1079,7 @@ export async function prepararAncora(o: {
       personagens: o.personagens,
       info: o.info,
       estilo: o.estilo,
+      roupa: o.roupa,
       posicoes,
     });
     return { imagem, descricoes, outras: await outrasP, naAncora: feitos };

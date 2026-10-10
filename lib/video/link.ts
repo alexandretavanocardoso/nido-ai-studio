@@ -15,7 +15,12 @@ import { abrirDownloadSeguro } from "./destino-seguro";
  * Actors configuráveis por env (dá pra trocar sem mexer no código):
  *   APIFY_ACTOR_TIKTOK     padrão clockworks/tiktok-scraper
  *   APIFY_ACTOR_INSTAGRAM  padrão apify/instagram-scraper
- *   APIFY_ACTOR_YOUTUBE    padrão maximedupre/youtube-shorts-downloader (só Shorts)
+ *   APIFY_ACTOR_YOUTUBE    padrão streamers/youtube-video-downloader
+ *
+ * No YouTube o actor tem que GUARDAR o arquivo (no Apify): o link direto do
+ * YouTube é assinado para o IP de quem o pediu e dá 403 em qualquer outro
+ * servidor — foi por isso que o maximedupre/youtube-shorts-downloader, que só
+ * devolve esse link, parou de servir.
  */
 export type Plataforma = "tiktok" | "instagram" | "youtube" | "x" | "direto";
 /** Redes buscadas pelo Apify. */
@@ -65,7 +70,7 @@ function ator(p: PlataformaApify): string {
   const padrao = {
     tiktok: "clockworks/tiktok-scraper",
     instagram: "apify/instagram-scraper",
-    youtube: "maximedupre/youtube-shorts-downloader",
+    youtube: "streamers/youtube-video-downloader",
   }[p];
   const env = {
     tiktok: "APIFY_ACTOR_TIKTOK",
@@ -83,8 +88,21 @@ function entradaAtor(
     return { postURLs: [url], shouldDownloadVideos: true, resultsPerPage: 1 };
   if (p === "instagram")
     return { directUrls: [url], resultsType: "posts", resultsLimit: 1 };
-  return { shortUrls: [url], preferredResolution: "1080p" };
+  return {
+    videos: [{ url }],
+    // Guarda o arquivo no Apify (some em ~3 dias): é o que dá para baixar daqui.
+    storeInKVStore: true,
+    // O actor limita pela ALTURA: num Short (vertical) "1440p" dá 720×1280 e
+    // "1080p" cairia para 480×854. Vídeo deitado fica em 1280×720. Cobra por MB.
+    preferredQuality:
+      process.env.APIFY_YOUTUBE_QUALIDADE?.trim() ||
+      (/\/shorts\//.test(url) ? "1440p" : "720p"),
+    preferredFormat: "mp4",
+  };
 }
+
+/** Segundos que o Apify espera o actor terminar (o do YouTube baixa e guarda o arquivo: ~1–2 min). */
+const esperaAtor = (p: PlataformaApify) => (p === "youtube" ? 240 : 120);
 
 export interface VideoDoLink {
   plataforma: Plataforma;
@@ -133,16 +151,26 @@ export function lerItem(p: Plataforma, item: Item): VideoDoLink | null {
     autor = txt(item.ownerUsername);
     thumb = txt(item.displayUrl);
   } else if (p === "youtube") {
-    videoUrl = txt(item.bestDownloadUrl);
-    if (
-      !txt(obj(item.bestFormat).audioCodec) ||
-      obj(item.bestFormat).audioCodec === "none"
-    )
-      audioUrl = txt(item.audioDownloadUrl);
+    // Arquivo guardado no Apify (já com áudio). `bestDownloadUrl` é o formato
+    // do actor antigo: link direto do YouTube, com o áudio à parte.
+    videoUrl = txt(item.downloadedFileUrl);
+    if (!videoUrl) {
+      videoUrl = txt(item.bestDownloadUrl);
+      if (
+        !txt(obj(item.bestFormat).audioCodec) ||
+        obj(item.bestFormat).audioCodec === "none"
+      )
+        audioUrl = txt(item.audioDownloadUrl);
+    }
     duracao = num(item.durationSeconds);
     titulo = txt(item.title);
     autor = txt(item.channelName);
-    thumb = txt(item.thumbnailUrl);
+    const id = txt(item.id) ?? txt(item.videoId);
+    thumb =
+      txt(item.thumbnailUrl) ??
+      (id && /^[\w-]{11}$/.test(id)
+        ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
+        : null);
   } else if (p === "x") {
     // Post do twitterapi.io: o vídeo vem em várias qualidades; fica o .mp4 de
     // maior bitrate. Sem vídeo no post, vale o do post citado ou repostado.
@@ -260,7 +288,7 @@ export async function resolverLink(url: string): Promise<VideoDoLink> {
   if (!token)
     throw new LinkError("Busca por link não configurada (APIFY_TOKEN).");
   const res = await fetch(
-    `https://api.apify.com/v2/acts/${ator(p)}/run-sync-get-dataset-items?timeout=120&clean=true`,
+    `https://api.apify.com/v2/acts/${ator(p)}/run-sync-get-dataset-items?timeout=${esperaAtor(p)}&clean=true`,
     {
       method: "POST",
       headers: {
@@ -301,7 +329,30 @@ export async function resolverLink(url: string): Promise<VideoDoLink> {
           : "Não achei o vídeo nesse link (é público? é um vídeo?).",
     );
   }
+  // O actor do YouTube não devolve título nem canal: pega do próprio YouTube.
+  if (p === "youtube" && !video.titulo) {
+    const dados = await dadosDoYouTube(url.trim());
+    video.titulo = dados.titulo?.slice(0, 140) ?? null;
+    video.autor ??= dados.autor;
+  }
   return video;
+}
+
+/** Título e canal de um vídeo público do YouTube (oEmbed, sem chave). Vazio se não responder. */
+async function dadosDoYouTube(
+  url: string,
+): Promise<{ titulo: string | null; autor: string | null }> {
+  try {
+    const res = await fetch(
+      `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(url)}`,
+      { signal: AbortSignal.timeout(4000) },
+    );
+    if (!res.ok) return { titulo: null, autor: null };
+    const j = obj(await res.json());
+    return { titulo: txt(j.title), autor: txt(j.author_name) };
+  } catch {
+    return { titulo: null, autor: null };
+  }
 }
 
 /** Baixa o vídeo pra um arquivo local (com limite de tamanho). Links do Apify levam o token. */

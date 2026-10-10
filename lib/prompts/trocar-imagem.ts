@@ -16,6 +16,12 @@ export function promptTrocaImagem(o: {
   alvos: AlvoImagem[];
   roupa: RoupaTroca;
   /**
+   * Só a cabeça vira o personagem (com o chapéu dele); o corpo e a roupa
+   * ficam os da foto. É o quadro-guia da troca em vídeo com a roupa
+   * original — sem isto, o tronco e o tipo de corpo do personagem vinham junto.
+   */
+  soCabeca?: boolean;
+  /**
    * Estilo em que a imagem inteira deve ser redesenhada (ex.: anime). É o
    * quadro-guia de um vídeo estilizado. Ausente: mantém o estilo da foto.
    */
@@ -24,14 +30,18 @@ export function promptTrocaImagem(o: {
   const alvos = o.alvos.length ? o.alvos : [{ imagem: 2 }];
   const linhas = alvos.map(
     (a) =>
-      `- ${a.descricao?.trim() || "the main person in IMAGE 1"} → their whole body (head, torso, both arms and both hands) becomes the character shown in IMAGE ${a.imagem}.`,
+      o.soCabeca
+        ? `- ${a.descricao?.trim() || "the main person in IMAGE 1"} → ONLY their head becomes the head of the character shown in IMAGE ${a.imagem}; their body and clothes stay as in IMAGE 1.`
+        : `- ${a.descricao?.trim() || "the main person in IMAGE 1"} → their whole body (head, torso, both arms and both hands) becomes the character shown in IMAGE ${a.imagem}.`,
   );
   const deRoupa = o.roupa === "personagem";
   const varias = alvos.length > 1;
   return [
     "Edit IMAGE 1 (the original photo). Replace " +
       (varias ? "the people listed below" : "the person listed below") +
-      " with the character(s) from the other image(s): the whole person — head, torso, arms and hands, including hands in the foreground — becomes the character, with the character's skin tone everywhere. The scene around them stays exactly the same.",
+      (o.soCabeca
+        ? " with the character(s) from the other image(s), HEAD ONLY: the head becomes the character's head, and the visible skin of the body takes the character's skin tone. The body itself — build, muscles, proportions — and every garment stay exactly as in IMAGE 1. The scene around them stays exactly the same."
+        : " with the character(s) from the other image(s): the whole person — head, torso, arms and hands, including hands in the foreground — becomes the character, with the character's skin tone everywhere. The scene around them stays exactly the same."),
     "",
     "REPLACE",
     ...linhas,
@@ -42,9 +52,11 @@ export function promptTrocaImagem(o: {
       : []),
     "",
     "FOR EACH REPLACED PERSON",
-    `- From the character image take the identity: face and facial structure, hair, facial hair, skin tone, body type${
-      deRoupa ? ", and the character's outfit and accessories" : ""
-    }. Keep the character recognizable as the same character.`,
+    o.soCabeca
+      ? "- From the character image take ONLY the head: face and facial structure, hair, facial hair, hat or headwear, glasses, earrings, and the skin tone. Nothing below the neck comes from the character image: not the body type, chest, muscles or outfit."
+      : `- From the character image take the identity: face and facial structure, hair, facial hair, skin tone, body type${
+          deRoupa ? ", and the character's outfit and accessories" : ""
+        }. Keep the character recognizable as the same character.`,
     "- Nothing of the original person's head remains: no trace of their hair, wig, hat, glasses or facial hair, not even under the character's hat. The head is only the character's.",
     "- Hands and arms: IMAGE 1 only gives their position, pose and grip. Their skin is the character's — exactly the same skin colour and complexion as the character's face. Never copy the original person's hands.",
     `- From IMAGE 1 keep: the exact position and scale in the frame, pose, body orientation, head angle and tilt, gaze direction, gesture, facial expression${
@@ -56,7 +68,9 @@ export function promptTrocaImagem(o: {
     ...(deRoupa
       ? []
       : [
-          "- Do NOT take the outfit (jacket, shirt, trousers, shoes) from the character image: the body keeps the clothing from IMAGE 1. Head accessories that define the character (hat, glasses) may stay.",
+          o.soCabeca
+            ? "- Do NOT take the outfit (jacket, shirt, trousers, shoes) from the character image: every garment of IMAGE 1 stays, with the same shape, length and coverage — a shirt stays a shirt covering the same skin. The character's hat or headwear, glasses and earrings come with the head; the original person's own hat or cap is removed."
+            : "- Do NOT take the outfit (jacket, shirt, trousers, shoes) from the character image: the body keeps the clothing from IMAGE 1. Head accessories that define the character (hat, glasses) may stay.",
         ]),
     "- Match the lighting, shadows, colour grading, focus and grain of IMAGE 1 so the character looks naturally photographed in that scene.",
     "",
@@ -71,7 +85,9 @@ export function promptTrocaImagem(o: {
     "REFERENCE IMAGES",
     "The character images are identity references only: do not copy their background, layout, pose or framing. If a character image is a reference sheet with several views, use it only to understand the character.",
     "",
-    "Output a single photo with the same composition as IMAGE 1, in which every visible part of each replaced person (face, body, arms, hands) is consistently the character. No added text, labels, borders or watermarks.",
+    o.soCabeca
+      ? "Output a single photo with the same composition as IMAGE 1, in which each replaced person has the character's head on their own body and clothes. No added text, labels, borders or watermarks."
+      : "Output a single photo with the same composition as IMAGE 1, in which every visible part of each replaced person (face, body, arms, hands) is consistently the character. No added text, labels, borders or watermarks.",
   ].join("\n");
 }
 

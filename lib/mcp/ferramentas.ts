@@ -561,6 +561,10 @@ export const FERRAMENTAS: Ferramenta[] = [
         .enum(ESTILOS_TROCA_IDS)
         .default("realista")
         .describe("Estilo visual do vídeo: realista (só a pessoa muda) ou o vídeo inteiro redesenhado no estilo escolhido (desenho, anime, animação 3D, quadrinhos, aquarela, massinha, pixel art, neon ou blocos)."),
+      roupa: z
+        .enum(["personagem", "video"])
+        .default("personagem")
+        .describe("Roupa de quem é trocado: personagem (padrão: ele entra com o look dele) ou video (só a cabeça, o rosto, o cabelo e a pele mudam; a roupa do vídeo original fica)."),
     }),
     executar: async ({ userId, args, req }) => {
       const a = args as {
@@ -570,6 +574,7 @@ export const FERRAMENTAS: Ferramenta[] = [
         segundos?: number;
         qualidade: string;
         estilo: string;
+        roupa: "personagem" | "video";
         imagem_key?: string;
       };
       if (!a.direitos_confirmados)
@@ -593,6 +598,8 @@ export const FERRAMENTAS: Ferramenta[] = [
           qualidade: a.qualidade,
           segundos: a.segundos,
           estilo: a.estilo,
+          // Na rota, "foto" = manter a roupa do original (o mesmo nome da troca em imagem).
+          roupa: a.roupa === "video" ? "foto" : "personagem",
         },
         req,
       );

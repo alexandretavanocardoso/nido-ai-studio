@@ -1568,6 +1568,12 @@ export const TEXTOS_EN: Record<string, string> = {
   "Remover este post do Dashboard?": "Remove this post from the Dashboard?",
   "As métricas dele saem das contas. O post continua na rede social.": "Its metrics leave the totals. The post stays on the social network.",
   Post: "Post",
+  "Do vídeo":
+    "From the video",
+  "Ele entra com o look dele":
+    "They come in with their own look",
+  "Só a cabeça muda; a roupa original fica":
+    "Only the head changes; the original outfit stays",
   "Posts por link": "Posts by link",
   "publicados por fora · métricas públicas": "published outside the app · public metrics",
   "Não reconheci esse link como um post.": "I couldn't recognize that link as a post.",

@@ -119,6 +119,8 @@ export function SubstituirPessoaModal({
   const [removerTexto, setRemoverTexto] = useState(false);
   /** Estilo visual do vídeo: realista ou redesenhado (desenho, anime, 3D). */
   const [estilo, setEstilo] = useState<EstiloTroca>("realista");
+  /** De onde vem a roupa: do personagem, ou a do vídeo (só a cabeça muda). */
+  const [roupa, setRoupa] = useState<"personagem" | "foto">("personagem");
   /** Duração do vídeo inteiro. */
   const [duracaoTotal, setDuracao] = useState(
     link?.duracao ?? video?.duracao ?? 0,
@@ -231,6 +233,7 @@ export function SubstituirPessoaModal({
           qualidade: premium ? undefined : qualidade,
           removerTexto,
           estilo,
+          roupa,
           segundos: cortando ? corte : undefined,
         }),
       });
@@ -515,6 +518,38 @@ export function SubstituirPessoaModal({
                     ? tx("só a pessoa muda")
                     : tx("o vídeo inteiro é redesenhado neste estilo")}
                 </p>
+              </div>
+
+              <div>
+                <div className="mb-2 text-[13px] font-semibold text-ink">
+                  {tx("Roupa")}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      ["personagem", "Do personagem", "Ele entra com o look dele"],
+                      ["foto", "Do vídeo", "Só a cabeça muda; a roupa original fica"],
+                    ] as const
+                  ).map(([id, titulo, nota]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setRoupa(id)}
+                      aria-pressed={roupa === id}
+                      className={cn(
+                        "rounded-xl border px-3 py-2.5 text-left transition",
+                        roupa === id
+                          ? "border-accent bg-accent/10"
+                          : "border-line hover:border-line-strong",
+                      )}
+                    >
+                      <div className="text-[13px] font-bold text-ink">
+                        {tx(titulo)}
+                      </div>
+                      <div className="text-[11px] text-ink-dim">{tx(nota)}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>

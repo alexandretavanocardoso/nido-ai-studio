@@ -228,3 +228,41 @@ describe("estilo do vídeo", () => {
     ).toMatch(/hand-drawn 2D cartoon/);
   });
 });
+
+describe("só a cabeça (roupa do vídeo)", () => {
+  const pedir = (ancora: boolean) =>
+    promptTroca(
+      "kling",
+      [{ descricao: "the woman in a green jacket" }],
+      false,
+      ancora,
+      [],
+      undefined,
+      false,
+      undefined,
+      undefined,
+      "foto",
+    );
+
+  it("troca só a cabeça e manda manter a roupa do vídeo", () => {
+    const p = pedir(false);
+    expect(p).toMatch(/replace ONLY their head/);
+    expect(p).toMatch(/CLOTHING: each replaced person keeps exactly the clothes/);
+    expect(p).toMatch(/Never copy the outfit from @Element1/);
+    // A regra da roupa do personagem não pode aparecer junto.
+    expect(p).not.toMatch(/style and outfit exactly as in/);
+  });
+
+  it("com quadro-guia a regra da roupa continua, e o pedido cabe no limite", () => {
+    const p = pedir(true);
+    expect(p).toMatch(/@Image1 is a frame of this same scene/);
+    expect(p).toMatch(/CLOTHING:/);
+    expect(p.length).toBeLessThanOrEqual(PEDIDO_MAX);
+  });
+
+  it("sem a opção, nada muda no pedido", () => {
+    const p = promptTroca("kling", [{ descricao: "a" }], false);
+    expect(p).not.toMatch(/CLOTHING:/);
+    expect(p).toMatch(/replace with the character @Element1/);
+  });
+});

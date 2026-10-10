@@ -111,6 +111,11 @@ const BodySchema = z.object({
   removerTexto: z.boolean().default(false),
   /** Estilo visual do vídeo: realista (padrão) ou redesenhado (desenho, anime, 3D). */
   estilo: z.enum(ESTILOS_TROCA_IDS).default("realista"),
+  /**
+   * Roupa de quem é trocado: "personagem" (padrão: ele entra com o look dele)
+   * ou "foto" (só a cabeça e a pele mudam; a roupa do vídeo fica).
+   */
+  roupa: z.enum(["foto", "personagem"]).default("personagem"),
   /** Usar só os primeiros N segundos do vídeo (ausente = o vídeo inteiro). */
   segundos: z.union([z.literal(10), z.literal(15), z.literal(30)]).optional(),
 });
@@ -380,6 +385,7 @@ export async function POST(req: Request) {
               descricoes,
               personagens,
               estilo: body.estilo,
+              roupa: body.roupa,
             })
           : semAncoraGeral,
         Promise.all(
@@ -418,6 +424,7 @@ export async function POST(req: Request) {
           descricoes: ancora.descricoes,
           personagens,
           estilo: body.estilo,
+          roupa: body.roupa,
         });
         const enviadas = preparadas.filter((t) => t.presentes.length);
         if (!enviadas.length) {
@@ -457,6 +464,7 @@ export async function POST(req: Request) {
           alvos,
           removerTexto: body.removerTexto,
           estilo: body.estilo,
+          roupa: body.roupa,
           jobId,
           prazo,
           tomadas: preparadas.map((t) => ({
@@ -511,6 +519,7 @@ export async function POST(req: Request) {
           alvos,
           removerTexto: body.removerTexto,
           estilo: body.estilo,
+          roupa: body.roupa,
           jobId,
           prazo,
           ancora: ancora.imagem,
@@ -547,6 +556,7 @@ export async function POST(req: Request) {
               : undefined,
             imageKey: imagens[0],
             estilo: body.estilo,
+            roupa: body.roupa,
             antesKey,
             pessoas: body.pessoas?.map((p, i) => ({
               ...p,

@@ -1,4 +1,5 @@
 import { pedidoDoEstilo, type EstiloTroca } from "./estilos";
+import type { RoupaTroca } from "@/lib/prompts/trocar-imagem";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
@@ -129,6 +130,11 @@ export function promptTroca(
    * Só com "siga o movimento", gestos rápidos e borrados somem do resultado.
    */
   acao?: string,
+  /**
+   * De onde vem a roupa de quem é trocado: do personagem (padrão) ou do vídeo
+   * ("foto": só a cabeça e a pele viram o personagem; a roupa original fica).
+   */
+  roupa?: RoupaTroca,
 ): string {
   const oQueAcontece = acao?.trim() || undefined;
   // O Kling recusa pedidos com mais de 2500 caracteres. As regras são fixas;
@@ -147,6 +153,7 @@ export function promptTroca(
       sobraNaAncora,
       estilo,
       oQueAcontece && encurtar(oQueAcontece, maxAcao),
+      roupa,
     );
     if (texto.length <= PEDIDO_MAX) return texto;
   }
@@ -160,6 +167,7 @@ export function promptTroca(
     sobraNaAncora,
     estilo,
     oQueAcontece && encurtar(oQueAcontece, 120),
+    roupa,
   ).slice(0, PEDIDO_MAX);
 }
 
@@ -196,7 +204,10 @@ function montarPedido(
   sobraNaAncora: boolean,
   estilo?: EstiloTroca,
   acao?: string,
+  roupa?: RoupaTroca,
 ): string {
+  // Só a cabeça: rosto, cabelo e pele vêm do personagem; a roupa é a do vídeo.
+  const soCabeca = roupa === "foto";
   // Com estilo, o vídeo inteiro é redesenhado: quem não é trocado continua
   // sendo a mesma pessoa, só que desenhada; e o cenário mantém a composição.
   const visual = pedidoDoEstilo(estilo);
@@ -214,19 +225,23 @@ function montarPedido(
     `In @Video1, replace ONLY ${alvos.length === 1 ? "this person" : "these people"}:`,
     ...alvos.map(
       (a, i) =>
-        `- ${a.descricao ?? "the main person"} → replace with the character ${ref(i)}.`,
+        soCabeca
+          ? `- ${a.descricao ?? "the main person"} → replace ONLY their head (face, hair, headwear, skin tone) with the character ${ref(i)}; the body keeps its own build and clothes.`
+          : `- ${a.descricao ?? "the main person"} → replace with the character ${ref(i)}.`,
     ),
     ...(ancora && motor === "kling"
       ? foraDaAncora.length
         ? [
             `@Image1 is a frame of this same scene with the replacement already done ONLY for ${naAncora!.map((i) => ref(i)).join(", ")}: match it exactly in every frame ${igualAncora}.`,
-            `@Image1 does NOT show the replacement of ${foraDaAncora.map((i) => `${alvos[i].descricao ?? "the main person"} (${ref(i)})`).join("; ")}: replace them too in every frame, taking face, hair and outfit from ${foraDaAncora.map((i) => ref(i)).join(", ")}.`,
+            `@Image1 does NOT show the replacement of ${foraDaAncora.map((i) => `${alvos[i].descricao ?? "the main person"} (${ref(i)})`).join("; ")}: replace them too in every frame, taking ${soCabeca ? "face and hair" : "face, hair and outfit"} from ${foraDaAncora.map((i) => ref(i)).join(", ")}.`,
           ]
         : [
             `@Image1 is a frame of this same scene with the replacement already done: the character(s) must look exactly like that in every frame ${igualAncora}.`,
           ]
       : [
-          `Keep each character's face, hair, style and outfit exactly as in ${refs}.`,
+          soCabeca
+            ? `Take only the head of each character from ${refs}: face, hair, facial hair, hat or headwear, glasses, skin tone.`
+            : `Keep each character's face, hair, style and outfit exactly as in ${refs}.`,
         ]),
     ...(sobraNaAncora && ancora && motor === "kling"
       ? [
@@ -236,6 +251,12 @@ function montarPedido(
     ...(alvos.length > 1
       ? [
           `All ${alvos.length} listed people must be replaced, each only with their own character: never merge two characters, leave one unchanged, or add a hat, hair or clothing as a loose object. A person may leave the frame: while they are not on screen their character does not appear; never give one character's look to a different person.`,
+        ]
+      : []),
+    // Sem esta regra o motor copia a roupa da imagem de referência do personagem.
+    ...(soCabeca
+      ? [
+          `CLOTHING: each replaced person keeps exactly the clothes, shoes and accessories they wear in @Video1 — same pieces, colours and patterns, in every frame. Never copy the outfit from ${refs}: only the head and the skin are the character's; the body keeps its own build. Headwear belongs to the head: the character's hat, glasses and earrings come with it, and the original person's own hat or cap is gone.`,
         ]
       : []),
     // O fim da frase ("nothing of their own head…") evita sobrar cabelo ou peruca
@@ -277,8 +298,13 @@ function inputMotor(
     sobraNaAncora?: boolean;
     estilo?: EstiloTroca;
     acao?: string;
+    roupa?: RoupaTroca;
   },
 ): Record<string, unknown> {
+  // Só a cabeça: a referência é o close do rosto — a imagem de corpo inteiro
+  // traz a roupa do personagem, que o motor tende a copiar.
+  const referencia = (a: AlvoTroca) =>
+    o.roupa === "foto" ? (a.rostoUrl ?? a.personagemUrl) : a.personagemUrl;
   if (motor === "kling")
     return {
       prompt: promptTroca(
@@ -291,6 +317,7 @@ function inputMotor(
         o.sobraNaAncora,
         o.estilo,
         o.acao,
+        o.roupa,
       ),
       video_url: o.videoUrl,
       keep_audio: false,
@@ -299,7 +326,7 @@ function inputMotor(
       // O Kling pede 1 a 3 imagens extras de cada personagem: o close do rosto
       // (melhora rosto, barba e chapéu); sem ele, a própria imagem principal.
       elements: o.alvos.map((a) => ({
-        frontal_image_url: a.personagemUrl,
+        frontal_image_url: referencia(a),
         reference_image_urls: [a.rostoUrl ?? a.personagemUrl],
       })),
     };
@@ -315,9 +342,10 @@ function inputMotor(
       false,
       o.estilo,
       o.acao,
+      o.roupa,
     ),
     video_urls: [o.videoUrl],
-    image_urls: o.alvos.map((a) => a.personagemUrl),
+    image_urls: o.alvos.map(referencia),
     resolution: "720p",
     // Duração do trecho (o Seedance gera de 4 a 30s); o áudio original corta o excesso no final.
     duration: Math.min(30, Math.max(4, Math.round(o.duracao))),
@@ -670,6 +698,7 @@ async function enviarTomadas(
     info: VideoInfo;
     removerTexto: boolean;
     estilo?: EstiloTroca;
+    roupa?: RoupaTroca;
     jobId: string;
     tomadas: TomadaEnvio[];
     prazo?: number;
@@ -734,6 +763,7 @@ async function enviarTomadas(
             duracao: p.duracao * lentidao,
             removerTexto: o.removerTexto,
             estilo: o.estilo,
+            roupa: o.roupa,
             acao: p.tomada.acao,
             ancoraUrl,
             naAncora: ancoraUrl ? p.tomada.naAncora : undefined,
@@ -767,6 +797,8 @@ export async function iniciarTroca(o: {
   naAncora?: number[];
   /** Estilo visual do vídeo (ver ./estilos.ts). */
   estilo?: EstiloTroca;
+  /** Roupa de quem é trocado: do personagem (padrão) ou a do vídeo ("foto": só a cabeça muda). */
+  roupa?: RoupaTroca;
   /**
    * Divisão do vídeo já calculada (nas viradas de cena). Sem isso: partes
    * iguais do tamanho máximo do motor.
@@ -842,6 +874,7 @@ export async function iniciarTroca(o: {
             duracao: t.duracao,
             removerTexto: o.removerTexto,
             estilo: o.estilo,
+            roupa: o.roupa,
             acao: acaoDoTrecho(
               o.acoesPorTrecho?.[i],
               o.alvosPorTrecho?.[i],
