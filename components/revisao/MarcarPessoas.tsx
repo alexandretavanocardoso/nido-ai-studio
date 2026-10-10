@@ -540,8 +540,13 @@ export function LinhaMarca({
   const escolhido =
     personagens.find((p) => p.id === marca.characterId) ?? personagens[0];
   const opcoes = useImagensPersonagem(escolhido);
+  const cor = CORES_MARCA[numero - 1];
   return (
-    <div className="rounded-xl border border-line bg-panel p-2.5 grid gap-2">
+    <div
+      className="rounded-xl border border-line bg-panel p-2.5 grid gap-2"
+      // A mesma cor da silhueta no vídeo: dá para ver de quem é cada cartão.
+      style={{ borderColor: `${cor}80` }}
+    >
       <div className="flex items-center gap-2 min-w-0">
         <MiniaturaMarca numero={numero} marca={marca} origem={origem} />
         <span className="text-[13px] text-ink-mute shrink-0">vira</span>
@@ -570,6 +575,7 @@ export function LinhaMarca({
         )}
       </div>
       <EscolherImagemPersonagem
+        cor={cor}
         compacto
         opcoes={opcoes}
         valor={marca.imageKey}

@@ -39,6 +39,8 @@ interface Props {
   dica?: string;
   /** Miniaturas menores numa linha só (rola na horizontal, sem barra). */
   compacto?: boolean;
+  /** Cor da imagem escolhida (ex.: a da marca da pessoa no vídeo). Sem ela, a cor de destaque do app. */
+  cor?: string;
 }
 
 export function EscolherImagemPersonagem({
@@ -47,6 +49,7 @@ export function EscolherImagemPersonagem({
   onChange,
   dica,
   compacto,
+  cor,
 }: Props) {
   if (opcoes.length === 0) {
     return (
@@ -81,6 +84,7 @@ export function EscolherImagemPersonagem({
                 ? "border-accent"
                 : "border-line opacity-60 hover:opacity-100",
             )}
+            style={cor && valor === o.key ? { borderColor: cor } : undefined}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -89,7 +93,10 @@ export function EscolherImagemPersonagem({
               className="w-full h-full object-cover"
             />
             {valor === o.key && (
-              <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-accent text-bg inline-flex items-center justify-center">
+              <span
+                className="absolute top-1 right-1 h-4 w-4 rounded-full bg-accent text-bg inline-flex items-center justify-center"
+                style={cor ? { background: cor } : undefined}
+              >
                 <Check className="w-3 h-3" strokeWidth={3} />
               </span>
             )}
