@@ -285,8 +285,8 @@ export function DashboardInfluencers({
                 detalhe="interações ÷ visualizações"
               />
             </div>
-            {/* As visualizações são o número maior: na linha única, o cartão ocupa duas colunas. */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-7 gap-3">
+            {/* Três por linha, mesmo na tela grande: seis numa linha só cortavam o título e o número. */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {METRICAS.map((m) => (
                 <Kpi
                   key={m.campo}
@@ -299,7 +299,6 @@ export function DashboardInfluencers({
                     dias,
                   )}
                   destaque={m.campo === "views"}
-                  className={m.campo === "views" ? "xl:col-span-2" : undefined}
                 />
               ))}
             </div>
