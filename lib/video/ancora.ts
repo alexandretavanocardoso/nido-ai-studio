@@ -27,6 +27,10 @@ import { marcarPonto } from "./pessoas";
  */
 /** Tempo máximo esperando o quadro-âncora (a rota tem 300s no total). */
 const LIMITE_MS = 90_000;
+/** Teto com várias pessoas (cada uma soma 45s): a rota tem 300s para tudo. */
+const LIMITE_MAX_MS = 180_000;
+/** Tempo máximo para os quadros-âncora de TODAS as tomadas de um vídeo de cortes. */
+const LIMITE_TOMADAS_MS = 150_000;
 const MODELO_VISAO =
   process.env.GEMINI_TEXT_MODEL?.trim() || "gemini-flash-latest";
 
@@ -510,6 +514,9 @@ export async function prepararTomadas(o: {
     }),
   ]);
   // Poucas por vez: cada tomada faz até uma geração de imagem por pessoa.
+  // Um prazo só para todas: passado ele, as tomadas que faltam seguem sem âncora
+  // (a rota não pode estourar o tempo — aí o envio inteiro se perde).
+  const prazo = Date.now() + LIMITE_TOMADAS_MS;
   return emLotes(o.tomadas, 6, async (t, k) => {
     try {
       const saida = path.join(o.dir, `tomada-${k}.jpg`);
@@ -533,6 +540,8 @@ export async function prepararTomadas(o: {
         personagens: o.personagens,
         info: o.info,
         estilo: o.estilo,
+        prazo,
+        tentativas: 2,
       });
       return {
         ...t,
@@ -727,7 +736,7 @@ export async function passadaConfere(o: {
                 `that person is: ${o.descricao}. Everyone else must still be the same people as in image 1 (small differences in pose or sharpness do not count). ` +
                 'Answer with JSON only: {"target_replaced": true|false, "others_changed": true|false, "character_count": <number>}. ' +
                 "target_replaced: in image 2 that person is gone and the character of image 3 (its face, hair or headwear and outfit) stands in their place. " +
-                "others_changed: some OTHER person of image 1 has a different head, hair, headwear or outfit in image 2, or received items of the character of image 3. " +
+                "others_changed: some OTHER person is no longer the same person or character as in image 1 — a different head, face, hair or headwear, or a different outfit. A small change (pose, sharpness, the colour of one small garment detail) does not count. " +
                 "character_count: how many people in image 2 look like, or wear distinctive items of, the character of image 3.",
             },
             {
@@ -759,11 +768,12 @@ export async function passadaConfere(o: {
       others_changed?: unknown;
       character_count?: unknown;
     };
-    return (
+    const ok =
       r.target_replaced !== false &&
       r.others_changed !== true &&
-      (typeof r.character_count !== "number" || r.character_count === 1)
-    );
+      (typeof r.character_count !== "number" || r.character_count === 1);
+    if (!ok) console.warn("[ancora] conferência reprovou a passada:", json);
+    return ok;
   } catch (e) {
     console.warn(
       "[ancora] conferência da passada falhou:",
@@ -798,12 +808,20 @@ export async function trocarNoQuadro(o: {
   estilo?: Parameters<typeof pedidoDoEstilo>[0];
   /** Onde cada alvo está NESTE quadro ("on the left side of the frame"), quando se sabe. */
   posicoes?: Array<string | undefined>;
+  /** Instante (ms) em que tudo tem que ter acabado — quem chama divide o tempo da rota. */
+  prazo?: number;
+  /** Quantas vezes refazer a passada de um alvo que a conferência reprovou (padrão 3). */
+  tentativas?: number;
 }): Promise<{ imagem: Buffer | null; feitos: number[] }> {
   const original = await sharp(o.quadro)
     .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
     .jpeg({ quality: 90 })
     .toBuffer();
-  const prazo = Date.now() + LIMITE_MS;
+  // Cada alvo é uma geração (~20s) mais a conferência; sobra para refazer as que erram.
+  const prazo = Math.min(
+    o.prazo ?? Infinity,
+    Date.now() + Math.min(LIMITE_MAX_MS, LIMITE_MS + 45_000 * (o.alvos.length - 1)),
+  );
   let imagem: Buffer | null = null;
   const feitos: number[] = [];
   for (const n of o.alvos) {
@@ -812,8 +830,8 @@ export async function trocarNoQuadro(o: {
       ? await sharp(imagem).jpeg({ quality: 92 }).toBuffer()
       : original;
     // Passada que troca a pessoa errada (ou mexe em quem já foi trocado) é
-    // refeita uma vez; se errar de novo, esse alvo fica fora da âncora.
-    for (let tentativa = 0; tentativa < 2; tentativa++) {
+    // refeita; se continuar errando, esse alvo fica fora da âncora.
+    for (let tentativa = 0; tentativa < (o.tentativas ?? 3); tentativa++) {
       const restante = prazo - Date.now();
       if (restante <= 0) break;
       const geracao: Promise<Buffer | null> = generateImage({

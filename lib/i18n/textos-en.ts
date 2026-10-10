@@ -418,8 +418,12 @@ export const TEXTOS_EN: Record<string, string> = {
     "Couldn't load the connection request. Try again.",
   "Conecte o Claude, o ChatGPT ou o Codex à sua conta e peça, numa conversa ou pelo terminal, o que você faz aqui no app. Tudo roda na sua conta, com o seu plano e os seus créditos.":
     "Connect Claude, ChatGPT or Codex to your account and ask, in a chat or from the terminal, for what you do here in the app. Everything runs on your account, with your plan and your credits.",
-  "Ou conecte pelo ChatGPT (plugin)":
-    "Or connect from ChatGPT (plugin)",
+  "Conecte pelo ChatGPT (plugin)":
+    "Connect from ChatGPT (plugin)",
+  "ChatGPT e Codex": "ChatGPT & Codex",
+  Assistente: "Assistant",
+  "Token de acesso (só para o Codex com token)":
+    "Access token (only for Codex with a token)",
   "No ChatGPT, pelo navegador, sem terminal e sem token: você autoriza com o seu login daqui. Precisa de um plano pago do ChatGPT (Plus, Pro, Business, Enterprise ou Edu).":
     "In ChatGPT, from the browser, with no terminal and no token: you authorise with your sign-in here. It needs a paid ChatGPT plan (Plus, Pro, Business, Enterprise or Edu).",
   "No ChatGPT, abra Plugins (chatgpt.com/plugins) e clique em Explorar catálogo. No canto de cima à direita, clique em Adicionar → Adicionar servidor MCP personalizado.":
@@ -444,8 +448,8 @@ export const TEXTOS_EN: Record<string, string> = {
     "Sign in. The browser opens the NIDO screen: check the account and click Allow.",
   "Abra o Codex e peça, por exemplo: “qual é o meu saldo no NIDO?”. Na extensão do editor, o servidor aparece nas configurações de MCP; se pedir, clique em Autenticar.":
     "Open Codex and ask, for example: “what's my NIDO balance?”. In the editor extension, the server shows up in the MCP settings; if asked, click Authenticate.",
-  "Prefere usar um token? Crie um no passo 1, guarde na variável de ambiente NIDO_MCP_TOKEN e ponha isto no arquivo ~/.codex/config.toml, no lugar dos passos a e b:":
-    "Prefer a token? Create one in step 1, store it in the NIDO_MCP_TOKEN environment variable and put this in ~/.codex/config.toml, instead of steps a and b:",
+  "Prefere usar um token? Crie um logo abaixo, guarde na variável de ambiente NIDO_MCP_TOKEN e ponha isto no arquivo ~/.codex/config.toml, no lugar dos passos a e b:":
+    "Prefer a token? Create one just below, store it in the NIDO_MCP_TOKEN environment variable and put this in ~/.codex/config.toml, instead of steps a and b:",
   "As gerações gastam créditos como no app, e o assistente avisa o custo antes. Compras, reembolsos e saques só são feitos aqui no app.":
     "Generations spend credits just like in the app, and the assistant tells you the cost first. Purchases, refunds and withdrawals are only done here in the app.",
   "Ou conecte pelo aplicativo do Claude (conector)":
