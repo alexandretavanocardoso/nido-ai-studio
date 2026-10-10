@@ -161,22 +161,32 @@ export function Kpi({
   detalhe,
   destaque,
   icone: Icone,
+  className,
 }: {
   rotulo: string;
   valor: React.ReactNode;
   detalhe?: React.ReactNode;
   destaque?: boolean;
   icone?: React.ComponentType<{ className?: string }>;
+  /** Para o cartão ocupar mais de uma coluna da grade. */
+  className?: string;
 }) {
   return (
     <div
-      className={cn("card p-4 sm:p-5 min-w-0", destaque && "border-accent/50")}
+      className={cn(
+        "card p-4 sm:p-5 min-w-0",
+        destaque && "border-accent/50",
+        className,
+      )}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="label-cap truncate">{rotulo}</span>
         {Icone ? <Icone className="w-4 h-4 text-ink-dim shrink-0" /> : null}
       </div>
-      <div className="mt-2 text-2xl sm:text-3xl font-bold text-ink tabular-nums truncate">
+      <div
+        className="mt-2 text-2xl sm:text-3xl font-bold text-ink tabular-nums truncate"
+        title={typeof valor === "string" ? valor : undefined}
+      >
         {valor}
       </div>
       {detalhe ? (
