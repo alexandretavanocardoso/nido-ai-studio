@@ -18,6 +18,8 @@ import {
   ChevronUp,
   Clapperboard,
   ChartColumn,
+  CircleAlert,
+  CircleCheck,
   Coins,
   Flame,
   Gift,
@@ -50,6 +52,14 @@ import { TutorialCriar } from "@/components/home/TutorialCriar";
 import { DiscordConta } from "@/components/auth/DiscordConta";
 import { useRecursos } from "@/components/RecursosProvider";
 import { TarefasEmAndamento } from "@/components/TarefasEmAndamento";
+import {
+  carregarAvisos,
+  ligarNotificacoes,
+  limparAvisos,
+  marcarAvisosLidos,
+  useAvisos,
+  useNotificacoes,
+} from "@/lib/notificar";
 import type { SecaoEstudio } from "@/components/estudio/Estudio";
 import { useCharacters } from "@/lib/store";
 import { capaSrc } from "@/lib/storage/client";
@@ -1088,8 +1098,11 @@ interface AvisoRadar {
 }
 
 /**
- * Sino da barra: radares novos (de hoje ou ontem) com assunto quente, ainda
- * não abertos. Some quando não há aviso. Abrir o Radar do personagem limpa o dele.
+ * Sino da barra, sempre à vista para quem está logado:
+ *  - o que terminou (vídeo, imagem, figurinha…) ou falhou — lib/notificar.ts;
+ *  - radares novos (de hoje ou ontem) com assunto quente, ainda não abertos.
+ *    Abrir o Radar do personagem limpa o dele.
+ * O número é o que ainda não foi visto; abrir o sino marca como visto.
  */
 function AvisosRadar() {
   const { user } = useAuth();
@@ -1098,6 +1111,9 @@ function AvisosRadar() {
   const [avisos, setAvisos] = useState<AvisoRadar[]>([]);
   const [aberto, setAberto] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
+  const prontos = useAvisos();
+  const { permissao } = useNotificacoes();
+  useEffect(() => carregarAvisos(), []);
 
   const carregar = useCallback(() => {
     if (!recursos.login || !user) return setAvisos([]);
@@ -1126,30 +1142,118 @@ function AvisosRadar() {
       if (!caixa.current?.contains(e.target as Node)) setAberto(false);
     };
     document.addEventListener("mousedown", fora);
-    return () => document.removeEventListener("mousedown", fora);
+    return () => {
+      document.removeEventListener("mousedown", fora);
+      // Fechou: o que estava na lista conta como visto.
+      marcarAvisosLidos();
+    };
   }, [aberto]);
 
-  if (!avisos.length) return null;
-  const total = avisos.reduce((t, a) => t + a.destaques, 0);
+  if (!user) return null;
+  const total =
+    avisos.reduce((t, a) => t + a.destaques, 0) +
+    prontos.filter((a) => !a.lida).length;
+  const abrir = () => setAberto((v) => !v);
   return (
     <div className="relative" ref={caixa}>
       <button
         type="button"
-        onClick={() => setAberto((v) => !v)}
-        aria-label={`${tx("Avisos do radar")}: ${total}`}
+        onClick={abrir}
+        aria-label={`${tx("Notificações")}: ${total}`}
         aria-expanded={aberto}
         className="relative h-9 w-9 inline-flex items-center justify-center rounded-full border border-line bg-panel text-ink hover:border-line-strong transition"
       >
         <Bell className="w-4 h-4" />
-        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-bg text-[11px] font-bold grid place-items-center">
-          {total}
-        </span>
+        {total > 0 ? (
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-bg text-[11px] font-bold grid place-items-center">
+            {total}
+          </span>
+        ) : null}
       </button>
       {aberto ? (
-        <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-line bg-panel shadow-card overflow-hidden z-40">
-          <div className="px-3.5 py-2.5 border-b border-line text-[11px] mono uppercase tracking-wider text-ink-dim">
-            {tx("Em alta nos seus personagens")}
+        <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto rounded-xl border border-line bg-panel shadow-card z-40">
+          <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 border-b border-line text-[11px] mono uppercase tracking-wider text-ink-dim">
+            {tx("Notificações")}
+            {prontos.length > 0 ? (
+              <button
+                type="button"
+                onClick={limparAvisos}
+                className="normal-case tracking-normal text-ink-mute hover:text-ink"
+              >
+                {tx("Limpar")}
+              </button>
+            ) : null}
           </div>
+          {prontos.length === 0 && avisos.length === 0 ? (
+            <p className="px-3.5 py-5 text-[13px] text-ink-mute">
+              {tx(
+                "Nada por aqui ainda. Quando um vídeo, imagem ou figurinha ficar pronto, aparece aqui.",
+              )}
+            </p>
+          ) : null}
+          {prontos.map((a) => {
+            const linha = (
+              <>
+                {a.erro ? (
+                  <CircleAlert className="w-4 h-4 text-pink shrink-0 mt-0.5" />
+                ) : (
+                  <CircleCheck className="w-4 h-4 text-ok shrink-0 mt-0.5" />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={cn(
+                      "block text-[13px] text-ink line-clamp-2",
+                      !a.lida && "font-semibold",
+                    )}
+                  >
+                    {a.texto}
+                  </span>
+                  <span className="block text-[11px] text-ink-dim">
+                    {new Date(a.quando).toLocaleString(undefined, {
+                      day: "2-digit",
+                      month: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </span>
+                {!a.lida ? (
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />
+                ) : null}
+              </>
+            );
+            const classe =
+              "flex gap-2.5 px-3.5 py-3 border-b border-line last:border-b-0";
+            return a.href ? (
+              <Link
+                key={a.id}
+                href={a.href}
+                onClick={abrir}
+                className={cn(classe, "hover:bg-bg transition")}
+              >
+                {linha}
+              </Link>
+            ) : (
+              <div key={a.id} className={classe}>
+                {linha}
+              </div>
+            );
+          })}
+          {permissao === "perguntar" ? (
+            <button
+              type="button"
+              onClick={() => void ligarNotificacoes()}
+              className="flex w-full items-center gap-2.5 px-3.5 py-3 border-b border-line text-left text-[12px] text-ink-mute hover:bg-bg hover:text-ink transition"
+            >
+              <Bell className="w-4 h-4 shrink-0 text-accent" />
+              {tx("Avisar também pelo navegador quando eu estiver em outra aba")}
+            </button>
+          ) : null}
+          {avisos.length > 0 ? (
+            <div className="px-3.5 py-2.5 border-b border-line text-[11px] mono uppercase tracking-wider text-ink-dim">
+              {tx("Em alta nos seus personagens")}
+            </div>
+          ) : null}
           {avisos.map((a) => {
             const nome =
               personagens.find((c) => c.id === a.characterId)?.identidade
@@ -1158,7 +1262,7 @@ function AvisosRadar() {
               <Link
                 key={a.characterId}
                 href={`/app/personagem/${a.characterId}?aba=radar`}
-                onClick={() => setAberto(false)}
+                onClick={abrir}
                 className="flex gap-2.5 px-3.5 py-3 hover:bg-bg transition border-b border-line last:border-b-0"
               >
                 <Flame className="w-4 h-4 text-accent shrink-0 mt-0.5" />

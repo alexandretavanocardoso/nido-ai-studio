@@ -1614,6 +1614,15 @@ export const TEXTOS_EN: Record<string, string> = {
   "Criado do zero com o personagem": "Created from scratch with the character",
   "Em andamento": "In progress",
   "Terminou:": "Finished:",
+  "Não deu certo:": "It didn't work:",
+  "Avisar quando terminar": "Notify me when it's done",
+  "Agora não": "Not now",
+  "Notificações": "Notifications",
+  Limpar: "Clear",
+  "Nada por aqui ainda. Quando um vídeo, imagem ou figurinha ficar pronto, aparece aqui.":
+    "Nothing here yet. When a video, image or sticker is ready, it shows up here.",
+  "Avisar também pelo navegador quando eu estiver em outra aba":
+    "Also notify me through the browser when I'm on another tab",
   "Gerando imagem": "Generating image",
   "Enviando foto": "Uploading photo",
   "Trocando pessoa na foto": "Swapping person in the photo",
