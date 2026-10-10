@@ -1567,6 +1567,7 @@ export const TEXTOS_EN: Record<string, string> = {
   "Lendo o post… pode levar até 1 minuto.": "Reading the post… it can take up to 1 minute.",
   "Remover este post do Dashboard?": "Remove this post from the Dashboard?",
   "As métricas dele saem das contas. O post continua na rede social.": "Its metrics leave the totals. The post stays on the social network.",
+  Post: "Post",
   "Posts por link": "Posts by link",
   "publicados por fora · métricas públicas": "published outside the app · public metrics",
   "Não reconheci esse link como um post.": "I couldn't recognize that link as a post.",

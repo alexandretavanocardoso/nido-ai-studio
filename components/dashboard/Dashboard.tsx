@@ -821,6 +821,22 @@ function Capa({
   );
 }
 
+/**
+ * Colunas da lista de posts por link na tela larga: rede · post · views · as
+ * outras cinco métricas · ações. Cada número fica embaixo do seu título.
+ */
+const COLUNAS_LINK =
+  "xl:grid xl:grid-cols-[16px_minmax(0,1fr)_116px_repeat(5,76px)_68px] xl:gap-x-3";
+/** Título curto de cada métrica, para caber na coluna. */
+const TITULO_CURTO: Record<keyof Metricas, string> = {
+  views: "Views",
+  curtidas: "Curtidas",
+  comentarios: "Coment.",
+  reposts: "Reposts",
+  quotes: "Quotes",
+  salvos: "Salvos",
+};
+
 /** Posts cadastrados por link: o que foi lido de cada um, o link e o remover. */
 function PostsPorLink({
   posts,
@@ -853,6 +869,22 @@ function PostsPorLink({
           {tx("publicados por fora · métricas públicas · views editáveis")}
         </span>
       </div>
+      <div
+        className={cn(
+          mono,
+          COLUNAS_LINK,
+          "hidden items-center border-t border-white/[0.06] bg-white/[0.02] px-[22px] py-2 text-[10.5px] uppercase tracking-[0.1em] text-nido-dim",
+        )}
+      >
+        <span />
+        <span>{tx("Post")}</span>
+        {KPIS.map(({ campo, rotulo }) => (
+          <span key={campo} title={tx(rotulo)} className="text-right">
+            {tx(TITULO_CURTO[campo])}
+          </span>
+        ))}
+        <span />
+      </div>
       {posts.map((p) => {
         const rede = p.redes[0];
         const m = p.metricas[rede];
@@ -860,7 +892,10 @@ function PostsPorLink({
         return (
           <div
             key={p.id}
-            className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/[0.06] px-[22px] py-3"
+            className={cn(
+              COLUNAS_LINK,
+              "flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/[0.06] px-[22px] py-3 transition hover:bg-white/[0.02]",
+            )}
           >
             <IconeRede rede={rede} className="h-4 w-4 text-nido-soft" />
             <span className="flex min-w-0 flex-1 basis-[220px] flex-col gap-0.5">
@@ -877,20 +912,28 @@ function PostsPorLink({
                 })}
               </span>
             </span>
-            <span className={cn(mono, "flex flex-wrap gap-x-3.5 text-[12px] text-nido-soft")}>
-              <EditarViews post={p} valor={m?.views ?? 0} onSalvo={onMudou} />
+            {/* Na tela larga, cada métrica vira uma célula da grade (xl:contents). */}
+            <span
+              className={cn(
+                mono,
+                "flex flex-wrap items-center gap-x-3.5 text-[12px] tabular-nums text-nido-soft xl:contents",
+              )}
+            >
+              <span className="flex xl:justify-end">
+                <EditarViews post={p} valor={m?.views ?? 0} onSalvo={onMudou} />
+              </span>
               {KPIS.slice(1).map(({ campo, icon: Icon, rotulo }) => (
                 <span
                   key={campo}
                   title={tx(rotulo)}
-                  className="inline-flex items-center gap-1"
+                  className="inline-flex items-center gap-1 xl:justify-end"
                 >
-                  <Icon className="h-3 w-3 text-nido-dim" />
+                  <Icon className="h-3 w-3 text-nido-dim xl:hidden" />
                   {num(m?.[campo] ?? 0)}
                 </span>
               ))}
             </span>
-            <span className="flex items-center gap-1">
+            <span className="flex items-center justify-end gap-1">
               {p.link ? (
                 <a
                   href={p.link}

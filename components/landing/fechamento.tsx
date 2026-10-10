@@ -1,6 +1,6 @@
 "use client";
 
-import { tx } from "@/lib/i18n/tx";
+import { idiomaAtual, tx } from "@/lib/i18n/tx";
 import { txErro } from "@/lib/i18n/erros";
 import {
   useEffect,
@@ -25,7 +25,9 @@ import { useCena } from "./palco";
 
 /** Seções 08 a 10 da landing: planos, FAQ e whitelist (com o rodapé). */
 
-const num = (v: number) => v.toLocaleString("pt-BR");
+// Milhar com ponto em português e com vírgula em inglês.
+const num = (v: number) =>
+  v.toLocaleString(idiomaAtual() === "en" ? "en-US" : "pt-BR");
 
 /** Envia um formulário da landing para /api/leads. Devolve a resposta ou lança o erro em português. */
 async function enviarLead(
@@ -268,7 +270,10 @@ export function Planos() {
 
   const cartoes: ReactNode[] = PLANOS_PAGOS.map((id, i) => {
     const p = PLANOS[id];
-    const total = precoPlano(id, intervalo, "BRL");
+    // Em inglês os preços aparecem (e o cartão cobra) em dólar, como na página de planos do app.
+    const emDolar = idiomaAtual() === "en";
+    const cifra = emDolar ? "US$" : "R$";
+    const total = precoPlano(id, intervalo, emDolar ? "USD" : "BRL");
     const porMes = intervalo === "mensal" ? total : Math.round(total / 12);
     return (
       <div
@@ -282,17 +287,19 @@ export function Planos() {
         <p className="ds">{tx(p.descricao)}</p>
         <div className="pr">
           <b>
-            <small>R$</small>
+            <small>{cifra}</small>
             {num(porMes)}
           </b>
           <span>{tx("/mês")}</span>
         </div>
         <p className="cb">
           {intervalo === "anual"
-            ? `R$ ${num(total)} ${tx("à vista por 12 meses")}`
+            ? `${cifra} ${num(total)} ${tx("à vista por 12 meses")}`
             : tx("cobrado todo mês no cartão")}
           {usdc
-            ? ` · ${tx("ou")} US$ ${num(precoPlano(id, intervalo, "USD"))} ${tx("em USDC")}`
+            ? emDolar
+              ? ` · ${tx("mesmo valor em USDC")}`
+              : ` · ${tx("ou")} US$ ${num(precoPlano(id, intervalo, "USD"))} ${tx("em USDC")}`
             : ""}
         </p>
         <div className="cr">
