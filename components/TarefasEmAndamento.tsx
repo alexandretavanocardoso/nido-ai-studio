@@ -43,7 +43,11 @@ export function TarefasEmAndamento() {
     for (const t of terminadas) {
       if (t.id <= notificadoAte.current) continue;
       notificadoAte.current = t.id;
-      registrarAviso(`${tx("Terminou:")} ${tx(t.rotulo)}`, { href: t.href });
+      registrarAviso(`${tx("Terminou:")} ${tx(t.rotulo)}`, {
+        rotulo: t.rotulo,
+        href: t.href,
+        chave: t.chave,
+      });
     }
   }, [terminadas]);
 
@@ -172,7 +176,7 @@ function useAcompanharVideos(): number {
                 );
               });
               if (!avisados.has(v.jobId!))
-                avisarTermino(v.name, verVideos(c.id));
+                avisarTermino(v.name, verVideos(c.id), `video:${v.jobId}`);
               avisados.add(v.jobId!);
             } else if (job.status === "erro" || res.status === 404) {
               update(c.id, (p) => {
@@ -189,8 +193,10 @@ function useAcompanharVideos(): number {
               avisarCreditos(); // créditos devolvidos
               if (!avisados.has(v.jobId!))
                 registrarAviso(`${tx("Não deu certo:")} ${v.name}`, {
+                  rotulo: v.name,
                   erro: true,
                   href: verVideos(c.id),
+                  chave: `video:${v.jobId}`,
                 });
               avisados.add(v.jobId!);
             }

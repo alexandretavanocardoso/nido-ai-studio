@@ -57,6 +57,7 @@ import {
   ligarNotificacoes,
   limparAvisos,
   marcarAvisosLidos,
+  sincronizarAvisos,
   useAvisos,
   useNotificacoes,
 } from "@/lib/notificar";
@@ -1113,7 +1114,9 @@ function AvisosRadar() {
   const caixa = useRef<HTMLDivElement>(null);
   const prontos = useAvisos();
   const { permissao } = useNotificacoes();
-  useEffect(() => carregarAvisos(), []);
+  useEffect(() => {
+    if (user) carregarAvisos();
+  }, [user]);
 
   const carregar = useCallback(() => {
     if (!recursos.login || !user) return setAvisos([]);
@@ -1127,7 +1130,12 @@ function AvisosRadar() {
     carregar();
     // O Radar avisa quando foi aberto; ao voltar para a aba, confere de novo.
     const visto = () => carregar();
-    const foco = () => document.visibilityState === "visible" && carregar();
+    const foco = () => {
+      if (document.visibilityState !== "visible") return;
+      carregar();
+      // O que terminou em outro aparelho, ou com o app fechado.
+      void sincronizarAvisos();
+    };
     window.addEventListener("nido:radar-visto", visto);
     document.addEventListener("visibilitychange", foco);
     return () => {
@@ -1153,7 +1161,10 @@ function AvisosRadar() {
   const total =
     avisos.reduce((t, a) => t + a.destaques, 0) +
     prontos.filter((a) => !a.lida).length;
-  const abrir = () => setAberto((v) => !v);
+  const abrir = () => {
+    if (!aberto) void sincronizarAvisos();
+    setAberto((v) => !v);
+  };
   return (
     <div className="relative" ref={caixa}>
       <button
@@ -1206,7 +1217,7 @@ function AvisosRadar() {
                       !a.lida && "font-semibold",
                     )}
                   >
-                    {a.texto}
+                    {tx(a.erro ? "Não deu certo:" : "Terminou:")} {tx(a.rotulo)}
                   </span>
                   <span className="block text-[11px] text-ink-dim">
                     {new Date(a.quando).toLocaleString(undefined, {

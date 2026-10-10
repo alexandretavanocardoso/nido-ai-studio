@@ -19,7 +19,7 @@ interface Estado {
   /** Chaves que representam uma tarefa em andamento (valor "ligado" = rodando). */
   rotulos: Record<string, string>;
   /** Tarefas que acabaram há pouco (aviso rápido no canto da tela). */
-  terminadas: Array<{ id: number; rotulo: string; href?: string }>;
+  terminadas: Array<{ id: number; rotulo: string; href?: string; chave?: string }>;
 }
 
 const useDuraveis = create<Estado>(() => ({
@@ -36,11 +36,12 @@ const ligado = (v: unknown) =>
 
 /**
  * Mostra o aviso rápido de que algo terminou (ex.: um vídeo ficou pronto).
- * `href` é onde ver o resultado (vai para a lista do sino).
+ * `href` é onde ver o resultado e `chave` identifica o acontecimento (os
+ * dois vão para a lista do sino).
  */
-export function avisarTermino(rotulo: string, href?: string) {
+export function avisarTermino(rotulo: string, href?: string, chave?: string) {
   useDuraveis.setState((s) => ({
-    terminadas: [...s.terminadas, { id: proximoId++, rotulo, href }],
+    terminadas: [...s.terminadas, { id: proximoId++, rotulo, href, chave }],
   }));
 }
 

@@ -11,8 +11,8 @@ import { create } from "zustand";
  *
  * Só funciona com a aba aberta — é ela que acompanha as tarefas.
  *
- * Cada aviso também entra na lista do sino da barra do topo (guardada neste
- * navegador), para quem não viu a notificação na hora.
+ * Cada aviso também entra na lista do sino da barra do topo (guardada na
+ * conta), para quem não viu a notificação na hora.
  */
 const DISPENSADO = "nido:notificacoes-dispensado";
 
@@ -95,17 +95,26 @@ export function notificar(corpo: string): void {
 /** Um aviso da lista do sino. */
 export interface Aviso {
   id: string;
-  texto: string;
+  /** O que terminou; a tela põe "Terminou:" / "Não deu certo:" na frente. */
+  rotulo: string;
   /** A tarefa falhou (os créditos voltaram). */
   erro?: boolean;
   /** Onde ver o resultado. */
-  href?: string;
+  href?: string | null;
+  /** Identifica o acontecimento, para não avisar duas vezes. */
+  chave?: string | null;
   quando: number;
   lida: boolean;
 }
 
+/**
+ * A lista mora na conta (/api/conta/avisos): aparece em qualquer aparelho e
+ * inclui o que o servidor registrou com o app fechado. Este navegador guarda
+ * uma cópia, que vale enquanto a da conta não chega (ou sem login).
+ */
 const AVISOS = "nido:avisos";
 const MAX_AVISOS = 30;
+const ROTA = "/api/conta/avisos";
 
 const useAvisosGuardados = create<{ avisos: Aviso[]; carregado: boolean }>(() => ({
   avisos: [],
@@ -121,7 +130,24 @@ function guardar(avisos: Aviso[]) {
   }
 }
 
-/** Lê a lista guardada (uma vez, já no navegador — no servidor ela é vazia). */
+/** Troca a lista pela da conta, quando a resposta trouxe uma. */
+async function daConta(resposta: Promise<Response>): Promise<void> {
+  try {
+    const res = await resposta;
+    // Sem login: a cópia guardada pode ser de outra conta que usou este navegador.
+    if (res.status === 401) return guardar([]);
+    if (!res.ok) return;
+    const b = (await res.json()) as { avisos?: Aviso[] };
+    if (Array.isArray(b.avisos)) guardar(b.avisos);
+  } catch {
+    // sem rede: fica a cópia deste navegador
+  }
+}
+
+/** Busca a lista da conta (ao abrir o app, ao voltar para a aba, ao abrir o sino). */
+export const sincronizarAvisos = () => daConta(fetch(ROTA, { cache: "no-store" }));
+
+/** Lê a cópia guardada (uma vez, já no navegador) e busca a da conta. */
 export function carregarAvisos(): void {
   if (useAvisosGuardados.getState().carregado) return;
   let lidos: Aviso[] = [];
@@ -129,39 +155,59 @@ export function carregarAvisos(): void {
     const bruto = JSON.parse(localStorage.getItem(AVISOS) ?? "[]") as unknown;
     if (Array.isArray(bruto))
       lidos = (bruto as Aviso[]).filter(
-        (a) => a && typeof a.id === "string" && typeof a.texto === "string",
+        (a) => a && typeof a.id === "string" && typeof a.rotulo === "string",
       );
   } catch {
     // lista ilegível: começa vazia
   }
   // Avisos que chegaram antes da leitura ficam na frente.
   guardar([...useAvisosGuardados.getState().avisos, ...lidos].slice(0, MAX_AVISOS));
+  void sincronizarAvisos();
 }
 
 export const useAvisos = () => useAvisosGuardados((s) => s.avisos);
 
-/** Registra o aviso no sino e mostra a notificação do navegador. */
+/**
+ * Registra o aviso no sino (na conta) e mostra a notificação do navegador.
+ * `texto` é o aviso já no idioma da pessoa, para a notificação.
+ */
 export function registrarAviso(
   texto: string,
-  o: { erro?: boolean; href?: string } = {},
+  o: { rotulo: string; erro?: boolean; href?: string; chave?: string },
 ): void {
   carregarAvisos();
-  const aviso: Aviso = {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    texto,
-    erro: o.erro,
-    href: o.href,
-    quando: Date.now(),
-    lida: false,
-  };
-  guardar([aviso, ...useAvisosGuardados.getState().avisos].slice(0, MAX_AVISOS));
+  const { avisos } = useAvisosGuardados.getState();
+  // Já está na lista (o servidor ou outra aba registrou antes): nada a fazer.
+  if (o.chave && avisos.some((a) => a.chave === o.chave)) return;
+  guardar(
+    [
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        ...o,
+        quando: Date.now(),
+        lida: false,
+      },
+      ...avisos,
+    ].slice(0, MAX_AVISOS),
+  );
   notificar(texto);
+  void daConta(
+    fetch(ROTA, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(o),
+    }),
+  );
 }
 
 export function marcarAvisosLidos(): void {
   const { avisos } = useAvisosGuardados.getState();
-  if (avisos.some((a) => !a.lida))
-    guardar(avisos.map((a) => ({ ...a, lida: true })));
+  if (!avisos.some((a) => !a.lida)) return;
+  guardar(avisos.map((a) => ({ ...a, lida: true })));
+  fetch(ROTA, { method: "PATCH" }).catch(() => {});
 }
 
-export const limparAvisos = () => guardar([]);
+export function limparAvisos(): void {
+  guardar([]);
+  fetch(ROTA, { method: "DELETE" }).catch(() => {});
+}

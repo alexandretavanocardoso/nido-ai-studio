@@ -2,6 +2,7 @@ import {
   videoParaFigurinha,
   type FigurinhaAnimada,
 } from "./figurinha-animada";
+import { criarAviso } from "@/lib/avisos-server";
 import { getPool } from "@/lib/db";
 import { getFal } from "@/lib/fal";
 import { estornarSeHouver, type Cobranca } from "@/lib/creditos";
@@ -414,13 +415,17 @@ export async function finalizarJob(
       "update video_jobs set status = 'concluido', result_key = $2, updated_at = now() where id = $1",
       [job.id, key],
     );
-    await atualizarPersonagem(job, {
-      key,
-      size,
-      status: undefined,
-      erro: undefined,
-      duracao: job.duracao ?? undefined,
-    });
+    await avisarDoJob(
+      job,
+      await atualizarPersonagem(job, {
+        key,
+        size,
+        status: undefined,
+        erro: undefined,
+        duracao: job.duracao ?? undefined,
+      }),
+      false,
+    );
     return publico({ status: "concluido", key });
   } catch (e) {
     console.error("[videos] finalizar:", job.id, e);
@@ -465,7 +470,11 @@ export async function finalizarJob(
           [j.id, erro],
         );
       } else {
-        await atualizarPersonagem(j, { status: "erro", erro });
+        await avisarDoJob(
+          j,
+          await atualizarPersonagem(j, { status: "erro", erro }),
+          true,
+        );
       }
     }
     return publico({ status: "erro", erro });
@@ -479,15 +488,41 @@ export async function finalizarJob(
 async function atualizarPersonagem(
   job: Job,
   patch: Partial<VideoArquivo>,
-): Promise<void> {
+): Promise<ItemDoJob | null> {
   const pool = getPool()!;
   const { rows } = await pool.query<{ id: string; data: Character }>(
     `select id, data from characters
       where user_id = $2 and (id = $1 or data->'videos' @> $3::jsonb)`,
     [job.character_id, job.user_id, JSON.stringify([{ jobId: job.id }])],
   );
+  let primeiro: ItemDoJob | null = null;
   for (const { id, data } of rows)
-    await atualizarVideoDoJob(id, data, job, patch);
+    primeiro = (await atualizarVideoDoJob(id, data, job, patch)) ?? primeiro;
+  return primeiro;
+}
+
+/** O vídeo (ou figurinha) do job dentro de um personagem: para o aviso do sino. */
+interface ItemDoJob {
+  nome: string;
+  href: string;
+}
+
+/**
+ * Aviso do sino: o vídeo terminou ou falhou. Nasce aqui para existir mesmo
+ * com o app fechado; a chave é a mesma que a tela usa, então não duplica.
+ */
+async function avisarDoJob(
+  job: Job,
+  item: ItemDoJob | null,
+  erro: boolean,
+): Promise<void> {
+  if (!item) return;
+  await criarAviso(job.user_id, {
+    rotulo: item.nome,
+    erro,
+    href: item.href,
+    chave: `video:${job.id}`,
+  });
 }
 
 async function atualizarVideoDoJob(
@@ -495,12 +530,12 @@ async function atualizarVideoDoJob(
   data: Character,
   job: Job,
   patch: Partial<VideoArquivo>,
-): Promise<void> {
+): Promise<ItemDoJob | null> {
   // O job pode ser de um vídeo ou de uma figurinha animada do personagem.
   const video =
     data?.videos?.find((v) => v.jobId === job.id) ??
     data?.figurinhas?.find((f) => f.jobId === job.id);
-  if (!data || !video) return;
+  if (!data || !video) return null;
   Object.assign(video, {
     ...(patch.key !== undefined ? { key: patch.key } : {}),
     ...(patch.size !== undefined ? { size: patch.size } : {}),
@@ -519,6 +554,11 @@ async function atualizarVideoDoJob(
     "update characters set data = $3, updated_at = now() where id = $1 and user_id = $2",
     [characterId, job.user_id, JSON.stringify(data)],
   );
+  const ehVideo = "name" in video;
+  return {
+    nome: ehVideo ? video.name : video.texto,
+    href: `/app/personagem/${characterId}?aba=estudio&secao=${ehVideo ? "videos" : "figurinhas"}`,
+  };
 }
 
 /** Ids dos jobs que o cron deve verificar (pendentes ou travados nas últimas 48h+). */
