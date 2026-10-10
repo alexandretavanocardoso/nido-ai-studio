@@ -5,7 +5,7 @@ import { z } from "zod";
 import { allow } from "@/lib/ai/rate-limit";
 import { getPool } from "@/lib/db";
 import { getObjectBuffer, ownsKey, presignGet } from "@/lib/storage/s3";
-import { extrairQuadro } from "@/lib/video/ffmpeg";
+import { extrairQuadroMarcado } from "@/lib/video/ffmpeg";
 import { getFal, mensagemDeErro } from "@/lib/video/fal";
 import { silhuetaDaPessoa } from "@/lib/video/pessoas";
 import { comPastaTemporaria, contextoVideo } from "@/lib/video/server";
@@ -78,9 +78,10 @@ export async function POST(req: Request) {
         url = await presignGet(s3, body.videoKey!, 300);
       }
       // O ffmpeg lê direto da URL e pula até o instante: não baixa o vídeo todo.
+      // Tem que ser o quadro que estava na tela na hora do clique.
       quadro = await comPastaTemporaria(async (dir) => {
         const saida = path.join(dir, "quadro.jpg");
-        await extrairQuadro(url, Math.max(0.05, body.t), saida, 20_000);
+        await extrairQuadroMarcado(url, body.t, saida, 20_000);
         return readFile(saida);
       });
     }

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import sharp, { type Sharp } from "sharp";
 import { GoogleGenAI } from "@google/genai";
 import type { FalClient } from "@fal-ai/client";
-import { extrairQuadro } from "./ffmpeg";
+import { extrairQuadroMarcado } from "./ffmpeg";
 
 /**
  * Escolher QUEM trocar (no vídeo ou numa foto): a pessoa clica em cima de cada
@@ -296,7 +296,7 @@ export async function descreverPessoas(
       descreverUma(
         async () => {
           const saida = path.join(dir, `pessoa-${i}.jpg`);
-          await extrairQuadro(arquivo, Math.max(0.05, p.t), saida);
+          await extrairQuadroMarcado(arquivo, p.t, saida);
           return readFile(saida);
         },
         p,

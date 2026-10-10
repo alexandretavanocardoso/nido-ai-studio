@@ -9,7 +9,11 @@ import {
   shrinkReferencia,
 } from "@/lib/ai/gemini";
 import { promptTrocaImagem } from "@/lib/prompts/trocar-imagem";
-import { extrairQuadro, type VideoInfo } from "./ffmpeg";
+import {
+  extrairQuadro,
+  extrairQuadroMarcado,
+  type VideoInfo,
+} from "./ffmpeg";
 import { marcarPonto } from "./pessoas";
 
 /**
@@ -272,9 +276,9 @@ export async function linhaDoTempoDosAlvos(o: {
       Promise.all(
         o.marcadas.map(async (m, i) => {
           const saida = path.join(o.dir, `linha-marcada-${i}.jpg`);
-          await extrairQuadro(
+          await extrairQuadroMarcado(
             o.arquivo,
-            Math.max(0.05, Math.min(m.t, o.duracao - 0.1)),
+            Math.min(m.t, o.duracao - 0.1),
             saida,
           );
           return {
@@ -490,9 +494,9 @@ export async function prepararTomadas(o: {
         )
         .map(async (m, i) => {
           const saida = path.join(o.dir, `tomada-marcada-${i}.jpg`);
-          await extrairQuadro(
+          await extrairQuadroMarcado(
             o.arquivo,
-            Math.max(0.05, Math.min(m.t, o.info.duracao - 0.1)),
+            Math.min(m.t, o.info.duracao - 0.1),
             saida,
           );
           return {
@@ -593,9 +597,9 @@ export async function acoesDosTrechos(o: {
         )
         .map(async (m, i) => {
           const saida = path.join(o.dir, `acao-marcada-${i}.jpg`);
-          await extrairQuadro(
+          await extrairQuadroMarcado(
             o.arquivo,
-            Math.max(0.05, Math.min(m.t, o.duracao - 0.1)),
+            Math.min(m.t, o.duracao - 0.1),
             saida,
           );
           return {
@@ -952,9 +956,9 @@ export async function prepararAncora(o: {
           )
           .map(async (m, i) => {
             const saida = path.join(o.dir, `marcada-${i}.jpg`);
-            await extrairQuadro(
+            await extrairQuadroMarcado(
               o.arquivo,
-              Math.max(0.05, Math.min(m.t, o.info.duracao - 0.1)),
+              Math.min(m.t, o.info.duracao - 0.1),
               saida,
             );
             return marcarPonto(await readFile(saida), m);
@@ -1032,9 +1036,9 @@ export async function prepararAncora(o: {
     } else if (o.marcadas?.length) {
       // O usuário pausou onde a pessoa aparece bem: esse é o quadro.
       const saida = path.join(o.dir, "ancora-origem.jpg");
-      await extrairQuadro(
+      await extrairQuadroMarcado(
         o.arquivo,
-        Math.max(0.05, Math.min(o.marcadas[0].t, o.info.duracao - 0.1)),
+        Math.min(o.marcadas[0].t, o.info.duracao - 0.1),
         saida,
       );
       quadro = await readFile(saida);

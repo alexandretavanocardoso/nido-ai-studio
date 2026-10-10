@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { stat, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -743,6 +744,43 @@ export async function extrairQuadro(
     ],
     limiteMs,
   );
+}
+
+/**
+ * O quadro que o navegador MOSTRA no instante `segundos` — o último que começa
+ * até ali. É o que vale para um clique da pessoa na tela: o `extrairQuadro`
+ * devolve o primeiro quadro DEPOIS do instante, e num vídeo de dança um quadro
+ * de diferença já tira a pessoa de baixo do clique.
+ */
+export async function extrairQuadroMarcado(
+  entrada: string,
+  segundos: number,
+  saida: string,
+  limiteMs?: number,
+): Promise<void> {
+  const ate = Math.max(0, segundos);
+  // Lê o meio segundo anterior e fica com o último quadro (cada um sobrescreve o outro).
+  const inicio = Math.max(0, ate - 0.5);
+  await run(
+    [
+      "-y",
+      "-ss",
+      inicio.toFixed(3),
+      "-i",
+      entrada,
+      "-t",
+      (ate - inicio + 0.004).toFixed(3),
+      "-an",
+      "-update",
+      "1",
+      "-q:v",
+      "2",
+      saida,
+    ],
+    limiteMs,
+  );
+  // Instante depois do fim do vídeo: nenhum quadro saiu.
+  if (!existsSync(saida)) await extrairQuadro(entrada, ate, saida, limiteMs);
 }
 
 /**
