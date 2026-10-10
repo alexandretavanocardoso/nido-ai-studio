@@ -173,7 +173,9 @@ export function EscreverComoPersonagem({
   }
 
   return (
-    <section className="grid gap-4">
+    // Uma coluna que não cresce com o conteúdo: um título longo (sem quebra)
+    // é cortado com reticências em vez de empurrar o cartão para fora da tela.
+    <section className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
       <p className="text-[13px] text-ink-mute">
         {tx("Escrevendo como")}{" "}
         <strong className="text-ink">
@@ -254,7 +256,7 @@ export function EscreverComoPersonagem({
       {erro ? <ErroGeracao mensagem={erro.msg} code={erro.code} /> : null}
 
       {salvos.length > 0 && (
-        <div className="grid gap-2">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2">
           <div className="flex items-baseline gap-2.5 pt-1">
             <span className="text-[13px] font-semibold text-ink">
               {tx("Textos salvos")}
