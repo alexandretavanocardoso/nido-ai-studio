@@ -330,8 +330,11 @@ async function enviar(
   arquivo: string,
   tipo: string,
 ): Promise<string> {
-  return fal.storage.upload(
-    new Blob([new Uint8Array(await readFile(arquivo))], { type: tipo }),
+  return comLimite(
+    fal.storage.upload(
+      new Blob([new Uint8Array(await readFile(arquivo))], { type: tipo }),
+    ),
+    "envio de arquivo",
   );
 }
 
@@ -563,6 +566,96 @@ export interface TomadaEnvio {
   acao?: string;
 }
 
+/** O preparo não coube no tempo da rota: nada fica no motor e os créditos voltam. */
+export class PreparoDemorou extends Error {
+  constructor() {
+    super(
+      "O preparo deste vídeo demorou demais e foi interrompido. Tente de novo; se repetir, use uma duração menor.",
+    );
+  }
+}
+
+/** Conversões de vídeo (ffmpeg) e envios ao mesmo tempo: um servidor pequeno engasga com todos de uma vez. */
+const ENVIOS_POR_VEZ = 4;
+/** Um upload ou pedido ao fal que não responde nesse tempo é dado como perdido (em vez de travar a rota). */
+const LIMITE_CHAMADA_MS = 60_000;
+const INTERROMPIDO = "Envio interrompido.";
+
+function comLimite<T>(p: Promise<T>, oQue: string): Promise<T> {
+  let t: ReturnType<typeof setTimeout>;
+  return Promise.race([
+    p,
+    new Promise<never>((_, falhar) => {
+      t = setTimeout(
+        () => falhar(new Error(`O fal não respondeu a tempo (${oQue}).`)),
+        LIMITE_CHAMADA_MS,
+      );
+    }),
+  ]).finally(() => clearTimeout(t));
+}
+
+/**
+ * Envia as partes de um vídeo ao motor, poucas por vez e dentro do prazo. Se
+ * uma falhar ou o prazo acabar, as outras param e os pedidos que já estavam
+ * na fila do motor são cancelados — senão ele processa (e cobra) trechos de
+ * um vídeo que nunca vai ser montado.
+ */
+async function enviarPartes<T>(
+  o: { fal: FalClient; modelo: string; prazo?: number },
+  partes: T[],
+  enviarParte: (
+    parte: T,
+    i: number,
+    c: {
+      /** Antes de cada etapa demorada: para se outra parte falhou ou o prazo acabou. */
+      conferir: () => void;
+      /** Pedido aceito pelo motor (para cancelar se o envio não terminar). */
+      naFila: (requestId: string) => void;
+    },
+  ) => Promise<Segmento>,
+): Promise<Segmento[]> {
+  const pedidos: string[] = [];
+  let parou = false;
+  const c = {
+    conferir() {
+      if (parou) throw new Error(INTERROMPIDO);
+      if (o.prazo && Date.now() > o.prazo) throw new PreparoDemorou();
+    },
+    naFila: (id: string) => void pedidos.push(id),
+  };
+  const saida = new Array<Segmento>(partes.length);
+  let proxima = 0;
+  // Espera todas as filas pararem antes de desfazer: uma parte no meio do
+  // caminho ainda pode entrar na fila do motor (e precisa ser cancelada), e a
+  // pasta temporária só pode ser apagada sem ffmpeg escrevendo nela.
+  const filas = await Promise.allSettled(
+    Array.from(
+      { length: Math.min(ENVIOS_POR_VEZ, partes.length) },
+      async () => {
+        try {
+          for (let i = proxima++; i < partes.length; i = proxima++) {
+            c.conferir();
+            saida[i] = await enviarParte(partes[i], i, c);
+          }
+        } catch (e) {
+          parou = true;
+          throw e;
+        }
+      },
+    ),
+  );
+  const falhas = filas.filter((f) => f.status === "rejected");
+  if (!falhas.length) return saida;
+  await Promise.allSettled(
+    pedidos.map((requestId) => o.fal.queue.cancel(o.modelo, { requestId })),
+  );
+  // A causa é o primeiro erro de verdade, não o "interrompido" das outras filas.
+  throw (
+    falhas.find((f) => (f.reason as Error)?.message !== INTERROMPIDO) ??
+    falhas[0]
+  ).reason;
+}
+
 /**
  * Envia as tomadas uma a uma. As mais curtas que o mínimo do motor vão em
  * câmera lenta (a montagem devolve a velocidade); as mais longas que o máximo
@@ -579,6 +672,7 @@ async function enviarTomadas(
     estilo?: EstiloTroca;
     jobId: string;
     tomadas: TomadaEnvio[];
+    prazo?: number;
   },
   modelo: string,
   maxTrecho: number,
@@ -597,15 +691,20 @@ async function enviarTomadas(
       ancoras.set(
         t,
         t.ancora && o.motor === "kling"
-          ? o.fal.storage.upload(
-              new Blob([new Uint8Array(t.ancora)], { type: "image/jpeg" }),
+          ? comLimite(
+              o.fal.storage.upload(
+                new Blob([new Uint8Array(t.ancora)], { type: "image/jpeg" }),
+              ),
+              "envio do quadro-guia",
             )
           : Promise.resolve(null),
       );
     return ancoras.get(t)!;
   };
-  return Promise.all(
-    partes.map(async (p, i) => {
+  return enviarPartes(
+    { fal: o.fal, modelo, prazo: o.prazo },
+    partes,
+    async (p, i, c) => {
       const lentidao = p.duracao < TOMADA_MIN ? TOMADA_MIN / p.duracao : 1;
       const seg = path.join(dir, `tomada-${i}.mp4`);
       await prepararTrechoTroca(
@@ -616,6 +715,7 @@ async function enviarTomadas(
         o.info,
         p.tomada.alvos.length ? lentidao : 1,
       );
+      c.conferir();
       const videoUrl = await enviar(o.fal, seg, "video/mp4");
       if (!p.tomada.alvos.length)
         return {
@@ -625,21 +725,26 @@ async function enviarTomadas(
           urlPronta: videoUrl,
         };
       const ancoraUrl = await ancoraDe(p.tomada);
-      const { request_id } = await o.fal.queue.submit(modelo, {
-        input: inputMotor(o.motor, {
-          videoUrl,
-          alvos: p.tomada.alvos,
-          duracao: p.duracao * lentidao,
-          removerTexto: o.removerTexto,
-          estilo: o.estilo,
-          acao: p.tomada.acao,
-          ancoraUrl,
-          naAncora: ancoraUrl ? p.tomada.naAncora : undefined,
+      c.conferir();
+      const { request_id } = await comLimite(
+        o.fal.queue.submit(modelo, {
+          input: inputMotor(o.motor, {
+            videoUrl,
+            alvos: p.tomada.alvos,
+            duracao: p.duracao * lentidao,
+            removerTexto: o.removerTexto,
+            estilo: o.estilo,
+            acao: p.tomada.acao,
+            ancoraUrl,
+            naAncora: ancoraUrl ? p.tomada.naAncora : undefined,
+          }),
+          webhookUrl: webhookUrl(o.jobId),
         }),
-        webhookUrl: webhookUrl(o.jobId),
-      });
+        "pedido ao motor",
+      );
+      c.naFila(request_id);
       return { requestId: request_id, inicio: p.inicio, duracao: p.duracao };
-    }),
+    },
   );
 }
 
@@ -685,6 +790,12 @@ export async function iniciarTroca(o: {
    * como [[1]], [[2]]… (ver `acoesDosTrechos` em ./ancora.ts e `acaoDoTrecho`).
    */
   acoesPorTrecho?: Array<string | undefined>;
+  /**
+   * Instante (ms) em que o envio tem que ter acabado. Passado ele, o envio
+   * para com `PreparoDemorou` e cancela o que já estava no motor — a rota
+   * devolve os créditos em vez de ser cortada no meio pelo servidor.
+   */
+  prazo?: number;
 }): Promise<InputTroca> {
   const { maxTrecho } = MOTORES_TROCA[o.motor];
   const modelo =
@@ -716,11 +827,15 @@ export async function iniciarTroca(o: {
             new Blob([new Uint8Array(o.ancora)], { type: "image/jpeg" }),
           )
         : null;
-    const segmentos = await Promise.all(
-      (o.trechos ?? trechosTroca(o.info.duracao, maxTrecho)).map(async (t, i) => {
+    const segmentos = await enviarPartes(
+      { fal: o.fal, modelo, prazo: o.prazo },
+      o.trechos ?? trechosTroca(o.info.duracao, maxTrecho),
+      async (t, i, c) => {
         const seg = path.join(dir, `seg-${i}.mp4`);
         await prepararTrechoTroca(o.arquivo, t.inicio, t.duracao, seg, o.info);
+        c.conferir();
         const videoUrl = await enviar(o.fal, seg, "video/mp4");
+        c.conferir();
         const { request_id } = await o.fal.queue.submit(modelo, {
           input: inputMotor(o.motor, {
             videoUrl,
@@ -743,8 +858,9 @@ export async function iniciarTroca(o: {
           }),
           webhookUrl: webhookUrl(o.jobId),
         });
+        c.naFila(request_id);
         return { requestId: request_id, inicio: t.inicio, duracao: t.duracao };
-      }),
+      },
     );
     return { motor: o.motor, modelo, segmentos, audioUrl };
   });

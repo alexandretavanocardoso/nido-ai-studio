@@ -119,7 +119,16 @@ const BodySchema = z.object({
  * POST — troca a pessoa do vídeo pelo personagem. Assíncrono: devolve o id do
  * job; o cliente acompanha em /api/videos/jobs/[id].
  */
+/**
+ * Até quando o envio ao motor pode ir, contado do começo do pedido. Fica antes
+ * do limite da rota (maxDuration): passado esse ponto o envio para sozinho,
+ * cancela o que já mandou e os créditos voltam — cortada pelo servidor, a
+ * rota não devolve nada.
+ */
+const PRAZO_ENVIO_MS = 255_000;
+
 export async function POST(req: Request) {
+  const prazo = Date.now() + PRAZO_ENVIO_MS;
   const ctx = await contextoVideo();
   if (ctx instanceof NextResponse) return ctx;
   const { userId, s3 } = ctx;
@@ -449,6 +458,7 @@ export async function POST(req: Request) {
           removerTexto: body.removerTexto,
           estilo: body.estilo,
           jobId,
+          prazo,
           tomadas: preparadas.map((t) => ({
             inicio: t.inicio,
             duracao: t.duracao,
@@ -502,6 +512,7 @@ export async function POST(req: Request) {
           removerTexto: body.removerTexto,
           estilo: body.estilo,
           jobId,
+          prazo,
           ancora: ancora.imagem,
           outras: ancora.outras,
           naAncora: ancora.naAncora,
