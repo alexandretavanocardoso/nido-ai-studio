@@ -11,6 +11,10 @@ export interface Recursos {
   login: boolean;
   /** Vincular o Discord à conta (app do Discord configurado). Exige login. */
   discord: boolean;
+  /** Vincular o LinkedIn à conta (app do LinkedIn configurado). Exige login. */
+  linkedin: boolean;
+  /** Vincular o X à conta (app do X configurado). Exige login. */
+  twitter: boolean;
   /** Arquivos no S3 (imagens e vídeos). Exige login. */
   armazenamento: boolean;
   /** IA de texto (Anthropic): expandir ficha, sugerir campo, regenerar, checar. */
@@ -61,6 +65,8 @@ export function recursosDisponiveis(): Recursos {
   return {
     login,
     discord: login && tem("DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET"),
+    linkedin: login && tem("LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET"),
+    twitter: login && tem("TWITTER_CLIENT_ID", "TWITTER_CLIENT_SECRET"),
     armazenamento,
     ia: tem("ANTHROPIC_API_KEY"),
     gemini: tem("GEMINI_API_KEY"),

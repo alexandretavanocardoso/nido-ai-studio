@@ -8,7 +8,8 @@ import { usuarioDoContexto } from "./contexto";
 
 function createAuth() {
   const pool = getPool();
-  if (!recursosDisponiveis().login || !pool) return null;
+  const recursos = recursosDisponiveis();
+  if (!recursos.login || !pool) return null;
   return betterAuth({
     database: pool,
     secret: process.env.BETTER_AUTH_SECRET,
@@ -18,14 +19,36 @@ function createAuth() {
         clientId: process.env.GOOGLE_CLIENT_ID ?? "",
         clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
       },
-      // Discord: só para vincular à conta (perfil). O login continua sendo
-      // pelo Google: ninguém cria conta pelo Discord.
-      ...(recursosDisponiveis().discord
+      // Discord, LinkedIn e X: só para vincular à conta (perfil). O login
+      // continua sendo pelo Google: ninguém cria conta por eles.
+      ...(recursos.discord
         ? {
             discord: {
               clientId: process.env.DISCORD_CLIENT_ID ?? "",
               clientSecret: process.env.DISCORD_CLIENT_SECRET ?? "",
               disableSignUp: true,
+            },
+          }
+        : {}),
+      ...(recursos.linkedin
+        ? {
+            linkedin: {
+              clientId: process.env.LINKEDIN_CLIENT_ID ?? "",
+              clientSecret: process.env.LINKEDIN_CLIENT_SECRET ?? "",
+              disableSignUp: true,
+            },
+          }
+        : {}),
+      ...(recursos.twitter
+        ? {
+            twitter: {
+              clientId: process.env.TWITTER_CLIENT_ID ?? "",
+              clientSecret: process.env.TWITTER_CLIENT_SECRET ?? "",
+              disableSignUp: true,
+              // Só o que identifica a conta (e renovar o acesso para reler o
+              // @). Sem o e-mail, que pede uma permissão a mais no app do X.
+              disableDefaultScope: true,
+              scope: ["users.read", "tweet.read", "offline.access"],
             },
           }
         : {}),
@@ -60,6 +83,10 @@ function createAuth() {
         disableImplicitLinking: true,
         // O e-mail do Discord costuma ser outro que não o do Google.
         allowDifferentEmails: true,
+        // Sem isto o vínculo exige e-mail confirmado na outra rede, e o X não
+        // informa e-mail. Não abre porta: com o vínculo automático desligado,
+        // "confiar" só vale para quem está logado e pediu para vincular.
+        trustedProviders: ["linkedin", "twitter"],
       },
     },
   });

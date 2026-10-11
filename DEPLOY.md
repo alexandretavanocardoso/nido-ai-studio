@@ -17,6 +17,7 @@ O `.env` local continua com `http://localhost:3000` para desenvolver; os valores
 | `BETTER_AUTH_SECRET` | o mesmo do `.env` (ou um novo: `openssl rand -base64 32`) |
 | `DATABASE_URL` | Neon (mesmo do `.env`) |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | mesmos do `.env` |
+| `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` · `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` · `TWITTER_CLIENT_ID`, `TWITTER_CLIENT_SECRET` | opcionais — contas vinculadas no Perfil (passo 2); cada rede só aparece com o par preenchido |
 | `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET` | mesmos do `.env` |
 | `CRON_SECRET` | mesmo do `.env` |
 | `GEMINI_API_KEY` | mesmo do `.env` |
@@ -47,6 +48,18 @@ Opcionais (têm padrão): `ANTHROPIC_MODEL`, `GEMINI_IMAGE_MODEL`, `GEMINI_IMAGE
 - **Authorized redirect URIs:** `https://aistudio.nido.global/api/auth/callback/google`
 
 Mantenha também os de `http://localhost:3000` para desenvolver.
+
+### Contas vinculadas no Perfil (Discord, LinkedIn, X)
+
+Opcionais. Não são login: a pessoa entra pelo Google e, em **Conta → Perfil**, liga as outras contas. Cada rede precisa de um app próprio, com o endereço de retorno cadastrado:
+
+| Rede | Onde criar o app | Endereço de retorno |
+|---|---|---|
+| Discord | [discord.com/developers](https://discord.com/developers/applications) → OAuth2 | `https://aistudio.nido.global/api/auth/callback/discord` |
+| LinkedIn | [linkedin.com/developers](https://www.linkedin.com/developers/apps) → Products: **Sign In with LinkedIn using OpenID Connect** → Auth | `https://aistudio.nido.global/api/auth/callback/linkedin` |
+| X | [developer.x.com](https://developer.x.com/) → app → **User authentication settings**: OAuth 2.0, tipo **Web App**, permissão **Read** | `https://aistudio.nido.global/api/auth/callback/twitter` |
+
+No X, as chaves são o **Client ID** e o **Client Secret** do OAuth 2.0 (não a API Key). O app pede só a identificação da conta (`users.read`, `tweet.read`, `offline.access`), sem e-mail.
 
 ---
 

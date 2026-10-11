@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Coins, HardDrive, Languages, LogOut, Users } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { DiscordConta } from "@/components/auth/DiscordConta";
+import { ContaVinculada } from "@/components/auth/ContaVinculada";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
 import { CarteiraConta } from "@/components/nft/CarteiraConta";
 import { useRecursos } from "@/components/RecursosProvider";
 import { Button } from "@/components/ui/Button";
+import { PROVEDORES_VINCULO } from "@/lib/auth/vinculos";
 import { cn } from "@/lib/cn";
 import { liberadoNaTela } from "@/lib/em-teste";
 import { IDIOMAS, useIdioma } from "@/lib/i18n";
@@ -118,7 +119,7 @@ export default function Perfil() {
         </section>
       ) : null}
 
-      {recursos.discord || comCarteira ? (
+      {PROVEDORES_VINCULO.some((p) => recursos[p]) || comCarteira ? (
         <section className="card grid gap-3 p-5">
           <div>
             <div className="text-[13px] font-semibold text-ink">
@@ -128,7 +129,9 @@ export default function Perfil() {
               {tx("Ligue outras contas à sua. O login continua sendo pelo Google.")}
             </p>
           </div>
-          <DiscordConta cartao />
+          {PROVEDORES_VINCULO.map((p) => (
+            <ContaVinculada key={p} provedor={p} />
+          ))}
           <CarteiraConta />
         </section>
       ) : null}

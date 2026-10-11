@@ -2766,6 +2766,22 @@ export const TEXTOS_EN: Record<string, string> = {
     "Couldn't open Discord. Try again.",
   "Não consegui desvincular. Tente de novo.":
     "Couldn't unlink. Try again.",
+  "Desvincular o LinkedIn?":
+    "Unlink LinkedIn?",
+  "Não consegui abrir o LinkedIn. Tente de novo.":
+    "Couldn't open LinkedIn. Try again.",
+  "Desvincular o X?":
+    "Unlink X?",
+  "Não consegui abrir o X. Tente de novo.":
+    "Couldn't open X. Try again.",
+  "Conta vinculada":
+    "Account linked",
+  "Essa conta já está vinculada a outro usuário do app.":
+    "This account is already linked to another user of the app.",
+  "Você não autorizou o acesso. Nada foi vinculado.":
+    "You didn't authorize access. Nothing was linked.",
+  "Não deu para concluir o vínculo. Tente de novo.":
+    "Couldn't complete the link. Try again.",
 
   "Perfil":
     "Profile",

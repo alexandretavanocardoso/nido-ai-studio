@@ -90,6 +90,18 @@ Mint do influencer como NFT intransferível na Solana (Metaplex Core), com badge
 - A Phantom às vezes responde "Unexpected error" ao conectar (aconteceu no primeiro teste, em 10/10, logo depois de ligar o Modo Testnet). O erro nasce dentro da extensão; costuma passar recarregando a página ou reabrindo o navegador. A tela mostra a resposta da carteira e essa orientação.
 - `npm audit`: de 11 para 16 avisos, todos pela mesma causa que já existia (o cliente de rede do `@solana/web3.js` versão 1, agora contado também nos pacotes da Metaplex que dependem dele). Nenhuma falha nova; o `bigint-buffer` não voltou.
 
+## LinkedIn e X vinculados no Perfil (novo em 11/10)
+
+Em Conta → Perfil → Contas vinculadas, ao lado do Discord e da carteira Solana, dá para ligar o LinkedIn e o X à conta. Não é login (o login segue só pelo Google) e não é a conexão das redes do personagem para publicar (essa continua no bundle.social). Mesmo caminho do Discord: o vínculo é do Better Auth, o estado e o desvincular ficam em `/api/conta/vinculo/[provedor]` ([lib/auth/vinculos.ts](lib/auth/vinculos.ts), [components/auth/ContaVinculada.tsx](components/auth/ContaVinculada.tsx)).
+
+- [x] **Vinculados de verdade em 11/10, pela tela, no app local:** X e LinkedIn. No banco, a conta do X ficou com os escopos `users.read`, `tweet.read` e `offline.access`, com renovação de acesso (o acesso do X vence em 2 h e se renova sozinho); a do LinkedIn, com `openid`, `profile` e `email`, sem renovação (vence em 10/12/2026). O login do Google da mesma conta não foi tocado. O X não informa e-mail e mesmo assim vinculou.
+- [x] **Apps criados em 11/10.** O do LinkedIn só funcionou depois de adicionar o produto **Sign In with LinkedIn using OpenID Connect** (sem ele, a tela do LinkedIn dá "Bummer, something went wrong"). Os endereços de retorno local e de produção do LinkedIn estão cadastrados (conferido na tela de autorização do LinkedIn).
+- [ ] **Produção:** pôr os dois pares de chaves na Vercel (`LINKEDIN_CLIENT_ID/SECRET`, `TWITTER_CLIENT_ID/SECRET`) e conferir que o app do X tem o endereço de retorno de produção. Sem o par, o cartão da rede não aparece. Passo a passo no [DEPLOY.md](DEPLOY.md), seção 2.
+- [ ] **Ainda não testado:** desvincular pela tela; o aviso quando a conta da rede já é de outro usuário do app; e o Discord, que passou a usar a mesma rota e o mesmo cartão (conferir que continua aparecendo como vinculado no Perfil e no menu da conta).
+- [x] **X pelo twitterapi.io (decidido em 11/10): não.** Ele só lê dados públicos e não prova de quem é a conta; a alternativa seria um código colado na bio. Ficou o OAuth do X.
+- [ ] **O nome e a foto são lidos da rede cada vez que o Perfil abre** (como no Discord). No X cada leitura conta no limite da API; se a rede não responder, o cartão mostra só "Conta vinculada". O acesso do LinkedIn vence em 60 dias: depois disso o nome some até vincular de novo, mas o vínculo continua.
+- [ ] **O que fazer com o vínculo:** por ora só fica registrado na conta (tabela `account`, com o id da pessoa na rede). Nada no app usa ainda.
+
 ## Radar (novo em 07/10)
 
 O Radar está no ar em Estúdio → Radar: o Claude Haiku 4.5 pesquisa as notícias pela busca na web, o Sonnet refaz as notas com rigor e marca conteúdo promocional; há ideia de post, sino de avisos na barra e tarefa diária às 6h de Brasília. Custo medido: US$ 0,074 por radar; cobra 8 créditos. A página de planos já lista o custo.

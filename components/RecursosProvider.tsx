@@ -6,6 +6,8 @@ import type { Recursos } from "@/lib/recursos";
 const NENHUM: Recursos = {
   login: false,
   discord: false,
+  linkedin: false,
+  twitter: false,
   armazenamento: false,
   ia: false,
   gemini: false,

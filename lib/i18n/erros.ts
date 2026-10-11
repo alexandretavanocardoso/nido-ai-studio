@@ -477,6 +477,7 @@ const ERROS_EN: Record<string, string> = {
   "O vídeo original desta troca não está mais disponível para comparar.":
     "The original video of this swap is no longer available to compare.",
   "Banco não configurado.": "Database not configured.",
+  "Rede desconhecida.": "Unknown network.",
   "Não consegui falar com o Nido agora. Tente de novo em instantes.":
     "I couldn't reach Nido right now. Try again in a moment.",
   "Não consegui ler seus ganhos no Nido agora.":
