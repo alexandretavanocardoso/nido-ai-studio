@@ -15,7 +15,9 @@
  *   curtidas     2 a 5% das views          → views ÷ 50
  *   comentários  0,05 a 0,1% das views     → views ÷ 1.000
  *   reposts      0,15 a 0,4% das views     → views ÷ 500
- *   salvos       0,1 a 0,3% das views      → views ÷ 500
+ *   salvos       0,1% das views que o app consegue ler (conta conectada traz
+ *                os do Instagram e do X; link traz os do TikTok e do X; nunca
+ *                os dois juntos)           → views ÷ 1.000
  *   quotes       só existem no X: 0,01% das views de lá (1 a cada 10 mil). A
  *                escada vai até 10 mil, o que 100 milhões de views no X rendem.
  * Nenhuma escada tem degrau abaixo de 10: marca de um dígito a própria pessoa
@@ -150,12 +152,12 @@ export const ESCADAS: Record<MetricaBadge, Escada> = {
     pluralEn: "saves",
     titulo: "Salvos",
     tituloEn: "Saves",
-    nota: "TikTok e X; Instagram só com a conta conectada. YouTube e LinkedIn não informam.",
+    nota: "Por link: TikTok e X. Com a conta conectada: Instagram e X. YouTube e LinkedIn não informam.",
     notaEn:
-      "TikTok and X; Instagram only with the account connected. YouTube and LinkedIn do not report saves.",
-    degraus: [10, 20, 100, 200, 1_000, 2_000, 10_000, 20_000, 100_000, 200_000],
-    aprovacaoDe: 2_000,
-    semConexaoDe: 200,
+      "By link: TikTok and X. With the account connected: Instagram and X. YouTube and LinkedIn do not report saves.",
+    degraus: [10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000],
+    aprovacaoDe: 1_000,
+    semConexaoDe: 100,
   },
 };
 

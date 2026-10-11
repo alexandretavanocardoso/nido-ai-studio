@@ -303,10 +303,10 @@ Na aba **NFT** do personagem (ao lado do Radar; `?aba=nft`), a pessoa pode minta
 | Curtidas | 100 · 200 · 1 mil · 2 mil · 10 mil · 20 mil · 100 mil · 200 mil · 1 mi · 2 mi | de 2 mil | de 20 mil |
 | Comentários | 10 · 50 · 100 · 500 · 1 mil · 5 mil · 10 mil · 50 mil · 100 mil | de 100 | de 1 mil |
 | Reposts | 10 · 20 · 100 · 200 · 1 mil · 2 mil · 10 mil · 20 mil · 100 mil · 200 mil | de 200 | de 2 mil |
-| Salvos | 10 · 20 · 100 · 200 · 1 mil · 2 mil · 10 mil · 20 mil · 100 mil · 200 mil | de 200 | de 2 mil |
+| Salvos | 10 · 50 · 100 · 500 · 1 mil · 5 mil · 10 mil · 50 mil · 100 mil | de 100 | de 1 mil |
 | Quotes | 10 · 50 · 100 · 500 · 1 mil · 5 mil · 10 mil | de 50 | de 500 |
 
-Cada escada é a de views dividida pelo quanto a métrica rende por view em vídeo curto (pesquisa de 10/10/2026, com as fontes no desenho do fluxo): curtidas ÷ 50 (2 a 5% das views), comentários ÷ 1.000 (0,05 a 0,1%), reposts e salvos ÷ 500 (0,1 a 0,4%). Assim o degrau de uma métrica é mais ou menos tão difícil quanto o degrau de views na mesma posição. Quotes só existem no X (1 a cada 10 mil views de lá), por isso a escada é mais curta: 10 mil quotes é o que 100 milhões de views no X rendem. Nenhuma escada começa abaixo de 10: marca de um dígito a própria pessoa bate com as contas dela, e badge gravado no NFT não se desfaz. São 56 badges ao todo.
+Cada escada é a de views dividida pelo quanto a métrica rende por view em vídeo curto (pesquisa de 10/10/2026, com as fontes no desenho do fluxo): curtidas ÷ 50 (2 a 5% das views), comentários ÷ 1.000 (0,05 a 0,1%), reposts ÷ 500 (0,15 a 0,4%) e salvos ÷ 1.000. Salvos rendem 0,2 a 0,4% nas redes, mas o app nunca lê os do TikTok (só por link) e os do Instagram (só com a conta conectada) do mesmo personagem pelo mesmo caminho, então o que chega é perto de 0,1%. Assim o degrau de uma métrica é mais ou menos tão difícil quanto o degrau de views na mesma posição. Quotes só existem no X (1 a cada 10 mil views de lá), por isso a escada é mais curta: 10 mil quotes é o que 100 milhões de views no X rendem. Nenhuma escada começa abaixo de 10: marca de um dígito a própria pessoa bate com as contas dela, e badge gravado no NFT não se desfaz. São 55 badges ao todo.
 
 Esperam aprovação na aba **NFT** do admin: as marcas altas de cada escada (`aprovacaoDe`, o degrau equivalente a 1 milhão de views); as marcas médias quando a conta não está conectada (`semConexaoDe`, o equivalente a 100 mil views); e os badges de uma leitura em que um post saltou fora do normal (100 vezes e pelo menos a marca `semConexaoDe` da métrica).
 

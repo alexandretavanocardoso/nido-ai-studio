@@ -51,7 +51,8 @@ describe("catálogo de badges", () => {
     // comentários: ÷ 1.000, sem o primeiro degrau (5): nenhuma escada começa abaixo de 10
     expect(degraus("comentarios")).toEqual(viewsDivididasPor(1_000).slice(1)); // 10 … 100 mil
     expect(degraus("reposts")).toEqual(viewsDivididasPor(500)); // 10 … 200 mil
-    expect(degraus("salvos")).toEqual(viewsDivididasPor(500));
+    // salvos: ÷ 1.000 (o app nunca lê os do TikTok e os do Instagram do mesmo jeito), sem o 5
+    expect(degraus("salvos")).toEqual(viewsDivididasPor(1_000).slice(1));
     // quotes só existem no X (1 a cada 10 mil views de lá): escada mais curta, no mesmo ritmo
     expect(degraus("quotes")).toEqual([10, 50, 100, 500, 1_000, 5_000, 10_000]);
     for (const m of METRICAS_BADGE) expect(degraus(m)[0], m).toBeGreaterThanOrEqual(10);
@@ -105,17 +106,16 @@ describe("catálogo de badges", () => {
     ]);
     expect(ids("salvos")).toEqual([
       "saves_10",
-      "saves_20",
+      "saves_50",
       "saves_100",
-      "saves_200",
+      "saves_500",
       "saves_1k",
-      "saves_2k",
+      "saves_5k",
       "saves_10k",
-      "saves_20k",
+      "saves_50k",
       "saves_100k",
-      "saves_200k",
     ]);
-    expect(BADGES).toHaveLength(56);
+    expect(BADGES).toHaveLength(55);
   });
 
   it("os nomes saem certos em português e em inglês, com e sem milhar", () => {
@@ -144,7 +144,7 @@ describe("catálogo de badges", () => {
   });
 
   it("em cada escada, as duas marcas de conferência são os degraus gêmeos de 100 mil e de 1 milhão de views", () => {
-    const gemeos = { curtidas: 50, comentarios: 1_000, reposts: 500, salvos: 500 } as const;
+    const gemeos = { curtidas: 50, comentarios: 1_000, reposts: 500, salvos: 1_000 } as const;
     for (const [m, divisor] of Object.entries(gemeos) as Array<[keyof typeof gemeos, number]>) {
       const e = ESCADAS[m];
       expect(e.semConexaoDe, m).toBe(ESCADAS.views.semConexaoDe / divisor);

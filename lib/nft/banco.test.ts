@@ -1378,9 +1378,9 @@ describe("números que contam e badges", () => {
     const v = await conta();
     const q = await personagem(v, "Marca Alta");
     const { conectada } = novaConta();
-    const b = await post(v, q, { views: 3_000, curtidas: 25_000, salvos: 1_999 });
+    const b = await post(v, q, { views: 3_000, curtidas: 25_000, salvos: 999 });
     await contar(v, q, conectada);
-    expect(await badges(q)).toMatchObject({ likes_10k: "concedido", likes_20k: "aguardando", saves_1k: "concedido" });
+    expect(await badges(q)).toMatchObject({ likes_10k: "concedido", likes_20k: "aguardando", saves_500: "concedido" });
     expect((await motivos(q)).likes_20k).toBe(MOTIVOS.marcaAlta);
     const esperando = (await painelNft()).aguardando.filter((x) => x.characterId === q);
     expect(esperando).toHaveLength(1);
@@ -1393,7 +1393,7 @@ describe("números que contam e badges", () => {
       valorAgora: 25_000,
     });
 
-    // salto: os salvos do post pulam 100 vezes e mais que a marca de conferência da escada (200)
+    // salto: os salvos do post pulam 100 vezes e mais que a marca de conferência da escada (100)
     await sql("update posts_metricas set salvos = 19, curtidas = 25_000 where post_id = $1", [b]); // leitura menor não muda nada
     const w = await conta();
     const s = await personagem(w, "Salto");
@@ -1404,9 +1404,8 @@ describe("números que contam e badges", () => {
     await contar(w, s, outra.conectada);
     expect(await badges(s)).toEqual({
       saves_10: "aguardando",
-      saves_20: "aguardando",
+      saves_50: "aguardando",
       saves_100: "aguardando",
-      saves_200: "aguardando",
     });
     expect((await motivos(s)).saves_10).toBe(MOTIVOS.salto);
   });
@@ -1505,7 +1504,7 @@ describe("badges gravados no NFT", () => {
     e.situacao = "pendente";
     expect(await gravarBadges(r.mint.id)).toBe("gravado");
     expect([...(e.escritas.at(-1)?.badges ?? [])].sort()).toEqual(
-      ["comments_10", "likes_100", "likes_200", "saves_10", "saves_20", "views_10k", "views_5k"].sort(),
+      ["comments_10", "likes_100", "likes_200", "saves_10", "views_10k", "views_5k"].sort(),
     );
     const estado = await estadoNft(u, p);
     expect(estado.totais).toMatchObject({ views: 12_000, curtidas: 250, comentarios: 11, salvos: 25 });
@@ -1516,7 +1515,6 @@ describe("badges gravados no NFT", () => {
       "likes_200",
       "comments_10",
       "saves_10",
-      "saves_20",
     ]);
     const m = (await (
       await GET(new Request(`https://app.exemplo/api/nft/meta/${asset}`), { params: Promise.resolve({ asset }) })
@@ -1530,8 +1528,8 @@ describe("badges gravados no NFT", () => {
       Comments: 11,
       "Comments badge": "10",
       Saves: 25,
-      "Saves badge": "20",
-      Badges: 7,
+      "Saves badge": "10",
+      Badges: 6,
     });
     expect(tracos).not.toHaveProperty("Quotes badge");
   });

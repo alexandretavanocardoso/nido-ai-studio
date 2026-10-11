@@ -74,14 +74,14 @@ Mint do influencer como NFT intransferível na Solana (Metaplex Core), com badge
 - [ ] **Personagem apagado ou pagamento estornado depois do mint:** o NFT continua existindo e aparece como arquivado. Não há queima.
 - [ ] **Trocar a carteira de um NFT já mintado:** não implementado. O NFT fica na carteira em que nasceu.
 - [ ] **Soltar uma conta de rede presa a um personagem:** não há tela. Quem conecta a conta ganha de quem só a tinha pelo link; nos outros casos (link contra link, conexão contra conexão) vale quem chegou primeiro, e desfazer é apagar a linha em `nft_contas_rede`.
-- [ ] **Escadas dos badges (56 badges em 6 métricas):** saíram de uma pesquisa de quanto cada métrica rende por view (resumo e fontes no desenho do fluxo). Os degraus já gravados não mudam, porque o NFT guarda a posição do degrau; dá para acrescentar degraus no fim de uma escada e criar escadas novas. Rever os tetos quando houver dados dos próprios influencers: a referência é o influencer mediano perto do 3º ou 4º degrau e cerca de 1% no 8º ou acima.
+- [ ] **Escadas dos badges (55 badges em 6 métricas):** saíram de uma pesquisa de quanto cada métrica rende por view (resumo e fontes no desenho do fluxo). Os degraus já gravados não mudam, porque o NFT guarda a posição do degrau; dá para acrescentar degraus no fim de uma escada e criar escadas novas. Rever os tetos quando houver dados dos próprios influencers: a referência é o influencer mediano perto do 3º ou 4º degrau e cerca de 1% no 8º ou acima.
 - [ ] **Página de planos** não lista o mint (entra quando o recurso for aberto a todos). **Termos de uso** não falam do NFT.
 
 **Limites conhecidos**
 
 - A chave de mint consegue trocar nome e endereço dos metadados dos NFTs enquanto for delegada (o programa Core dá esse poder ao delegado). Por isso ela tem pouco saldo, teto diário e a raiz fica fora do servidor.
 - A chave de badges não pode ser trocada: cada NFT guarda quem escreve os badges dele. Chave nova só valeria para NFTs novos.
-- Nem toda rede dá todo número. Quotes só existem no X. Salvos: TikTok e X por link; Instagram só com a conta conectada; YouTube e LinkedIn não informam. Reposts: no X são reposts; no TikTok e no LinkedIn, compartilhamentos. Quem só posta no YouTube acumula views e curtidas, mas não esses badges.
+- Nem toda rede dá todo número. Quotes só existem no X. Salvos: por link vêm os do TikTok e do X; com a conta conectada, os do Instagram e do X (o bundle.social não traz os do TikTok); YouTube e LinkedIn não informam. Reposts: no X são reposts; no TikTok e no LinkedIn, compartilhamentos. Quem só posta no YouTube acumula views e curtidas, mas não esses badges.
 - Posts por link não são relidos pelo cron (cada leitura custa uma execução no Apify): os números deles só sobem quando o dono abre o Dashboard.
 - Os autores dos posts por link só são lidos com a aba NFT aberta. Depois de três leituras sem sucesso o post fica de fora, até o Dashboard conseguir relê-lo.
 - Cron diário no plano Hobby: um mint que ficou "confirmando" com a página fechada só fecha no dia seguinte. Com a página aberta, fecha em segundos. Para fechar em minutos, cron externo a cada 5 min em `/api/cron/nft`.
