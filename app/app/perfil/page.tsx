@@ -1,14 +1,25 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Coins, HardDrive, Languages, LogOut, Users } from "lucide-react";
+import {
+  Coins,
+  HardDrive,
+  Languages,
+  Loader2,
+  LogOut,
+  UserRound,
+  Users,
+} from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ContaVinculada } from "@/components/auth/ContaVinculada";
+import { GoogleIcon } from "@/components/auth/GoogleIcon";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
 import { CarteiraConta } from "@/components/nft/CarteiraConta";
 import { useRecursos } from "@/components/RecursosProvider";
 import { Button } from "@/components/ui/Button";
+import { authClient } from "@/lib/auth/client";
 import { PROVEDORES_VINCULO } from "@/lib/auth/vinculos";
 import { cn } from "@/lib/cn";
 import { liberadoNaTela } from "@/lib/em-teste";
@@ -28,17 +39,7 @@ export default function Perfil() {
 
   // user === null → ainda carregando (não mostra nada pra não piscar)
   if (user === null) return null;
-  if (!user)
-    return (
-      <div className="mx-auto grid w-full max-w-3xl gap-4 px-4 py-8 sm:px-6">
-        <p className="text-[14px] text-ink-mute">
-          {tx("Entre na sua conta para ver o perfil.")}
-        </p>
-        <Link href="/auth/login" className="w-fit">
-          <Button variant="accent">{tx("Entrar")}</Button>
-        </Link>
-      </div>
-    );
+  if (!user) return <SemLogin />;
 
   const nome = user.name || user.email.split("@")[0];
   // A carteira Solana (para onde os NFTs são mintados) entra com as contas vinculadas.
@@ -171,6 +172,74 @@ export default function Perfil() {
           <LogOut className="h-4 w-4" /> {tx("Sair")}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Perfil sem login: um cartão só, com o botão do Google. Entra direto daqui e
+ * volta para o Perfil (o "Entrar" do resto do app cai na Home).
+ */
+function SemLogin() {
+  const { disabled } = useAuth();
+  const [abrindo, setAbrindo] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function entrar() {
+    setAbrindo(true);
+    setErro(null);
+    const r = await authClient.signIn.social({
+      provider: "google",
+      callbackURL: "/app/perfil",
+      errorCallbackURL: "/auth/login",
+    });
+    // Sem erro, o navegador já está indo para o Google: o botão segue girando.
+    if (r.error) {
+      setErro(tx("Não consegui abrir o login do Google. Tente de novo."));
+      setAbrindo(false);
+    }
+  }
+
+  return (
+    <div className="grid min-h-[calc(100dvh-160px)] place-items-center px-4 py-8">
+      <section className="card relative w-full max-w-sm px-7 py-9 text-center before:absolute before:inset-x-[14%] before:-top-px before:h-px before:bg-[linear-gradient(90deg,transparent,rgba(253,243,39,0.9),transparent)]">
+        <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[linear-gradient(135deg,#5c2a1f,#aa7d43)] text-ink">
+          <UserRound className="h-7 w-7" strokeWidth={1.75} />
+        </span>
+        <h1 className="display mt-5 text-xl uppercase text-ink">
+          {tx("Entre na sua conta")}
+        </h1>
+        <p className="mx-auto mt-2 max-w-[260px] text-[14px] leading-relaxed text-ink-mute">
+          {tx("Para ver seu plano, seus créditos e as contas vinculadas.")}
+        </p>
+        {disabled ? (
+          <p className="mt-6 text-[13px] text-pink">
+            {tx("O login não está configurado neste ambiente.")}
+          </p>
+        ) : (
+          <Button
+            variant="accent"
+            size="lg"
+            className="mt-7 w-full"
+            onClick={entrar}
+            disabled={abrindo}
+          >
+            <span className="grid h-[22px] w-[22px] place-items-center rounded-full bg-white">
+              {abrindo ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-bg" />
+              ) : (
+                <GoogleIcon />
+              )}
+            </span>
+            {abrindo ? tx("Abrindo…") : tx("Continuar com Google")}
+          </Button>
+        )}
+        {erro ? (
+          <p className="mt-3 text-[12px] text-pink" role="alert">
+            {erro}
+          </p>
+        ) : null}
+      </section>
     </div>
   );
 }

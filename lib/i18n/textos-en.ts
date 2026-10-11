@@ -2785,8 +2785,10 @@ export const TEXTOS_EN: Record<string, string> = {
 
   "Perfil":
     "Profile",
-  "Entre na sua conta para ver o perfil.":
-    "Sign in to see your profile.",
+  "Para ver seu plano, seus créditos e as contas vinculadas.":
+    "To see your plan, your credits and your linked accounts.",
+  "Não consegui abrir o login do Google. Tente de novo.":
+    "Couldn't open Google sign-in. Try again.",
   "Sua conta, seu plano e as contas vinculadas.":
     "Your account, your plan and linked accounts.",
   "Login pelo Google. Nome e foto vêm da sua conta Google.":
