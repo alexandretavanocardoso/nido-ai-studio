@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   detectarRedeDoLink,
+  lerAutorDoItem,
   lerMetricasDoItem,
   lerPaginaLinkedIn,
   limparLink,
@@ -143,5 +144,41 @@ describe("lerPaginaLinkedIn", () => {
 
   it("aceita o link curto lnkd.in", () => {
     expect(detectarRedeDoLink("https://lnkd.in/p/djF-9YjC")).toBe("LINKEDIN");
+  });
+});
+
+describe("lerAutorDoItem (quem publicou o post)", () => {
+  it("lê o @ e o id do autor no formato de cada scraper", () => {
+    // clockworks/tiktok-scraper
+    expect(
+      lerAutorDoItem({ authorMeta: { name: "LilaNova", id: "6812345" }, playCount: 10 }),
+    ).toBe("lilanova id:6812345");
+    // apify/instagram-scraper
+    expect(lerAutorDoItem({ ownerUsername: "lila.nova", ownerId: "555" })).toBe(
+      "lila.nova id:555",
+    );
+    // apidojo/tweet-scraper
+    expect(lerAutorDoItem({ author: { userName: "@Lila", id: "42" } })).toBe(
+      "lila id:42",
+    );
+    // streamers/youtube-scraper
+    expect(
+      lerAutorDoItem({
+        channelName: "Lila Nova Oficial",
+        channelUrl: "https://www.youtube.com/@LilaNova",
+        channelId: "UCabc",
+      }),
+    ).toBe("lilanova id:UCabc");
+  });
+
+  it("sem autor no resultado, devolve vazio (o post não conta para os badges)", () => {
+    expect(lerAutorDoItem({ viewCount: 10 })).toBe("");
+    expect(lerAutorDoItem({ author: "texto solto com espaço" })).toBe("");
+  });
+
+  it("lerMetricasDoItem devolve o autor junto", () => {
+    expect(lerMetricasDoItem({ ownerUsername: "lila", videoViewCount: 9 }).autor).toBe(
+      "lila",
+    );
   });
 });

@@ -58,6 +58,7 @@ export async function limparUsuario(
     [userId],
   );
   const emUso = new Set(rows.flatMap((r) => r.json.match(KEY_RE) ?? []));
+  for (const key of await capasDeNft(pool, userId)) emUso.add(key);
 
   const lixo: string[] = [];
   for await (const obj of listObjects(s3, Bucket, prefix)) {
@@ -77,6 +78,25 @@ export async function limparUsuario(
     stats.apagados += lote.length;
   }
   return stats;
+}
+
+/**
+ * Capas dos NFTs da conta (cópia feita no mint): continuam em uso mesmo que a
+ * pessoa troque a capa ou apague o personagem. Banco sem a tabela (migration
+ * 0028 ainda não aplicada) = nenhuma; qualquer outro erro interrompe a limpeza,
+ * para nunca apagar uma capa por engano.
+ */
+async function capasDeNft(pool: Pool, userId: string): Promise<string[]> {
+  try {
+    const { rows } = await pool.query<{ capa_key: string }>(
+      "select capa_key from nft_mints where user_id = $1 and capa_key is not null and status <> 'falhou'",
+      [userId],
+    );
+    return rows.map((r) => r.capa_key);
+  } catch (e) {
+    if ((e as { code?: string }).code === "42P01") return [];
+    throw e;
+  }
 }
 
 async function* listPrefixes(s3: S3Client, Bucket: string) {

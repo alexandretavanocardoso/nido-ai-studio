@@ -174,29 +174,35 @@ async function registrar(
 }
 
 /**
- * Debita `qtd` créditos (plano primeiro, depois avulsos) de forma atômica.
- * Devolve a cobrança, ou null se o saldo não cobre.
+ * Debita `qtd` créditos (plano primeiro, depois avulsos) de forma atômica: o
+ * saldo e o lançamento no extrato mudam no mesmo comando, então não existe
+ * débito sem extrato (é pelo extrato que um serviço que caiu no meio descobre
+ * que cobrou). Devolve a cobrança, ou null se o saldo não cobre.
  */
 export async function debitar(userId: string, qtd: number, motivo: string, ref?: string): Promise<Cobranca | null> {
   await carregarConta(userId); // aplica recargas/vencimentos antes
+  const id = nanoid(14);
   const { rows } = await pool().query<{ do_plano: number; do_avulso: number }>(
     `with alvo as (
        select user_id, creditos_plano as p, creditos_avulsos as a
        from creditos_conta where user_id = $1 for update
+     ), deb as (
+       update creditos_conta c
+          set creditos_plano = alvo.p - least(alvo.p, $2),
+              creditos_avulsos = alvo.a - ($2 - least(alvo.p, $2)),
+              updated_at = now()
+         from alvo
+        where c.user_id = alvo.user_id and alvo.p + alvo.a >= $2
+       returning c.user_id, least(alvo.p, $2) as do_plano, $2 - least(alvo.p, $2) as do_avulso
      )
-     update creditos_conta c
-        set creditos_plano = alvo.p - least(alvo.p, $2),
-            creditos_avulsos = alvo.a - ($2 - least(alvo.p, $2)),
-            updated_at = now()
-       from alvo
-      where c.user_id = alvo.user_id and alvo.p + alvo.a >= $2
-     returning least(alvo.p, $2) as do_plano, $2 - least(alvo.p, $2) as do_avulso`,
-    [userId, qtd]
+     insert into creditos_mov (id, user_id, delta, do_plano, do_avulso, motivo, ref)
+     select $3::text, deb.user_id, -(deb.do_plano + deb.do_avulso), -deb.do_plano, -deb.do_avulso, $4::text, $5::text
+       from deb
+     returning -do_plano as do_plano, -do_avulso as do_avulso`,
+    [userId, qtd, nanoid(14), motivo, ref ?? id]
   );
   if (!rows[0]) return null;
-  const cobranca: Cobranca = { id: nanoid(14), userId, total: qtd, doPlano: rows[0].do_plano, doAvulso: rows[0].do_avulso };
-  await registrar(pool(), userId, -qtd, -cobranca.doPlano, -cobranca.doAvulso, motivo, ref ?? cobranca.id);
-  return cobranca;
+  return { id, userId, total: qtd, doPlano: rows[0].do_plano, doAvulso: rows[0].do_avulso };
 }
 
 /** Devolve uma cobrança (geração que falhou), para os mesmos baldes. */

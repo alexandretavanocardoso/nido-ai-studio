@@ -19,6 +19,7 @@ const NENHUM: Recursos = {
   radarX: false,
   usdc: false,
   usdcRedes: [],
+  nft: false,
 };
 
 const Ctx = createContext<Recursos>(NENHUM);

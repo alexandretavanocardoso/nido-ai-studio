@@ -23,6 +23,10 @@ import { MonetizacaoStep } from "@/components/steps/MonetizacaoStep";
 import { RevisaoStep } from "@/components/steps/RevisaoStep";
 import { useRouter } from "next/navigation";
 import { useRecursos } from "@/components/RecursosProvider";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useCreditos } from "@/components/creditos/CreditosProvider";
+import { NftPersonagem } from "@/components/nft/NftPersonagem";
+import { liberadoNaTela } from "@/lib/em-teste";
 import { cn } from "@/lib/cn";
 import {
   EstudioConteudo,
@@ -35,6 +39,10 @@ import { tx } from "@/lib/i18n/tx";
 
 export function Wizard({ id }: { id: string }) {
   const recursos = useRecursos();
+  const { user } = useAuth();
+  const { conta } = useCreditos();
+  // Aba NFT: só com o NFT configurado, conta logada e o recurso liberado para ela.
+  const comNft = recursos.nft && !!user && liberadoNaTela("nft", conta);
   const t = useT();
   const router = useRouter();
   const pathname = usePathname();
@@ -46,9 +54,13 @@ export function Wizard({ id }: { id: string }) {
     params?.get("aba") === "radar" ||
     (params?.get("aba") === "estudio" && params?.get("secao") === "radar")
       ? "radar"
-      : params?.get("aba") === "estudio"
-        ? "estudio"
-        : "ficha";
+      : params?.get("aba") === "nft" && comNft
+        ? "nft"
+        : params?.get("aba") === "estudio"
+          ? "estudio"
+          : "ficha";
+  // Radar e NFT ocupam a largura toda: não têm menu lateral.
+  const semMenu = aba === "radar" || aba === "nft";
   const currentId = useMemo<StepId>(() => {
     const raw = params?.get("step");
     return (STEP_IDS as readonly string[]).includes(raw ?? "")
@@ -107,11 +119,16 @@ export function Wizard({ id }: { id: string }) {
   return (
     <WizardProvider characterId={character.id}>
       <main className="mx-auto max-w-[1400px] px-4 sm:px-6 py-6 sm:py-10">
-        <CharacterHeader character={character} aba={aba} onAba={setAba} />
+        <CharacterHeader
+          character={character}
+          aba={aba}
+          onAba={setAba}
+          comNft={comNft}
+        />
         {aba === "ficha" && <SuggestionCounter character={character} />}
 
         {/* Mobile/tablet: nav horizontal rolável acima do conteúdo */}
-        <div className={cn("mb-6 lg:hidden", aba === "radar" && "hidden")}>
+        <div className={cn("mb-6 lg:hidden", semMenu && "hidden")}>
           {aba === "ficha" ? (
             <StepTabs
               current={currentId}
@@ -137,7 +154,7 @@ export function Wizard({ id }: { id: string }) {
         >
           {/* Desktop: nav vertical sticky */}
           <aside
-            className={cn("hidden min-w-0", aba !== "radar" && "lg:block")}
+            className={cn("hidden min-w-0", !semMenu && "lg:block")}
           >
             <div className="sticky top-20">
               {aba === "ficha" ? (
@@ -160,6 +177,8 @@ export function Wizard({ id }: { id: string }) {
           <div className="min-w-0">
             {aba === "radar" ? (
               <EstudioConteudo secao="radar" character={character} />
+            ) : aba === "nft" ? (
+              <NftPersonagem character={character} />
             ) : aba === "estudio" ? (
               <EstudioConteudo secao={secao} character={character} />
             ) : (

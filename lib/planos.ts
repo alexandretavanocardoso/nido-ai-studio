@@ -338,6 +338,15 @@ export const CREDITOS_POST_POR_REDE = 6;
 export const CREDITOS_APLICAR_AUDIO = 2;
 
 /**
+ * Mintar o NFT do influencer na Solana (lib/nft). A NIDO paga a taxa da rede;
+ * medido por simulação em 10/10/2026 (devnet e mainnet, scripts/nft-simular.mjs):
+ * 0,00404 SOL por mint, quase tudo depósito de aluguel da conta do NFT. Os 10
+ * créditos (US$ 0,10 de custo) só cobrem isso com o SOL abaixo de uns US$ 25 —
+ * acima disso a diferença é subsídio. Gravar badges não é cobrado.
+ */
+export const CREDITOS_MINT_NFT = 10;
+
+/**
  * IA de texto (Claude Sonnet 5.5: US$ 2 / US$ 10 por milhão de tokens de
  * entrada / saída). Custo real medido em 07/10/2026 com uma ficha completa:
  *   sugerirCampo        US$ 0,008–0,012
@@ -404,6 +413,12 @@ export function bloqueioPersona(plano: PlanoId): string | null {
 export function bloqueioPublicar(plano: PlanoId): string | null {
   return plano === "gratis"
     ? "Publicar e agendar nas redes está disponível a partir do plano Starter."
+    : null;
+}
+
+export function bloqueioNft(plano: PlanoId): string | null {
+  return plano === "gratis"
+    ? "Mintar o NFT do influencer está disponível a partir do plano Starter."
     : null;
 }
 

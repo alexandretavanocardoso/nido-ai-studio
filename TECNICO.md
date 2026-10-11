@@ -287,9 +287,75 @@ Para ligar:
 2. **Stripe**: conta Brasil, ativar Pix e boleto em *Settings → Payment methods*, ativar o *Customer portal*. `STRIPE_SECRET_KEY` + webhook em `https://aistudio.nido.global/api/pagamentos/stripe/webhook` com os eventos `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `invoice.paid`, `customer.subscription.deleted` → `STRIPE_WEBHOOK_SECRET`. Local: `stripe listen --forward-to localhost:3000/api/pagamentos/stripe/webhook`.
 3. **USDC**: `SOLANA_MERCHANT_WALLET` = endereço da carteira que recebe. Em produção, use um RPC dedicado (`SOLANA_RPC_URL`, ex.: Helius/QuickNode) — o público tem limite baixo. Para testar em devnet: RPC de devnet + `SOLANA_USDC_MINT` do USDC de teste.
 
+## NFT do influencer (Solana, opcional)
+
+Na aba **NFT** do personagem (ao lado do Radar; `?aba=nft`), a pessoa pode mintar o influencer como um NFT na Solana (padrão **Metaplex Core**). O NFT fica na carteira dela e é **intransferível** (soulbound). As marcas que o influencer bate em views, curtidas, comentários, reposts, quotes e salvos viram **badges gravados no próprio NFT**. Código em [`lib/nft/`](lib/nft/); começa **só para admin** (área admin → "Em teste" → NFT do influencer).
+
+**Fluxo**
+
+1. **Vincular a carteira** (Phantom, Solflare, Backpack ou MetaMask): o servidor manda uma mensagem com um código de uso único (10 min, presa à conta e ao endereço) e a carteira assina. Não é transação e não custa nada. Vale a última prova: a mesma carteira não fica em duas contas.
+2. **Mintar** (`POST /api/nft/mint`, planos pagos, **10 créditos**, declaração obrigatória registrada em `consentimentos`, personagem com o **Retrato** gerado): o **servidor** monta, assina e paga a transação; o usuário nunca assina transação e não precisa de SOL. Ordem que protege o dinheiro, em [`lib/nft/mint.ts`](lib/nft/mint.ts): confere tudo → assina → grava a linha (o índice único por personagem e rede barra o segundo clique) → **simula** (se a rede recusaria, para sem cobrar) → cobra → grava a assinatura e o último bloco válido → só então transmite. O resultado sai sempre de `conferirMint`, que olha a rede: finalizada → confirmado; recusada, ou vencida sem registro (com folga de 300 blocos, nova consulta e conferência de que a conta do NFT não existe) → falhou, com estorno. A regra está isolada em [`lib/nft/decisao.ts`](lib/nft/decisao.ts). O estorno marca a linha, lança no extrato e devolve o saldo **num comando só**: não sai em dobro nem pela metade. O débito (`debitar`, em [`lib/creditos.ts`](lib/creditos.ts)) também grava saldo e extrato num comando só.
+3. **Badges** ([`lib/nft/badges.ts`](lib/nft/badges.ts)): uma escada de marcas por métrica, sobre o total acumulado do personagem em todas as redes. Nascem no banco (`nft_badges`), mesmo antes do mint, e são gravados no NFT depois (a escrita substitui a lista inteira, então repetir é seguro).
+
+| Métrica | Degraus | Só com conta conectada (ou admin) | Sempre com admin |
+|---|---|---|---|
+| Views | 5 mil · 10 mil · 50 mil · 100 mil · 500 mil · 1 mi · 5 mi · 10 mi · 50 mi · 100 mi | de 100 mil | de 1 milhão |
+| Curtidas | 100 · 200 · 1 mil · 2 mil · 10 mil · 20 mil · 100 mil · 200 mil · 1 mi · 2 mi | de 2 mil | de 20 mil |
+| Comentários | 10 · 50 · 100 · 500 · 1 mil · 5 mil · 10 mil · 50 mil · 100 mil | de 100 | de 1 mil |
+| Reposts | 10 · 20 · 100 · 200 · 1 mil · 2 mil · 10 mil · 20 mil · 100 mil · 200 mil | de 200 | de 2 mil |
+| Salvos | 10 · 20 · 100 · 200 · 1 mil · 2 mil · 10 mil · 20 mil · 100 mil · 200 mil | de 200 | de 2 mil |
+| Quotes | 10 · 50 · 100 · 500 · 1 mil · 5 mil · 10 mil | de 50 | de 500 |
+
+Cada escada é a de views dividida pelo quanto a métrica rende por view em vídeo curto (pesquisa de 10/10/2026, com as fontes no desenho do fluxo): curtidas ÷ 50 (2 a 5% das views), comentários ÷ 1.000 (0,05 a 0,1%), reposts e salvos ÷ 500 (0,1 a 0,4%). Assim o degrau de uma métrica é mais ou menos tão difícil quanto o degrau de views na mesma posição. Quotes só existem no X (1 a cada 10 mil views de lá), por isso a escada é mais curta: 10 mil quotes é o que 100 milhões de views no X rendem. Nenhuma escada começa abaixo de 10: marca de um dígito a própria pessoa bate com as contas dela, e badge gravado no NFT não se desfaz. São 56 badges ao todo.
+
+Esperam aprovação na aba **NFT** do admin: as marcas altas de cada escada (`aprovacaoDe`, o degrau equivalente a 1 milhão de views); as marcas médias quando a conta não está conectada (`semConexaoDe`, o equivalente a 100 mil views); e os badges de uma leitura em que um post saltou fora do normal (100 vezes e pelo menos a marca `semConexaoDe` da métrica).
+
+**O que existe na rede**
+
+- **Coleção** `NIDO Influencers`, criada por [`scripts/nft-colecao.mjs`](scripts/nft-colecao.mjs), com `PermanentFreezeDelegate` congelado (autoridade = endereço da **raiz**) e `UpdateDelegate` com a chave de mint como delegada.
+- **Um NFT por personagem em cada rede**: dono = carteira do usuário; nome; endereço dos metadados (`/api/nft/meta/<asset>`); plugin `AppData` (JSON) com o **hash da ficha** no dia do mint e os badges, em formato compacto: por métrica, o dia em que cada degrau da escada foi conquistado (`{"v":2,"ficha":"…","b":{"v":[20371,20380],"l":[20390]}}`). Como vale a **posição** do degrau, só se acrescentam degraus no fim de uma escada ou escadas novas.
+- **Devnet e mainnet no mesmo banco**: cada linha de `nft_mints` guarda a rede em que nasceu, e o app só mexe nas linhas da rede em que está (`NFT_REDE`). O NFT de teste não impede o mint do mesmo personagem na mainnet, e um app em devnet não julga (nem estorna) um mint da mainnet.
+- **Três chaves**, cada uma com um papel: **raiz** (multisig ou carteira fria, fora do servidor — só ela descongela os NFTs e revoga a chave de mint), **chave de mint** (`NFT_MINT_SECRET_KEY`: cria NFTs e paga as taxas) e **chave de badges** (`NFT_BADGE_SECRET_KEY`: só escreve o `AppData`). Não são a carteira de saques nem a que recebe pagamentos.
+- Conferido contra o programa Core de verdade, por simulação, em devnet e mainnet (10/10/2026): `node scripts/nft-simular.mjs [--rede mainnet]`. O dono não transfere nem queima; chave qualquer não minta nem escreve badges; a chave de mint não escreve badges nem descongela; a raiz descongela e revoga; o catálogo inteiro de badges cabe numa transação. **Risco conhecido:** a chave de mint consegue trocar nome e endereço dos metadados dos NFTs até ser revogada — por isso fica com pouco saldo e a raiz fica fora do servidor.
+
+**O que é público**
+
+Na rede: nome, hash da ficha e badges (não dá para apagar — por isso a declaração). No JSON servido pelo app (`/api/nft/meta/<asset>`, sem login): bio curta, imagem, o site do app (`external_url`) e os traços nicho, arquétipo, forma, estilo e idioma. A imagem é **só o Retrato gerado** do personagem ([`lib/nft/imagem.ts`](lib/nft/imagem.ts): a capa escolhida, se for um retrato; senão o retrato mais recente). Referência enviada pela pessoa e outras imagens nunca viram a imagem pública: sem retrato, o mint é recusado. É uma **cópia** feita no mint (`users/<id>/nft/<mint>.jpg`, poupada da limpeza do S3) que sai por `/api/nft/meta/<asset>/imagem`, sem revelar a conta. "Usar o retrato atual", na aba **Meu NFT**, refaz a cópia (`POST /api/nft/personagem/<id>/imagem`). Modelo treinado, voz, prompts, referências e declarações **não** saem. Personagem apagado no app: o NFT continua existindo e aparece como arquivado, sem imagem nem bio.
+
+Carteiras e explorers buscam esse JSON no endereço gravado no NFT (`NFT_BASE_URL`). Enquanto a versão com essas rotas não estiver publicada nesse endereço, o NFT aparece lá fora sem imagem, sem traços e sem site.
+
+**Números que contam** (regras em [`lib/nft/views.ts`](lib/nft/views.ts), banco em [`lib/nft/views-server.ts`](lib/nft/views-server.ts))
+
+- Em cada rede o personagem tem **uma conta só**: a conectada pelo bundle.social ou, sem conexão, a do **autor do primeiro post cadastrado por link** naquela rede (`nft_contas_rede.origem` = `conectada` ou `link`). Só os posts dessa conta contam; link de outra conta fica de fora, e a tela diz por quê. O @ escrito na ficha não prova nada.
+- "Primeiro" é pela ordem de cadastro dos links: enquanto o link mais antigo de uma rede espera a leitura do autor, a rede fica sem conta.
+- Cada conta de rede conta para **um personagem só**. **Conexão ganha do link:** se a conta estava com um personagem só pelo primeiro link e alguém a conecta (login na rede), ela passa para quem conectou; quem perdeu fica sem os posts dela, e os badges que os números restantes não sustentam são retirados (podem ser conquistados de novo). Conexão contra conexão, e link contra link, vale quem chegou primeiro. Não há tela para soltar uma conta: hoje é direto na tabela `nft_contas_rede`.
+- O autor do post por link é lido da rede pelo Apify e guardado em `posts_agendados.autor` (`null` = ainda não lido; vazio = não deu para saber, e o post não conta). Posts sem autor são lidos quando o dono abre a aba NFT (`lerAutoresPendentes`): uma rodada por vez, até 6 posts por rodada, os mais antigos primeiro, e **no máximo três tentativas por post**, com 10 minutos entre uma e outra (`autor_tentativas`, `autor_tentado_em`). Cada tentativa é uma execução no Apify. Post do LinkedIn por link nunca tem autor (a página pública não informa): só conta com a conta conectada.
+- O mesmo post não soma duas vezes (`nft_views_post`, chave = rede + id do post), nem pelo app e pelo link.
+- **Números digitados à mão não contam.** LinkedIn por link soma zero views (a página pública não mostra impressões); pelo bundle.social as impressões contam.
+- Seis métricas são somadas: views, curtidas, comentários, reposts, quotes e salvos. O total de cada uma é a soma da **maior** leitura de cada post, então não diminui. Badge concedido só é retirado quando a conta que dava os números é tomada por quem a conectou.
+- Nem toda rede dá todo número: quotes só existem no X; salvos vêm do TikTok e do X por link, e do Instagram só com a conta conectada; reposts são os reposts do X e os compartilhamentos do TikTok e do LinkedIn (Instagram, só com a conta conectada). A tela mostra isso ao lado de cada escada.
+- Recalcula ao abrir o Dashboard e a aba NFT (no máximo a cada 10 min por personagem; a cada consulta enquanto os autores estão sendo lidos) e no cron. Conta em que o recurso ainda está fechado ganha os badges no banco, mas não recebe o aviso no sino.
+
+**Cron** `GET /api/cron/nft` (diário no `vercel.json`): fecha mints em aberto, relê as métricas do bundle.social das contas com NFT, recalcula os números e os badges, grava os badges pendentes e **confere a rede contra o banco** (dono, hash e badges; diferença vira `ALERTA` no log e os badges são reescritos). Se o RPC não estiver na rede de `NFT_REDE`, nada que dependa da rede roda. Para um mint incerto fechar em minutos com a página fechada, chame também de um cron externo a cada 5 min (mesmo esquema do `video-jobs`). Posts por link não são relidos pelo cron: cada leitura é uma execução no Apify, e ela acontece quando o dono abre o Dashboard.
+
+**Travas**: teto de mints em 24h (`NFT_TETO_DIA`, padrão 200), saldo mínimo da chave de mint (`NFT_SALDO_MINIMO`, padrão 0,02 SOL — abaixo disso o mint para **antes** de cobrar), conferência de que o RPC está na rede de `NFT_REDE` e de que a coleção existe nela (antes de mintar, de julgar um mint e de gravar badges), limite de frequência nas rotas. Uma transação que a rede só "processou" ainda pode sumir: o app só age (estorno, badge dado como gravado) a partir de bloco confirmado.
+
+**Custo**: 0,0040 SOL por mint (simulação em devnet e mainnet, 10/10/2026), quase tudo depósito de aluguel da conta do NFT. Os 10 créditos equivalem a US$ 0,10 de custo: só cobrem com o SOL abaixo de ~US$ 25. Acima disso a NIDO subsidia a diferença. Gravar badges custa a taxa da transação (0,00001 SOL) mais o aluguel dos bytes novos: com todos os badges do catálogo, cerca de 0,003 SOL a mais na vida do NFT.
+
+Para ligar (comece em **devnet**):
+
+1. Rodar `db/migrations/0028_nft.sql`, `0029_nft_metricas.sql` e `0030_nft_rede_autor.sql` no Neon.
+2. `node scripts/nft-colecao.mjs chaves` → pôr `NFT_MINT_SECRET_KEY` e `NFT_BADGE_SECRET_KEY` no `.env.local`, com `NFT_REDE=devnet`. Abastecer a chave de mint com SOL de teste em [faucet.solana.com](https://faucet.solana.com).
+3. `node scripts/nft-colecao.mjs criar` → pôr `NFT_COLECAO`. `node scripts/nft-colecao.mjs conferir` confere raiz, congelamento (e que quem descongela é a raiz), delegação e saldo.
+4. Reiniciar o app. A aba NFT aparece no personagem para as contas admin.
+5. **Mainnet**: chaves novas (não reaproveitar as de devnet), `NFT_REDE=mainnet`, `criar --raiz <endereço do multisig>`, RPC dedicado em `NFT_RPC_URL`, `NFT_BASE_URL` em https. Os mints de devnet ficam no banco como estão e não atrapalham. Só depois dos testes de devnet listados no [PENDENCIAS.md](PENDENCIAS.md).
+
+Não feito: trocar a carteira de um NFT já mintado (ele é intransferível; hoje o NFT fica na carteira em que nasceu), tela para soltar uma conta de rede presa a um personagem, registro do influencer como agente (Agent Registry da Metaplex), a linha do mint na página de planos (entra quando o recurso for aberto a todos).
+
 ## Stack
 
 - **Next.js 16** (App Router) + **React 19** + **TypeScript**
+- **Solana**: `@solana/web3.js` (pagamentos, saques) e **Metaplex Core** (`@metaplex-foundation/umi`, `mpl-core`) para o NFT do influencer; `@wallet-standard/app` para conectar a carteira no navegador — opcionais
 - **Tailwind CSS 3** — tema claro, cream + verde, serif Fraunces + Inter + JetBrains Mono (design system do Treinadores de IA)
 - **Zustand** + middleware `persist` → localStorage
 - **@anthropic-ai/sdk** + **Zod** para as rotas de IA

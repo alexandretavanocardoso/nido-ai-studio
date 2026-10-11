@@ -3,10 +3,11 @@
 import { useCharacters } from "@/lib/store";
 import { status } from "@/lib/completion";
 import type { Character } from "@/lib/types";
-import { Copy, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import Link from "next/link";
 import { capaSrc } from "@/lib/storage/client";
 import { confirmar } from "@/components/ui/Confirmacao";
+import { IconeNft } from "@/components/nft/IconeNft";
 import { CapaImagem } from "@/components/ui/CapaImagem";
 import { IconeRede } from "@/components/ui/IconeRede";
 import type { Rede } from "@/lib/social/redes";
@@ -15,6 +16,8 @@ import { tx } from "@/lib/i18n/tx";
 
 interface Props {
   character: Character;
+  /** O personagem tem NFT mintado: acende o selo, que leva para a aba NFT. */
+  comNft?: boolean;
 }
 
 const formasEmoji: Record<string, string> = {
@@ -40,8 +43,7 @@ export function emProducao(c: Character): boolean {
   return (c.videos ?? []).some((v) => v.status === "processando");
 }
 
-export function CharacterListItem({ character: c }: Props) {
-  const duplicate = useCharacters((s) => s.duplicate);
+export function CharacterListItem({ character: c, comNft }: Props) {
   const del = useCharacters((s) => s.deleteCharacter);
   const nome = c.identidade.nome || "Sem nome";
   const avatar = capaSrc(c);
@@ -95,39 +97,44 @@ export function CharacterListItem({ character: c }: Props) {
         </span>
       </Link>
 
-      <span
-        className={cn(
-          "pointer-events-none absolute left-2.5 top-2.5 z-10 flex h-[22px] items-center gap-1.5 rounded-full px-[9px] font-geist-mono text-[10px] font-semibold uppercase tracking-[0.08em] backdrop-blur",
-          gerando
-            ? "bg-nido-ocre/90 text-nido-bg"
-            : completo
-              ? "bg-nido-yellow text-nido-bg"
-              : "bg-nido-bg/70 text-nido-ink",
-        )}
-      >
+      <div className="pointer-events-none absolute left-2.5 top-2.5 z-10 flex items-center gap-1.5">
         <span
           className={cn(
-            "h-[5px] w-[5px] rounded-full bg-current",
-            gerando && "animate-nido-pulse",
+            "flex h-[22px] items-center gap-1.5 rounded-full px-[9px] font-geist-mono text-[10px] font-semibold uppercase tracking-[0.08em] backdrop-blur",
+            gerando
+              ? "bg-nido-ocre/90 text-nido-bg"
+              : completo
+                ? "bg-nido-yellow text-nido-bg"
+                : "bg-nido-bg/70 text-nido-ink",
           )}
-        />
-        {gerando
-          ? tx("Em produção")
-          : completo
-            ? tx("Completo")
-            : tx("Rascunho")}
-      </span>
+        >
+          <span
+            className={cn(
+              "h-[5px] w-[5px] rounded-full bg-current",
+              gerando && "animate-nido-pulse",
+            )}
+          />
+          {gerando
+            ? tx("Em produção")
+            : completo
+              ? tx("Completo")
+              : tx("Rascunho")}
+        </span>
+        {comNft ? (
+          <Link
+            href={`/app/personagem/${c.id}?aba=nft`}
+            title={tx("NFT mintado")}
+            aria-label={tx("NFT mintado")}
+            className="pointer-events-auto flex h-[22px] items-center gap-1 rounded-full border border-nido-yellow/55 bg-nido-bg/75 px-[7px] font-geist-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-nido-yellow backdrop-blur transition hover:bg-nido-yellow hover:text-nido-bg"
+          >
+            <IconeNft className="h-3 w-3" />
+            {/* No card estreito (celular) fica só o ícone, para caber ao lado do status. */}
+            <span className="hidden sm:inline">NFT</span>
+          </Link>
+        ) : null}
+      </div>
 
       <div className="absolute top-2.5 right-2.5 z-10 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
-        <button
-          type="button"
-          onClick={() => duplicate(c.id)}
-          className="h-8 w-8 inline-flex items-center justify-center rounded-full bg-bg/80 backdrop-blur border border-line text-ink-mute hover:text-ink hover:border-ink transition"
-          aria-label={tx("Duplicar")}
-          title={tx("Duplicar")}
-        >
-          <Copy className="w-3.5 h-3.5" />
-        </button>
         <button
           type="button"
           onClick={() => {

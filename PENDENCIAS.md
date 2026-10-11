@@ -32,6 +32,64 @@ A versão no código usa Kling O1 **Pro** + quadro de referência + close do ros
 
 **Outros motores:** o Seedance 2.5 (Premium) dá o melhor resultado, mas recusa vídeos com rosto real. O Wan 2.2 foi descartado em dois testes (borra o rosto e perde o personagem).
 
+## NFT do influencer (novo em 10/10)
+
+Mint do influencer como NFT intransferível na Solana (Metaplex Core), com badges gravados no NFT para as marcas de views, curtidas, comentários, reposts, quotes e salvos. Aba **NFT** do personagem (ao lado do Radar), **só para admin** por enquanto (área admin → Em teste → NFT do influencer). Como funciona e como ligar: [TECNICO.md](TECNICO.md), seção "NFT do influencer". Desenho, pesquisa das escadas e auditoria: https://claude.ai/artifact/AFqUwmxx3WgZGdo7MKugJc
+
+**Conferido em 10/10**
+
+- [x] Regras da rede contra o programa Core de verdade, por simulação, em **devnet e mainnet** (`node scripts/nft-simular.mjs`): a chave de mint delegada minta para a carteira do usuário; o dono não transfere nem queima; chave qualquer não minta nem escreve badges; a chave de mint não escreve badges nem descongela; a raiz descongela e revoga; o catálogo inteiro de badges (o pior caso, 6 métricas × 10 degraus) cabe numa transação (895 de 1232 bytes). Custo medido: **0,0040 SOL por mint**.
+- [x] O código que monta e assina as transações ([lib/nft/core.ts](lib/nft/core.ts)) e o que consulta a rede ([lib/nft/rede.ts](lib/nft/rede.ts)) rodaram contra a devnet sem enviar nada: a rede aceitou as assinaturas e recusou só por falta de saldo.
+- [x] Testes automáticos com Postgres de verdade (PGlite, todas as migrations aplicadas) em [lib/nft/banco.test.ts](lib/nft/banco.test.ts): carteira, mint com créditos reais, estorno uma vez só, 20 pedidos simultâneos, devnet e mainnet no mesmo banco, números e badges de todas as métricas, conta tomada por conexão, leitura de autores, aprovação, metadados públicos, limpeza do S3, rotas e cron. Mais [lib/nft/mint.test.ts](lib/nft/mint.test.ts) (ordem do mint e 100 pedidos simultâneos) e os testes das regras puras.
+- [x] **Revisão do código em quatro frentes (dinheiro, acesso, rede e tela), com cada achado conferido por um segundo revisor.** De 16 achados, 1 foi descartado (o texto que a carteira assina não leva a conta do app: é endurecimento, não defeito) e os outros eram 13 problemas, todos corrigidos:
+  - devnet e mainnet no mesmo banco: o app só julga os mints da rede em que está, e o NFT de teste não trava o mint do mesmo personagem na mainnet (migration `0030`). Sem isso, um app em devnet podia dar como falho, e estornar, um mint da mainnet;
+  - o estorno do mint e a cobrança passaram a mexer em saldo e extrato num comando só (acabou a janela de estorno em dobro e a de débito sem extrato);
+  - só o Retrato gerado vira a imagem pública do NFT; sem retrato, não minta. Antes, um personagem só com referência enviada publicava a referência;
+  - uma transação que a rede só "processou" não decide mais nada (estorno, badge dado como gravado): só a partir de bloco confirmado;
+  - conta em que o recurso está fechado não recebe aviso de badge no sino;
+  - a aba não fica mais em "Lendo quem publicou…" para sempre (acontecia com post do LinkedIn), volta sozinha para tentar de novo, mostra erro com "Tentar de novo" se não carregar, e para de perguntar se a gravação de um badge não sai;
+  - a rota da aba tinha 60 s para uma leitura do Apify que pode levar 100 s: agora tem 300 s, e o que já foi lido entra na conta mesmo se a rodada parar no meio;
+  - a imagem do NFT na tela usava um contador que zerava a cada visita e mostrava a imagem antiga do cache;
+  - `nft-colecao.mjs conferir` passou a acusar quando quem descongela a coleção não é a raiz.
+- [x] **Três ajustes na regra do primeiro link**, vindos da mesma revisão: conexão ganha do link (quem conecta a conta fica com ela, mesmo que outro personagem a tivesse pelo primeiro link); o "primeiro link" é o primeiro cadastrado, não o primeiro cujo autor foi lido; e cada post tem no máximo três tentativas de leitura do autor (antes, um post apagado custava uma execução do Apify a cada 10 minutos, para sempre).
+
+**Nunca aconteceu de verdade**
+
+- [x] **Coleção criada em devnet em 10/10:** `FeP3duLN5DNhQmahaVP6TsSnUQaymvoFnWiFZh9w9ENU`, congelada, com a chave de mint delegada e ~5 SOL de teste. A raiz é a própria chave de mint (aceitável só em devnet).
+- [x] **NFTs mintados em devnet em 10/10, pela tela, com a Phantom:** "Tanjirão" (`4U2iY8fYChF1QqeidwAyJvtmbmx84wxz5y8wCGHWqdTw`) e "Lula" (`FDaKmkZEWfaXiHAx9YPtvmkAyCY1SXPSnfcbffnxCciB`). O primeiro confirmou em ~4 s, com 10 créditos debitados e a declaração registrada.
+- [ ] **No explorer, os NFTs aparecem sem imagem, sem traços e sem site até o deploy.** O endereço gravado no NFT aponta para produção (`NFT_BASE_URL`), que ainda responde 404 em `/api/nft/meta/...`. No app local, o JSON e a imagem saem certos (conferido com o NFT da Lula).
+- [x] Migrations `0028_nft.sql`, `0029_nft_metricas.sql` e `0030_nft_rede_autor.sql` aplicadas no Neon em 10/10. Os posts que já existiam ficaram sem `autor`: os cadastrados por link têm o autor lido quando o dono abre a aba NFT, e até lá não contam para os badges.
+- [ ] **Solflare, Backpack e MetaMask** nunca foram testadas com as extensões de verdade (a Phantom foi: conectar, assinar a mensagem e mintar). A MetaMask entrou em 10/10: ela se anuncia pelo mesmo padrão (Wallet Standard, nome `MetaMask`, com `solana:signMessage`), conferido no código dela, não na extensão. No celular ela só tem Solana mainnet.
+- [ ] **Aba NFT do admin** (saldo, badges esperando, mints): nunca vista no navegador.
+- [x] **Autor do post por link, com leitura de verdade (10/10):** os 6 posts do "Tanjirão" tiveram o autor lido pelo Apify no Instagram (`tanjirao_l2g` + id), no YouTube (`tanjirao-l2g` + id do canal), no TikTok (`web3clipes` + id) e no X (`tavano_dev` + id). LinkedIn não informa autor por link.
+- [x] **Regra do primeiro link com dados de verdade (10/10):** no "Tanjirão" a conta de cada rede saiu do primeiro link (Instagram, YouTube e TikTok); 5 dos 6 posts contam, somando 5.472 views e 104 curtidas; os badges de 5 mil views e de 100 curtidas foram concedidos e **gravados no NFT de devnet**. O post do X (1.103 views) ficou de fora porque a conta `tavano_dev` está conectada a outro personagem ("Gru musculoso"): cada conta serve a um personagem só. O mesmo vale para o único post da "Lula".
+- [ ] **O que o bundle.social devolve em `externalId` e `username`:** no X, o `externalId` é o id numérico da conta, o mesmo que o Apify devolve como autor (por isso a conta conectada e o link se reconhecem); o `username` veio vazio. No LinkedIn veio `urn:li:person:…`. Falta ver Instagram, TikTok e YouTube com conta conectada, e se chegam compartilhamentos e salvos do Instagram e os reposts e quotes do X em separado (na leitura normal do bundle.social, "shares" do X junta os dois).
+- [ ] Roteiro de devnet antes da mainnet (Portão 3 do desenho): mint pelas quatro carteiras; tentar transferir o NFT pela carteira (tem de falhar); derrubar o servidor entre assinar e enviar e entre enviar e confirmar; bater as marcas com posts de verdade; conectar uma conta que outro personagem tinha pelo link; revogar a chave de mint pela raiz.
+
+**Decisões**
+
+- [ ] **Custo:** os 10 créditos (US$ 0,10 de custo) só cobrem os 0,0040 SOL do mint com o SOL abaixo de ~US$ 25. Acima disso a NIDO subsidia a diferença. Subir o preço é a constante `CREDITOS_MINT_NFT` em [lib/planos.ts](lib/planos.ts). O valor fica preso na conta do NFT como aluguel e não volta enquanto o NFT existir.
+- [ ] **Raiz da coleção na mainnet:** precisa ser um multisig (ex.: Squads) ou carteira fria. O script recusa criar a coleção na mainnet sem `--raiz`.
+- [ ] **Apagar um NFT específico não dá** com a trava na coleção: a raiz teria de descongelar a coleção inteira por um instante para o dono queimar. Se isso for necessário (pedido de exclusão), a alternativa é pôr a trava em cada NFT, o que muda o mint antes do lançamento.
+- [ ] **Personagem apagado ou pagamento estornado depois do mint:** o NFT continua existindo e aparece como arquivado. Não há queima.
+- [ ] **Trocar a carteira de um NFT já mintado:** não implementado. O NFT fica na carteira em que nasceu.
+- [ ] **Soltar uma conta de rede presa a um personagem:** não há tela. Quem conecta a conta ganha de quem só a tinha pelo link; nos outros casos (link contra link, conexão contra conexão) vale quem chegou primeiro, e desfazer é apagar a linha em `nft_contas_rede`.
+- [ ] **Escadas dos badges (56 badges em 6 métricas):** saíram de uma pesquisa de quanto cada métrica rende por view (resumo e fontes no desenho do fluxo). Os degraus já gravados não mudam, porque o NFT guarda a posição do degrau; dá para acrescentar degraus no fim de uma escada e criar escadas novas. Rever os tetos quando houver dados dos próprios influencers: a referência é o influencer mediano perto do 3º ou 4º degrau e cerca de 1% no 8º ou acima.
+- [ ] **Página de planos** não lista o mint (entra quando o recurso for aberto a todos). **Termos de uso** não falam do NFT.
+
+**Limites conhecidos**
+
+- A chave de mint consegue trocar nome e endereço dos metadados dos NFTs enquanto for delegada (o programa Core dá esse poder ao delegado). Por isso ela tem pouco saldo, teto diário e a raiz fica fora do servidor.
+- A chave de badges não pode ser trocada: cada NFT guarda quem escreve os badges dele. Chave nova só valeria para NFTs novos.
+- Nem toda rede dá todo número. Quotes só existem no X. Salvos: TikTok e X por link; Instagram só com a conta conectada; YouTube e LinkedIn não informam. Reposts: no X são reposts; no TikTok e no LinkedIn, compartilhamentos. Quem só posta no YouTube acumula views e curtidas, mas não esses badges.
+- Posts por link não são relidos pelo cron (cada leitura custa uma execução no Apify): os números deles só sobem quando o dono abre o Dashboard.
+- Os autores dos posts por link só são lidos com a aba NFT aberta. Depois de três leituras sem sucesso o post fica de fora, até o Dashboard conseguir relê-lo.
+- Cron diário no plano Hobby: um mint que ficou "confirmando" com a página fechada só fecha no dia seguinte. Com a página aberta, fecha em segundos. Para fechar em minutos, cron externo a cada 5 min em `/api/cron/nft`.
+- Sem taxa de prioridade na transação: em dia de rede congestionada o mint pode vencer sem entrar (os créditos voltam).
+- Phantom com Ledger pode não assinar mensagem de texto: quem usa Ledger talvez não consiga vincular a carteira.
+- A Phantom às vezes responde "Unexpected error" ao conectar (aconteceu no primeiro teste, em 10/10, logo depois de ligar o Modo Testnet). O erro nasce dentro da extensão; costuma passar recarregando a página ou reabrindo o navegador. A tela mostra a resposta da carteira e essa orientação.
+- `npm audit`: de 11 para 16 avisos, todos pela mesma causa que já existia (o cliente de rede do `@solana/web3.js` versão 1, agora contado também nos pacotes da Metaplex que dependem dele). Nenhuma falha nova; o `bigint-buffer` não voltou.
+
 ## Radar (novo em 07/10)
 
 O Radar está no ar em Estúdio → Radar: o Claude Haiku 4.5 pesquisa as notícias pela busca na web, o Sonnet refaz as notas com rigor e marca conteúdo promocional; há ideia de post, sino de avisos na barra e tarefa diária às 6h de Brasília. Custo medido: US$ 0,074 por radar; cobra 8 créditos. A página de planos já lista o custo.

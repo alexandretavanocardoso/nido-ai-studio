@@ -491,6 +491,7 @@ function MenuLateral({
                 className="h-20 w-20 max-w-none shrink-0 drop-shadow-[0_0_8px_rgba(253,243,39,0.2)]"
               />
             </button>
+            <SeloBeta className="-mt-1.5" />
             {/* Seta: deixa claro que o menu abre (o logo também abre, mas não parece botão). */}
             <button
               type="button"
@@ -516,19 +517,23 @@ function MenuLateral({
         ) : (
           <div className="flex flex-col gap-3.5 px-3.5 pt-4 pb-3.5">
             <div className="flex h-[60px] items-center justify-between gap-2">
-              {/* O PNG é quadrado com margem: a janela corta só a margem e mostra o logo inteiro (NIDO + AI Studio). */}
-              <Link
-                href="/app"
-                aria-label={tx("Home")}
-                className="flex h-[60px] w-[88px] items-center justify-center overflow-hidden rounded-lg transition hover:opacity-90"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={LOGO}
-                  alt="NIDO AI Studio"
-                  className="h-[100px] w-[100px] max-w-none shrink-0 drop-shadow-[0_0_10px_rgba(253,243,39,0.18)]"
-                />
-              </Link>
+              <div className="flex items-start gap-0.5">
+                {/* O PNG é quadrado com margem: a janela corta só a margem e mostra o logo inteiro (NIDO + AI Studio). */}
+                <Link
+                  href="/app"
+                  aria-label={tx("Home")}
+                  className="flex h-[60px] w-[88px] items-center justify-center overflow-hidden rounded-lg transition hover:opacity-90"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={LOGO}
+                    alt="NIDO AI Studio"
+                    className="h-[100px] w-[100px] max-w-none shrink-0 drop-shadow-[0_0_10px_rgba(253,243,39,0.18)]"
+                  />
+                </Link>
+                {/* Na altura do "NIDO" do logo, como um sobrescrito. */}
+                <SeloBeta className="mt-2.5" />
+              </div>
               <button
                 type="button"
                 onClick={onAlternar}
@@ -642,6 +647,20 @@ function MenuLateral({
         <ContaDoMenu mini={mini} onExpandir={onAlternar} />
       </aside>
     </>
+  );
+}
+
+/** Selo "BETA" junto do logo do menu: o app ainda está em beta. */
+function SeloBeta({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "rounded-[5px] border border-nido-yellow/35 bg-nido-yellow/10 px-1.5 py-[3px] font-geist-mono text-[9.5px] font-semibold leading-none tracking-[0.14em] text-nido-yellow",
+        className,
+      )}
+    >
+      BETA
+    </span>
   );
 }
 

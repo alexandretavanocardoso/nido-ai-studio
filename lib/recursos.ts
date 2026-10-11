@@ -37,6 +37,8 @@ export interface Recursos {
   usdc: boolean;
   /** Redes USDC configuradas: Solana (Solana Pay) e EVM (Base, Arbitrum, BNB Chain, Ethereum). */
   usdcRedes: RedeUsdc[];
+  /** NFT do influencer na Solana (coleção e as duas chaves configuradas). Exige login e S3. */
+  nft: boolean;
 }
 
 const tem = (...nomes: string[]) =>
@@ -53,17 +55,13 @@ export function recursosDisponiveis(): Recursos {
     "GOOGLE_CLIENT_ID",
     "GOOGLE_CLIENT_SECRET",
   );
+  const armazenamento =
+    login &&
+    tem("AWS_REGION", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "S3_BUCKET");
   return {
     login,
     discord: login && tem("DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET"),
-    armazenamento:
-      login &&
-      tem(
-        "AWS_REGION",
-        "AWS_ACCESS_KEY_ID",
-        "AWS_SECRET_ACCESS_KEY",
-        "S3_BUCKET",
-      ),
+    armazenamento,
     ia: tem("ANTHROPIC_API_KEY"),
     gemini: tem("GEMINI_API_KEY"),
     fal: tem("FAL_KEY"),
@@ -76,5 +74,13 @@ export function recursosDisponiveis(): Recursos {
     stripe: login && tem("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"),
     usdc: login && usdcRedes.length > 0,
     usdcRedes: login ? usdcRedes : [],
+    nft:
+      armazenamento &&
+      tem(
+        "NFT_REDE",
+        "NFT_COLECAO",
+        "NFT_MINT_SECRET_KEY",
+        "NFT_BADGE_SECRET_KEY",
+      ),
   };
 }

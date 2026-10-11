@@ -16,12 +16,14 @@ import {
   Users,
 } from "lucide-react";
 import { AccountMenu } from "@/components/auth/AccountMenu";
+import { IconeNft } from "@/components/nft/IconeNft";
 import { cn } from "@/lib/cn";
 import { DashboardInfluencers } from "./DashboardInfluencers";
 import { EmTesteAdmin } from "./EmTesteAdmin";
 import { Indicacoes } from "./Indicacoes";
 import { Leads } from "./Leads";
 import { Lucro } from "./Lucro";
+import { Nft } from "./Nft";
 import { Pagamentos } from "./Pagamentos";
 import { Uso } from "./Uso";
 import { Usuarios } from "./Usuarios";
@@ -36,6 +38,7 @@ const ABAS = [
   { id: "leads", titulo: "Leads", icone: Inbox },
   { id: "uso", titulo: "Uso de créditos", icone: BarChart3 },
   { id: "lucro", titulo: "Lucro", icone: TrendingUp },
+  { id: "nft", titulo: "NFT", icone: IconeNft },
   { id: "emteste", titulo: "Em teste", icone: FlaskConical },
 ] as const;
 type Aba = (typeof ABAS)[number]["id"];
@@ -116,6 +119,7 @@ export function AdminApp({ email }: { email: string }) {
           {aba === "leads" && <Leads />}
           {aba === "uso" && <Uso abrirUsuario={abrirUsuario} />}
           {aba === "lucro" && <Lucro abrirUsuario={abrirUsuario} />}
+          {aba === "nft" && <Nft abrirUsuario={abrirUsuario} />}
           {aba === "emteste" && <EmTesteAdmin />}
         </div>
       </div>

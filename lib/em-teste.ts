@@ -15,6 +15,8 @@ export const SO_ADMIN = {
   indicacoes: true,
   /** Comprar plano e créditos pelo Stripe (o USDC segue aberto). */
   stripe: true,
+  /** NFT do influencer na Solana: vincular carteira, mintar e badges (lib/nft). */
+  nft: true,
   /**
    * Entrar no app. Aberto por padrão; fechado, só as contas admin conseguem
    * entrar (ver o hook de sessão em lib/auth/server.ts).
@@ -53,6 +55,11 @@ export const SOBRE_O_RECURSO: Record<
     titulo: "Pagamento com cartão (Stripe)",
     descricao:
       "Comprar plano e créditos com cartão. Fechado, a página de planos mostra só o pagamento em USDC.",
+  },
+  nft: {
+    titulo: "NFT do influencer (Solana)",
+    descricao:
+      "Vincular a carteira, mintar o NFT do influencer e os badges (views, curtidas, comentários, reposts, quotes e salvos), na aba NFT do personagem (ao lado do Radar). Fechado, só as contas admin veem e mintam; os NFTs já mintados continuam existindo e os badges deles seguem sendo gravados.",
   },
   login: {
     titulo: "Login de usuários",

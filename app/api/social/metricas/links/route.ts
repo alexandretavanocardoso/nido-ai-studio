@@ -1,8 +1,12 @@
-import { NextResponse } from "next/server";
+import type { Pool } from "@neondatabase/serverless";
+import { after, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { getUserId } from "@/lib/auth/server";
 import { getPool } from "@/lib/db";
+import { atualizarViewsDaConta } from "@/lib/nft/views-server";
+import { recursosDisponiveis } from "@/lib/recursos";
+import { getBundle } from "@/lib/social/bundle";
 import { metricasDoLink } from "@/lib/social/link-apify";
 import { detectarRedeDoLink, limparLink } from "@/lib/social/link-metricas";
 import { DIAS_METRICAS, gravarMetricas } from "@/lib/social/metricas";
@@ -36,6 +40,47 @@ async function contexto() {
       { status: 500 },
     );
   return { userId, pool };
+}
+
+/**
+ * Guarda quem publicou o post (o @ lido da rede): os badges do NFT só contam
+ * os posts da conta do influencer naquela rede (lib/nft/views.ts). Se o post
+ * foi lido e a rede não disse quem publicou, isso também fica registrado (autor
+ * vazio), para a aba NFT não gastar outra leitura tentando descobrir. Nunca
+ * derruba o cadastro do post.
+ */
+async function guardarAutor(pool: Pool, postId: string, autor?: string) {
+  try {
+    if (autor)
+      await pool.query(
+        "update posts_agendados set autor = $2 where id = $1 and autor is distinct from $2",
+        [postId, autor],
+      );
+    else
+      await pool.query(
+        "update posts_agendados set autor = '' where id = $1 and autor is null",
+        [postId],
+      );
+  } catch (e) {
+    console.warn(
+      "[metricas/links] autor do post não gravado (migration 0028 aplicada?):",
+      (e as Error).message,
+    );
+  }
+}
+
+/**
+ * Depois da resposta, refaz a conta dos badges do NFT com as leituras novas.
+ * Só com o NFT ligado; nunca derruba o Dashboard.
+ */
+function recontarBadges(pool: Pool, userId: string, characterId?: string) {
+  if (!recursosDisponiveis().nft) return;
+  after(() =>
+    atualizarViewsDaConta(pool, getBundle(), userId, {
+      characterId,
+      forcar: true,
+    }).catch((e) => console.error("[nft] números depois do link", userId, e)),
+  );
 }
 
 const NovoSchema = z.object({
@@ -112,6 +157,8 @@ export async function POST(req: Request) {
       ],
     );
     await gravarMetricas(pool, id, lido.rede, lido.metricas);
+    await guardarAutor(pool, id, lido.autor);
+    recontarBadges(pool, userId, characterId);
     return NextResponse.json({
       id,
       rede: lido.rede,
@@ -153,6 +200,8 @@ export async function PATCH() {
         if (!p.url) throw new LinkError("Post sem link.");
         const lido = await metricasDoLink(p.url);
         await gravarMetricas(pool, p.id, p.rede, lido.metricas);
+        // Posts cadastrados antes de o autor ser guardado ganham o autor aqui.
+        await guardarAutor(pool, p.id, lido.autor);
       } catch (e) {
         // Falhou: marca a tentativa e mantém a última leitura.
         await gravarMetricas(pool, p.id, p.rede, null);
@@ -161,6 +210,7 @@ export async function PATCH() {
       }
     }),
   );
+  if (rows.length) recontarBadges(pool, userId);
   return NextResponse.json({ lidos: rows.length, erro });
 }
 

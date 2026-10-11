@@ -77,6 +77,8 @@ export interface ContaSocial {
   usuario: string | null;
   nome: string | null;
   avatar: string | null;
+  /** Id da conta na própria rede (não muda se a pessoa trocar o @). */
+  idExterno: string | null;
 }
 
 /** Contas conectadas no time (só as redes que o app usa). */
@@ -89,6 +91,7 @@ export async function contasDoTime(bundle: Bundlesocial, teamId: string): Promis
       usuario: c.username ?? null,
       nome: c.displayName ?? null,
       avatar: c.avatarUrl ?? null,
+      idExterno: c.externalId ?? null,
     }));
 }
 

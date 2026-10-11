@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, FileText, Radar, Wand2 } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  FileText,
+  Radar,
+  Wand2,
+} from "lucide-react";
+import { IconeNft } from "@/components/nft/IconeNft";
 import type { Character } from "@/lib/types";
 import { status, stepCompletion } from "@/lib/completion";
 import { capaSrc } from "@/lib/storage/client";
@@ -10,7 +17,7 @@ import { StatusBadge } from "./StatusBadge";
 import { useT } from "@/lib/i18n";
 import { tx } from "@/lib/i18n/tx";
 
-export type AbaPersonagem = "ficha" | "estudio" | "radar";
+export type AbaPersonagem = "ficha" | "estudio" | "radar" | "nft";
 
 /** Progresso geral da ficha (média das etapas, sem a revisão). */
 export function progressoFicha(c: Character): number {
@@ -23,15 +30,37 @@ export function CharacterHeader({
   character: c,
   aba,
   onAba,
+  comNft,
 }: {
   character: Character;
   aba: AbaPersonagem;
   onAba: (a: AbaPersonagem) => void;
+  /** Mostra a aba NFT (recurso configurado e liberado para a conta). */
+  comNft?: boolean;
 }) {
   const t = useT();
   const nome = c.identidade.nome || t("personagem.semNome");
   const avatar = capaSrc(c);
   const progresso = progressoFicha(c);
+  const abas = [
+    ["ficha", t("personagem.abaFicha"), FileText, t("personagem.dicaFicha")],
+    ["estudio", t("personagem.abaEstudio"), Wand2, t("personagem.dicaEstudio")],
+    ["radar", tx("Radar"), Radar, t("estudio.radar.descricao")],
+    ...(comNft
+      ? ([
+          [
+            "nft",
+            "NFT",
+            IconeNft,
+            tx(
+              "Registre o influencer na Solana como NFT e acompanhe os badges que ele conquista.",
+            ),
+          ],
+        ] as const)
+      : []),
+  ] as const;
+  // Com a quarta aba, as abas ficam mais estreitas no celular para caber sem rolar.
+  const estreitas = abas.length > 3;
 
   return (
     <header className="mb-6 grid gap-5">
@@ -89,23 +118,7 @@ export function CharacterHeader({
         aria-label={tx("Seções do personagem")}
         className="flex gap-1 border-b border-line"
       >
-        {(
-          [
-            [
-              "ficha",
-              t("personagem.abaFicha"),
-              FileText,
-              t("personagem.dicaFicha"),
-            ],
-            [
-              "estudio",
-              t("personagem.abaEstudio"),
-              Wand2,
-              t("personagem.dicaEstudio"),
-            ],
-            ["radar", tx("Radar"), Radar, t("estudio.radar.descricao")],
-          ] as const
-        ).map(([id, titulo, Icone, dica]) => (
+        {abas.map(([id, titulo, Icone, dica]) => (
           <button
             key={id}
             type="button"
@@ -114,11 +127,17 @@ export function CharacterHeader({
             onClick={() => onAba(id)}
             title={dica}
             className={cn(
-              "relative inline-flex items-center gap-2 px-4 h-11 text-[14px] font-semibold transition",
+              "relative inline-flex items-center gap-2 h-11 text-[14px] font-semibold transition",
+              estreitas ? "px-2.5 sm:px-4" : "px-4",
               aba === id ? "text-ink" : "text-ink-mute hover:text-ink",
             )}
           >
-            <Icone className="w-4 h-4" />
+            <Icone
+              className={cn(
+                "w-4 h-4",
+                estreitas && "hidden min-[400px]:block",
+              )}
+            />
             {titulo}
             {aba === id && (
               <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-accent" />

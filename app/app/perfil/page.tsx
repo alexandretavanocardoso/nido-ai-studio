@@ -6,9 +6,11 @@ import { Coins, HardDrive, Languages, LogOut, Users } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { DiscordConta } from "@/components/auth/DiscordConta";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
+import { CarteiraConta } from "@/components/nft/CarteiraConta";
 import { useRecursos } from "@/components/RecursosProvider";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { liberadoNaTela } from "@/lib/em-teste";
 import { IDIOMAS, useIdioma } from "@/lib/i18n";
 import { tx } from "@/lib/i18n/tx";
 import { PLANOS } from "@/lib/planos";
@@ -38,6 +40,8 @@ export default function Perfil() {
     );
 
   const nome = user.name || user.email.split("@")[0];
+  // A carteira Solana (para onde os NFTs são mintados) entra com as contas vinculadas.
+  const comCarteira = recursos.nft && liberadoNaTela("nft", conta);
   const numero = (n: number) =>
     n.toLocaleString(idioma === "pt" ? "pt-BR" : "en-US");
   const data = (iso: string) =>
@@ -114,7 +118,7 @@ export default function Perfil() {
         </section>
       ) : null}
 
-      {recursos.discord ? (
+      {recursos.discord || comCarteira ? (
         <section className="card grid gap-3 p-5">
           <div>
             <div className="text-[13px] font-semibold text-ink">
@@ -125,6 +129,7 @@ export default function Perfil() {
             </p>
           </div>
           <DiscordConta cartao />
+          <CarteiraConta />
         </section>
       ) : null}
 

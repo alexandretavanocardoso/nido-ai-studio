@@ -64,11 +64,61 @@ function numero(item: Item, chaves: string[]): number {
   return 0;
 }
 
+// Onde cada scraper põe o autor do post: o @, o id dele na rede e o link do perfil.
+const CHAVES_AUTOR = [
+  "ownerUsername",
+  "authorMeta.name",
+  "author.userName",
+  "author.username",
+  "channelUsername",
+  "authorUsername",
+  "username",
+];
+const CHAVES_ID_AUTOR = ["ownerId", "authorMeta.id", "author.id", "channelId", "authorId"];
+const CHAVES_PERFIL = ["channelUrl", "authorMeta.profileUrl", "author.url", "authorUrl"];
+
+function campo(item: Item, caminho: string): string {
+  let v: unknown = item;
+  for (const parte of caminho.split(".")) {
+    if (!v || typeof v !== "object") return "";
+    v = (v as Item)[parte];
+  }
+  return typeof v === "string" || typeof v === "number" ? String(v).trim() : "";
+}
+
+/**
+ * Autor do post no resultado do scraper, como marcas separadas por espaço:
+ * o @ em minúsculas e "id:<id na rede>" (ex.: "lilanova id:6812345"). É o que
+ * a regra dos badges compara com as contas conectadas (lib/nft/views.ts).
+ * Vazio = o scraper não informou.
+ */
+export function lerAutorDoItem(item: Item): string {
+  const marcas = new Set<string>();
+  const arroba = (s: string) =>
+    s.replace(/^@+/, "").replace(/\/+$/, "").toLowerCase();
+  for (const k of CHAVES_AUTOR) {
+    const v = arroba(campo(item, k));
+    if (v && !/\s/.test(v)) marcas.add(v);
+  }
+  for (const k of CHAVES_PERFIL) {
+    // youtube.com/@canal · tiktok.com/@perfil
+    const v = campo(item, k).match(/\/@([^/?#]+)/)?.[1];
+    if (v) marcas.add(arroba(decodeURIComponent(v)));
+  }
+  for (const k of CHAVES_ID_AUTOR) {
+    const v = campo(item, k);
+    if (v && !/\s/.test(v)) marcas.add(`id:${v}`);
+  }
+  return [...marcas].join(" ").slice(0, 300);
+}
+
 export interface LeituraDoLink {
   metricas: Metricas;
   /** Data da publicação (null = o scraper não informou). */
   quando: Date | null;
   texto: string;
+  /** Autor do post (ver lerAutorDoItem). Vazio = não informado. */
+  autor?: string;
 }
 
 /** Lê os números do post no resultado do scraper. */
@@ -96,6 +146,7 @@ export function lerMetricasDoItem(item: Item): LeituraDoLink {
     },
     quando,
     texto: (texto ?? "").trim().slice(0, 5000),
+    autor: lerAutorDoItem(item),
   };
 }
 

@@ -124,6 +124,7 @@ O `vercel.json` já agenda, uma vez por dia:
 
 - `/api/cron/storage-cleanup` — limpa arquivos órfãos do S3.
 - `/api/cron/video-jobs` — finaliza vídeos pendentes (rede de segurança).
+- `/api/cron/nft` — NFT do influencer: fecha mints em aberto, recalcula views e badges, grava badges e confere a rede contra o banco. Sem o NFT configurado, não faz nada. Para um mint incerto fechar em minutos com a página fechada, chame também do cron externo a cada 5 min (mesmo cabeçalho abaixo). A migration `db/migrations/0028_nft.sql` já está aplicada no Neon (10/10); o passo a passo das chaves e da coleção está no [TECNICO.md](TECNICO.md), seção "NFT do influencer".
 
 O **Criar vídeo** (Runway) não tem webhook: para ele terminar em minutos com a página fechada, use o plano Pro da Vercel com `"schedule": "*/5 * * * *"` nesse cron, **ou** um cron externo grátis (ex.: [cron-job.org](https://cron-job.org)) chamando a cada 5 min:
 

@@ -7,6 +7,7 @@ import { useCriar } from "@/components/AppShell";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
 import { CharacterListItem } from "@/components/home/CharacterListItem";
 import { EmptyState } from "@/components/home/EmptyState";
+import { useNftsMintados } from "@/components/nft/useNftsMintados";
 import { status } from "@/lib/completion";
 import { useT } from "@/lib/i18n";
 import { tx } from "@/lib/i18n/tx";
@@ -26,6 +27,7 @@ export function GradeDePersonagens({ comTitulo }: { comTitulo?: boolean }) {
   const characters = useCharacters((s) => s.characters);
   const { conta } = useCreditos();
   const { criar } = useCriar();
+  const comNft = useNftsMintados();
   const limitePersonagens = conta ? PLANOS[conta.plano].personagens : Infinity;
   // Personagens que a conta não tem: só existem neste navegador.
   const naoSalvos = usePendentesDeSync();
@@ -102,7 +104,11 @@ export function GradeDePersonagens({ comTitulo }: { comTitulo?: boolean }) {
             </span>
           </button>
           {lista.map((c) => (
-            <CharacterListItem key={c.id} character={c} />
+            <CharacterListItem
+              key={c.id}
+              character={c}
+              comNft={comNft.has(c.id)}
+            />
           ))}
         </div>
       )}

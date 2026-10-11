@@ -2800,4 +2800,173 @@ export const TEXTOS_EN: Record<string, string> = {
     "No account linked",
   "Ligue outras contas à sua. O login continua sendo pelo Google.":
     "Connect other accounts to yours. Sign-in is still with Google.",
+  // NFT do influencer (lib/nft)
+  "Carregando o NFT do influencer…": "Loading the influencer NFT…",
+  "Tentar de novo": "Try again",
+  "Carteira Solana": "Solana wallet",
+  "Vinculada": "Linked",
+  "Nenhuma carteira vinculada": "No wallet linked",
+  "Desvincular a carteira?": "Unlink the wallet?",
+  "Os NFTs já mintados continuam nela. Para mintar outro, é só vincular uma carteira de novo.":
+    "NFTs already minted stay in it. To mint another one, just link a wallet again.",
+  "É para esta carteira que os NFTs dos seus influencers são mintados. Ela só assina uma mensagem para provar que é sua: não é transação e não tem custo.":
+    "Your influencers' NFTs are minted to this wallet. It only signs a message to prove it is yours: it is not a transaction and costs nothing.",
+  "NFT do influencer": "Influencer NFT",
+  "Registre o influencer na Solana como NFT e acompanhe os badges que ele conquista.":
+    "Register the influencer on Solana as an NFT and track the badges it earns.",
+  "rede de teste": "test network",
+  "Rede de teste (devnet): para ver o NFT, deixe a carteira em devnet. Mintar não exige SOL.":
+    "Test network (devnet): to see the NFT, keep your wallet on devnet. Minting does not require SOL.",
+  "Faucet de SOL de teste": "Test SOL faucet",
+  "Registre este influencer na Solana como um NFT que fica na sua carteira e não pode ser transferido. As marcas que ele bate em views, curtidas, comentários, reposts, quotes e salvos viram badges gravados no NFT.":
+    "Register this influencer on Solana as an NFT that stays in your wallet and cannot be transferred. The milestones it reaches in views, likes, comments, reposts, quotes and saves become badges written into the NFT.",
+  "Trocar": "Change",
+  "A carteira só assina uma mensagem para provar que é sua. Não é uma transação e não tem custo.":
+    "The wallet only signs a message to prove it is yours. It is not a transaction and costs nothing.",
+  "O NFT já mintado continua na carteira em que foi criado.":
+    "The NFT already minted stays in the wallet it was created in.",
+  "Instale a Phantom, a Solflare, a Backpack ou a MetaMask neste navegador para conectar a carteira.":
+    "Install Phantom, Solflare, Backpack or MetaMask in this browser to connect your wallet.",
+  "A carteira assinou um texto diferente do pedido. Tente com outra carteira.":
+    "The wallet signed a different text from the one requested. Try another wallet.",
+  "NFT mintado": "NFT minted",
+  "Ver na rede": "View on-chain",
+  "Confirmando o mint na rede. Pode levar alguns minutos.":
+    "Confirming the mint on-chain. It can take a few minutes.",
+  "Ver a transação": "View transaction",
+  "O último mint não entrou na rede e os créditos foram devolvidos. Você pode tentar de novo.":
+    "The last mint did not go through and your credits were refunded. You can try again.",
+  "Complete o personagem (nome e pelo menos uma imagem) para mintar.":
+    "Complete the character (name and at least one image) to mint.",
+  "Conecte uma carteira para mintar.": "Connect a wallet to mint.",
+  "Mintando… (até 1 minuto)": "Minting… (up to 1 minute)",
+  "Mintar NFT": "Mint NFT",
+  "Gravado no NFT": "Written to the NFT",
+  "Conquistado — sendo gravado no NFT":
+    "Earned — being written to the NFT",
+  "Conquistado — entra no NFT quando você mintar":
+    "Earned — goes into the NFT when you mint",
+  "Marca batida — em conferência pela equipe":
+    "Milestone reached — under review by the team",
+  "Ainda não conquistado": "Not earned yet",
+  "Não foi possível conectar a carteira.": "Could not connect the wallet.",
+  "Carteira não encontrada neste navegador.":
+    "Wallet not found in this browser.",
+  "A carteira não tem uma conta Solana.":
+    "The wallet has no Solana account.",
+  "A carteira não devolveu a assinatura.":
+    "The wallet did not return the signature.",
+  "NFT não configurado.": "NFT not configured.",
+  "Muitos pedidos.": "Too many requests.",
+  "NFT não configurado (endereço público do app).":
+    "NFT not configured (public app address).",
+  "Muitos pedidos seguidos. Tente de novo em um minuto.":
+    "Too many requests in a row. Try again in a minute.",
+  "Endereço de carteira inválido.": "Invalid wallet address.",
+  "Pedido inválido.": "Invalid request.",
+  "O pedido venceu ou já foi usado. Conecte a carteira de novo.":
+    "The request expired or was already used. Connect the wallet again.",
+  "A assinatura não confere com a carteira.":
+    "The signature does not match the wallet.",
+  "Complete o personagem (nome e pelo menos uma imagem) antes de mintar.":
+    "Complete the character (name and at least one image) before minting.",
+  "Gere o retrato do personagem antes de mintar: ele é a imagem do NFT.":
+    "Generate the character's portrait before minting: it is the NFT image.",
+  "Gere um retrato do personagem para usar como imagem do NFT.":
+    "Generate a portrait of the character to use as the NFT image.",
+  "Gere o retrato do personagem em Estúdio → Imagens para mintar: ele é a imagem do NFT.":
+    "Generate the character's portrait in Studio → Images to mint: it is the NFT image.",
+  "Imagem que fica pública no NFT":
+    "Image that becomes public on the NFT",
+  "Este personagem ainda não está salvo na sua conta. Assim que ele sincronizar, o NFT aparece aqui.":
+    "This character is not saved to your account yet. As soon as it syncs, the NFT shows up here.",
+  "Não foi possível carregar o NFT do influencer.":
+    "Could not load the influencer NFT.",
+  "Mintar o NFT do influencer está disponível a partir do plano Starter.":
+    "Minting the influencer NFT is available from the Starter plan.",
+  "Conecte uma carteira antes de mintar.":
+    "Connect a wallet before minting.",
+  "Este personagem já tem um NFT.": "This character already has an NFT.",
+  "O mint deste personagem já está em andamento.":
+    "This character's mint is already in progress.",
+  "O limite de mints de hoje foi atingido. Tente de novo amanhã.":
+    "Today's mint limit was reached. Try again tomorrow.",
+  "O mint está indisponível no momento. Tente de novo mais tarde.":
+    "Minting is unavailable right now. Try again later.",
+  "A rede recusou o mint. Nada foi cobrado.":
+    "The network rejected the mint. Nothing was charged.",
+  "O mint foi cancelado. Tente de novo.":
+    "The mint was cancelled. Try again.",
+  "Não foi possível preparar o mint. Nada foi cobrado.":
+    "Could not prepare the mint. Nothing was charged.",
+  "A conexão foi recusada na carteira. Clique de novo e aprove o pedido na janela dela.":
+    "The connection was declined in the wallet. Click again and approve the request in its window.",
+  "A assinatura foi recusada na carteira. Clique de novo e aprove a mensagem na janela dela.":
+    "The signature was declined in the wallet. Click again and approve the message in its window.",
+  "A carteira não assinou a mensagem.":
+    "The wallet did not sign the message.",
+  "A carteira não conectou. Recarregue a página e tente de novo; se continuar, feche e abra o navegador.":
+    "The wallet did not connect. Reload the page and try again; if it keeps happening, close and reopen the browser.",
+  "Conectada": "Connected",
+  "Mintado": "Minted",
+  "conquistados": "earned",
+  "Conquistado": "Earned",
+  "Em conferência": "Under review",
+  "Bloqueado": "Locked",
+  "Ficam públicos: nome, bio, o retrato e os traços principais do personagem. O modelo treinado, a voz e as referências continuam privados.":
+    "Made public: the character's name, bio, portrait and main traits. The trained model, the voice and the references stay private.",
+  "Não foi possível atualizar a imagem.": "Could not update the image.",
+  "Mint e badges": "Mint and badges",
+  "Meu NFT": "My NFT",
+  "Prévia do NFT": "NFT preview",
+  "Saldo da carteira nesta rede": "Wallet balance on this network",
+  "saldo indisponível": "balance unavailable",
+  "Você não precisa de SOL para mintar: o mint é pago em créditos e a taxa da rede fica por conta da NIDO.":
+    "You do not need SOL to mint: minting is paid in credits and NIDO covers the network fee.",
+  "Créditos insuficientes:": "Not enough credits:",
+  "Seu saldo:": "Your balance:",
+  "Ver a prévia": "See the preview",
+  "Sem imagem": "No image",
+  "Intransferível": "Non-transferable",
+  "Sintético": "Synthetic",
+  "Dono": "Owner",
+  "Endereço do NFT": "NFT address",
+  "Mintado em": "Minted on",
+  "Traços": "Traits",
+  "Nenhum badge ainda. Eles vêm das marcas de views, curtidas, comentários, reposts, quotes e salvos.":
+    "No badges yet. They come from milestones in views, likes, comments, reposts, quotes and saves.",
+  "Metadados públicos": "Public metadata",
+  "Troca a imagem do NFT pelo retrato atual do personagem. Não é transação e não custa créditos.":
+    "Replaces the NFT image with the character's current portrait. It is not a transaction and costs no credits.",
+  "Usar o retrato atual": "Use the current portrait",
+  "Carteiras e explorers buscam a imagem e os traços deste NFT em":
+    "Wallets and explorers fetch this NFT's image and traits from",
+  "Você está em outro endereço: lá fora eles só aparecem quando esta versão do app estiver publicada nesse endereço.":
+    "You are on a different address: out there they only show up once this version of the app is published at that address.",
+  "É assim que o NFT vai aparecer. A imagem é o retrato do personagem; os traços e os badges entram depois do mint.":
+    "This is how the NFT will look. The image is the character's portrait; traits and badges come in after minting.",
+  "Este personagem ainda não tem um retrato gerado: gere um em Estúdio → Imagens para ele ser a imagem do NFT.":
+    "This character has no generated portrait yet: create one in Studio → Images so it becomes the NFT image.",
+  "Ir para o mint": "Go to mint",
+  "Este personagem ainda não tem um NFT.":
+    "This character does not have an NFT yet.",
+  "por link esperando a leitura de quem publicou: não contam por enquanto. O app tenta ler de novo em alguns minutos, com esta aba aberta.":
+    "added by link are waiting for the app to read who posted them: they do not count yet. The app tries again in a few minutes, while this tab is open.",
+  "não contam: são de outra conta que não a do influencer naquela rede.":
+    "do not count: they come from an account other than the influencer's on that network.",
+  "não contam: a conta que publicou já é de outro personagem.":
+    "do not count: the account that posted already belongs to another character.",
+  "não contam: não deu para saber quem publicou. No LinkedIn, só com a conta conectada.":
+    "do not count: the app could not tell who posted them. On LinkedIn, only with the account connected.",
+  "publicados pelo app não contam: a rede não tem conta conectada a este personagem.":
+    "published through the app do not count: that network has no account connected to this character.",
+  "Contas do influencer": "Influencer accounts",
+  "conectada": "connected",
+  "pelo 1º link": "by first link",
+  "Nenhuma conta ainda. Cadastre no Dashboard o link de um post do influencer: a conta que publicou vira a conta dele naquela rede.":
+    "No accounts yet. Add the link of one of the influencer's posts in the Dashboard: the account that posted becomes its account on that network.",
+  "Lendo na rede quem publicou os posts cadastrados por link. Os números aparecem em instantes.":
+    "Reading from the network who published the posts added by link. The numbers will show up shortly.",
+  "Em cada rede vale uma conta: a conectada em Estúdio → Publicar, ou a do primeiro post cadastrado por link. Só os posts dela contam, e cada conta serve a um personagem só. Números digitados à mão não contam. Com conta não conectada, as marcas mais altas passam por conferência.":
+    "One account counts per network: the one connected in Studio → Publish, or the one from the first post added by link. Only its posts count, and each account serves a single character. Numbers typed in by hand do not count. With an account that is not connected, the highest milestones go through a review.",
 };

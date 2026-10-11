@@ -59,6 +59,7 @@ const MOTIVOS: Record<string, string> = {
   voz: "Voz",
   persona_treino: "Treino de persona",
   post_redes: "Post nas redes",
+  nft_mint: "Mint do NFT",
   estorno: "Estorno (geração falhou)",
   estorno_parcial: "Estorno parcial",
   bonus_cadastro: "Bônus de cadastro",

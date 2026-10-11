@@ -1,6 +1,8 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth/server";
 import { getPool } from "@/lib/db";
+import { atualizarViewsDaConta } from "@/lib/nft/views-server";
+import { recursosDisponiveis } from "@/lib/recursos";
 import { getBundle } from "@/lib/social/bundle";
 import { tokenApify } from "@/lib/video/link";
 import { atualizarMetricas, postsComMetricas } from "@/lib/social/metricas";
@@ -37,6 +39,13 @@ export async function GET(req: Request) {
 
   const forcar = new URL(req.url).searchParams.get("atualizar") === "1";
   const erro = await atualizarMetricas(bundle, pool, userId, forcar ? 2 : 30);
+  // Com as leituras em dia, recalcula as views que contam para os badges do NFT.
+  if (recursosDisponiveis().nft)
+    after(() =>
+      atualizarViewsDaConta(pool, bundle, userId).catch((e) =>
+        console.error("[nft] views da conta", userId, e),
+      ),
+    );
   return NextResponse.json({
     configurado: true,
     porLink: !!tokenApify(),
