@@ -33,6 +33,8 @@ describe("custo em créditos", () => {
     expect(creditosCriarVideo("gen4.5", 5, false)).toBe(60);
     expect(creditosCriarVideo("veo3.1_fast", 8, true)).toBe(120);
     expect(creditosCriarVideo("gen4_turbo", 10, true)).toBe(50); // Gen-4 não tem áudio
+    expect(creditosCriarVideo("kling_v3", 10, false)).toBe(60);
+    expect(creditosCriarVideo("kling_v3", 10, true)).toBe(80);
   });
 });
 

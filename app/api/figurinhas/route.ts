@@ -190,7 +190,7 @@ export async function POST(req: Request) {
         : [];
       const alvos = marcadas.length
         ? marcadas.map((p, i) => ({
-            descricao: descricoes[i],
+            ...descricoes[i],
             imagem: 2 + unicas.indexOf(p.imageKey),
           }))
         : [{ imagem: 2 }];

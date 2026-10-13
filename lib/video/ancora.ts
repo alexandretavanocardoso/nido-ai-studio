@@ -8,7 +8,13 @@ import {
   proporcaoMaisProxima,
   shrinkReferencia,
 } from "@/lib/ai/gemini";
-import { promptTrocaImagem, type RoupaTroca } from "@/lib/prompts/trocar-imagem";
+import {
+  ehCoisa,
+  nomeDoTipo,
+  promptTrocaImagem,
+  type RoupaTroca,
+  type TipoAlvo,
+} from "@/lib/prompts/trocar-imagem";
 import {
   extrairQuadro,
   extrairQuadroMarcado,
@@ -37,6 +43,8 @@ const LIMITE_MAX_MS = 180_000;
 const LIMITE_TOMADAS_MS = 150_000;
 const MODELO_VISAO =
   process.env.GEMINI_TEXT_MODEL?.trim() || "gemini-flash-latest";
+/** O que cada quadro marcado mostra: quem (ou o que) o usuário mandou trocar. */
+const UM_ALVO = "one TARGET of a video (a person, an animal or an object)";
 
 async function reduzido(quadro: Buffer): Promise<string> {
   return (
@@ -131,10 +139,10 @@ export async function escolherQuadroDosAlvos(
             {
               text:
                 `These are ${quadros.length} frames of the same video, numbered 1 to ${quadros.length}. ` +
-                `Target people: ${alvos.map((a, i) => `${i + 1}) ${a}`).join("; ")}. ` +
-                "Pick the ONE frame that works best as a clean still reference: every person in it is sharp (no motion blur), " +
+                `Targets (people, animals or objects): ${alvos.map((a, i) => `${i + 1}) ${a}`).join("; ")}. ` +
+                "Pick the ONE frame that works best as a clean still reference: every person and every target in it is sharp (no motion blur), " +
                 "nobody overlaps, covers or is cut off by anybody else, and faces are visible. " +
-                "Among clean frames, prefer the one that shows more of the target people. A clean frame with a single target is better than a frame with all targets where one is blurred or overlapping. " +
+                "Among clean frames, prefer the one that shows more of the targets. A clean frame with a single target is better than a frame with all targets where one is blurred or overlapping. " +
                 'Answer with JSON only: {"frame": <number>, "targets": [<numbers of the targets that are sharp and fully recognisable in that frame>]}',
             },
             ...(await Promise.all(
@@ -200,10 +208,10 @@ export async function descreverOutrasPessoas(
             {
               text:
                 (marcados.length
-                  ? `The first ${marcados.length} image(s) each show, with a red target, a person who WILL be replaced. Never list those people, even when they look different in other frames (another angle, closer to the camera, blurred, partly cut off). After them come ${quadros.length} frames sampled along the same video. `
+                  ? `The first ${marcados.length} image(s) each show, with a red target, a person, animal or object that WILL be replaced. Never list those, even when they look different in other frames (another angle, closer to the camera, blurred, partly cut off). After them come ${quadros.length} frames sampled along the same video. `
                   : `These are ${quadros.length} frames sampled along one video. `) +
                 (alvos.length
-                  ? `IGNORE these people (they will be replaced): ${alvos.join("; ")}. `
+                  ? `IGNORE these (they will be replaced): ${alvos.join("; ")}. `
                   : "IGNORE the main person (the subject of the video). ") +
                 "List every OTHER person who appears prominently in any frame: anyone who passes in front of the camera, stands next to or interacts with the main person. " +
                 "Do NOT list small or distant background people. For each one, a short description to recognise them: gender, hair, accessories, clothing colours, and how they appear. " +
@@ -311,9 +319,9 @@ export async function linhaDoTempoDosAlvos(o: {
           parts: [
             {
               text:
-                `The first ${marcados.length} image(s) each show, with a red target, one TARGET person of a video, numbered in order: ${o.descricoes.map((d, i) => `${i + 1}) ${d}`).join("; ")}. ` +
+                `The first ${marcados.length} image(s) each show, with a red target, ${UM_ALVO}, numbered in order: ${o.descricoes.map((d, i) => `${i + 1}) ${d}`).join("; ")}. ` +
                 `After them come ${quantos} frames of that video in chronological order, numbered 1 to ${quantos}. ` +
-                "For EACH frame, list which targets are visible in it. Count a target as visible when seen from behind, lying down, partly cut off, blurred or far away, as long as it is that same person. Do not count a different person who merely looks similar. " +
+                "For EACH frame, list which targets are visible in it. Count a target as visible when seen from behind, lying down, partly cut off, blurred or far away, as long as it is that same person, animal or object. Do not count a different one that merely looks similar. " +
                 `Answer with JSON only, one entry per frame: {"frames": [{"n": 1, "present": [<target numbers>]}, ...]}`,
             },
             ...marcados,
@@ -409,12 +417,12 @@ async function alvosNoQuadro(
             {
               text:
                 (marcados.length
-                  ? `The first ${marcados.length} image(s) each show, with a red target, one TARGET person of a video. `
+                  ? `The first ${marcados.length} image(s) each show, with a red target, ${UM_ALVO}. `
                   : "") +
                 `Targets: ${alvos.map((a) => `${a.i + 1}) ${a.d}`).join("; ")}. ` +
                 "The last image is a frame from a shot of the same video. The targets may look different there (seen from behind, far away, hair or accessories changed, motion blur). " +
-                "For each target that appears in the last image, describe how to find them IN THAT FRAME: where they are (left/right/centre, foreground/background), how much of them is in the frame (only the back of the head, only the legs, full body), whether seen from the front, side or behind, and their clothing and hair as they look there. " +
-                'Answer with JSON only: {"targets": [{"n": <target number>, "description": "the person ... (max 32 words, English)"}]} — leave out targets that are not in the last image.',
+                "For each target that appears in the last image, describe how to find them IN THAT FRAME: where they are (left/right/centre, foreground/background), how much of them is in the frame (only the back of the head, only the legs, full body), whether seen from the front, side or behind, and their clothing and hair as they look there (for an animal or object: what it is and its colours). " +
+                'Answer with JSON only: {"targets": [{"n": <target number>, "description": "the ... (max 32 words, English)"}]} — leave out targets that are not in the last image.',
             },
             ...marcados,
             {
@@ -469,7 +477,11 @@ export async function prepararTomadas(o: {
   marcadas?: Array<{ t: number; x?: number; y?: number }>;
   /** Descrição geral de cada alvo (a do quadro em que foi marcado). */
   descricoes: Array<string | undefined>;
+  /** Pessoa, animal ou objeto, por alvo (ausente: pessoa). */
+  tipos?: Array<TipoAlvo | undefined>;
   personagens: Buffer[];
+  /** Quem entra no lugar de cada alvo (ver `trocarNoQuadro`). */
+  quem?: string[];
   estilo?: Parameters<typeof pedidoDoEstilo>[0];
   roupa?: RoupaTroca;
 }): Promise<TomadaPreparada[]> {
@@ -542,7 +554,9 @@ export async function prepararTomadas(o: {
         quadro,
         alvos: presentes,
         descricoes: porAlvo,
+        tipos: o.tipos,
         personagens: o.personagens,
+        quem: o.quem,
         info: o.info,
         estilo: o.estilo,
         roupa: o.roupa,
@@ -655,7 +669,7 @@ export async function acoesDosTrechos(o: {
                   {
                     text:
                       (marcados.length
-                        ? `The first ${marcados.length} image(s) each show, with a red target, one TARGET person of a video. `
+                        ? `The first ${marcados.length} image(s) each show, with a red target, ${UM_ALVO}. `
                         : "") +
                       `Targets: ${alvos.map((a) => `[[${a.i + 1}]] = ${a.d}`).join("; ")}. ` +
                       `Then come ${instantes.length} frames of ONE part of that video, in order, taken at these seconds of the part: ${instantes.map((x) => (x - t.inicio).toFixed(1)).join(", ")} (the part lasts ${t.duracao.toFixed(1)} s). ` +
@@ -728,9 +742,20 @@ export async function passadaConfere(o: {
   descricao: string;
   /** "foto": a roupa continua a do quadro original — não é sinal de troca falha. */
   roupa?: RoupaTroca;
+  /** Ausente: pessoa. */
+  tipo?: TipoAlvo;
+  /**
+   * Quantas vezes o personagem pode aparecer no resultado (padrão 1). Mais de
+   * uma quando a mesma imagem entra no lugar de vários alvos e um deles já foi
+   * trocado numa passada anterior.
+   */
+  esperados?: number;
 }): Promise<boolean> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) return true;
+  const resposta =
+    'Answer with JSON only: {"target_replaced": true|false, "others_changed": true|false, "character_count": <number>}. ';
+  const nome = nomeDoTipo(o.tipo);
   try {
     const res = await new GoogleGenAI({ apiKey }).models.generateContent({
       model: MODELO_VISAO,
@@ -739,15 +764,21 @@ export async function passadaConfere(o: {
           role: "user",
           parts: [
             {
-              text:
-                "Image 1 is a frame of a video. Image 2 is an edit of image 1 in which exactly ONE person should have been replaced by the character shown in image 3; " +
-                `that person is: ${o.descricao}. Everyone else must still be the same people as in image 1 (small differences in pose or sharpness do not count). ` +
-                'Answer with JSON only: {"target_replaced": true|false, "others_changed": true|false, "character_count": <number>}. ' +
-                (o.roupa === "foto"
-                  ? "target_replaced: in image 2 that person now has the head of the character of image 3 (its face, hair or headwear, skin tone). They are expected to keep their own body and clothes from image 1 — that is correct, not a failure. "
-                  : "target_replaced: in image 2 that person is gone and the character of image 3 (its face, hair or headwear and outfit) stands in their place. ") +
-                "others_changed: some OTHER person is no longer the same person or character as in image 1 — a different head, face, hair or headwear, or a different outfit. A small change (pose, sharpness, the colour of one small garment detail) does not count. " +
-                "character_count: how many people in image 2 look like, or wear distinctive items of, the character of image 3.",
+              text: ehCoisa(o.tipo)
+                ? `Image 1 is a frame of a video. Image 2 is an edit of image 1 in which exactly ONE ${nome} should have been replaced by the ${nome} shown in image 3; ` +
+                  `it is: ${o.descricao}. Every person and everything else must still be the same as in image 1 (small differences in pose or sharpness do not count). ` +
+                  resposta +
+                  `target_replaced: in image 2 it is gone and the ${nome} of image 3 (its shape, colours and details) stands in its place. ` +
+                  "others_changed: some person, or some OTHER animal or object, is no longer the same as in image 1. A small change (pose, sharpness, one small detail) does not count. " +
+                  `character_count: how many copies of the ${nome} of image 3 appear in image 2.`
+                : "Image 1 is a frame of a video. Image 2 is an edit of image 1 in which exactly ONE person should have been replaced by the character shown in image 3; " +
+                  `that person is: ${o.descricao}. Everyone else must still be the same people as in image 1 (small differences in pose or sharpness do not count). ` +
+                  resposta +
+                  (o.roupa === "foto"
+                    ? "target_replaced: in image 2 that person now has the head of the character of image 3 (its face, hair or headwear, skin tone). They are expected to keep their own body and clothes from image 1 — that is correct, not a failure. "
+                    : "target_replaced: in image 2 that person is gone and the character of image 3 (its face, hair or headwear and outfit) stands in their place. ") +
+                  "others_changed: some OTHER person is no longer the same person or character as in image 1 — a different head, face, hair or headwear, or a different outfit. A small change (pose, sharpness, the colour of one small garment detail) does not count. " +
+                  "character_count: how many people in image 2 look like, or wear distinctive items of, the character of image 3.",
             },
             {
               inlineData: {
@@ -781,7 +812,8 @@ export async function passadaConfere(o: {
     const ok =
       r.target_replaced !== false &&
       r.others_changed !== true &&
-      (typeof r.character_count !== "number" || r.character_count === 1);
+      (typeof r.character_count !== "number" ||
+        (r.character_count >= 1 && r.character_count <= (o.esperados ?? 1)));
     if (!ok) console.warn("[ancora] conferência reprovou a passada:", json);
     return ok;
   } catch (e) {
@@ -813,7 +845,14 @@ export async function trocarNoQuadro(o: {
   /** Índices dos alvos a trocar neste quadro. */
   alvos: number[];
   descricoes: Array<string | undefined>;
+  /** Pessoa, animal ou objeto, por alvo (ausente: pessoa). */
+  tipos?: Array<TipoAlvo | undefined>;
   personagens: Buffer[];
+  /**
+   * Quem entra no lugar de cada alvo (id do personagem): dois alvos com o
+   * mesmo valor viram o mesmo personagem. Ausente: compara as imagens.
+   */
+  quem?: string[];
   info: VideoInfo;
   estilo?: Parameters<typeof pedidoDoEstilo>[0];
   /** Roupa de quem é trocado: do personagem (padrão) ou a do vídeo ("foto"). */
@@ -855,6 +894,7 @@ export async function trocarNoQuadro(o: {
                   ? `${descricao}, ${o.posicoes[n]}`
                   : descricao,
               imagem: 2,
+              tipo: o.tipos?.[n],
             },
           ],
           // Por padrão o personagem entra com o próprio look; com "foto", só a
@@ -891,6 +931,15 @@ export async function trocarNoQuadro(o: {
           personagem: o.personagens[n],
           descricao,
           roupa: o.roupa,
+          tipo: o.tipos?.[n],
+          // O mesmo personagem para dois alvos: o que já foi trocado também conta.
+          esperados:
+            1 +
+            feitos.filter((m) =>
+              o.quem
+                ? o.quem[m] === o.quem[n]
+                : o.personagens[m].equals(o.personagens[n]),
+            ).length,
         }))
       ) {
         console.warn(
@@ -934,8 +983,12 @@ export async function prepararAncora(o: {
   marcadas?: Array<{ t: number; x?: number; y?: number }>;
   /** Descrições já feitas das pessoas marcadas (mesma ordem dos alvos). */
   descricoes: Array<string | undefined>;
+  /** Pessoa, animal ou objeto, por alvo (ausente: pessoa). */
+  tipos?: Array<TipoAlvo | undefined>;
   /** Imagem do personagem de cada alvo (mesma ordem). */
   personagens: Buffer[];
+  /** Quem entra no lugar de cada alvo (ver `trocarNoQuadro`). */
+  quem?: string[];
   /** Estilo visual do vídeo: o quadro-guia já sai nele. */
   estilo?: EstiloTroca;
   /** Roupa de quem é trocado: do personagem (padrão) ou a do vídeo ("foto"). */
@@ -1076,7 +1129,9 @@ export async function prepararAncora(o: {
       quadro,
       alvos: naAncora,
       descricoes,
+      tipos: o.tipos,
       personagens: o.personagens,
+      quem: o.quem,
       info: o.info,
       estilo: o.estilo,
       roupa: o.roupa,

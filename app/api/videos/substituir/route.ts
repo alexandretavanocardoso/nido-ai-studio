@@ -52,6 +52,7 @@ import {
   personagemSemFundo,
 } from "@/lib/video/troca";
 import { descreverPessoas } from "@/lib/video/pessoas";
+import { ehCoisa } from "@/lib/prompts/trocar-imagem";
 import {
   acoesDosTrechos,
   linhaDoTempoDosAlvos,
@@ -98,6 +99,8 @@ const BodySchema = z.object({
         y: z.number().min(0).max(1),
         t: z.number().min(0),
         imageKey: z.string().min(1),
+        /** Personagem que entra (duas marcas podem ter o mesmo, com imagens diferentes). */
+        characterId: z.string().min(1).optional(),
       }),
     )
     .min(1)
@@ -350,7 +353,8 @@ export async function POST(req: Request) {
 
       const jobId = nanoid(12);
       // Quem trocar: descrição de cada pessoa marcada (Gemini lê o quadro marcado).
-      const descricoes = body.pessoas
+      // O clique também pode ter caído num animal ou objeto: o tipo vem junto.
+      const descritas = body.pessoas
         ? await descreverPessoas(
             arquivo,
             body.pessoas.map((p) => ({
@@ -360,6 +364,11 @@ export async function POST(req: Request) {
             dir,
           )
         : [];
+      const descricoes = descritas.map((d) => d.descricao);
+      const tipos = descritas.map((d) => d.tipo);
+      // Quem entra no lugar de cada alvo: o quadro-guia precisa saber quando
+      // dois alvos viram o mesmo personagem.
+      const quem = body.pessoas?.map((p) => p.characterId ?? p.imageKey);
       const personagens = await Promise.all(
         imagens.map((key) => getObjectBuffer(s3, key)),
       );
@@ -383,13 +392,17 @@ export async function POST(req: Request) {
               info,
               marcadas: body.pessoas,
               descricoes,
+              tipos,
               personagens,
+              quem,
               estilo: body.estilo,
               roupa: body.roupa,
             })
           : semAncoraGeral,
         Promise.all(
-          personagens.map((imagem) => personagemSemFundo(fal, imagem)),
+          personagens.map((imagem, i) =>
+            personagemSemFundo(fal, imagem, !ehCoisa(tipos[i])),
+          ),
         ),
         body.pessoas && !tomadas
           ? linhaDoTempoDosAlvos({
@@ -405,6 +418,7 @@ export async function POST(req: Request) {
         personagemUrl: figura.url,
         rostoUrl: figura.rostoUrl,
         descricao: ancora.descricoes[i],
+        tipo: tipos[i],
       }));
 
       let troca: Awaited<ReturnType<typeof iniciarTroca>>;
@@ -422,7 +436,9 @@ export async function POST(req: Request) {
           tomadas,
           marcadas: body.pessoas,
           descricoes: ancora.descricoes,
+          tipos,
           personagens,
+          quem,
           estilo: body.estilo,
           roupa: body.roupa,
         });
@@ -560,7 +576,7 @@ export async function POST(req: Request) {
             antesKey,
             pessoas: body.pessoas?.map((p, i) => ({
               ...p,
-              descricao: descricoes[i],
+              ...descritas[i],
             })),
             // Para entender um resultado ruim depois: se houve quadro-âncora, quais
             // alvos apareciam trocados nele e quem a IA listou como "outras pessoas".

@@ -187,7 +187,7 @@ No painel **"Substituir pessoa em vídeo"** (Revisão), com login + S3, a pessoa
   - **Premium · Seedance 2.5** (modo edição) no fal.ai — US$ 0,568/s em 720p (o fal cobra US$ 0,284 por segundo de entrada e de saída) → 57 créditos/s (gera no mínimo 4s), a partir do Creator. Aceita **até 30s de uma vez** (vídeos maiores viram partes de até 30s): no teste preservou melhor o cenário e os objetos (o Kling alterou o logo de um galão) e a roupa ficou coerente com o vídeo. Mesmo fluxo do Kling (personagem sem fundo, áudio original de volta). Substituiu o Runway Aleph, que custava o mesmo e exigia outra conta.
   - Nos dois motores dá para **remover legendas e textos da tela no mesmo passo** (vai no pedido à IA).
   Assíncrono: o app cria um job (`video_jobs`, com `provedor` fal/runway), consulta o serviço a cada 10s e, quando termina, salva o resultado no S3. Recomendado usar um **retrato de corpo inteiro** gerado na etapa Visual.
-- **Criar vídeo** (Runway) — vídeo novo a partir da imagem do personagem (primeiro quadro) + texto da cena: **Gen-4 Turbo** (US$ 0,05/s, 5 ou 10s), **Gen-4.5** (US$ 0,12/s, 5 ou 10s) ou **Veo 3.1 Fast** (US$ 0,10/s, 0,15 com áudio; 4, 6 ou 8s). Vertical ou horizontal. O texto inicial vem da primeira ideia de conteúdo da ficha.
+- **Criar vídeo** (Runway) — vídeo novo a partir da imagem do personagem (primeiro quadro) + texto da cena: **Gen-4 Turbo** (US$ 0,05/s, 5 ou 10s), **Gen-4.5** (US$ 0,12/s, 5 ou 10s) ou **Veo 3.1 Fast** (US$ 0,10/s, 0,15 com áudio; 4, 6 ou 8s). Vertical ou horizontal. O texto inicial vem da primeira ideia de conteúdo da ficha. Com `SAPIENS_KEY` (Sapiens Sintéticos, API em beta) entra o **Kling V3 Standard** (US$ 0,053/s, 0,079 com áudio; 5, 10 ou 15s por cena → 6 e 8 créditos/s) e o **Veo 3.1 Fast passa a ser gerado por lá** (US$ 0,079/s, 0,119 com áudio; os créditos não mudam). O Sapiens segue o formato da imagem, então ela é recortada em 9:16 ou 16:9 antes de ir (`lib/video/sapiens.ts`).
 
 - **Legenda com IA** — para fundos complexos (o `delogo` deixa borrão): **Bria Video Eraser** (máscara) no fal.ai, US$ 0,14/s → 15 créditos/s, até 60s, a partir do Starter. O modelo aceita 5s, então o vídeo vira trechos de 4,8s processados em paralelo (`lib/video/legenda-ia.ts`); no fim os trechos limpos são juntados e **só a área da legenda** é aplicada sobre o original (resto da imagem e áudio intactos), com a legenda nova por cima no modo "trocar". Assíncrono, como a troca de pessoa.
 
@@ -214,6 +214,8 @@ Para ligar a troca de pessoa:
 Para ligar o Runway (Criar vídeo):
 1. [dev.runwayml.com](https://dev.runwayml.com) → criar organização, adicionar créditos → **API Keys**.
 2. `.env.local` / Vercel: `RUNWAYML_API_SECRET=...`.
+
+Para ligar o Sapiens (Kling V3 e Veo mais barato no Criar vídeo): criar a chave em [sapiensinteticos.com/dashboard/developers](https://www.sapiensinteticos.com/dashboard/developers#chaves), pôr saldo e `SAPIENS_KEY=...` no `.env.local` / Vercel. Sem a chave, o Kling V3 some da tela e o Veo segue no Runway.
 
 Limitações conhecidas:
 - A remoção de legenda por `delogo` deixa um leve borrão em fundos com muito detalhe. Remoção perfeita exigiria inpainting por IA (ex.: Wan VACE no fal), que hoje processa no máximo ~8s por vez.

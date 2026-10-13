@@ -51,6 +51,32 @@ describe("criar vídeo em cenas", () => {
     expect(segundosGerados("veo3.1_fast", 15)).toBe(16);
     expect(segundosGerados("gen4.5", 15)).toBe(15);
   });
+
+  it("Kling V3 (até 15s por cena): menos emendas que os outros", async () => {
+    const { cenasDoVideo, custoCriar } = await import("./precos");
+    expect(cenasDoVideo("kling_v3", 10)).toEqual([10]);
+    expect(cenasDoVideo("kling_v3", 15)).toEqual([15]);
+    expect(cenasDoVideo("kling_v3", 30)).toEqual([15, 15]);
+    expect(custoCriar("kling_v3", 10, false)).toBe(0.53);
+    expect(custoCriar("kling_v3", 10, true)).toBe(0.79);
+  });
+
+  it("serviço de cada modelo: o Veo vai pelo Sapiens quando a chave existe", async () => {
+    const { provedorCriar } = await import("./precos");
+    const os2 = { runway: true, sapiens: true };
+    expect(provedorCriar("veo3.1_fast", os2)).toBe("sapiens");
+    expect(provedorCriar("kling_v3", os2)).toBe("sapiens");
+    expect(provedorCriar("gen4.5", os2)).toBe("runway");
+    const soRunway = { runway: true, sapiens: false };
+    expect(provedorCriar("veo3.1_fast", soRunway)).toBe("runway");
+    expect(provedorCriar("kling_v3", soRunway)).toBeNull();
+    const soSapiens = { runway: false, sapiens: true };
+    expect(provedorCriar("gen4_turbo", soSapiens)).toBeNull();
+    expect(provedorCriar("veo3.1_fast", soSapiens)).toBe("sapiens");
+    const { modeloPadraoCriar } = await import("./precos");
+    expect(modeloPadraoCriar({ sapiens: true })).toBe("kling_v3");
+    expect(modeloPadraoCriar({ sapiens: false })).toBe("gen4.5");
+  });
 });
 
 describe("recorte do avatar (vídeo falado)", () => {

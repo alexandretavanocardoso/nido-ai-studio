@@ -173,7 +173,7 @@ export function EstudioConteudo({
 
       {secao === "videos" && (
         <div className="grid gap-6">
-          {recursos.fal || recursos.runway ? (
+          {recursos.fal || recursos.runway || recursos.sapiens ? (
             <VideosOrigem character={character} />
           ) : (
             <Vazio>

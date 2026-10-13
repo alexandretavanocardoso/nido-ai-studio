@@ -111,7 +111,7 @@ export const PLANOS: Record<PlanoId, Plano> = {
     qualidadePro: true,
     troca: { segundosMax: 30 },
     trocaPremium: true,
-    criarVideo: ["gen4_turbo", "gen4.5", "veo3.1_fast"],
+    criarVideo: ["gen4_turbo", "gen4.5", "veo3.1_fast", "kling_v3"],
     veoComAudio: false,
     rollover: true,
     armazenamentoGB: 50,
@@ -132,7 +132,7 @@ export const PLANOS: Record<PlanoId, Plano> = {
     qualidadePro: true,
     troca: { segundosMax: 60 },
     trocaPremium: true,
-    criarVideo: ["gen4_turbo", "gen4.5", "veo3.1_fast"],
+    criarVideo: ["gen4_turbo", "gen4.5", "veo3.1_fast", "kling_v3"],
     veoComAudio: true,
     rollover: true,
     armazenamentoGB: 200,
@@ -234,6 +234,12 @@ const CRIAR_POR_SEGUNDO: Record<ModeloCriar, number> = {
   gen4_turbo: 5,
   "gen4.5": 12,
   "veo3.1_fast": 10,
+  kling_v3: 6,
+};
+/** Com áudio (só os modelos que têm). */
+const CRIAR_POR_SEGUNDO_COM_AUDIO: Partial<Record<ModeloCriar, number>> = {
+  "veo3.1_fast": 15,
+  kling_v3: 8,
 };
 
 export function creditosTroca(
@@ -255,7 +261,7 @@ export function creditosCriarVideo(
   audio: boolean,
 ): number {
   const porSegundo =
-    modelo === "veo3.1_fast" && audio ? 15 : CRIAR_POR_SEGUNDO[modelo];
+    (audio && CRIAR_POR_SEGUNDO_COM_AUDIO[modelo]) || CRIAR_POR_SEGUNDO[modelo];
   return segundos * porSegundo;
 }
 

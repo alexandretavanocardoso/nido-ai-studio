@@ -123,8 +123,8 @@ export function VideosOrigem({ character }: { character: Character }) {
   const recursos = useRecursos();
   /** Algum serviço de troca de pessoa ligado (Kling O3 ou Seedance 2.5, no fal.ai). */
   const trocaLigada = recursos.fal;
-  /** Criar vídeo: Runway. */
-  const criarLigado = recursos.runway;
+  /** Criar vídeo: Runway ou Sapiens. */
+  const criarLigado = recursos.runway || recursos.sapiens;
   const audios = character.audios ?? [];
   const [falaEm, setFalaEm] = useState<VideoArquivo | null>(null);
   /** Trocar pessoa por link: busca o vídeo (sem salvar a origem) e segue pra troca. */

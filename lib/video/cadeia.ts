@@ -13,6 +13,12 @@ import {
 import { emendarCenas, extrairUltimoQuadro } from "./ffmpeg";
 import type { ModeloCriar } from "./precos";
 import { enviarCriacao, getRunway, mensagemDeErroRunway } from "./runway";
+import {
+  enviarCriacaoSapiens,
+  ErroSapiens,
+  getSapiens,
+  mensagemDeErroSapiens,
+} from "./sapiens";
 import { comPastaTemporaria } from "./server";
 
 /**
@@ -24,7 +30,8 @@ import { comPastaTemporaria } from "./server";
  * O estado fica no `input` do job (video_jobs): `cadeia.cenas` é o plano,
  * `cadeia.partes` são as cenas já prontas (arquivos no S3 da conta) e
  * `fal_request_id` é sempre a cena que está rodando. Quem faz a cadeia andar
- * é a consulta do job (tela aberta ou a tarefa diária): o Runway não avisa.
+ * é a consulta do job (tela aberta ou a tarefa diária): o Runway não avisa
+ * (e o aviso do Sapiens não é usado).
  */
 export interface Cadeia {
   /** Duração pedida pelo usuário: o vídeo final é cortado aqui. */
@@ -64,13 +71,21 @@ async function baixar(url: string, arquivo: string): Promise<void> {
 export async function proximaCena(o: {
   s3: S3Client;
   userId: string;
+  /** Serviço que gera o job (coluna `provedor`): Runway ou Sapiens. */
+  provedor: string;
   modelo: string;
   input: Record<string, unknown>;
   cadeia: Cadeia;
   videoUrl: string;
 }): Promise<{ idExterno: string; input: Record<string, unknown> }> {
-  const runway = getRunway();
-  if (!runway) throw new FalhaDaCadeia("Runway não configurado no servidor.");
+  const sapiens = o.provedor === "sapiens" ? getSapiens() : null;
+  const runway = o.provedor === "sapiens" ? null : getRunway();
+  if (!sapiens && !runway)
+    throw new FalhaDaCadeia(
+      o.provedor === "sapiens"
+        ? "Sapiens não configurado no servidor."
+        : "Runway não configurado no servidor.",
+    );
   return comPastaTemporaria(async (dir) => {
     const cena = path.join(dir, "cena.mp4");
     const quadro = path.join(dir, "quadro.jpg");
@@ -84,18 +99,26 @@ export async function proximaCena(o: {
 
     const partes = [...o.cadeia.partes, parteKey];
     let idExterno: string;
+    const pedido = {
+      modelo: o.modelo as ModeloCriar,
+      // O último quadro já está no formato do vídeo.
+      imageUrl: await presignGet(o.s3, quadroKey, 86_400),
+      promptText: String(o.input.promptText ?? ""),
+      vertical: o.input.vertical !== false,
+      duracao: o.cadeia.cenas[partes.length],
+      audio: o.input.audio === true,
+    };
     try {
-      idExterno = await enviarCriacao(runway, {
-        modelo: o.modelo as ModeloCriar,
-        imageUrl: await presignGet(o.s3, quadroKey, 86_400),
-        promptText: String(o.input.promptText ?? ""),
-        vertical: o.input.vertical !== false,
-        duracao: o.cadeia.cenas[partes.length],
-        audio: o.input.audio === true,
-      });
+      idExterno = sapiens
+        ? await enviarCriacaoSapiens(sapiens, pedido)
+        : await enviarCriacao(runway!, pedido);
     } catch (e) {
-      // Recusa do Runway (moderação, saldo, entrada): não adianta repetir.
-      throw new FalhaDaCadeia(mensagemDeErroRunway(e));
+      // Sapiens ocupado (nada cobrado): a próxima consulta do job tenta de novo.
+      if (e instanceof ErroSapiens && e.passageiro) throw e;
+      // Recusa do serviço (moderação, saldo, entrada): não adianta repetir.
+      throw new FalhaDaCadeia(
+        sapiens ? mensagemDeErroSapiens(e) : mensagemDeErroRunway(e),
+      );
     }
     return {
       idExterno,

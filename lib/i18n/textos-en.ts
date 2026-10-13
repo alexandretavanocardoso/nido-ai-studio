@@ -653,8 +653,8 @@ export const TEXTOS_EN: Record<string, string> = {
   "Partes de 15s; a roupa inventada pode variar entre elas.":
     "15s parts; an invented outfit may vary between them.",
   Pausar: "Pause",
-  "Pause num momento em que a pessoa aparece bem e clique nela. Sem marcar ninguém, a IA troca a pessoa principal.":
-    "Pause where the person is clearly visible and click them. If nobody is marked, the AI swaps the main person.",
+  "Pause num momento em que a pessoa aparece bem e clique nela — vale também para um animal ou objeto. Sem marcar nada, a IA troca a pessoa principal.":
+    "Pause where the person is clearly visible and click them — an animal or object works too. If nothing is marked, the AI swaps the main person.",
   "Pela descrição": "From description",
   Pele: "Skin",
   "Persistência local no navegador. Expansão por IA chega em uma versão futura.":
@@ -875,6 +875,8 @@ export const TEXTOS_EN: Record<string, string> = {
   "· campo:": "· field:",
   "· cobrança real no painel do Runway":
     "· actual billing in the Runway dashboard",
+  "· cobrança real no painel do Sapiens":
+    "· actual billing in the Sapiens dashboard",
   "· opcional — complementa os campos da etapa Visual":
     "· optional — complements the Look step fields",
   "· próxima recarga": "· next refill",
@@ -918,8 +920,8 @@ export const TEXTOS_EN: Record<string, string> = {
   "Na Ethereum a taxa da rede costuma ser alta — Base e Arbitrum saem bem mais baratas.":
     "Ethereum network fees tend to be high — Base and Arbitrum are much cheaper.",
   // trocar pessoa em foto
-  "Sem marcar ninguém, a IA troca a pessoa principal da foto.":
-    "If nobody is marked, the AI swaps the main person in the photo.",
+  "Clique numa pessoa, num animal ou num objeto. Sem marcar nada, a IA troca a pessoa principal da foto.":
+    "Click a person, an animal or an object. If nothing is marked, the AI swaps the main person in the photo.",
   "Máximo de 3 pessoas por foto.": "Up to 3 people per photo.",
   "Clique em outra pessoa para trocar mais de uma · clique no X para desmarcar.":
     "Click another person to swap more than one · click the X to unmark.",

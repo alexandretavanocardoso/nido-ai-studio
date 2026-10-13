@@ -146,8 +146,41 @@ export const MODELOS_CRIAR = {
     duracoes: [4, 6, 8],
     audio: true,
   },
+  // Só no Sapiens (ver lib/video/sapiens.ts). Cotado em 13/10/2026: US$ 0,053/s
+  // sem áudio e US$ 0,079/s com áudio, em 720p. Aceita de 3 a 15s por cena.
+  kling_v3: {
+    label: "Kling V3",
+    nota: "Até 15s por cena",
+    porSegundo: 0.053,
+    porSegundoComAudio: 0.079,
+    duracoes: [5, 10, 15],
+    audio: true,
+  },
 } as const;
 export type ModeloCriar = keyof typeof MODELOS_CRIAR;
+
+/**
+ * Serviço que gera cada modelo. O Veo 3.1 Fast existe nos dois: vai pelo
+ * Sapiens (US$ 0,079/s, ou US$ 0,119/s com áudio) quando a chave dele está
+ * configurada, senão pelo Runway (os preços da tabela acima).
+ */
+export type ProvedorCriar = "runway" | "sapiens";
+const NO_SAPIENS: readonly ModeloCriar[] = ["kling_v3", "veo3.1_fast"];
+const NO_RUNWAY: readonly ModeloCriar[] = ["gen4_turbo", "gen4.5", "veo3.1_fast"];
+
+export function provedorCriar(
+  modelo: ModeloCriar,
+  ligado: { runway: boolean; sapiens: boolean },
+): ProvedorCriar | null {
+  if (ligado.sapiens && NO_SAPIENS.includes(modelo)) return "sapiens";
+  if (ligado.runway && NO_RUNWAY.includes(modelo)) return "runway";
+  return null;
+}
+
+/** Modelo que já vem escolhido: o do Sapiens (mais barato) quando a chave existe. */
+export function modeloPadraoCriar(ligado: { sapiens: boolean }): ModeloCriar {
+  return ligado.sapiens ? "kling_v3" : "gen4.5";
+}
 
 /**
  * Vídeo falado: a fala sai da voz do personagem (ElevenLabs) e o Runway

@@ -28,6 +28,8 @@ import {
   FALADO_CUSTO_POR_SEGUNDO,
   FALADO_ROTULO,
   MODELOS_CRIAR,
+  modeloPadraoCriar,
+  provedorCriar,
   segundosDaCenaInteira,
   segundosDaFala,
   type Enquadramento,
@@ -110,16 +112,19 @@ const MAX_CENA = 1000;
  * Cria um vídeo novo do personagem a partir de uma imagem dele.
  * Falado: a fala é gerada com a voz do personagem (ElevenLabs) e um modelo de
  * avatar anima a imagem falando, com os lábios sincronizados.
- * Cena: o Runway anima a imagem a partir de uma descrição (sem fala).
+ * Cena: o Runway ou o Sapiens anima a imagem a partir de uma descrição (sem fala).
  */
 export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
   const recursos = useRecursos();
   const faladoLigado = recursos.runway && recursos.voz;
   const opcoes = useImagensPersonagem(character);
-  const disponiveis = Object.keys(MODELOS_CRIAR) as ModeloCriar[];
+  // Só os modelos que algum serviço configurado neste deploy gera.
+  const disponiveis = (Object.keys(MODELOS_CRIAR) as ModeloCriar[]).filter(
+    (id) => provedorCriar(id, recursos),
+  );
   const [imagem, setImagem] = useState<string | null>(opcoes[0]?.key ?? null);
   const [modo, setModo] = useState<Modo>(faladoLigado ? "falado" : "cena");
-  const [modelo, setModelo] = useState<ModeloCriar>("gen4.5");
+  const [modelo, setModelo] = useState<ModeloCriar>(modeloPadraoCriar(recursos));
   // Falado começa no roteiro inteiro: é o que o usuário escreveu para ser dito.
   const [duracao, setDuracao] = useState<number>(
     faladoLigado ? ROTEIRO_INTEIRO : DURACOES_CRIAR[0],
@@ -1105,7 +1110,12 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
           {/* ---------- Parte 2 (cena): modelo, duração e formato ---------- */}
           <section hidden={etapa !== 2 || falado}>
             <div className={rotulo}>{tx("Modelo")}</div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div
+              className={cn(
+                "grid grid-cols-1 gap-2",
+                disponiveis.length === 4 ? "sm:grid-cols-4" : "sm:grid-cols-3",
+              )}
+            >
               {disponiveis.map((id) => {
                 const mm = MODELOS_CRIAR[id];
                 return (
@@ -1228,7 +1238,9 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
                   {" "}
                   {falado
                     ? tx("· cobrança real no Runway e na ElevenLabs")
-                    : tx("· cobrança real no painel do Runway")}
+                    : provedorCriar(modelo, recursos) === "sapiens"
+                      ? tx("· cobrança real no painel do Sapiens")
+                      : tx("· cobrança real no painel do Runway")}
                 </span>
               )}
             </div>

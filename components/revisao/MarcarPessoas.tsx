@@ -352,7 +352,7 @@ export function VideoMarcador({
       <p className="text-[12px] text-ink-dim text-center shrink-0">
         {marcas.length === 0
           ? tx(
-              "Pause num momento em que a pessoa aparece bem e clique nela. Sem marcar ninguém, a IA troca a pessoa principal.",
+              "Pause num momento em que a pessoa aparece bem e clique nela — vale também para um animal ou objeto. Sem marcar nada, a IA troca a pessoa principal.",
             )
           : marcas.length < MAX_MARCAS
             ? tx(
@@ -668,7 +668,9 @@ export function ImagemMarcador({
       <AvisoSilhueta marcas={marcas} />
       <p className="text-[12px] text-ink-dim text-center shrink-0">
         {marcas.length === 0
-          ? tx("Sem marcar ninguém, a IA troca a pessoa principal da foto.")
+          ? tx(
+              "Clique numa pessoa, num animal ou num objeto. Sem marcar nada, a IA troca a pessoa principal da foto.",
+            )
           : marcas.length < MAX_MARCAS
             ? tx(
                 "Clique em outra pessoa para trocar mais de uma · clique no X para desmarcar.",

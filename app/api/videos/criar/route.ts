@@ -15,12 +15,19 @@ import {
 } from "@/lib/limites";
 import { bloqueioCriarVideo, creditosCriarVideo } from "@/lib/planos";
 import { getPool } from "@/lib/db";
-import { ownsKey, presignGet } from "@/lib/storage/s3";
+import {
+  getObjectBuffer,
+  newKey,
+  ownsKey,
+  presignGet,
+  putObject,
+} from "@/lib/storage/s3";
 import {
   custoCriar,
   MODELOS_CRIAR,
   DURACOES_CRIAR,
   cenasDoVideo,
+  provedorCriar,
   type ModeloCriar,
 } from "@/lib/video/precos";
 import {
@@ -28,6 +35,12 @@ import {
   getRunway,
   mensagemDeErroRunway,
 } from "@/lib/video/runway";
+import {
+  enviarCriacaoSapiens,
+  getSapiens,
+  mensagemDeErroSapiens,
+  recortarParaFormato,
+} from "@/lib/video/sapiens";
 import { contextoVideo } from "@/lib/video/server";
 
 export const runtime = "nodejs";
@@ -49,7 +62,8 @@ const BodySchema = z.object({
 /**
  * POST — cria um vídeo novo do personagem. Assíncrono: devolve o id do job,
  * acompanhado em /api/videos/jobs/[id] (e finalizado por webhook/cron).
- * Runway (Gen-4 Turbo, Gen-4.5, Veo 3.1 Fast): imagem inicial + texto.
+ * Runway (Gen-4 Turbo, Gen-4.5, Veo 3.1 Fast) ou Sapiens (Kling V3, e o Veo
+ * quando a chave dele está configurada): imagem inicial + texto.
  */
 export async function POST(req: Request) {
   const ctx = await contextoVideo();
@@ -66,10 +80,18 @@ export async function POST(req: Request) {
   const body = parsed.data;
 
   const runway = getRunway();
-  if (!pool || !runway)
+  const sapiens = getSapiens();
+  const provedor = provedorCriar(body.modelo, {
+    runway: !!runway,
+    sapiens: !!sapiens,
+  });
+  if (!pool || !provedor)
     return NextResponse.json(
       {
-        error: "Criação de vídeo não configurada (RUNWAYML_API_SECRET).",
+        error:
+          runway || sapiens
+            ? "Este modelo de vídeo não está configurado neste servidor."
+            : "Criação de vídeo não configurada (RUNWAYML_API_SECRET).",
         code: "CONFIG_MISSING",
       },
       { status: 500 },
@@ -139,19 +161,39 @@ export async function POST(req: Request) {
 
   try {
     const jobId = nanoid(12);
-    const imageUrl = await presignGet(s3, body.imageKey, 86_400);
-    const idExterno = await enviarCriacao(runway, {
+    const pedido = {
       modelo: body.modelo,
-      imageUrl,
       promptText: body.promptText,
       vertical: body.vertical,
       duracao: cenas[0],
       audio,
-    });
+    };
+    let idExterno: string;
+    if (provedor === "sapiens") {
+      // O Sapiens segue o formato da imagem: ela vai recortada em 9:16 ou 16:9.
+      const quadroKey = newKey(userId, "refs", "image/jpeg");
+      await putObject(
+        s3,
+        quadroKey,
+        await recortarParaFormato(
+          await getObjectBuffer(s3, body.imageKey),
+          body.vertical,
+        ),
+        "image/jpeg",
+      );
+      idExterno = await enviarCriacaoSapiens(sapiens!, {
+        ...pedido,
+        imageUrl: await presignGet(s3, quadroKey, 86_400),
+      });
+    } else
+      idExterno = await enviarCriacao(runway!, {
+        ...pedido,
+        imageUrl: await presignGet(s3, body.imageKey, 86_400),
+      });
 
     await pool.query(
       `insert into video_jobs (id, user_id, character_id, provedor, tipo, modelo, fal_request_id, input, duracao)
-       values ($1, $2, $3, 'runway', 'criar', $4, $5, $6, $7)`,
+       values ($1, $2, $3, $8, 'criar', $4, $5, $6, $7)`,
       [
         jobId,
         userId,
@@ -169,6 +211,7 @@ export async function POST(req: Request) {
           cobranca,
         }),
         body.duracao,
+        provedor,
       ],
     );
     return NextResponse.json({
@@ -181,7 +224,13 @@ export async function POST(req: Request) {
     await estornarSeHouver(cobranca);
     console.error("[videos/criar]", e);
     return NextResponse.json(
-      { error: mensagemDeErroRunway(e), code: "PROVIDER_ERROR" },
+      {
+        error:
+          provedor === "sapiens"
+            ? mensagemDeErroSapiens(e)
+            : mensagemDeErroRunway(e),
+        code: "PROVIDER_ERROR",
+      },
       { status: 502 },
     );
   } finally {

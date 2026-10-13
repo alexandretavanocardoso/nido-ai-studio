@@ -1,5 +1,10 @@
 import { pedidoDoEstilo, type EstiloTroca } from "./estilos";
-import type { RoupaTroca } from "@/lib/prompts/trocar-imagem";
+import {
+  ehCoisa,
+  nomeDoTipo,
+  type RoupaTroca,
+  type TipoAlvo,
+} from "@/lib/prompts/trocar-imagem";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
@@ -97,7 +102,12 @@ export interface AlvoTroca {
   /** Close do rosto do personagem (referência extra no Kling). */
   rostoUrl?: string | null;
   descricao?: string;
+  /** Ausente: pessoa. Animal ou objeto segue as regras de coisa (ver `montarPedido`). */
+  tipo?: TipoAlvo;
 }
+
+/** O que o pedido precisa saber de cada alvo. */
+type AlvoDoPedido = Pick<AlvoTroca, "descricao" | "tipo">;
 
 /**
  * Pedido à IA: troca SÓ as pessoas indicadas (cada uma pelo seu personagem) e
@@ -109,7 +119,7 @@ export interface AlvoTroca {
  */
 export function promptTroca(
   motor: MotorTroca,
-  alvos: Array<Pick<AlvoTroca, "descricao">>,
+  alvos: AlvoDoPedido[],
   removerTexto: boolean,
   ancora = false,
   outras: string[] = [],
@@ -144,6 +154,7 @@ export function promptTroca(
     const texto = montarPedido(
       motor,
       alvos.map((a) => ({
+        tipo: a.tipo,
         descricao: a.descricao && encurtar(a.descricao, maxAlvo),
       })),
       removerTexto,
@@ -159,7 +170,10 @@ export function promptTroca(
   }
   return montarPedido(
     motor,
-    alvos.map((a) => ({ descricao: a.descricao && encurtar(a.descricao, 60) })),
+    alvos.map((a) => ({
+      tipo: a.tipo,
+      descricao: a.descricao && encurtar(a.descricao, 60),
+    })),
     removerTexto,
     ancora,
     [],
@@ -196,7 +210,7 @@ function encurtar(texto: string, max: number): string {
 
 function montarPedido(
   motor: MotorTroca,
-  alvos: Array<Pick<AlvoTroca, "descricao">>,
+  alvos: AlvoDoPedido[],
   removerTexto: boolean,
   ancora: boolean,
   outras: string[],
@@ -206,72 +220,120 @@ function montarPedido(
   acao?: string,
   roupa?: RoupaTroca,
 ): string {
+  // Animal ou objeto na lista: as regras de pessoa (cabeça, roupa, costas) só
+  // valem para as pessoas, e as coisas têm as regras delas. Só com pessoas, o
+  // pedido é o de sempre.
+  const coisas = alvos.flatMap((a, i) => (ehCoisa(a.tipo) ? [i] : []));
+  const pessoas = alvos.flatMap((a, i) => (ehCoisa(a.tipo) ? [] : [i]));
+  const temCoisa = coisas.length > 0;
+  const temPessoa = pessoas.length > 0;
   // Só a cabeça: rosto, cabelo e pele vêm do personagem; a roupa é a do vídeo.
-  const soCabeca = roupa === "foto";
+  const soCabeca = roupa === "foto" && temPessoa;
   // Com estilo, o vídeo inteiro é redesenhado: quem não é trocado continua
   // sendo a mesma pessoa, só que desenhada; e o cenário mantém a composição.
   const visual = pedidoDoEstilo(estilo);
   const ref = (i: number) =>
     motor === "kling" ? `@Element${i + 1}` : `@Image${i + 1}`;
-  const refs = alvos.map((_, i) => ref(i)).join(", ");
+  const refsPessoas = pessoas.map(ref).join(", ");
+  const quem = (a: AlvoDoPedido) =>
+    a.descricao ?? `the main ${nomeDoTipo(a.tipo)}`;
   const foraDaAncora = naAncora
     ? alvos.map((_, i) => i).filter((i) => !naAncora.includes(i))
     : [];
-  const igualAncora = "(face, hair, hat, outfit, proportions, lighting)";
+  const igualAncora = `(${[
+    temPessoa ? "face, hair, hat, outfit" : "",
+    temCoisa ? "shape, colours, markings, details" : "",
+    "proportions, lighting",
+  ]
+    .filter(Boolean)
+    .join(", ")})`;
   // Legendas e textos da tela ficam, a não ser que o usuário peça para tirar
   // (sem dizer isso, o motor às vezes some com a legenda do vídeo).
   const legendas = removerTexto ? "" : "on-screen text, ";
   return [
-    `In @Video1, replace ONLY ${alvos.length === 1 ? "this person" : "these people"}:`,
-    ...alvos.map(
-      (a, i) =>
-        soCabeca
-          ? `- ${a.descricao ?? "the main person"} → replace ONLY their head (face, hair, headwear, skin tone) with the character ${ref(i)}; the body keeps its own build and clothes.`
-          : `- ${a.descricao ?? "the main person"} → replace with the character ${ref(i)}.`,
+    temCoisa
+      ? "In @Video1, replace ONLY what is listed here:"
+      : `In @Video1, replace ONLY ${alvos.length === 1 ? "this person" : "these people"}:`,
+    ...alvos.map((a, i) =>
+      ehCoisa(a.tipo)
+        ? `- ${quem(a)} → replace with the ${nomeDoTipo(a.tipo)} shown in ${ref(i)}.`
+        : soCabeca
+          ? `- ${quem(a)} → replace ONLY their head (face, hair, headwear, skin tone) with the character ${ref(i)}; the body keeps its own build and clothes.`
+          : `- ${quem(a)} → replace with the character ${ref(i)}.`,
     ),
     ...(ancora && motor === "kling"
       ? foraDaAncora.length
         ? [
             `@Image1 is a frame of this same scene with the replacement already done ONLY for ${naAncora!.map((i) => ref(i)).join(", ")}: match it exactly in every frame ${igualAncora}.`,
-            `@Image1 does NOT show the replacement of ${foraDaAncora.map((i) => `${alvos[i].descricao ?? "the main person"} (${ref(i)})`).join("; ")}: replace them too in every frame, taking ${soCabeca ? "face and hair" : "face, hair and outfit"} from ${foraDaAncora.map((i) => ref(i)).join(", ")}.`,
+            `@Image1 does NOT show the replacement of ${foraDaAncora.map((i) => `${quem(alvos[i])} (${ref(i)})`).join("; ")}: replace them too in every frame, taking ${foraDaAncora.some((i) => ehCoisa(alvos[i].tipo)) ? "their look" : soCabeca ? "face and hair" : "face, hair and outfit"} from ${foraDaAncora.map((i) => ref(i)).join(", ")}.`,
           ]
         : [
-            `@Image1 is a frame of this same scene with the replacement already done: the character(s) must look exactly like that in every frame ${igualAncora}.`,
+            `@Image1 is a frame of this same scene with the replacement already done: ${temCoisa ? "everything replaced" : "the character(s)"} must look exactly like that in every frame ${igualAncora}.`,
           ]
       : [
-          soCabeca
-            ? `Take only the head of each character from ${refs}: face, hair, facial hair, hat or headwear, glasses, skin tone.`
-            : `Keep each character's face, hair, style and outfit exactly as in ${refs}.`,
+          ...(temPessoa
+            ? [
+                soCabeca
+                  ? `Take only the head of each character from ${refsPessoas}: face, hair, facial hair, hat or headwear, glasses, skin tone.`
+                  : `Keep each character's face, hair, style and outfit exactly as in ${refsPessoas}.`,
+              ]
+            : []),
+          ...(temCoisa
+            ? [
+                `Keep the shape, colours, markings and details of each replaced animal or object exactly as in ${coisas.map(ref).join(", ")}.`,
+              ]
+            : []),
         ]),
     ...(sobraNaAncora && ancora && motor === "kling"
       ? [
-          "@Image1 also shows another replaced person who does NOT appear in @Video1: never add them.",
+          temCoisa
+            ? "@Image1 also shows another replacement that does NOT appear in @Video1: never add it."
+            : "@Image1 also shows another replaced person who does NOT appear in @Video1: never add them.",
         ]
       : []),
     ...(alvos.length > 1
       ? [
-          `All ${alvos.length} listed people must be replaced, each only with their own character: never merge two characters, leave one unchanged, or add a hat, hair or clothing as a loose object. A person may leave the frame: while they are not on screen their character does not appear; never give one character's look to a different person.`,
+          temCoisa
+            ? `All ${alvos.length} listed targets must be replaced, each only with its own reference: never merge two of them or leave one unchanged. A target may leave the frame: while it is not on screen its replacement does not appear.`
+            : `All ${alvos.length} listed people must be replaced, each only with their own character: never merge two characters, leave one unchanged, or add a hat, hair or clothing as a loose object. A person may leave the frame: while they are not on screen their character does not appear; never give one character's look to a different person.`,
         ]
       : []),
     // Sem esta regra o motor copia a roupa da imagem de referência do personagem.
     ...(soCabeca
       ? [
-          `CLOTHING: each replaced person keeps exactly the clothes, shoes and accessories they wear in @Video1 — same pieces, colours and patterns, in every frame. Never copy the outfit from ${refs}: only the head and the skin are the character's; the body keeps its own build. Headwear belongs to the head: the character's hat, glasses and earrings come with it, and the original person's own hat or cap is gone.`,
+          `CLOTHING: each replaced person keeps exactly the clothes, shoes and accessories they wear in @Video1 — same pieces, colours and patterns, in every frame. Never copy the outfit from ${refsPessoas}: only the head and the skin are the character's; the body keeps its own build. Headwear belongs to the head: the character's hat, glasses and earrings come with it, and the original person's own hat or cap is gone.`,
         ]
       : []),
     // O fim da frase ("nothing of their own head…") evita sobrar cabelo ou peruca
     // da pessoa original por baixo do chapéu do personagem.
-    "Each replaced person stays the SAME character in every frame, also turning around or seen from behind. A back view stays a back view: never a face or chest where the original shows a back. Nothing of their own head remains (hair, wig, hat, glasses, facial hair).",
-    visual
-      ? "Every other person in @Video1 stays the same person (face, hair, clothes, movements), drawn in the same style, also when crossing the replaced person."
-      : "Every other person in @Video1 must stay exactly as they are (face, hair, clothes, movements), also when crossing the replaced person.",
+    temPessoa
+      ? "Each replaced person stays the SAME character in every frame, also turning around or seen from behind. A back view stays a back view: never a face or chest where the original shows a back. Nothing of their own head remains (hair, wig, hat, glasses, facial hair)."
+      : "",
+    `${temPessoa ? "Every other person" : "Every person"} in @Video1 ${
+      visual
+        ? "stays the same person (face, hair, clothes, movements), drawn in the same style"
+        : "must stay exactly as they are (face, hair, clothes, movements)"
+    }, ${temPessoa ? "also when crossing the replaced person" : "also when holding, touching or passing in front of what is replaced"}.`,
     outras.length
       ? `Other people who must NOT be changed in any way: ${outras.join("; ")}.`
       : "",
     visual
       ? `Render the ENTIRE video — the replaced characters, every other person, the background and the objects — as ${visual}. The same style in every frame, never a photo or a mix of photo and drawing.`
-      : "Replaced characters must look like real people filmed by this camera, even if the reference is a 3D render or drawing: real skin texture, the scene's light, same sharpness, grain and motion blur. Never a pasted cutout or plastic skin.",
-    "Follow the replaced person's motion frame by frame: pose, arms, hands and finger gestures, head direction and expression.",
+      : "",
+    !visual && temPessoa
+      ? "Replaced characters must look like real people filmed by this camera, even if the reference is a 3D render or drawing: real skin texture, the scene's light, same sharpness, grain and motion blur. Never a pasted cutout or plastic skin."
+      : "",
+    // Com pessoas na lista, a regra de cima já pede aparência de filmagem (e o
+    // pedido tem limite de tamanho): esta só entra quando só há coisas.
+    !visual && !temPessoa
+      ? "Replaced animals and objects must look really filmed by this camera, even if the reference is a 3D render or drawing: real materials (fur, paint, glass, reflections), the scene's light and shadows, same sharpness, grain and motion blur. Never a pasted cutout."
+      : "",
+    temPessoa
+      ? "Follow the replaced person's motion frame by frame: pose, arms, hands and finger gestures, head direction and expression."
+      : "",
+    temCoisa
+      ? "Each replaced animal or object stays the SAME one in every frame, with nothing of the original left, and follows the original frame by frame: position, size, path, orientation, perspective, an animal's gait and pose; hands holding it keep their grip."
+      : "",
     acao
       ? `What happens in @Video1 (same moments, speed and force): ${acao}`
       : "",
@@ -437,10 +499,13 @@ export async function caberNaProporcao(imagem: Buffer): Promise<Buffer> {
 /**
  * Personagem recortada sobre branco liso (+ close do rosto, quando dá).
  * Se o recorte falhar, segue com a imagem original.
+ * `comRosto` false: a imagem é de um animal ou objeto — o terço de cima dela
+ * não é um rosto.
  */
 export async function personagemSemFundo(
   fal: FalClient,
   imagem: Buffer,
+  comRosto = true,
 ): Promise<{ url: string; rostoUrl: string | null }> {
   const subir = (b: Buffer, tipo: string) =>
     fal.storage.upload(new Blob([new Uint8Array(b)], { type: tipo }));
@@ -466,7 +531,7 @@ export async function personagemSemFundo(
       .flatten({ background: "#ffffff" })
       .png()
       .toBuffer();
-    const rosto = await closeDoRosto(branco);
+    const rosto = comRosto ? await closeDoRosto(branco) : null;
     const [figuraUrl, rostoUrl] = await Promise.all([
       subir(await caberNaProporcao(branco), "image/png"),
       rosto ? subir(await caberNaProporcao(rosto), "image/png") : null,

@@ -389,7 +389,7 @@ export const MAIS_FERRAMENTAS: Ferramenta[] = [
   {
     name: "trocar_pessoas_no_video",
     description: [
-      "Troca até 3 pessoas escolhidas de um vídeo, cada uma por um personagem. Olhe o vídeo com ver_quadro_do_video e passe, para cada pessoa, a posição dela no quadro (x, y, em frações) e o instante (t, em segundos) em que ela aparece bem, com a imagem do personagem que entra no lugar. De preferência marque todas no mesmo instante. Assíncrono: acompanhe com status_do_video.",
+      "Troca até 3 pessoas escolhidas de um vídeo, cada uma por um personagem. Olhe o vídeo com ver_quadro_do_video e passe, para cada pessoa, a posição dela no quadro (x, y, em frações) e o instante (t, em segundos) em que ela aparece bem, com a imagem do personagem que entra no lugar. De preferência marque todas no mesmo instante. A posição também pode ser a de um animal ou objeto (um cachorro, um carro): ele é trocado pelo que a imagem mostra. Assíncrono: acompanhe com status_do_video.",
       `Custo: ${creditosTroca(1, "standard")}, ${creditosTroca(1, "pro")} ou ${creditosTroca(1, "4k")} créditos por segundo (standard, pro, 4k). Confirme o custo e que a pessoa tem direito de usar o vídeo antes de chamar.`,
     ].join("\n"),
     entrada: z.object({
@@ -546,7 +546,7 @@ export const MAIS_FERRAMENTAS: Ferramenta[] = [
   {
     name: "trocar_pessoa_na_foto",
     description:
-      "Troca a pessoa de uma foto da conta pelo personagem (ou até 3 pessoas, cada uma por um personagem, passando a posição de cada uma em frações da foto). Custa os créditos de uma imagem (mais na qualidade pro). A foto precisa estar na conta: envie com preparar_envio_de_arquivo. O resultado entra na galeria do personagem.",
+      "Troca a pessoa de uma foto da conta pelo personagem (ou até 3 pessoas, cada uma por um personagem, passando a posição de cada uma em frações da foto; a posição também pode ser a de um animal ou objeto). Custa os créditos de uma imagem (mais na qualidade pro). A foto precisa estar na conta: envie com preparar_envio_de_arquivo. O resultado entra na galeria do personagem.",
     entrada: z.object({
       personagem_id: z.string().min(1),
       foto_key: z.string().min(1),

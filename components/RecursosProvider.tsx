@@ -14,6 +14,7 @@ const NENHUM: Recursos = {
   fal: false,
   openai: false,
   runway: false,
+  sapiens: false,
   apify: false,
   social: false,
   voz: false,

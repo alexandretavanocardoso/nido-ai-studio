@@ -305,6 +305,7 @@ export async function finalizarJob(
         const proxima = await proximaCena({
           s3,
           userId: job.user_id,
+          provedor: job.provedor,
           modelo: job.modelo,
           input: job.input,
           cadeia,

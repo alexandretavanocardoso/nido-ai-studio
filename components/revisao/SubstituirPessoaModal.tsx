@@ -227,6 +227,7 @@ export function SubstituirPessoaModal({
                 y: m.y,
                 t: m.t,
                 imageKey: m.imageKey,
+                characterId: m.characterId,
               }))
             : undefined,
           motor,

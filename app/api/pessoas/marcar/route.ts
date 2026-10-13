@@ -7,7 +7,7 @@ import { getPool } from "@/lib/db";
 import { getObjectBuffer, ownsKey, presignGet } from "@/lib/storage/s3";
 import { extrairQuadroMarcado } from "@/lib/video/ffmpeg";
 import { getFal, mensagemDeErro } from "@/lib/video/fal";
-import { silhuetaDaPessoa } from "@/lib/video/pessoas";
+import { silhuetaDoAlvo } from "@/lib/video/pessoas";
 import { comPastaTemporaria, contextoVideo } from "@/lib/video/server";
 
 export const runtime = "nodejs";
@@ -34,8 +34,9 @@ const BodySchema = z
   );
 
 /**
- * POST — silhueta da pessoa clicada, pra tela destacar a pessoa inteira em vez
- * de um ponto. É só visual: sem silhueta (`mascara: null`) a marca vale igual.
+ * POST — silhueta da pessoa clicada (ou do animal, ou do objeto), pra tela
+ * destacar ela inteira em vez de um ponto. É só visual: sem silhueta
+ * (`mascara: null`) a marca vale igual.
  */
 export async function POST(req: Request) {
   const ctx = await contextoVideo();
@@ -85,7 +86,7 @@ export async function POST(req: Request) {
         return readFile(saida);
       });
     }
-    const png = await silhuetaDaPessoa(quadro, body, fal);
+    const png = await silhuetaDoAlvo(quadro, body, fal);
     return NextResponse.json({
       mascara: png ? `data:image/png;base64,${png.toString("base64")}` : null,
     });

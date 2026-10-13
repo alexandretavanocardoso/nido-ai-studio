@@ -28,6 +28,7 @@ O `.env` local continua com `http://localhost:3000` para desenvolver; os valores
 | `BUNDLE_SOCIAL` | do `.env` |
 | `BUNDLE_SOCIAL_WEBHOOK_SECRET` | segredo do webhook do bundle.social (passo 4) |
 | `RUNWAYML_API_SECRET` | quando tiver (Criar vídeo) |
+| `SAPIENS_KEY` | opcional (Criar vídeo: Kling V3 e Veo mais barato) |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | quando tiver (passo 5) |
 | `SOLANA_MERCHANT_WALLET`, `SOLANA_RPC_URL` | do `.env` (RPC sem restrição de origem) |
 | `EVM_MERCHANT_WALLET`, `BASE_RPC_URL`, `ARBITRUM_RPC_URL`, `BSC_RPC_URL`, `ETHEREUM_RPC_URL` | do `.env` — USDC nas redes EVM; cada rede só aparece com o RPC preenchido (RPC sem allowlist de origem) |

@@ -1,5 +1,6 @@
 import { consultar as consultarFal, getFal } from "./fal";
 import { consultarRunway, getRunway } from "./runway";
+import { consultarSapiens, getSapiens } from "./sapiens";
 
 /** Estado de um job de vídeo, igual para qualquer serviço. */
 export type EstadoVideo =
@@ -8,7 +9,7 @@ export type EstadoVideo =
   | { estado: "concluido"; videoUrl: string }
   | { estado: "erro"; mensagem: string };
 
-export type Provedor = "fal" | "runway";
+export type Provedor = "fal" | "runway" | "sapiens";
 
 /** Consulta o job no serviço que o processa (coluna `provedor` de video_jobs). */
 export async function consultarJob(
@@ -16,6 +17,15 @@ export async function consultarJob(
   modelo: string,
   idExterno: string,
 ): Promise<EstadoVideo> {
+  if (provedor === "sapiens") {
+    const chave = getSapiens();
+    if (!chave)
+      return {
+        estado: "erro",
+        mensagem: "Sapiens não configurado no servidor.",
+      };
+    return consultarSapiens(chave, idExterno);
+  }
   if (provedor === "runway") {
     const rw = getRunway();
     if (!rw)

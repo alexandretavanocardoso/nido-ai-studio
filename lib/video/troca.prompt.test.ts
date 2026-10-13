@@ -204,6 +204,55 @@ describe("troca de várias pessoas", () => {
   });
 });
 
+describe("animal ou objeto marcado", () => {
+  const carro = { descricao: "the white hatchback car", tipo: "objeto" as const };
+  const cao = { descricao: "the golden retriever", tipo: "animal" as const };
+
+  it("troca pelo que a imagem mostra, sem as regras de rosto, roupa e costas", () => {
+    const p = promptTroca("kling", [carro], false);
+    expect(p).toMatch(/replace ONLY what is listed here/);
+    expect(p).toMatch(/the white hatchback car → replace with the object shown in @Element1/);
+    expect(p).toMatch(/shape, colours, markings and details .* exactly as in @Element1/);
+    expect(p).toMatch(/follows the original frame by frame/);
+    expect(p).not.toMatch(/character|A back view|real people filmed|finger gestures/);
+    // As pessoas do vídeo (o motorista) continuam protegidas.
+    expect(p).toMatch(/Every person in @Video1 must stay exactly as they are/);
+    expect(promptTroca("seedance", [cao], false)).toMatch(
+      /replace with the animal shown in @Image1/,
+    );
+  });
+
+  it("pessoa e animal juntos: cada um com as regras do seu tipo", () => {
+    const p = promptTroca("kling", [{ descricao: "the man in green" }, cao], false, true, [], [0]);
+    expect(p).toMatch(/the man in green → replace with the character @Element1/);
+    expect(p).toMatch(/the golden retriever → replace with the animal shown in @Element2/);
+    expect(p).toMatch(/All 2 listed targets must be replaced/);
+    expect(p).toMatch(/does NOT show the replacement of the golden retriever \(@Element2\)/);
+    expect(p).toMatch(/A back view stays a back view/);
+    expect(p).toMatch(/Each replaced animal or object stays the SAME one/);
+  });
+
+  it("só a cabeça não vale para coisas, e o pedido cabe no limite", () => {
+    const p = promptTroca("kling", [carro], false, false, [], undefined, false, undefined, undefined, "foto");
+    expect(p).not.toMatch(/ONLY their head|CLOTHING:/);
+    const d = "the " + "word ".repeat(43).trim();
+    const cheio = promptTroca(
+      "kling",
+      [{ descricao: d }, { ...carro, descricao: d }, { ...cao, descricao: d }],
+      true,
+      true,
+      [d, d, d],
+      [0],
+      false,
+      undefined,
+      d,
+    );
+    expect(cheio.length).toBeLessThanOrEqual(PEDIDO_MAX);
+    // Encolheu as descrições, mas as regras do fim continuam inteiras.
+    expect(cheio).toMatch(/Remove all on-screen text, captions and subtitles\.$/);
+  });
+});
+
 describe("estilo do vídeo", () => {
   it("realista (padrão): o pedido de sempre, parecendo filmado", () => {
     const p = promptTroca("kling", [{ descricao: "a" }], false);

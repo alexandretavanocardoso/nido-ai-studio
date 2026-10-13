@@ -27,6 +27,8 @@ export interface Recursos {
   openai: boolean;
   /** Runway: criar vídeo (Gen-4 / Veo). */
   runway: boolean;
+  /** Sapiens: criar vídeo (Kling V3, e o Veo mais barato que no Runway). */
+  sapiens: boolean;
   /** Buscar vídeo por link de rede social (Apify). Link direto de .mp4 não precisa. */
   apify: boolean;
   /** Publicar/agendar nas redes (bundle.social). */
@@ -73,6 +75,7 @@ export function recursosDisponiveis(): Recursos {
     fal: tem("FAL_KEY"),
     openai: tem("OPENAI_API_KEY"),
     runway: tem("RUNWAYML_API_SECRET"),
+    sapiens: tem("SAPIENS_KEY"),
     apify: tem("APIFY_TOKEN") || tem("APIFY_API_TOKEN"),
     social: login && (tem("BUNDLE_SOCIAL") || tem("BUNDLE_SOCIAL_API_KEY")),
     voz: tem("ELEVENLABS_API_KEY"),

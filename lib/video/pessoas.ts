@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import sharp, { type Sharp } from "sharp";
 import { GoogleGenAI } from "@google/genai";
 import type { FalClient } from "@fal-ai/client";
+import type { TipoAlvo } from "@/lib/prompts/trocar-imagem";
 import { extrairQuadroMarcado } from "./ffmpeg";
 
 /**
@@ -10,6 +11,8 @@ import { extrairQuadroMarcado } from "./ffmpeg";
  * pessoa. Aqui cada ponto vira uma descrição curta ("o homem de camiseta
  * cinza, ajoelhado à direita") que vai no pedido à IA — os motores de troca
  * entendem texto, não coordenadas.
+ * O clique também pode cair num animal ou num objeto (um cachorro, um carro):
+ * a descrição diz o que foi marcado, e a troca segue as regras desse tipo.
  */
 export interface PessoaMarcada {
   /** Posição do clique, em frações do quadro (0–1). */
@@ -17,6 +20,12 @@ export interface PessoaMarcada {
   y: number;
   /** Instante do vídeo (s) em que a pessoa foi marcada (0 numa foto). */
   t: number;
+}
+
+/** O que foi marcado e como reconhecê-lo (inglês, curto). */
+export interface AlvoDescrito {
+  descricao: string;
+  tipo: TipoAlvo;
 }
 
 // Alias que acompanha o Flash atual (modelos antigos são desligados para contas novas).
@@ -88,28 +97,28 @@ async function finalizarSilhueta(mascara: Sharp): Promise<Buffer | null> {
     .toBuffer();
 }
 
+/** O quadro já reduzido e enviado ao fal (uma vez só para todas as tentativas). */
+interface QuadroNoFal {
+  url: string;
+  width: number;
+  height: number;
+}
+
 /**
- * Silhueta pelo SAM 3: ele separa cada PESSOA da imagem e fica a que contém o
- * clique. Só com o ponto (SAM 2), um clique na camiseta devolve só a camiseta.
- * Null se nenhuma pessoa achada contém o clique.
+ * Silhueta pelo SAM 3: ele separa cada PESSOA da imagem (ou cada `nome`: "dog",
+ * "car"…) e fica a que contém o clique. Só com o ponto (SAM 2), um clique na
+ * camiseta devolve só a camiseta. Null se nada do que foi achado contém o clique.
  */
-async function silhuetaPessoaInteira(
+async function silhuetaInteira(
   fal: FalClient,
-  imagem: Buffer,
+  url: string,
   p: Pick<PessoaMarcada, "x" | "y">,
+  nome: string,
 ): Promise<Buffer | null> {
-  const base = await sharp(imagem)
-    .rotate()
-    .resize(1024, 1024, { fit: "inside" })
-    .jpeg({ quality: 88 })
-    .toBuffer();
-  const url = await fal.storage.upload(
-    new Blob([new Uint8Array(base)], { type: "image/jpeg" }),
-  );
   const r = await fal.subscribe(MODELO_PESSOAS, {
     input: {
       image_url: url,
-      prompt: "person",
+      prompt: nome,
       return_multiple_masks: true,
       include_boxes: true,
       max_masks: 12,
@@ -162,18 +171,9 @@ async function silhuetaPessoaInteira(
 /** Silhueta pelo SAM 2 (fal.ai), a partir do ponto clicado. */
 async function silhuetaSam(
   fal: FalClient,
-  imagem: Buffer,
+  { url, width, height }: QuadroNoFal,
   p: Pick<PessoaMarcada, "x" | "y">,
 ): Promise<Buffer | null> {
-  const base = await sharp(imagem)
-    .rotate()
-    .resize(1024, 1024, { fit: "inside" })
-    .jpeg({ quality: 88 })
-    .toBuffer({ resolveWithObject: true });
-  const { width, height } = base.info;
-  const url = await fal.storage.upload(
-    new Blob([new Uint8Array(base.data)], { type: "image/jpeg" }),
-  );
   const r = await fal.subscribe(MODELO_SILHUETA, {
     input: {
       image_url: url,
@@ -201,55 +201,19 @@ async function silhuetaSam(
 }
 
 /**
- * Silhueta da pessoa clicada: PNG branco com transparência fora da pessoa, pra
- * tela pintar por cima do quadro. Primeiro procura a pessoa inteira (SAM 3);
- * se nenhuma pessoa achada contém o clique, vale o recorte pelo ponto (SAM 2).
- * Null sem fal ou se nenhum recorte servir — a tela fica só com o ponto.
+ * O clique caiu num animal ou num objeto? Devolve o nome dele em inglês ("dog",
+ * "car"), que é o que o SAM 3 procura. Null se for uma pessoa, sem Gemini ou
+ * se a leitura falhar — aí a silhueta segue como a de uma pessoa.
  */
-export async function silhuetaDaPessoa(
+async function nomeDaCoisa(
   imagem: Buffer,
   p: Pick<PessoaMarcada, "x" | "y">,
-  fal: FalClient | null,
-): Promise<Buffer | null> {
-  if (!fal) return null;
-  try {
-    const inteira = await silhuetaPessoaInteira(fal, imagem, p);
-    if (inteira) return inteira;
-  } catch (e) {
-    console.warn(
-      "[pessoas] silhueta da pessoa inteira falhou (tenta pelo ponto):",
-      (e as Error).message,
-    );
-  }
-  return silhuetaSam(fal, imagem, p);
-}
-
-/** Descreve UMA pessoa marcada numa imagem (inglês, curto). Sem Gemini ou se falhar, usa a posição. */
-async function descreverUma(
-  imagem: () => Promise<Buffer>,
-  p: Pick<PessoaMarcada, "x" | "y">,
-  origem: "video" | "foto",
-): Promise<string> {
-  const reserva = posicaoEmPalavras(p);
+): Promise<string | null> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) return reserva;
+  if (!apiKey) return null;
   try {
-    const marcada = await marcarPonto(await imagem(), p);
-    const ai = new GoogleGenAI({ apiKey });
-    const onde =
-      origem === "video" ? "This is a frame from a video." : "This is a photo.";
-    const resto =
-      origem === "video"
-        ? "everyone else in the video"
-        : "everyone else in the photo";
-    // No vídeo a pessoa anda, vira e sai do quadro: posição e pose valem só para
-    // aquele instante e fazem o modelo de vídeo perder a pessoa no resto.
-    const como =
-      origem === "video"
-        ? "gender, build, hair, accessories, clothing (colours and pieces) — only what stays the same during the whole video. " +
-          "Do NOT mention position in the frame, pose, action or facial expression. "
-        : "position in the frame (left/center/right, foreground/background), pose, clothing (colours and pieces), hair. ";
-    const res = await ai.models.generateContent({
+    const marcada = await marcarPonto(imagem, p);
+    const res = await new GoogleGenAI({ apiKey }).models.generateContent({
       model: MODELO_VISAO,
       contents: [
         {
@@ -257,9 +221,8 @@ async function descreverUma(
           parts: [
             {
               text:
-                `${onde} A red target marks ONE person. Describe only that person so they can be told apart from ${resto}: ` +
-                como +
-                'Answer in English, one line, max 30 words, starting with "the". No preamble.',
+                `A red target marks one thing in this image. ${REGRA_DO_TIPO} ` +
+                "If it marks a person, answer exactly: person. Otherwise answer with the common English noun for that animal or object, one or two words, lowercase (dog, car, handbag). No other text.",
             },
             {
               inlineData: {
@@ -271,11 +234,146 @@ async function descreverUma(
         },
       ],
     });
-    const texto = (res.text ?? "")
+    const nome = (res.text ?? "").trim().toLowerCase().replace(/[."]+$/, "");
+    return /^[a-z][a-z -]{1,30}$/.test(nome) && nome !== "person" ? nome : null;
+  } catch (e) {
+    console.warn(
+      "[pessoas] não deu para ler o que foi marcado (segue como pessoa):",
+      (e as Error).message,
+    );
+    return null;
+  }
+}
+
+/**
+ * Silhueta do que foi clicado: PNG branco com transparência fora dele, pra
+ * tela pintar por cima do quadro. Primeiro procura a pessoa inteira (SAM 3) —
+ * ou, se o clique caiu num animal ou objeto, ele inteiro; se nada do que foi
+ * achado contém o clique, vale o recorte pelo ponto (SAM 2).
+ * Null sem fal ou se nenhum recorte servir — a tela fica só com o ponto.
+ */
+export async function silhuetaDoAlvo(
+  imagem: Buffer,
+  p: Pick<PessoaMarcada, "x" | "y">,
+  fal: FalClient | null,
+): Promise<Buffer | null> {
+  if (!fal) return null;
+  const base = await sharp(imagem)
+    .rotate()
+    .resize(1024, 1024, { fit: "inside" })
+    .jpeg({ quality: 88 })
+    .toBuffer({ resolveWithObject: true });
+  const quadro: QuadroNoFal = {
+    url: await fal.storage.upload(
+      new Blob([new Uint8Array(base.data)], { type: "image/jpeg" }),
+    ),
+    width: base.info.width,
+    height: base.info.height,
+  };
+  const inteira = (nome: string) =>
+    silhuetaInteira(fal, quadro.url, p, nome).catch((e) => {
+      console.warn(
+        `[pessoas] silhueta inteira ("${nome}") falhou (tenta pelo ponto):`,
+        (e as Error).message,
+      );
+      return null;
+    });
+  // Ao mesmo tempo, pra não atrasar o caso comum (o clique numa pessoa).
+  const [pessoa, coisa] = await Promise.all([
+    inteira("person"),
+    nomeDaCoisa(imagem, p),
+  ]);
+  return (
+    (coisa ? await inteira(coisa) : null) ??
+    pessoa ??
+    silhuetaSam(fal, quadro, p)
+  );
+}
+
+/**
+ * Como decidir o que o alvo vermelho marca. O que a pessoa veste conta como a
+ * pessoa (um clique na camiseta é a pessoa); o que ela segura é um objeto.
+ */
+const REGRA_DO_TIPO =
+  "A target on someone's body, hair or clothes marks that PERSON; a target on a thing they hold or use (a bottle, a bag, a phone) marks that OBJECT.";
+
+const TIPOS: Record<string, TipoAlvo> = {
+  person: "pessoa",
+  animal: "animal",
+  object: "objeto",
+};
+
+/**
+ * Descreve o que foi marcado numa imagem (inglês, curto) e diz se é pessoa,
+ * animal ou objeto. Sem Gemini ou se falhar, usa a posição (como pessoa).
+ */
+async function descreverUma(
+  imagem: () => Promise<Buffer>,
+  p: Pick<PessoaMarcada, "x" | "y">,
+  origem: "video" | "foto",
+): Promise<AlvoDescrito> {
+  const reserva: AlvoDescrito = {
+    descricao: posicaoEmPalavras(p),
+    tipo: "pessoa",
+  };
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey) return reserva;
+  try {
+    const marcada = await marcarPonto(await imagem(), p);
+    const ai = new GoogleGenAI({ apiKey });
+    const noVideo = origem === "video";
+    const onde = noVideo ? "This is a frame from a video." : "This is a photo.";
+    const resto = noVideo
+      ? "everyone and everything else in the video"
+      : "everyone and everything else in the photo";
+    // No vídeo a pessoa anda, vira e sai do quadro: posição e pose valem só para
+    // aquele instante e fazem o modelo de vídeo perder a pessoa no resto.
+    const pessoa = noVideo
+      ? "gender, build, hair, accessories, clothing (colours and pieces) — only what stays the same during the whole video. " +
+        "Do NOT mention position in the frame, pose, action or facial expression. "
+      : "position in the frame (left/center/right, foreground/background), pose, clothing (colours and pieces), hair. ";
+    const coisa = noVideo
+      ? "what it is (kind or breed, type of object), colours, size, distinctive marks or parts — only what stays the same during the whole video. " +
+        "Do NOT mention position in the frame, pose or action. "
+      : "what it is (kind or breed, type of object), colours, distinctive marks, position in the frame (left/center/right, foreground/background). ";
+    const res = await ai.models.generateContent({
+      model: MODELO_VISAO,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text:
+                `${onde} A red target marks ONE subject: a person, an animal or an object. ${REGRA_DO_TIPO} ` +
+                `Describe only that subject so it can be told apart from ${resto}. ` +
+                `For a person: ${pessoa}` +
+                `For an animal or an object: ${coisa}` +
+                'Answer with JSON only: {"kind": "person" | "animal" | "object", "description": "the ... (English, one line, max 30 words)"}',
+            },
+            {
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: marcada.toString("base64"),
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const json = (res.text ?? "").match(/\{[\s\S]*\}/)?.[0];
+    const r = json
+      ? (JSON.parse(json) as { kind?: unknown; description?: unknown })
+      : {};
+    const texto = (typeof r.description === "string" ? r.description : "")
       .trim()
       .replace(/\s+/g, " ")
       .replace(/[."]+$/, "");
-    return texto && texto.length > 8 ? texto.slice(0, 220) : reserva;
+    return texto.length > 8
+      ? {
+          descricao: texto.slice(0, 220),
+          tipo: TIPOS[String(r.kind).toLowerCase()] ?? "pessoa",
+        }
+      : reserva;
   } catch (e) {
     console.warn(
       "[pessoas] descrição falhou, usando a posição:",
@@ -285,12 +383,12 @@ async function descreverUma(
   }
 }
 
-/** Descreve cada pessoa marcada no vídeo (no quadro em que foi marcada). */
+/** Descreve cada pessoa (ou animal, ou objeto) marcada no vídeo, no quadro em que foi marcada. */
 export async function descreverPessoas(
   arquivo: string,
   pessoas: PessoaMarcada[],
   dir: string,
-): Promise<string[]> {
+): Promise<AlvoDescrito[]> {
   return Promise.all(
     pessoas.map((p, i) =>
       descreverUma(
@@ -306,11 +404,11 @@ export async function descreverPessoas(
   );
 }
 
-/** Descreve cada pessoa marcada numa foto. */
+/** Descreve cada pessoa (ou animal, ou objeto) marcada numa foto. */
 export async function descreverPessoasNaFoto(
   foto: Buffer,
   pessoas: Array<Pick<PessoaMarcada, "x" | "y">>,
-): Promise<string[]> {
+): Promise<AlvoDescrito[]> {
   return Promise.all(
     pessoas.map((p) => descreverUma(async () => foto, p, "foto")),
   );

@@ -221,6 +221,7 @@ const PADROES: Padrao[] = [
   [/^O S3 recusou o envio \(HTTP (\d+)\)\.$/, "S3 rejected the upload (HTTP $1)."],
   [/^Falha no fal\.ai \(HTTP (\d+)\)\.$/, "fal.ai failed (HTTP $1)."],
   [/^Falha no Runway \(HTTP (\d+)\)\.$/, "Runway failed (HTTP $1)."],
+  [/^Falha no Sapiens \(HTTP (\d+)\)\.$/, "Sapiens failed (HTTP $1)."],
   [
     /^Falha na OpenAI \(HTTP (\d+)\)(?:: (.+)|\.)$/,
     (m) => `OpenAI failed (HTTP ${m[1]})${m[2] ? `: ${m[2]}` : "."}`,
@@ -231,6 +232,8 @@ const PADROES: Padrao[] = [
   ],
   [/^A ElevenLabs recusou a entrada: (.+)$/, "ElevenLabs rejected the input: $1"],
   [/^O Runway recusou a entrada: (.+)$/, "Runway rejected the input: $1"],
+  [/^O Sapiens recusou a entrada: (.+)$/, "Sapiens rejected the input: $1"],
+  [/^O Sapiens falhou: (.+)$/, "Sapiens failed: $1"],
   [
     /^Você já tem (\d+) tokens ativos\. Revogue um para criar outro\.$/,
     "You already have $1 active tokens. Revoke one to create another.",
@@ -540,6 +543,19 @@ const ERROS_EN: Record<string, string> = {
   "Limite de uso do Runway atingido. Tente em alguns minutos.":
     "Runway usage limit reached. Try again in a few minutes.",
   "Falha no Runway.": "Runway failed.",
+  "Este modelo de vídeo não está configurado neste servidor.":
+    "This video model is not configured on this server.",
+  "Sapiens não configurado no servidor.": "Sapiens not configured on the server.",
+  "O Sapiens não devolveu vídeo.": "Sapiens returned no video.",
+  "O Sapiens não conseguiu gerar o vídeo.":
+    "Sapiens couldn't generate the video.",
+  "Chave do Sapiens inválida. Confira SAPIENS_KEY.":
+    "Invalid Sapiens key. Check SAPIENS_KEY.",
+  "Sem saldo na API do Sapiens. Recarregue em sapiensinteticos.com.":
+    "No balance on the Sapiens API. Top up at sapiensinteticos.com.",
+  "O Sapiens está ocupado agora. Tente em alguns minutos.":
+    "Sapiens is busy right now. Try again in a few minutes.",
+  "Falha no Sapiens.": "Sapiens failed.",
 
   // Vídeo por link
   "Cole um link válido.": "Paste a valid link.",

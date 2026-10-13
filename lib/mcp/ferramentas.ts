@@ -37,9 +37,14 @@ import {
   FALA_MAX_CARACTERES,
   MAX_CENAS_FALADAS,
   MODELOS_CRIAR,
+  modeloPadraoCriar,
   ROTEIRO_INTEIRO,
   type ModeloCriar,
 } from "@/lib/video/precos";
+import { getSapiens } from "@/lib/video/sapiens";
+
+/** Modelo de "criar vídeo" quando a pessoa não escolhe: o do Sapiens, se configurado. */
+const MODELO_PADRAO_CRIAR = modeloPadraoCriar({ sapiens: !!getSapiens() });
 
 /**
  * Ferramentas do MCP (/api/mcp): o que o Claude Code pode fazer na conta de
@@ -410,7 +415,7 @@ export const FERRAMENTAS: Ferramenta[] = [
     name: "criar_video_de_cena",
     description: [
       "Cria um vídeo SEM fala: a imagem do personagem vira o primeiro quadro e o texto descreve a ação (câmera, movimento, luz). Para o personagem falar, use criar_video_falado. Assíncrono: acompanhe com status_do_video.",
-      `Custo por segundo: ${(Object.keys(MODELOS_CRIAR) as ModeloCriar[]).map((m) => `${MODELOS_CRIAR[m].label} ${creditosCriarVideo(m, 1, false)}`).join(", ")} créditos. Durações: ${DURACOES_CRIAR.join(", ")}s. Um vídeo de 10s no Gen-4.5 custa ${creditosCriarVideo("gen4.5", 10, false)} créditos. Confirme com a pessoa antes de gerar.`,
+      `Custo por segundo: ${(Object.keys(MODELOS_CRIAR) as ModeloCriar[]).map((m) => `${MODELOS_CRIAR[m].label} ${creditosCriarVideo(m, 1, false)}`).join(", ")} créditos. Durações: ${DURACOES_CRIAR.join(", ")}s. Um vídeo de 10s no ${MODELOS_CRIAR[MODELO_PADRAO_CRIAR].label} custa ${creditosCriarVideo(MODELO_PADRAO_CRIAR, 10, false)} créditos. Confirme com a pessoa antes de gerar.`,
       "Descreva só o que aparece, de preferência em inglês; nomes de pessoas, marcas e personagens famosos costumam ser barrados pela moderação.",
     ].join("\n"),
     entrada: z.object({
@@ -418,7 +423,7 @@ export const FERRAMENTAS: Ferramenta[] = [
       cena: z.string().min(3).max(1000).describe("O que acontece no vídeo."),
       modelo: z
         .enum(Object.keys(MODELOS_CRIAR) as [ModeloCriar, ...ModeloCriar[]])
-        .default("gen4.5"),
+        .default(MODELO_PADRAO_CRIAR),
       duracao: z
         .union([z.literal(10), z.literal(15), z.literal(30)])
         .default(10),
