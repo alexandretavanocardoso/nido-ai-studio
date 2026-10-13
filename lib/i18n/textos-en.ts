@@ -920,6 +920,9 @@ export const TEXTOS_EN: Record<string, string> = {
   "Na Ethereum a taxa da rede costuma ser alta — Base e Arbitrum saem bem mais baratas.":
     "Ethereum network fees tend to be high — Base and Arbitrum are much cheaper.",
   // trocar pessoa em foto
+  "Imagem enviada": "Uploaded image",
+  "a imagem enviada": "the uploaded image",
+  "Enviar uma imagem": "Upload an image",
   "Clique numa pessoa, num animal ou num objeto. Sem marcar nada, a IA troca a pessoa principal da foto.":
     "Click a person, an animal or an object. If nothing is marked, the AI swaps the main person in the photo.",
   "Máximo de 3 pessoas por foto.": "Up to 3 people per photo.",
@@ -1176,6 +1179,18 @@ export const TEXTOS_EN: Record<string, string> = {
     "Continue setup",
   "Conectar Stripe":
     "Connect Stripe",
+  "O saque é em USDC, direto para a sua carteira, na mesma rede em que o indicado pagou. Você informa o endereço na hora de sacar.":
+    "Withdrawals are in USDC, straight to your wallet, on the same network the referred user paid on. You enter the address when you withdraw.",
+  "Em USDC, direto para a sua carteira, na mesma rede em que o indicado pagou.":
+    "In USDC, straight to your wallet, on the same network the referred user paid on.",
+  "O saque em USDC nesta rede ainda não está disponível. O saldo fica guardado.":
+    "USDC withdrawals on this network are not available yet. Your balance is kept.",
+  "rede":
+    "network",
+  "Assinaturas de qualquer plano, mensais ou anuais, e as renovações. Compra de créditos avulsos e o plano gratuito não geram comissão.":
+    "Subscriptions to any plan, monthly or yearly, and their renewals. Credit purchases and the free plan do not earn commission.",
+  "meses em cada assinatura que vier do seu link. A comissão sai em USDC, direto para a sua carteira.":
+    "months on every subscription that comes from your link. The commission is paid in USDC, straight to your wallet.",
   "Indicados":
     "Referrals",
   "assinaram":

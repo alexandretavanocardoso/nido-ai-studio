@@ -7,7 +7,8 @@
  * créditos avulsos não gera comissão.
  *
  * A comissão sai na moeda do pagamento: BRL e USD são sacados pelo Stripe;
- * USDC (plano pago em USDC) é sacado on-chain, para a carteira do usuário.
+ * USDC (plano pago em USDC) é sacado on-chain, para a carteira do usuário,
+ * na mesma rede em que o indicado pagou.
  */
 export const COMISSAO = 0.1;
 
@@ -15,7 +16,7 @@ export const COMISSAO = 0.1;
 export const MESES_COMISSAO = 12;
 
 /** Dias até a comissão poder ser sacada (cobre estorno e contestação do pagamento). */
-export const CARENCIA_DIAS = 7;
+export const CARENCIA_DIAS = 14;
 
 /** Só conta nova pode ser vinculada a um código: até quantos dias depois do cadastro. */
 export const JANELA_VINCULO_DIAS = 7;

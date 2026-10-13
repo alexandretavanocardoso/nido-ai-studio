@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, MousePointerClick, Pause, Play, X } from "lucide-react";
+import {
+  Loader2,
+  MousePointerClick,
+  Pause,
+  Play,
+  Upload,
+  X,
+} from "lucide-react";
 import { nanoid } from "nanoid";
 import type { Character } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -9,6 +16,7 @@ import {
   EscolherImagemPersonagem,
   useImagensPersonagem,
 } from "@/components/revisao/EscolherImagemPersonagem";
+import { uploadFile } from "@/lib/storage/client";
 import { tx } from "@/lib/i18n/tx";
 import { txErro } from "@/lib/i18n/erros";
 
@@ -21,6 +29,11 @@ export interface Marca {
   t: number;
   characterId: string;
   imageKey: string | null;
+  /**
+   * Imagem enviada na hora para entrar no lugar (um carro, um cachorro): não é
+   * de nenhum personagem. Fica na lista junto com as do personagem.
+   */
+  enviada?: string;
   /** Silhueta da pessoa (PNG): indefinido = buscando · null = não deu, fica só o ponto. */
   mascara?: string | null;
   /** Por que a silhueta não veio (quando o servidor soube dizer). */
@@ -542,8 +555,28 @@ export function LinhaMarca({
 }) {
   const escolhido =
     personagens.find((p) => p.id === marca.characterId) ?? personagens[0];
-  const opcoes = useImagensPersonagem(escolhido);
+  const doPersonagem = useImagensPersonagem(escolhido);
+  const opcoes = marca.enviada
+    ? [{ key: marca.enviada, label: tx("Imagem enviada") }, ...doPersonagem]
+    : doPersonagem;
+  const usaEnviada = !!marca.enviada && marca.imageKey === marca.enviada;
+  const [enviando, setEnviando] = useState(false);
+  const [erroEnvio, setErroEnvio] = useState<string | null>(null);
   const cor = CORES_MARCA[numero - 1];
+
+  async function enviar(arquivo: File) {
+    setErroEnvio(null);
+    setEnviando(true);
+    try {
+      const key = await uploadFile(arquivo, "refs");
+      onChange({ enviada: key, imageKey: key });
+    } catch (e) {
+      setErroEnvio((e as Error).message);
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   return (
     <div
       className="rounded-xl border border-line bg-panel p-2.5 grid gap-2"
@@ -553,7 +586,11 @@ export function LinhaMarca({
       <div className="flex items-center gap-2 min-w-0">
         <MiniaturaMarca numero={numero} marca={marca} origem={origem} />
         <span className="text-[13px] text-ink-mute shrink-0">vira</span>
-        {personagens.length > 1 ? (
+        {usaEnviada ? (
+          <strong className="text-[13px] text-ink truncate">
+            {tx("a imagem enviada")}
+          </strong>
+        ) : personagens.length > 1 ? (
           <select
             value={escolhido.id}
             onChange={(e) => {
@@ -577,13 +614,44 @@ export function LinhaMarca({
           </strong>
         )}
       </div>
-      <EscolherImagemPersonagem
-        cor={cor}
-        compacto
-        opcoes={opcoes}
-        valor={marca.imageKey}
-        onChange={(k) => onChange({ imageKey: k })}
-      />
+      <div className="flex items-center gap-2 min-w-0">
+        {/* Qualquer imagem serve (um carro, um cachorro): não precisa ser de um personagem. */}
+        <label
+          title={tx("Enviar uma imagem")}
+          aria-label={tx("Enviar uma imagem")}
+          className="h-16 w-12 shrink-0 grid place-items-center rounded-lg border-2 border-dashed border-line text-ink-mute hover:border-line-strong hover:text-ink cursor-pointer"
+        >
+          {enviando ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Upload className="w-4 h-4" />
+          )}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            disabled={enviando}
+            onChange={(e) => {
+              const arquivo = e.target.files?.[0];
+              // Limpa o campo: escolher o mesmo arquivo de novo tem que enviar de novo.
+              e.target.value = "";
+              if (arquivo) void enviar(arquivo);
+            }}
+          />
+        </label>
+        <div className="min-w-0 flex-1">
+          <EscolherImagemPersonagem
+            cor={cor}
+            compacto
+            opcoes={opcoes}
+            valor={marca.imageKey}
+            onChange={(k) => onChange({ imageKey: k })}
+          />
+        </div>
+      </div>
+      {erroEnvio ? (
+        <p className="text-[12px] text-pink">{erroEnvio}</p>
+      ) : null}
     </div>
   );
 }

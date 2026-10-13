@@ -227,7 +227,9 @@ export function SubstituirPessoaModal({
                 y: m.y,
                 t: m.t,
                 imageKey: m.imageKey,
-                characterId: m.characterId,
+                // Imagem enviada na hora não é de personagem nenhum.
+                characterId:
+                  m.imageKey === m.enviada ? undefined : m.characterId,
               }))
             : undefined,
           motor,

@@ -139,8 +139,9 @@ export async function registrarComissao(pagamentoId: string): Promise<void> {
       valor: string;
       moeda: string;
       provedor: string;
+      rede: string | null;
     }>(
-      `select p.user_id, i.indicador_user_id, p.plano, p.valor, p.moeda, p.provedor
+      `select p.user_id, i.indicador_user_id, p.plano, p.valor, p.moeda, p.provedor, p.rede
        from pagamentos p
        join indicacoes i on i.indicado_user_id = p.user_id
        where p.id = $1 and p.status = 'pago' and p.tipo = 'plano'
@@ -159,8 +160,8 @@ export async function registrarComissao(pagamentoId: string): Promise<void> {
     if (!centavos) return;
     await pool().query(
       `insert into indicacao_comissoes
-         (id, indicador_user_id, indicado_user_id, pagamento_id, plano, valor_base, moeda, valor, disponivel_em)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, now() + make_interval(days => $9))
+         (id, indicador_user_id, indicado_user_id, pagamento_id, plano, valor_base, moeda, valor, disponivel_em, rede)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, now() + make_interval(days => $9), $10)
        on conflict do nothing`,
       [
         `com_${nanoid(14)}`,
@@ -172,6 +173,8 @@ export async function registrarComissao(pagamentoId: string): Promise<void> {
         moedaDaComissao(p.moeda, p.provedor),
         (centavos / 100).toFixed(2),
         CARENCIA_DIAS,
+        // USDC sai pela rede em que entrou (nulo = solana, pagamentos antigos).
+        p.provedor === "usdc" ? (p.rede ?? "solana") : null,
       ],
     );
   } catch (e) {
@@ -214,6 +217,8 @@ export async function ajustarComissaoParcial(
 
 export interface SaldoIndicacao {
   moeda: MoedaComissao;
+  /** USDC: a rede em que o indicado pagou, que é por onde este saldo sai. */
+  rede: RedeUsdc | null;
   /** Já pode sacar (descontadas as comissões estornadas depois de sacadas). */
   disponivel: number;
   /** Ainda na carência. */
@@ -294,16 +299,17 @@ export async function resumoDaIndicacao(
     ),
     db.query<{
       moeda: MoedaComissao;
+      rede: RedeUsdc | null;
       disponivel: string;
       pendente: string;
       sacado: string;
     }>(
-      `select moeda,
+      `select moeda, rede,
          coalesce(sum(valor) filter (where status = 'disponivel' and disponivel_em <= now()), 0)
            - coalesce(sum(valor) filter (where status = 'estorno_devido'), 0) as disponivel,
          coalesce(sum(valor) filter (where status = 'disponivel' and disponivel_em > now()), 0) as pendente,
          coalesce(sum(valor) filter (where status in ('sacada', 'estorno_devido', 'estorno_quitado')), 0) as sacado
-       from indicacao_comissoes where indicador_user_id = $1 group by moeda order by moeda`,
+       from indicacao_comissoes where indicador_user_id = $1 group by moeda, rede order by moeda, rede`,
       [userId],
     ),
     db.query<{
@@ -346,6 +352,7 @@ export async function resumoDaIndicacao(
     })),
     saldos: saldos.rows.map((s) => ({
       moeda: s.moeda,
+      rede: s.rede,
       disponivel: Number(s.disponivel),
       pendente: Number(s.pendente),
       sacado: Number(s.sacado),
@@ -397,7 +404,8 @@ export async function contaStripeDeSaque(
 
 /**
  * Reserva as comissões disponíveis de uma moeda para um saque novo e calcula
- * o valor a pagar (já descontado o que foi estornado depois de sacado).
+ * o valor a pagar (já descontado o que foi estornado depois de sacado). Em
+ * USDC, só entram as comissões da rede do saque: cada rede tem o seu saldo.
  * Abaixo do mínimo, desfaz a reserva e devolve o erro.
  */
 async function abrirSaque(
@@ -423,16 +431,18 @@ async function abrirSaque(
   const { rows } = await db.query<{ total: string | null }>(
     `with reservadas as (
        update indicacao_comissoes set status = 'sacada', saque_id = $3
-       where indicador_user_id = $1 and moeda = $2 and status = 'disponivel' and disponivel_em <= now()
+       where indicador_user_id = $1 and moeda = $2 and rede is not distinct from $4
+         and status = 'disponivel' and disponivel_em <= now()
        returning valor)
      select sum(valor) as total from reservadas`,
-    [userId, moeda, saqueId],
+    [userId, moeda, saqueId, destino?.rede ?? null],
   );
   // Comissões já sacadas e depois estornadas: descontam deste saque.
   const dividas = await db.query<{ id: string; valor: string }>(
     `select id, valor from indicacao_comissoes
-     where indicador_user_id = $1 and moeda = $2 and status = 'estorno_devido'`,
-    [userId, moeda],
+     where indicador_user_id = $1 and moeda = $2 and rede is not distinct from $3
+       and status = 'estorno_devido'`,
+    [userId, moeda, destino?.rede ?? null],
   );
   const devido = dividas.rows.reduce((t, d) => t + Number(d.valor), 0);
   const total =
@@ -518,8 +528,8 @@ export async function sacarComissoes(
 }
 
 /**
- * Saca on-chain todo o saldo disponível em USDC: da carteira de saques da
- * NIDO para a carteira do usuário, na rede escolhida.
+ * Saca on-chain o saldo disponível em USDC de uma rede (a rede em que os
+ * indicados pagaram): da carteira de saques da NIDO para a carteira do usuário.
  *
  * O hash da transação é guardado antes do envio. Se a rede confirmar, o saque
  * fica pago; se reverter (ou for recusado antes de assinar), o saldo volta;

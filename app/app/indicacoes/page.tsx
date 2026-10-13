@@ -1,6 +1,9 @@
 "use client";
 
 import { EmTeste } from "@/components/EmTeste";
+import { useCreditos } from "@/components/creditos/CreditosProvider";
+import { useRecursos } from "@/components/RecursosProvider";
+import { liberadoNaTela } from "@/lib/em-teste";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -74,6 +77,8 @@ export default function IndicacoesPage() {
 
 function IndicacoesPageLiberada() {
   const { user } = useAuth();
+  const recursos = useRecursos();
+  const { conta } = useCreditos();
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
@@ -82,7 +87,6 @@ function IndicacoesPageLiberada() {
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
-  const [rede, setRede] = useState<RedeUsdc | "">("");
   // Simulador: indicações novas por mês e quanto cada indicado gasta por mês em plano.
   const emDolar = idiomaAtual() === "en";
   const moedaSim = emDolar ? "USD" : "BRL";
@@ -92,7 +96,10 @@ function IndicacoesPageLiberada() {
   const [simN, setSimN] = useState(10);
   const [simValor, setSimValor] = useState(precos[1]);
   const [duvida, setDuvida] = useState(0);
-  const [carteira, setCarteira] = useState("");
+  // Endereço de destino por rede: cada saldo em USDC sai pela rede em que entrou.
+  const [carteiras, setCarteiras] = useState<Partial<Record<RedeUsdc, string>>>(
+    {},
+  );
 
   const carregar = useCallback(async () => {
     try {
@@ -161,10 +168,10 @@ function IndicacoesPageLiberada() {
     }
   }
 
-  async function sacar(moeda: string, valor: number) {
+  async function sacar(moeda: string, valor: number, rede: RedeUsdc | null) {
     const usdc = moeda === "USDC";
-    const destino = carteira.trim();
-    const redeEscolhida = rede || resumo?.usdc.redes[0] || "";
+    const redeEscolhida = rede ?? "";
+    const destino = (rede ? carteiras[rede] : "")?.trim() ?? "";
     if (usdc && !formatoDeCarteira(redeEscolhida, destino))
       return setErro(tx("Endereço de carteira inválido para esta rede."));
     const ok = await confirmar({
@@ -179,7 +186,7 @@ function IndicacoesPageLiberada() {
     if (!ok) return;
     setErro(null);
     setAviso(null);
-    setOcupado(`sacar-${moeda}`);
+    setOcupado(`sacar-${moeda}-${redeEscolhida}`);
     try {
       const r = await fetch("/api/indicacao/sacar", {
         method: "POST",
@@ -211,6 +218,14 @@ function IndicacoesPageLiberada() {
   }
 
   const pct = Math.round(COMISSAO * 100);
+  // Enquanto o plano só é vendido em USDC (Stripe em teste, lib/em-teste.ts), a
+  // comissão é toda em USDC: o Stripe só aparece depois de liberado para todos
+  // (admin incluído, que aqui vê o mesmo que os usuários) ou para quem já tem
+  // saldo em BRL ou USD.
+  const comStripe =
+    (recursos.stripe &&
+      liberadoNaTela("stripe", { emTeste: conta?.emTeste })) ||
+    !!resumo?.saldos.some((s) => s.moeda !== "USDC");
 
   async function copiarLink() {
     if (!resumo) return;
@@ -266,9 +281,11 @@ function IndicacoesPageLiberada() {
     [
       Wallet,
       tx("Saque quando quiser"),
-      tx(
-        "Pelo Stripe, direto para o seu banco. Se o plano foi pago em USDC, a comissão vai em USDC para a sua carteira.",
-      ),
+      comStripe
+        ? tx(
+            "Pelo Stripe, direto para o seu banco. Se o plano foi pago em USDC, a comissão vai em USDC para a sua carteira.",
+          )
+        : tx("Em USDC, direto para a sua carteira, na mesma rede em que o indicado pagou."),
     ],
     [
       Link2,
@@ -299,9 +316,13 @@ function IndicacoesPageLiberada() {
     ],
     [
       tx("O que gera comissão?"),
-      tx(
-        "Assinaturas de qualquer plano, mensais ou anuais, e as renovações, no cartão, Pix, boleto ou USDC. Compra de créditos avulsos e o plano gratuito não geram comissão.",
-      ),
+      comStripe
+        ? tx(
+            "Assinaturas de qualquer plano, mensais ou anuais, e as renovações, no cartão, Pix, boleto ou USDC. Compra de créditos avulsos e o plano gratuito não geram comissão.",
+          )
+        : tx(
+            "Assinaturas de qualquer plano, mensais ou anuais, e as renovações. Compra de créditos avulsos e o plano gratuito não geram comissão.",
+          ),
     ],
     [
       tx("Por quanto tempo uma indicação me paga?"),
@@ -354,9 +375,13 @@ function IndicacoesPageLiberada() {
           <p className="max-w-[560px] text-pretty text-base leading-[1.55] text-[#d9d2c6]">
             {tx("Ganhe")} {pct}%{" "}
             {tx("de comissão, em dinheiro, por até")} {MESES_COMISSAO}{" "}
-            {tx(
-              "meses em cada assinatura que vier do seu link. O saque é feito pelo Stripe; se o plano foi pago em USDC, a comissão sai em USDC para a sua carteira.",
-            )}
+            {comStripe
+              ? tx(
+                  "meses em cada assinatura que vier do seu link. O saque é feito pelo Stripe; se o plano foi pago em USDC, a comissão sai em USDC para a sua carteira.",
+                )
+              : tx(
+                  "meses em cada assinatura que vier do seu link. A comissão sai em USDC, direto para a sua carteira.",
+                )}
           </p>
           <div className="flex flex-wrap gap-2.5 pt-1.5">
             {user === undefined ? (
@@ -510,7 +535,7 @@ function IndicacoesPageLiberada() {
           <section className="card p-5 sm:p-6 grid grid-cols-1 gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="label-cap">{tx("Comissões")}</div>
-              {resumo.stripe.conectado ? (
+              {comStripe && resumo.stripe.conectado ? (
                 <button
                   type="button"
                   onClick={() =>
@@ -533,14 +558,21 @@ function IndicacoesPageLiberada() {
               </p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
-                {resumo.saldos.map((s) => (
+                {resumo.saldos.map((s) => {
+                  const chave = `sacar-${s.moeda}-${s.rede ?? ""}`;
+                  const redeLigada =
+                    !!s.rede && resumo.usdc.redes.includes(s.rede);
+                  return (
                   <div
-                    key={s.moeda}
+                    key={chave}
                     className="rounded-2xl border border-line bg-bg p-4 grid gap-3"
                   >
                     <div>
                       <div className="text-[12px] text-ink-dim">
                         {tx("Disponível para saque")}
+                        {s.rede
+                          ? ` · ${tx("rede")} ${REDES_USDC.find((r) => r.id === s.rede)?.nome ?? s.rede}`
+                          : ""}
                       </div>
                       <div className="display text-3xl text-accent mt-1">
                         {dinheiro(s.disponivel, s.moeda)}
@@ -550,66 +582,44 @@ function IndicacoesPageLiberada() {
                       {tx("Em carência")}: {dinheiro(s.pendente, s.moeda)} ·{" "}
                       {tx("Já sacado")}: {dinheiro(s.sacado, s.moeda)}
                     </div>
-                    {s.moeda === "USDC" ? (
-                      resumo.usdc.redes.length === 0 ? (
+                    {s.rede ? (
+                      !redeLigada ? (
                         <div className="text-[12px] text-ink-dim">
                           {tx(
-                            "O saque em USDC não está configurado neste deploy.",
+                            "O saque em USDC nesta rede ainda não está disponível. O saldo fica guardado.",
                           )}
                         </div>
                       ) : (
-                        <div className="grid gap-2">
-                          <div className="flex flex-wrap gap-1.5">
-                            {resumo.usdc.redes.map((id) => {
-                              const ativa =
-                                (rede || resumo.usdc.redes[0]) === id;
-                              return (
-                                <button
-                                  key={id}
-                                  type="button"
-                                  onClick={() => setRede(id)}
-                                  aria-pressed={ativa}
-                                  className={
-                                    ativa
-                                      ? "h-8 rounded-full border border-accent bg-accent/10 px-3 text-[12.5px] font-semibold text-accent"
-                                      : "h-8 rounded-full border border-line px-3 text-[12.5px] font-semibold text-ink-mute hover:text-ink"
-                                  }
-                                >
-                                  {REDES_USDC.find((r) => r.id === id)?.nome}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <Input
-                            value={carteira}
-                            onChange={(e) => setCarteira(e.target.value)}
-                            placeholder={
-                              (rede || resumo.usdc.redes[0]) === "solana"
-                                ? tx("Endereço da sua carteira Solana")
-                                : tx("Endereço da sua carteira (0x…)")
-                            }
-                            spellCheck={false}
-                            autoComplete="off"
-                            className="mono text-[13px]"
-                          />
-                        </div>
+                        <Input
+                          value={carteiras[s.rede] ?? ""}
+                          onChange={(e) =>
+                            setCarteiras((c) => ({
+                              ...c,
+                              [s.rede!]: e.target.value,
+                            }))
+                          }
+                          placeholder={
+                            s.rede === "solana"
+                              ? tx("Endereço da sua carteira Solana")
+                              : tx("Endereço da sua carteira (0x…)")
+                          }
+                          spellCheck={false}
+                          autoComplete="off"
+                          className="mono text-[13px]"
+                        />
                       )
                     ) : null}
-                    {(
-                      s.moeda === "USDC"
-                        ? resumo.usdc.redes.length > 0
-                        : resumo.stripe.pronto
-                    ) ? (
+                    {(s.rede ? redeLigada : resumo.stripe.pronto) ? (
                       <Button
                         variant="accent"
-                        onClick={() => sacar(s.moeda, s.disponivel)}
+                        onClick={() => sacar(s.moeda, s.disponivel, s.rede)}
                         disabled={
                           s.disponivel < s.minimo ||
-                          (s.moeda === "USDC" && !carteira.trim()) ||
-                          ocupado === `sacar-${s.moeda}`
+                          (!!s.rede && !carteiras[s.rede]?.trim()) ||
+                          ocupado === chave
                         }
                       >
-                        {ocupado === `sacar-${s.moeda}` ? (
+                        {ocupado === chave ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : null}
                         {tx("Sacar")}
@@ -627,7 +637,8 @@ function IndicacoesPageLiberada() {
                       </div>
                     ) : null}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -638,8 +649,19 @@ function IndicacoesPageLiberada() {
               )}
             </p>
 
-            {resumo.saldos.length > 0 &&
-            resumo.saldos.every((s) => s.moeda === "USDC") ? null : !resumo
+            {!comStripe ? (
+              resumo.saldos.length === 0 ? (
+                <div className="flex items-center gap-3 rounded-xl border border-line bg-bg px-4 py-3">
+                  <Wallet className="w-4 h-4 text-accent shrink-0" />
+                  <span className="min-w-0 text-[13px] text-ink-mute">
+                    {tx(
+                      "O saque é em USDC, direto para a sua carteira, na mesma rede em que o indicado pagou. Você informa o endereço na hora de sacar.",
+                    )}
+                  </span>
+                </div>
+              ) : null
+            ) : resumo.saldos.length > 0 &&
+              resumo.saldos.every((s) => s.moeda === "USDC") ? null : !resumo
                 .stripe.configurado ? (
               <div className="rounded-xl border border-dashed border-line-strong px-4 py-3 text-[13px] text-ink-dim">
                 {tx("O saque pelo Stripe não está configurado neste deploy.")}
