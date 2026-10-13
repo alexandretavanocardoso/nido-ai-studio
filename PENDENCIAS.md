@@ -66,6 +66,16 @@ Mint do influencer como NFT intransferível na Solana (Metaplex Core), com badge
 - [ ] **O que o bundle.social devolve em `externalId` e `username`:** no X, o `externalId` é o id numérico da conta, o mesmo que o Apify devolve como autor (por isso a conta conectada e o link se reconhecem); o `username` veio vazio. No LinkedIn veio `urn:li:person:…`. Falta ver Instagram, TikTok e YouTube com conta conectada, e se chegam compartilhamentos e salvos do Instagram e os reposts e quotes do X em separado (na leitura normal do bundle.social, "shares" do X junta os dois).
 - [ ] Roteiro de devnet antes da mainnet (Portão 3 do desenho): mint pelas quatro carteiras; tentar transferir o NFT pela carteira (tem de falhar); derrubar o servidor entre assinar e enviar e entre enviar e confirmar; bater as marcas com posts de verdade; conectar uma conta que outro personagem tinha pelo link; revogar a chave de mint pela raiz.
 
+**Arte do NFT (12/10)**
+
+- [x] A imagem do NFT é uma arte gerada a partir do Retrato, pelo GPT Image, com o prompt da coleção em [lib/nft/arte.ts](lib/nft/arte.ts). Antes do mint a pessoa gera **5 opções** (30 créditos pelas cinco), **escolhe uma** e minta; pode gerar outras cinco enquanto não mintou. **Depois do mint a imagem não muda mais.** Migrations `0031` e `0032` aplicadas no Neon. Testado com o gerador simulado (cobrança, estorno, escolha, cópia no mint, trava depois do mint, limpeza do S3).
+- [x] O prompt não cita mais nome de marca e proíbe texto na imagem: uma arte de teste saiu com uma etiqueta "MAD LADS" na roupa porque o prompt dizia "inspired by Mad Lads".
+- [x] A tela avisa, antes de gerar, que a arte mantém o rosto do retrato e que depois do mint não dá para trocar (personagem parecido com pessoa real).
+- [ ] **O fluxo de 5 opções nunca rodou com o gerador de verdade** (é geração paga): gerar pela tela e ver se saem cinco, sem texto, no padrão da coleção, e quanto tempo leva.
+- [ ] Os NFTs já mintados em devnet ficam com a imagem que tinham no mint; agora não há mais como trocar pela tela.
+- [ ] Preço: 30 créditos por geração (6 por imagem). Decidir se fica assim ou se a primeira geração entra no preço do mint (`CREDITOS_ARTE_NFT`).
+- [ ] Qualidade da imagem em "média". Se o resultado ficar abaixo do padrão desejado, subir para "alta" custa bem mais por imagem e pede rever o preço.
+
 **Decisões**
 
 - [ ] **Custo:** os 10 créditos (US$ 0,10 de custo) só cobrem os 0,0040 SOL do mint com o SOL abaixo de ~US$ 25. Acima disso a NIDO subsidia a diferença. Subir o preço é a constante `CREDITOS_MINT_NFT` em [lib/planos.ts](lib/planos.ts). O valor fica preso na conta do NFT como aluguel e não volta enquanto o NFT existir.
@@ -173,14 +183,14 @@ Ainda em aberto:
 - [ ] **Preço do Starter em reais.** Em 07/10 o Starter passou para **US$ 18 / R$ 95, com 800 créditos** (antes US$ 15 / R$ 79, 600 créditos), para caber 3 vídeos de troca de 15s. O valor em dólar é o mínimo que mantém a margem; o valor em reais (R$ 95) é uma conversão — confirmar se fica R$ 95 ou R$ 99. O Creator passou de 1.600 para 1.720 créditos, no mesmo preço.
 - [ ] **Preço da troca em vídeo.** Subiu de 13 para **17 créditos por segundo** porque o Kling Pro custa US$ 0,168/s (o padrão custava US$ 0,126/s). Se quiser manter 13 e absorver a diferença, é a constante `TROCA_POR_SEGUNDO` em [lib/planos.ts](lib/planos.ts).
 - [x] USDC nas redes EVM: o hash de outra pessoa não serve mais (valor único por cobrança, 07/10).
-- [ ] **USDC na Solana: transferência manual não é reconhecida.** Só funciona pelo QR (Solana Pay). Dá para adicionar o campo "cole o hash" como plano B.
+- [x] USDC na Solana: transferência manual passou a ser reconhecida (12/10). O modal mostra valor e endereço e aceita o link/hash colado, como nas EVM; o QR continua confirmando sozinho. Por isso a cobrança na Solana também tem valor único (preço + 0 a 99 centavos). Reabrir o modal devolve a cobrança em aberto da mesma compra e rede (até 12h) em vez de criar outra, e a criação roda com trava: dois pedidos no mesmo instante não pegam mais o mesmo valor (era o erro "Valor da cobrança em disputa").
 - [ ] **Título da aba do navegador.** Troquei para "NIDO AI Studio — Crie seu Influenciador Sintético" sem você pedir. Confirmar ou voltar.
 - [ ] **Assinante em real que muda para inglês.** O Stripe não mistura moedas no mesmo cliente; a nova assinatura em dólar pode ser recusada. Decidir se bloqueia a troca de moeda para quem já assina.
 
 ## 3. Configurar (fora do código)
 
-- [ ] **Ankr:** os 4 RPCs do `.env` respondem "Origin not allowed" (o projeto na Ankr tem allowlist). Hoje o app usa RPCs públicos de reserva, que têm limite de uso. Desligar a allowlist ou trocar de provedor antes de ter volume.
-- [ ] **Carteira EVM exclusiva.** `EVM_MERCHANT_WALLET` deve ser usada só para receber pagamentos do app.
+- [ ] **Ankr:** os 4 RPCs do `.env` respondem "Origin not allowed" (o projeto na Ankr tem allowlist). Hoje o app usa RPCs públicos de reserva, que têm limite de uso. Desligar a allowlist ou trocar de provedor antes de ter volume. O `SOLANA_RPC_URL` também é da Ankr e também é recusado: o pagamento em USDC na Solana passou a cair no RPC público (12/10; antes nem o QR confirmava), mas o **saque em USDC na Solana** ([lib/indicacao/onchain.ts](lib/indicacao/onchain.ts)) ainda usa só o do `.env` e falha enquanto a allowlist estiver ligada.
+- [ ] **Carteiras de recebimento exclusivas.** `EVM_MERCHANT_WALLET` e `SOLANA_MERCHANT_WALLET` devem ser usadas só para receber pagamentos do app (o hash colado vale pelo valor recebido na carteira).
 - [ ] **Stripe:** webhook e produtos criados, mas a conta de produção ainda não está ativada — sem isso não há cartão, Pix nem boleto. Falta ativar a conta, as formas de pagamento, o portal do cliente e o Connect, e pôr as chaves na Vercel. Passo a passo no [DEPLOY.md](DEPLOY.md), seção 5.
 - [ ] **Deploy na Vercel** seguindo o [DEPLOY.md](DEPLOY.md).
 - [x] `public/video_teste/` movido para `video_teste/` em 07/10 (fora de `public/`).
@@ -193,13 +203,14 @@ Ainda em aberto:
 - [ ] **Vídeo por link** em três passos (carregar, conferir, substituir).
 - [ ] **Trocar pessoa em foto** (Estúdio → Imagens → Trocar pessoa).
 - [ ] **Modal de pagamento USDC** com seletor de rede e o campo para colar o hash.
+- [ ] **Pagar com a carteira conectada (12/10)** e o botão da carteira ao lado do sino: nunca vistos no navegador nem usados com uma carteira de verdade (Phantom, MetaMask, Rabby…). Só o que não depende da carteira tem teste: a transação Solana montada, a chamada `transfer` das EVM e a conferência do hash. Fazer um pagamento pequeno em cada rede antes de divulgar.
 - [ ] **Página de planos em inglês** (preços em dólar).
 - [ ] **Ícones das redes** no calendário de agendamentos.
 - [ ] **Ícone da aba** (favicon com o logo).
 
 ## 5. Nunca testado de verdade
 
-- [ ] **Pagamento USDC real**, do começo ao fim, em qualquer rede. Só a conferência da transação foi testada (com uma transferência real de terceiros na Base).
+- [ ] **Pagamento USDC real**, do começo ao fim, em qualquer rede. Só a conferência da transação foi testada (com uma transferência real de terceiros na Base). Na Solana, o hash colado (12/10) só tem teste com transações simuladas.
 - [ ] **Cobrança em dólar no Stripe** (depende das chaves).
 - [ ] **IA escrevendo em inglês.** A regra está no código; nenhuma geração em EN foi conferida.
 - [ ] **Post publicado de verdade** numa rede pelo bundle.social.

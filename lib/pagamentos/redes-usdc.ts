@@ -1,6 +1,7 @@
 /**
  * Redes aceitas para pagar em USDC (vale no cliente e no servidor).
- * Solana usa Solana Pay; as EVM usam transferência ERC-20 com valor único.
+ * Solana usa Solana Pay (ou transferência comum, com o hash colado); as EVM
+ * usam transferência ERC-20. Em todas a cobrança tem valor único.
  */
 export type RedeUsdc = "solana" | "base" | "ethereum" | "arbitrum" | "bnb";
 

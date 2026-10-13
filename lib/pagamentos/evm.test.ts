@@ -1,10 +1,13 @@
+import { encodeFunctionData, erc20Abi } from "viem";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   hashDaTransacao,
   recebidoNaTransacao,
   linkEip681,
   microDoPreco,
+  REDES_EVM,
   redesEvmAtivas,
+  transferenciaUsdc,
   unidadesDoToken,
 } from "./evm";
 import { microDoTexto, textoMicro } from "./usdc";
@@ -45,6 +48,22 @@ describe("redes EVM", () => {
     expect(linkEip681("base", BigInt(15_003_721))).toBe(
       `ethereum:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913@8453/transfer?address=${CARTEIRA}&uint256=15003721`,
     );
+  });
+
+  it("monta a chamada transfer() que a carteira conectada assina, igual à do viem", () => {
+    process.env.EVM_MERCHANT_WALLET = CARTEIRA;
+    for (const rede of ["base", "bnb"] as const) {
+      const micro = BigInt(18_010_000);
+      expect(transferenciaUsdc(rede, micro)).toEqual({
+        chainId: REDES_EVM[rede].chainId,
+        para: REDES_EVM[rede].usdc,
+        dados: encodeFunctionData({
+          abi: erc20Abi,
+          functionName: "transfer",
+          args: [CARTEIRA, unidadesDoToken(micro, rede)],
+        }),
+      });
+    }
   });
 
   it("só ativa redes com carteira válida e RPC", () => {

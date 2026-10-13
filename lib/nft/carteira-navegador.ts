@@ -5,8 +5,9 @@ import { CARTEIRAS_ACEITAS } from "./comum";
  * Carteiras Solana instaladas no navegador (padrão Wallet Standard, que a
  * Phantom, a Solflare, a Backpack e a MetaMask seguem). Só no navegador.
  *
- * O app nunca pede transação à carteira: só conecta (para saber o endereço) e
+ * Aqui o app nunca pede transação à carteira: só conecta (para saber o endereço) e
  * pede a assinatura de uma mensagem, que prova a posse e não custa nada.
+ * Quem pede transação é o pagamento em USDC, em lib/carteira.
  */
 
 /** O pedaço do Wallet Standard que o app usa. */
@@ -75,7 +76,7 @@ export class CarteiraError extends Error {
 }
 
 /** A pessoa fechou ou recusou o pedido na janela da carteira (código 4001 das carteiras). */
-function recusouNaCarteira(e: unknown): boolean {
+export function recusouNaCarteira(e: unknown): boolean {
   const erro = e as { code?: number; message?: string } | null;
   return (
     erro?.code === 4001 ||
@@ -83,7 +84,7 @@ function recusouNaCarteira(e: unknown): boolean {
   );
 }
 
-function respostaDaCarteira(e: unknown): string {
+export function respostaDaCarteira(e: unknown): string {
   const m = (e as { message?: unknown } | null)?.message;
   return (typeof m === "string" && m ? m : String(e)).slice(0, 160);
 }

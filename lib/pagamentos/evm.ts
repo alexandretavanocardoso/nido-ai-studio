@@ -92,6 +92,32 @@ export function linkEip681(rede: RedeEvm, micro: bigint): string {
   return `ethereum:${c.usdc}@${c.chainId}/transfer?address=${carteiraEvm()}&uint256=${unidadesDoToken(micro, rede)}`;
 }
 
+/** O que a carteira conectada do usuário assina para pagar: a chamada no contrato do USDC. */
+export interface TransferenciaEvm {
+  chainId: number;
+  /** Contrato do USDC nesta rede. */
+  para: string;
+  /** `transfer(carteira da NIDO, valor)` já codificado. */
+  dados: string;
+}
+
+export function transferenciaUsdc(
+  rede: RedeEvm,
+  micro: bigint,
+): TransferenciaEvm {
+  const c = REDES_EVM[rede];
+  const palavra = (hex: string) => hex.padStart(64, "0");
+  return {
+    chainId: c.chainId,
+    para: c.usdc,
+    // 0xa9059cbb = transfer(address,uint256)
+    dados:
+      "0xa9059cbb" +
+      palavra(carteiraEvm().slice(2).toLowerCase()) +
+      palavra(unidadesDoToken(micro, rede).toString(16)),
+  };
+}
+
 /**
  * RPCs públicos de reserva (sem chave). Usado quando o RPC do .env
  * falha por HTTP/rede — ex.: allowlist de origem no provedor (Ankr "Origin not allowed").

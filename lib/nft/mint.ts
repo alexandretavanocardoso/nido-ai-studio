@@ -24,7 +24,6 @@ import {
   type RedeNft,
 } from "./config";
 import { montarMint } from "./core";
-import { imagemDoNft } from "./imagem";
 import { hashDaFicha, nomeNaRede } from "./metadados";
 import { proximoPasso, type Fatos } from "./decisao";
 import {
@@ -150,7 +149,7 @@ export async function personagensComNft(userId: string): Promise<string[]> {
  * personagem (lib/nft/imagem.ts). Fica fora do personagem: gerar outro retrato,
  * trocar a capa ou apagar o personagem não muda nem tira a imagem do NFT (a
  * limpeza do S3 poupa as keys de nft_mints — ver lib/storage/cleanup.ts). Só
- * muda quando o dono pede (atualizarImagemDoNft).
+ * a imagem do NFT é a que foi escolhida antes do mint, e não muda mais.
  */
 async function copiarCapa(
   s3: S3Client,
@@ -173,8 +172,20 @@ function recusa(error: string, code: string, status: number): NextResponse {
   return NextResponse.json({ error, code }, { status });
 }
 
-const SEM_RETRATO =
-  "Gere o retrato do personagem antes de mintar: ele é a imagem do NFT.";
+const SEM_ARTE =
+  "Gere as artes do NFT e escolha uma antes de mintar: ela é a imagem do NFT.";
+
+/** Key da arte ESCOLHIDA para o NFT do personagem (lib/nft/arte-server.ts), ou null. */
+async function arteDoNft(
+  userId: string,
+  characterId: string,
+): Promise<string | null> {
+  const { rows } = await pool().query<{ key: string }>(
+    "select key from nft_artes where character_id = $1 and user_id = $2 and key is not null",
+    [characterId, userId],
+  );
+  return rows[0]?.key ?? null;
+}
 
 /**
  * Minta o NFT do personagem para a carteira vinculada à conta. Devolve o mint
@@ -222,10 +233,10 @@ export async function mintar(o: {
       "BAD_INPUT",
       400,
     );
-  // A imagem do NFT é pública: só o Retrato gerado serve (nunca uma referência).
-  const capa = imagemDoNft(personagem);
-  if (!capa || !ownsKey(userId, capa))
-    return recusa(SEM_RETRATO, "SEM_RETRATO", 400);
+  // A imagem do NFT é pública: só a arte gerada para ele serve (nunca uma
+  // referência nem outra imagem do personagem).
+  const capa = await arteDoNft(userId, characterId);
+  if (!capa || !ownsKey(userId, capa)) return recusa(SEM_ARTE, "SEM_ARTE", 400);
 
   const bloqueio = bloqueioNft(await planoAtual(userId));
   if (bloqueio) return recusa(bloqueio, "PLANO", 403);
@@ -384,37 +395,6 @@ export async function mintar(o: {
   }
   fim ??= await ler(id);
   return { mint: paraResposta(fim!) };
-}
-
-/**
- * Troca a imagem do NFT já mintado pelo Retrato atual do personagem. Não é
- * transação: a imagem é servida pelo app (/api/nft/meta/<asset>/imagem), então
- * basta refazer a cópia. Carteiras e explorers guardam a imagem antiga por até
- * um dia. Devolve a recusa pronta, ou null se trocou.
- */
-export async function atualizarImagemDoNft(o: {
-  userId: string;
-  characterId: string;
-  s3: S3Client;
-}): Promise<NextResponse | null> {
-  const mint = await mintDoPersonagem(o.userId, o.characterId);
-  if (!mint || mint.status !== "confirmado")
-    return recusa("Este personagem ainda não tem um NFT.", "NOT_FOUND", 404);
-  const personagem = await carregarPersonagem(o.userId, o.characterId);
-  if (!personagem) return recusa("Personagem não encontrado.", "NOT_FOUND", 404);
-  const imagem = imagemDoNft(personagem);
-  if (!imagem || !ownsKey(o.userId, imagem))
-    return recusa(
-      "Gere um retrato do personagem para usar como imagem do NFT.",
-      "SEM_RETRATO",
-      400,
-    );
-  const capaKey = await copiarCapa(o.s3, o.userId, mint.id, imagem);
-  await pool().query(
-    "update nft_mints set capa_key = $2, updated_at = now() where id = $1",
-    [mint.id, capaKey],
-  );
-  return null;
 }
 
 /** A cobrança de um mint, lida do extrato (quando não deu tempo de gravá-la na linha). */

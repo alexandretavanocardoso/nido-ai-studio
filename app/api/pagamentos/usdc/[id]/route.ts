@@ -27,8 +27,9 @@ export async function GET(
 }
 
 /**
- * POST — redes EVM: o usuário cola o hash (ou link do explorer) da transação.
- * O servidor confere valor, destino e horário na rede e aplica a compra.
+ * POST — o usuário cola o hash (ou link do explorer) da transação: nas EVM
+ * sempre; na Solana, quando pagou sem o QR. O servidor confere valor, destino
+ * e horário na rede e aplica a compra.
  */
 export async function POST(
   req: Request,

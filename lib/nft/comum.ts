@@ -70,6 +70,12 @@ export interface EstadoNft {
   rede: "devnet" | "mainnet";
   /** Créditos que o mint custa. */
   custo: number;
+  /** Arte escolhida para o NFT (key do arquivo), ou null. É a imagem que vai para o NFT. */
+  arte: string | null;
+  /** Opções de arte da última geração: a pessoa escolhe uma antes de mintar. */
+  artes: string[];
+  /** Créditos de uma geração de artes (as cinco opções). */
+  custoArte: number;
   /** Motivo pelo qual o plano não deixa mintar (null = deixa). */
   bloqueio: string | null;
   /** Carteira vinculada à conta (null = nenhuma). */

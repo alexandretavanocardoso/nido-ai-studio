@@ -98,7 +98,7 @@ export function NftPersonagem({ character }: { character: Character }) {
   const [trocando, setTrocando] = useState(false);
   const [aceito, setAceito] = useState(false);
   const [ocupado, setOcupado] = useState<
-    "carteira" | "mint" | "imagem" | null
+    "carteira" | "mint" | "arte" | null
   >(null);
   const [erro, setErro] = useState<Erro | null>(null);
   /** Metadados públicos do NFT (o que carteiras e explorers leem). */
@@ -255,23 +255,48 @@ export function NftPersonagem({ character }: { character: Character }) {
     }
   }
 
-  async function atualizarImagem() {
+  /** Escolhe, entre as opções geradas, a arte que vai para o NFT. */
+  async function escolherArte(key: string) {
     setErro(null);
-    setOcupado("imagem");
     try {
-      const res = await fetch(`/api/nft/personagem/${characterId}/imagem`, {
-        method: "POST",
+      const res = await fetch(`/api/nft/personagem/${characterId}/arte`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key }),
       });
       const b = await res.json().catch(() => ({}));
       if (!res.ok)
         return setErro({
           msg: txErro(b.error ?? `Falha (HTTP ${res.status}).`),
-          em: "nft",
+          code: b.code,
+          em: "mint",
         });
-      // A versão da imagem vem do servidor: o endereço muda e o navegador busca a nova.
       await carregar();
     } catch {
-      setErro({ msg: tx("Não foi possível atualizar a imagem."), em: "nft" });
+      setErro({ msg: tx("Não foi possível escolher a arte."), em: "mint" });
+    }
+  }
+
+  /** Gera cinco opções de arte do NFT (só antes do mint). */
+  async function gerarArte(em: Erro["em"]) {
+    setErro(null);
+    setOcupado("arte");
+    try {
+      const res = await fetch(`/api/nft/personagem/${characterId}/arte`, {
+        method: "POST",
+      });
+      const b = await res.json().catch(() => ({}));
+      avisarCreditos();
+      recarregarCreditos();
+      if (!res.ok)
+        return setErro({
+          msg: txErro(b.error ?? `Falha (HTTP ${res.status}).`),
+          code: b.code,
+          em,
+        });
+      await carregar();
+    } catch {
+      setErro({ msg: tx("Não foi possível gerar as artes do NFT."), em });
     } finally {
       setOcupado(null);
     }
@@ -307,15 +332,16 @@ export function NftPersonagem({ character }: { character: Character }) {
     );
 
   const semCreditos = !!conta && conta.total < estado.custo;
-  // A imagem do NFT é pública: só o retrato gerado serve.
+  // A arte do NFT é feita a partir do retrato, e é ela que fica pública.
   const retrato = imagemDoNft(character);
+  const arte = estado.arte;
   const podeMintar =
     !mintado &&
     !confirmando &&
     !estado.bloqueio &&
     !!estado.carteira &&
     completo &&
-    !!retrato &&
+    !!arte &&
     estado.mintDisponivel &&
     !semCreditos;
 
@@ -387,8 +413,6 @@ export function NftPersonagem({ character }: { character: Character }) {
           character={character}
           estado={estado}
           meta={meta}
-          atualizando={ocupado === "imagem"}
-          onAtualizarImagem={atualizarImagem}
           onMintar={() => setDentro("geral")}
           erro={erro?.em === "nft" ? erro : null}
         />
@@ -529,6 +553,69 @@ export function NftPersonagem({ character }: { character: Character }) {
                       )}
                     </p>
                   ) : null}
+                  {retrato && !estado.bloqueio ? (
+                    <div className="grid gap-2.5 rounded-xl border border-line bg-bg/40 px-3.5 py-3">
+                      <p className="text-[13px] text-ink">
+                        {tx(
+                          "A arte do NFT é o retrato do personagem redesenhado no estilo da coleção. Você gera 5 opções e escolhe uma; é ela que vai para a sua carteira.",
+                        )}
+                      </p>
+                      {estado.artes.length ? (
+                        <ul className="grid grid-cols-5 gap-2">
+                          {estado.artes.map((k, i) => (
+                            <li key={k}>
+                              <button
+                                type="button"
+                                disabled={ocupado !== null}
+                                aria-pressed={k === arte}
+                                title={`${tx("Arte")} ${i + 1}`}
+                                onClick={() => escolherArte(k)}
+                                className={cn(
+                                  "relative block aspect-square w-full overflow-hidden rounded-xl border-2 transition disabled:opacity-60",
+                                  k === arte
+                                    ? "border-accent shadow-glow"
+                                    : "border-line hover:border-ink/50",
+                                )}
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={fileUrl(k)}
+                                  alt={`${tx("Arte")} ${i + 1}`}
+                                  className="h-full w-full object-cover"
+                                />
+                                {k === arte ? (
+                                  <span className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-accent text-bg">
+                                    <Check className="h-3 w-3" />
+                                  </span>
+                                ) : null}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      <p className="text-[12px] leading-relaxed text-pink">
+                        {tx(
+                          "Atenção: depois do mint a imagem não pode mais ser trocada. A arte mantém o rosto e os traços do retrato: se o personagem se parece com uma pessoa real, a imagem dela fica num registro público que não pode ser apagado. Só gere e minte com a autorização dessa pessoa.",
+                        )}
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-fit"
+                        disabled={ocupado !== null}
+                        onClick={() => gerarArte("mint")}
+                      >
+                        {ocupado === "arte" ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <ImageIcon className="w-3.5 h-3.5" />
+                        )}
+                        {ocupado === "arte"
+                          ? tx("Gerando as 5 artes… (até 2 minutos)")
+                          : `${estado.artes.length ? tx("Gerar outras 5 artes") : tx("Gerar 5 artes do NFT")} · ${estado.custoArte} ${tx("créditos")}`}
+                      </Button>
+                    </div>
+                  ) : null}
                   {estado.bloqueio ? (
                     <ErroGeracao
                       mensagem={txErro(estado.bloqueio)}
@@ -551,6 +638,12 @@ export function NftPersonagem({ character }: { character: Character }) {
                       {tx(
                         "Gere o retrato do personagem em Estúdio → Imagens para mintar: ele é a imagem do NFT.",
                       )}
+                    </p>
+                  ) : !arte ? (
+                    <p className="text-[13px] text-ink-mute">
+                      {estado.artes.length
+                        ? tx("Escolha uma das artes para mintar.")
+                        : tx("Gere as artes do NFT e escolha uma para mintar.")}
                     </p>
                   ) : !estado.carteira ? (
                     <p className="text-[13px] text-ink-mute">
@@ -615,18 +708,9 @@ export function NftPersonagem({ character }: { character: Character }) {
                     ) : null}
                   </div>
                   <div className="flex items-start gap-3">
-                    {retrato ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={fileUrl(retrato)}
-                        alt={tx("Imagem que fica pública no NFT")}
-                        title={tx("Imagem que fica pública no NFT")}
-                        className="h-12 w-12 shrink-0 rounded-xl border border-line object-cover object-top"
-                      />
-                    ) : null}
                     <p className="text-[12px] leading-relaxed text-ink-dim">
                       {tx(
-                        "Ficam públicos: nome, bio, o retrato e os traços principais do personagem. O modelo treinado, a voz e as referências continuam privados.",
+                        "Ficam públicos: nome, bio, a arte do NFT e os traços principais do personagem. O modelo treinado, a voz e as referências continuam privados.",
                       )}{" "}
                       <button
                         type="button"
@@ -741,32 +825,27 @@ const ehTraco = (t: string) =>
 /**
  * O NFT como o mundo vê. Depois do mint, sai dos metadados públicos — os mesmos
  * que carteiras e explorers leem — e da imagem pública. Antes do mint, é uma
- * prévia com o retrato que será publicado.
+ * prévia com a arte que será publicada.
  */
 function CartaoDoNft({
   character,
   estado,
   meta,
-  atualizando,
-  onAtualizarImagem,
   onMintar,
   erro,
 }: {
   character: Character;
   estado: EstadoNft;
   meta: MetadadosNft | null;
-  atualizando: boolean;
-  onAtualizarImagem: () => void;
   onMintar: () => void;
   erro: Erro | null;
 }) {
   const mint = estado.mint?.status === "confirmado" ? estado.mint : null;
-  const retrato = imagemDoNft(character);
   // A imagem pública fica em cache; a versão (do servidor) muda quando ela é trocada.
   const src = mint
     ? `/api/nft/meta/${mint.asset}/imagem?v=${mint.imagemVersao}`
-    : retrato
-      ? fileUrl(retrato)
+    : estado.arte
+      ? fileUrl(estado.arte)
       : null;
   const nome =
     meta?.name ?? (character.identidade.nome.trim() || tx("Sem nome"));
@@ -791,7 +870,8 @@ function CartaoDoNft({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
-      <div className="relative mx-auto aspect-[4/5] w-full max-w-[340px] overflow-hidden rounded-3xl border border-line bg-panel">
+      {/* Quadrado, como a arte do NFT: num quadro mais alto ela era cortada dos lados. */}
+      <div className="relative mx-auto aspect-square w-full max-w-[340px] overflow-hidden rounded-3xl border border-line bg-panel">
         {src ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -916,22 +996,6 @@ function CartaoDoNft({
               >
                 {tx("Metadados públicos")} <ExternalLink className="w-3 h-3" />
               </a>
-              <button
-                type="button"
-                disabled={atualizando}
-                onClick={onAtualizarImagem}
-                title={tx(
-                  "Troca a imagem do NFT pelo retrato atual do personagem. Não é transação e não custa créditos.",
-                )}
-                className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-ink-mute hover:text-ink disabled:opacity-50"
-              >
-                {atualizando ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-3.5 w-3.5" />
-                )}
-                {tx("Usar o retrato atual")}
-              </button>
             </div>
             {foraDoAr ? (
               <p className="max-w-2xl rounded-xl border border-line bg-panel/60 px-3.5 py-2.5 text-[12px] leading-relaxed text-ink-mute">
@@ -949,7 +1013,7 @@ function CartaoDoNft({
           <div className="grid gap-3">
             <p className="max-w-2xl text-[13px] leading-relaxed text-ink-mute">
               {tx(
-                "É assim que o NFT vai aparecer. A imagem é o retrato do personagem; os traços e os badges entram depois do mint.",
+                "É assim que o NFT vai aparecer. A imagem é a arte que você escolher, e não muda depois do mint; os traços e os badges entram depois do mint.",
               )}
               {!temRetrato(character)
                 ? ` ${tx("Este personagem ainda não tem um retrato gerado: gere um em Estúdio → Imagens para ele ser a imagem do NFT.")}`

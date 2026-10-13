@@ -777,7 +777,7 @@ export const TEXTOS_EN: Record<string, string> = {
   "Treinar de novo": "Train again",
   "Treinar persona": "Train persona",
   "Trocar legenda": "Replace caption",
-  "Trocar pessoa": "Swap person",
+  Sombra: "Shadow",
   "Trocar pessoa pelo personagem": "Swap person for the character",
   "Trocar pessoa por link": "Swap person from a link",
   "Troque a pessoa de um vídeo pelo personagem, crie cenas novas, edite legendas e falas.":
@@ -965,6 +965,30 @@ export const TEXTOS_EN: Record<string, string> = {
     "Paid already? Paste the transaction link or hash",
   "Ex.: https://basescan.org/tx/0x… ou 0x…":
     "E.g.: https://basescan.org/tx/0x… or 0x…",
+  "Pagou sem o QR? Cole o link ou o hash da transação":
+    "Paid without the QR? Paste the transaction link or hash",
+  "Ex.: https://solscan.io/tx/… ou o hash":
+    "E.g.: https://solscan.io/tx/… or the hash",
+  // carteira conectada (barra do topo) e pagamento por ela
+  "Conectar carteira": "Connect wallet",
+  "Carteira conectada": "Connected wallet",
+  "Carteira para pagar em USDC": "Wallet to pay in USDC",
+  Desconectar: "Disconnect",
+  "Nenhuma carteira desta rede instalada neste navegador.":
+    "No wallet for this network is installed in this browser.",
+  "Pagar com": "Pay with",
+  "Conecte a carteira para pagar": "Connect your wallet to pay",
+  "Usar outra carteira": "Use another wallet",
+  "Aprove o pedido na janela da carteira…":
+    "Approve the request in the wallet window…",
+  "Pagar com QR ou transferência": "Pay with QR or transfer",
+  "Pagamento enviado": "Payment sent",
+  "Aguardando a rede confirmar — costuma levar menos de um minuto. Pode fechar esta janela: os créditos entram sozinhos.":
+    "Waiting for the network to confirm — it usually takes less than a minute. You can close this window: the credits are added automatically.",
+  "Você tem um pagamento enviado aguardando a confirmação da rede. Espere os créditos entrarem antes de pagar de novo.":
+    "You have a payment sent and waiting for network confirmation. Wait for the credits to arrive before paying again.",
+  "Não consegui preparar o pagamento. Tente de novo.":
+    "Couldn't prepare the payment. Try again.",
   "Conferimos na rede: destino, valor e se a transação foi feita depois desta cobrança. Cada transação vale para um pagamento só.":
     "We check on-chain: destination, amount and whether the transaction happened after this charge. Each transaction counts for one payment only.",
   "Nome do personagem": "Character name",
@@ -2821,6 +2845,66 @@ export const TEXTOS_EN: Record<string, string> = {
   // NFT do influencer (lib/nft)
   "Carregando o NFT do influencer…": "Loading the influencer NFT…",
   "Tentar de novo": "Try again",
+  "Gere as artes do NFT e escolha uma antes de mintar: ela é a imagem do NFT.":
+    "Generate the NFT arts and choose one before minting: it is the NFT image.",
+  "A imagem do NFT não pode mais ser trocada depois do mint.":
+    "The NFT image can no longer be changed after minting.",
+  "Não consegui gerar as artes do NFT. Os créditos foram devolvidos.":
+    "Could not generate the NFT arts. The credits were refunded.",
+  "Essa arte não está entre as opções.":
+    "That art is not among the options.",
+  "Escolha uma das artes.":
+    "Choose one of the arts.",
+  "Não foi possível escolher a arte.":
+    "Could not choose the art.",
+  "Não foi possível gerar as artes do NFT.":
+    "Could not generate the NFT arts.",
+  "Escolha uma das artes para mintar.":
+    "Choose one of the arts to mint.",
+  "Gere as artes do NFT e escolha uma para mintar.":
+    "Generate the NFT arts and choose one to mint.",
+  "A arte do NFT é o retrato do personagem redesenhado no estilo da coleção. Você gera 5 opções e escolhe uma; é ela que vai para a sua carteira.":
+    "The NFT art is the character's portrait redrawn in the collection style. You generate 5 options and choose one; it is what goes to your wallet.",
+  "Arte":
+    "Art",
+  "Atenção: depois do mint a imagem não pode mais ser trocada. A arte mantém o rosto e os traços do retrato: se o personagem se parece com uma pessoa real, a imagem dela fica num registro público que não pode ser apagado. Só gere e minte com a autorização dessa pessoa.":
+    "Warning: after minting the image can no longer be changed. The art keeps the face and features of the portrait: if the character looks like a real person, their image ends up in a public record that cannot be erased. Only generate and mint with that person\u2019s authorization.",
+  "Gerando as 5 artes… (até 2 minutos)":
+    "Generating the 5 arts… (up to 2 minutes)",
+  "Gerar outras 5 artes":
+    "Generate 5 more arts",
+  "Gerar 5 artes do NFT":
+    "Generate 5 NFT arts",
+  "É assim que o NFT vai aparecer. A imagem é a arte que você escolher, e não muda depois do mint; os traços e os badges entram depois do mint.":
+    "This is how the NFT will look. The image is the art you choose, and it does not change after minting; traits and badges come after minting.",
+  "A arte do NFT não está configurada (OPENAI_API_KEY).":
+    "The NFT art is not configured (OPENAI_API_KEY).",
+  "Atenção: a arte mantém o rosto e os traços do retrato. Se o personagem se parece com uma pessoa real, a imagem dela fica num registro público que não pode ser apagado. Só gere e minte com a autorização dessa pessoa.":
+    "Warning: the art keeps the face and features of the portrait. If the character looks like a real person, their image ends up in a public record that cannot be erased. Only generate and mint with that person’s authorization.",
+  "Gere a arte do NFT antes de mintar: ela é a imagem do NFT.":
+    "Generate the NFT art before minting: it is the NFT image.",
+  "Gere a arte do NFT para usar como imagem.":
+    "Generate the NFT art to use as the image.",
+  "Gere o retrato do personagem antes: a arte do NFT é feita a partir dele.":
+    "Generate the character's portrait first: the NFT art is made from it.",
+  "Não consegui gerar a arte do NFT. Os créditos foram devolvidos.":
+    "Could not generate the NFT art. The credits were refunded.",
+  "Não foi possível gerar a arte do NFT.":
+    "Could not generate the NFT art.",
+  "Primeiro, a arte do NFT: o retrato do personagem redesenhado no estilo da coleção. É ela que vai para a sua carteira.":
+    "First, the NFT art: the character's portrait redrawn in the collection style. It is what goes to your wallet.",
+  "Gerando a arte… (até 1 minuto)":
+    "Generating the art… (up to 1 minute)",
+  "Gerar arte do NFT":
+    "Generate NFT art",
+  "Gerar outra arte":
+    "Generate another art",
+  "Ficam públicos: nome, bio, a arte do NFT e os traços principais do personagem. O modelo treinado, a voz e as referências continuam privados.":
+    "These become public: name, bio, the NFT art and the character's main traits. The trained model, the voice and the references stay private.",
+  "Gera uma arte nova a partir do retrato atual e troca a imagem do NFT. Não é transação na rede.":
+    "Generates a new art from the current portrait and replaces the NFT image. It is not a network transaction.",
+  "É assim que o NFT vai aparecer. A imagem é a arte do NFT, feita a partir do retrato do personagem; os traços e os badges entram depois do mint.":
+    "This is how the NFT will look. The image is the NFT art, made from the character's portrait; traits and badges come after minting.",
   "Carteira Solana": "Solana wallet",
   "Vinculada": "Linked",
   "Nenhuma carteira vinculada": "No wallet linked",

@@ -1,6 +1,7 @@
 import { planoAtual } from "@/lib/creditos";
 import { getPool } from "@/lib/db";
 import { bloqueioNft, CREDITOS_MINT_NFT } from "@/lib/planos";
+import { CREDITOS_ARTE_NFT } from "./arte";
 import { BADGES, lerTotais } from "./badges";
 import { carteiraDaConta } from "./carteira-server";
 import type { BadgeDoPersonagem, EstadoNft } from "./comum";
@@ -84,9 +85,16 @@ export async function estadoNft(
       chaveDeMintComSaldo(),
       autoresPendentes(pool, userId, characterId),
     ]);
+  const { rows: arte } = await pool.query<{ key: string | null; opcoes: string[] }>(
+    "select key, opcoes from nft_artes where character_id = $1 and user_id = $2",
+    [characterId, userId],
+  );
   return {
     rede: redeNft() ?? "mainnet",
     custo: CREDITOS_MINT_NFT,
+    arte: arte[0]?.key ?? null,
+    artes: arte[0]?.opcoes ?? [],
+    custoArte: CREDITOS_ARTE_NFT,
     bloqueio: bloqueioNft(plano),
     carteira,
     saldoSol,

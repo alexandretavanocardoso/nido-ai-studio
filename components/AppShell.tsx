@@ -45,6 +45,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { CarteiraNaBarra } from "@/components/carteira/CarteiraNaBarra";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
 import { liberadoNaTela } from "@/lib/em-teste";
 import { CreateDialog, type InicioCriar } from "@/components/home/CreateDialog";
@@ -912,6 +913,7 @@ function BarraDoApp({
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <SeletorDePersonagem />
+        <CarteiraNaBarra />
         <AvisosRadar />
         <button
           type="button"

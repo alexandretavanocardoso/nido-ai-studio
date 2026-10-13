@@ -86,6 +86,11 @@ vi.mock("@/lib/db", () => ({
         });
         return { rows: [], rowCount: 1 };
       }
+      if (sql.includes("from nft_artes"))
+        // A arte do NFT: todo personagem tem, menos o "sem_arte".
+        return {
+          rows: p[0] === "sem_arte" ? [] : [{ key: `users/${p[1]}/nft/arte-${p[0]}.jpg` }],
+        };
       if (sql.includes("insert into consentimentos")) {
         e.consentimentos++;
         return { rows: [], rowCount: 1 };
@@ -245,7 +250,7 @@ vi.mock("@/lib/personagens", () => ({
   carregarPersonagem: async (_u: string, id: string) =>
     id === "sumido"
       ? null
-      : personagem(id === "rascunho", id !== "sem_retrato"),
+      : personagem(id === "rascunho"),
 }));
 vi.mock("./carteira-server", () => ({
   carteiraDaConta: async () => e.carteira,
@@ -385,10 +390,10 @@ describe("mintar", () => {
     expect(e.eventos).toEqual([]);
   });
 
-  it("sem retrato gerado não minta: a referência enviada nunca vira a imagem pública", async () => {
-    expect(await recusa(await pedir("sem_retrato"))).toMatchObject({
+  it("sem a arte do NFT não minta: retrato, referência ou outra imagem nunca viram a imagem pública", async () => {
+    expect(await recusa(await pedir("sem_arte"))).toMatchObject({
       status: 400,
-      code: "SEM_RETRATO",
+      code: "SEM_ARTE",
     });
     expect(e.linhas).toHaveLength(0);
     expect(e.eventos).toEqual([]);

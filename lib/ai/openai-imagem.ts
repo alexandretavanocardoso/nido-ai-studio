@@ -10,12 +10,13 @@ export function getOpenAIKey(): string | null {
   return process.env.OPENAI_API_KEY?.trim() || null;
 }
 
-type Tipo = "referencia" | "retrato";
+type Tipo = "referencia" | "retrato" | "quadrado";
 
-/** Mesmos tamanhos usados no fal: card 16:9, retrato 2:3 (múltiplos de 16). */
+/** Mesmos tamanhos usados no fal: card 16:9, retrato 2:3 (múltiplos de 16). Quadrado: a arte do NFT. */
 const TAMANHO: Record<Tipo, string> = {
   referencia: "1536x864",
   retrato: "1024x1536",
+  quadrado: "1024x1024",
 };
 
 /** Erro da OpenAI já com a mensagem em português pra mostrar na tela. */

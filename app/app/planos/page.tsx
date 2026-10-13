@@ -55,6 +55,26 @@ import {
 import { recursosDoPlano } from "@/lib/planos-recursos";
 import { idiomaAtual, tx } from "@/lib/i18n/tx";
 import { REDES_USDC, type RedeUsdc } from "@/lib/pagamentos/redes-usdc";
+import {
+  acompanharPagamento,
+  aguardandoRede,
+  useEnviado,
+  useOutroEnviado,
+} from "@/lib/pagamentos/enviados";
+import type { TransferenciaEvm } from "@/lib/pagamentos/evm";
+import {
+  erroDaCarteira,
+  IconeDaCarteira,
+} from "@/components/carteira/CarteiraNaBarra";
+import {
+  conectarCarteira,
+  desconectarCarteira,
+  useCarteiras,
+} from "@/lib/carteira";
+import { enviarTransacaoEvm } from "@/lib/carteira/evm";
+import { enviarTransacaoSolana } from "@/lib/carteira/solana";
+import { CarteiraError } from "@/lib/nft/carteira-navegador";
+import { abreviarEndereco } from "@/lib/nft/comum";
 import { txErro } from "@/lib/i18n/erros";
 
 type Compra =
@@ -672,6 +692,7 @@ interface CobrancaUsdc {
   link: string;
   qr: string;
   carteira: string;
+  evm?: TransferenciaEvm;
 }
 
 function PagamentoUsdc({
@@ -686,16 +707,142 @@ function PagamentoUsdc({
   const { usdcRedes } = useRecursos();
   const redes = REDES_USDC.filter((r) => usdcRedes.includes(r.id));
   const [rede, setRede] = useState<RedeUsdc | null>(redes[0]?.id ?? null);
+  /**
+   * Abrir o modal não cria cobrança: ela só nasce quando a pessoa paga pela
+   * carteira ou pede o QR. Até lá o valor mostrado é o preço de tabela.
+   */
   const [cobranca, setCobranca] = useState<CobrancaUsdc | null>(null);
-  const [status, setStatus] = useState<
-    "criando" | "pendente" | "pago" | "expirado"
-  >("criando");
+  const [criando, setCriando] = useState(false);
+  const [status, setStatus] = useState<"pendente" | "pago" | "expirado">(
+    "pendente",
+  );
   const [erro, setErro] = useState<string | null>(null);
   const [copiado, setCopiado] = useState<string | null>(null);
-  /** EVM: hash/link da transação colado pelo usuário. */
+  /** Hash/link da transação colado pelo usuário (na Solana, plano B da confirmação automática). */
   const [txPago, setTxPago] = useState("");
   const [conferindo, setConferindo] = useState(false);
   const [erroTx, setErroTx] = useState<string | null>(null);
+  /** Carteira do navegador (a da barra do topo): é dela que o pagamento sai. */
+  const carteiras = useCarteiras();
+  const [conectando, setConectando] = useState(false);
+  const [pagando, setPagando] = useState(false);
+  const [erroCarteira, setErroCarteira] = useState<string | null>(null);
+  /** QR e transferência manual: só depois de pedidos. */
+  const [outrasFormas, setOutrasFormas] = useState(false);
+  /** A carteira já enviou o pagamento desta cobrança: lib/pagamentos/enviados.ts acompanha. */
+  const enviado = useEnviado(cobranca?.id);
+  const outroEnviado = useOutroEnviado(cobranca?.id);
+  const acompanhando = !!enviado && !enviado.erro;
+  const familia = rede === "solana" ? "solana" : "evm";
+  const conectada = carteiras[familia];
+  const instaladas = carteiras.instaladas[familia];
+  const situacao = enviado?.pago ? "pago" : status;
+  const info = REDES_USDC.find((r) => r.id === rede);
+  const ocupado = criando || pagando || conectando;
+  const precoTabela =
+    compra.tipo === "pacote"
+      ? PACOTES[compra.pacote].precoUSD
+      : compra.tipo === "avulso"
+        ? precoAvulso(compra.creditos, "USD")
+        : precoPlano(compra.plano, compra.intervalo, "USD");
+
+  function trocarRede(id: RedeUsdc) {
+    if (id === rede) return;
+    setRede(id);
+    setCobranca(null);
+    setStatus("pendente");
+    setOutrasFormas(false);
+    setErro(null);
+    setTxPago("");
+    setErroTx(null);
+    setErroCarteira(null);
+  }
+
+  /** Cria a cobrança desta compra na rede escolhida (o servidor devolve a que já estiver em aberto). */
+  async function criarCobranca(): Promise<CobrancaUsdc | null> {
+    if (cobranca) return cobranca;
+    if (!rede) return null;
+    setErro(null);
+    setCriando(true);
+    try {
+      const r = await fetch("/api/pagamentos/usdc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...compra, rede }),
+      });
+      const b = await r.json().catch(() => ({}));
+      if (!r.ok)
+        throw new Error(txErro(b.error ?? "Não consegui criar a cobrança."));
+      setCobranca(b);
+      return b as CobrancaUsdc;
+    } catch (e) {
+      setErro((e as Error).message);
+      return null;
+    } finally {
+      setCriando(false);
+    }
+  }
+
+  async function conectar(id: string) {
+    setConectando(true);
+    setErroCarteira(null);
+    try {
+      await conectarCarteira(familia, id);
+    } catch (e) {
+      setErroCarteira(
+        erroDaCarteira(e, "Não foi possível conectar a carteira."),
+      );
+    } finally {
+      setConectando(false);
+    }
+  }
+
+  async function pagarComCarteira() {
+    const c = carteiras[familia];
+    if (!c) return;
+    setPagando(true);
+    setErroCarteira(null);
+    try {
+      const cob = await criarCobranca();
+      // Reaberto com o pagamento desta cobrança já enviado: não paga de novo.
+      if (!cob || aguardandoRede(cob.id)) return;
+      let hash: string;
+      if (cob.evm) hash = await enviarTransacaoEvm(c.id, c.endereco, cob.evm);
+      else {
+        const r = await fetch(`/api/pagamentos/usdc/${cob.id}/transacao`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pagador: c.endereco }),
+        });
+        const b = (await r.json().catch(() => ({}))) as {
+          transacao?: string;
+          cadeia?: string;
+          error?: string;
+        };
+        if (!r.ok || !b.transacao || !b.cadeia)
+          throw new CarteiraError(
+            b.error ?? "Não consegui preparar o pagamento. Tente de novo.",
+          );
+        hash = await enviarTransacaoSolana(
+          c.id,
+          c.endereco,
+          Uint8Array.from(atob(b.transacao), (ch) => ch.charCodeAt(0)),
+          b.cadeia,
+        );
+      }
+      acompanharPagamento(cob.id, hash);
+    } catch (e) {
+      setErroCarteira(
+        erroDaCarteira(e, "Não consegui preparar o pagamento. Tente de novo."),
+      );
+    } finally {
+      setPagando(false);
+    }
+  }
+
+  async function abrirOutrasFormas() {
+    if (await criarCobranca()) setOutrasFormas(true);
+  }
 
   async function conferirTx() {
     if (!cobranca || !txPago.trim()) return;
@@ -721,36 +868,10 @@ function PagamentoUsdc({
       setConferindo(false);
     }
   }
-  const info = REDES_USDC.find((r) => r.id === rede);
 
   useEffect(() => {
-    if (!rede) return;
-    let vivo = true;
-    setCobranca(null);
-    setErro(null);
-    setStatus("criando");
-    fetch("/api/pagamentos/usdc", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...compra, rede }),
-    })
-      .then(async (r) => {
-        const b = await r.json();
-        if (!r.ok) throw new Error(txErro(b.error ?? "Não consegui criar a cobrança."));
-        if (!vivo) return;
-        setCobranca(b);
-        setStatus("pendente");
-      })
-      .catch((e) => {
-        if (vivo) setErro((e as Error).message);
-      });
-    return () => {
-      vivo = false;
-    };
-  }, [compra, rede]);
-
-  useEffect(() => {
-    if (!cobranca || status !== "pendente") return;
+    // Com o pagamento enviado pela carteira, quem confere é o acompanhamento.
+    if (!cobranca || status !== "pendente" || acompanhando) return;
     const t = setInterval(async () => {
       const r = await fetch(`/api/pagamentos/usdc/${cobranca.id}`, {
         cache: "no-store",
@@ -764,7 +885,7 @@ function PagamentoUsdc({
       } else if (b?.status === "expirado") setStatus("expirado");
     }, 5000);
     return () => clearInterval(t);
-  }, [cobranca, status]);
+  }, [cobranca, status, acompanhando]);
 
   async function copiar(texto: string, qual: string) {
     if (await copyToClipboard(texto)) {
@@ -799,7 +920,7 @@ function PagamentoUsdc({
         </h2>
         <p className="text-[13px] text-ink-mute mb-4">{titulo}</p>
 
-        {status !== "pago" && redes.length > 1 && (
+        {situacao !== "pago" && !acompanhando && redes.length > 1 && (
           <div className="mb-4">
             <div className="label-cap mb-2">{tx("Rede")}</div>
             <div
@@ -813,9 +934,10 @@ function PagamentoUsdc({
                   type="button"
                   role="radio"
                   aria-checked={rede === r.id}
-                  onClick={() => setRede(r.id)}
+                  onClick={() => trocarRede(r.id)}
+                  disabled={ocupado}
                   className={cn(
-                    "h-8 px-3 rounded-full text-[12px] font-semibold border transition",
+                    "h-8 px-3 rounded-full text-[12px] font-semibold border transition disabled:opacity-60",
                     rede === r.id
                       ? "bg-accent text-bg border-accent"
                       : "border-line text-ink-mute hover:text-ink hover:border-line-strong",
@@ -836,121 +958,227 @@ function PagamentoUsdc({
         )}
 
         {erro && <Banner tom="erro">{erro}</Banner>}
-        {status === "criando" && !erro && (
-          <Loader2 className="w-6 h-6 animate-spin text-ink-mute mx-auto my-10" />
-        )}
 
-        {cobranca && info && status === "pendente" && (
+        {info && situacao === "pendente" && (
           <div className="grid gap-3.5 justify-items-center text-center">
+            {outroEnviado && (
+              <Banner>
+                {tx(
+                  "Você tem um pagamento enviado aguardando a confirmação da rede. Espere os créditos entrarem antes de pagar de novo.",
+                )}
+              </Banner>
+            )}
             <div>
               <div className="text-3xl font-bold text-ink tabular-nums">
-                {cobranca.valorTexto} {"USDC"}
+                {cobranca?.valorTexto ?? precoTabela.toFixed(2)} {"USDC"}
               </div>
               <div className="text-[12px] text-ink-dim mt-0.5">
                 {tx("na rede")} {info.nome}
               </div>
             </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={cobranca.qr}
-              alt={tx("QR code do pagamento")}
-              className="w-48 h-48 rounded-xl bg-white p-2"
-            />
-            <p className="text-[12px] text-ink-mute">
-              {tx("Escaneie com a carteira")} ({info.carteiras}){" "}
-              {info.evm
-                ? tx(
-                    "— rede, token e valor já vêm preenchidos. Depois de pagar, cole abaixo o link ou o hash da transação.",
-                  )
-                : tx("Pague o valor exato — a confirmação é automática.")}
-            </p>
-            <div className="flex gap-2 flex-wrap justify-center">
-              {info.evm ? (
-                <>
-                  <Button
-                    variant="ghost"
-                    onClick={() => copiar(cobranca.valorTexto, "valor")}
-                  >
-                    {iconeCopia("valor")} {tx("Valor")}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => copiar(cobranca.carteira, "carteira")}
-                  >
-                    {iconeCopia("carteira")} {tx("Endereço")}
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  variant="ghost"
-                  onClick={() => copiar(cobranca.link, "link")}
-                >
-                  {iconeCopia("link")} {tx("Copiar link")}
-                </Button>
-              )}
-            </div>
-            {info.evm && (
-              <p className="text-[11px] text-ink-dim">
-                {tx("Envie só USDC pela rede")} {info.nome}
-                {tx(". Outro token ou outra rede não é reconhecido.")}
-              </p>
-            )}
-            {info.evm ? (
-              <form
-                className="w-full grid gap-2 text-left"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  conferirTx();
-                }}
-              >
-                <label
-                  className="text-[12px] font-semibold text-ink"
-                  htmlFor="tx-pago"
-                >
-                  {tx("Já pagou? Cole o link ou o hash da transação")}
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    id="tx-pago"
-                    value={txPago}
-                    onChange={(e) => setTxPago(e.target.value)}
-                    placeholder={tx("Ex.: https://basescan.org/tx/0x… ou 0x…")}
-                    className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-bg px-3 text-[13px] text-ink placeholder:text-ink-dim focus:outline-none focus:border-accent"
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
-                  <Button
-                    type="submit"
-                    variant="accent"
-                    disabled={conferindo || !txPago.trim()}
-                  >
-                    {conferindo ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      tx("Confirmar")
-                    )}
-                  </Button>
+            {acompanhando ? (
+              <div className="grid gap-2 justify-items-center py-4">
+                <Loader2 className="w-6 h-6 animate-spin text-accent" />
+                <div className="text-sm font-bold text-ink">
+                  {tx("Pagamento enviado")}
                 </div>
-                {erroTx ? (
-                  <p className="text-[12px] text-pink">{erroTx}</p>
-                ) : (
-                  <p className="text-[11px] text-ink-dim">
-                    {tx(
-                      "Conferimos na rede: destino, valor e se a transação foi feita depois desta cobrança. Cada transação vale para um pagamento só.",
-                    )}
-                  </p>
-                )}
-              </form>
-            ) : (
-              <div className="inline-flex items-center gap-2 text-[12px] text-ink-dim">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />{" "}
-                {tx("Aguardando o pagamento na rede…")}
+                <p className="text-[12px] text-ink-mute">
+                  {tx(
+                    "Aguardando a rede confirmar — costuma levar menos de um minuto. Pode fechar esta janela: os créditos entram sozinhos.",
+                  )}
+                </p>
               </div>
+            ) : (
+              <>
+                {instaladas.length > 0 && (
+                  <div className="w-full grid gap-2 justify-items-center">
+                    {conectada ? (
+                      <>
+                        <Button
+                          variant="accent"
+                          className="w-full"
+                          onClick={pagarComCarteira}
+                          disabled={ocupado}
+                        >
+                          {pagando ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <IconeDaCarteira carteira={conectada} />
+                          )}
+                          {tx("Pagar com")} {conectada.nome} ·{" "}
+                          {abreviarEndereco(conectada.endereco)}
+                        </Button>
+                        <button
+                          type="button"
+                          onClick={() => desconectarCarteira(familia)}
+                          disabled={ocupado}
+                          className="text-[12px] font-semibold text-ink-mute hover:text-ink"
+                        >
+                          {tx("Usar outra carteira")}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="label-cap">
+                          {tx("Conecte a carteira para pagar")}
+                        </div>
+                        <div className="flex gap-2 flex-wrap justify-center">
+                          {instaladas.map((c) => (
+                            <Button
+                              key={c.id}
+                              variant="ghost"
+                              onClick={() => conectar(c.id)}
+                              disabled={ocupado}
+                            >
+                              <IconeDaCarteira carteira={c} /> {c.nome}
+                            </Button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                    {(conectando || pagando) && (
+                      <p className="text-[12px] text-ink-dim">
+                        {tx("Aprove o pedido na janela da carteira…")}
+                      </p>
+                    )}
+                    {(erroCarteira || enviado?.erro) && (
+                      <p className="text-[12px] text-pink">
+                        {erroCarteira ?? txErro(enviado?.erro ?? "")}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {cobranca && outrasFormas ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={cobranca.qr}
+                      alt={tx("QR code do pagamento")}
+                      className="w-48 h-48 rounded-xl bg-white p-2"
+                    />
+                    <p className="text-[12px] text-ink-mute">
+                      {tx("Escaneie com a carteira")} ({info.carteiras}){" "}
+                      {info.evm
+                        ? tx(
+                            "— rede, token e valor já vêm preenchidos. Depois de pagar, cole abaixo o link ou o hash da transação.",
+                          )
+                        : tx("Pague o valor exato — a confirmação é automática.")}
+                    </p>
+                    <div className="flex gap-2 flex-wrap justify-center">
+                      {!info.evm && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => copiar(cobranca.link, "link")}
+                        >
+                          {iconeCopia("link")} {tx("Copiar link")}
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        onClick={() => copiar(cobranca.valorTexto, "valor")}
+                      >
+                        {iconeCopia("valor")} {tx("Valor")}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => copiar(cobranca.carteira, "carteira")}
+                      >
+                        {iconeCopia("carteira")} {tx("Endereço")}
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-ink-dim">
+                      {tx("Envie só USDC pela rede")} {info.nome}
+                      {tx(". Outro token ou outra rede não é reconhecido.")}
+                    </p>
+                    {!info.evm && (
+                      <div className="inline-flex items-center gap-2 text-[12px] text-ink-dim">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />{" "}
+                        {tx("Aguardando o pagamento na rede…")}
+                      </div>
+                    )}
+                    <form
+                      className="w-full grid gap-2 text-left"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        conferirTx();
+                      }}
+                    >
+                      <label
+                        className="text-[12px] font-semibold text-ink"
+                        htmlFor="tx-pago"
+                      >
+                        {info.evm
+                          ? tx("Já pagou? Cole o link ou o hash da transação")
+                          : tx(
+                              "Pagou sem o QR? Cole o link ou o hash da transação",
+                            )}
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          id="tx-pago"
+                          value={txPago}
+                          onChange={(e) => setTxPago(e.target.value)}
+                          placeholder={
+                            info.evm
+                              ? tx("Ex.: https://basescan.org/tx/0x… ou 0x…")
+                              : tx("Ex.: https://solscan.io/tx/… ou o hash")
+                          }
+                          className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-bg px-3 text-[13px] text-ink placeholder:text-ink-dim focus:outline-none focus:border-accent"
+                          autoComplete="off"
+                          spellCheck={false}
+                        />
+                        <Button
+                          type="submit"
+                          variant="accent"
+                          disabled={conferindo || !txPago.trim()}
+                        >
+                          {conferindo ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            tx("Confirmar")
+                          )}
+                        </Button>
+                      </div>
+                      {erroTx ? (
+                        <p className="text-[12px] text-pink">{erroTx}</p>
+                      ) : (
+                        <p className="text-[11px] text-ink-dim">
+                          {tx(
+                            "Conferimos na rede: destino, valor e se a transação foi feita depois desta cobrança. Cada transação vale para um pagamento só.",
+                          )}
+                        </p>
+                      )}
+                    </form>
+                  </>
+                ) : instaladas.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={abrirOutrasFormas}
+                    disabled={ocupado}
+                    className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-mute underline underline-offset-2 hover:text-ink disabled:opacity-60"
+                  >
+                    {criando && !pagando && (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    )}
+                    {tx("Pagar com QR ou transferência")}
+                  </button>
+                ) : (
+                  // Sem carteira instalada (celular, por exemplo): o QR é o caminho.
+                  <Button
+                    variant="accent"
+                    onClick={abrirOutrasFormas}
+                    disabled={ocupado}
+                  >
+                    {criando && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {tx("Pagar com QR ou transferência")}
+                  </Button>
+                )}
+              </>
             )}
           </div>
         )}
 
-        {status === "pago" && (
+        {situacao === "pago" && (
           <div className="grid gap-3 justify-items-center text-center py-6">
             <CheckCircle2 className="w-12 h-12 text-ok" />
             <div className="text-lg font-bold text-ink">
@@ -965,7 +1193,7 @@ function PagamentoUsdc({
           </div>
         )}
 
-        {status === "expirado" && (
+        {situacao === "expirado" && (
           <Banner tom="erro">
             {tx(
               "Esta cobrança expirou. Feche e gere outra — nada foi cobrado.",

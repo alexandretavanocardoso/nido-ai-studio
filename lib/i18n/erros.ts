@@ -163,6 +163,18 @@ const PADROES: Padrao[] = [
     "Couldn't reach the $1 network right now. Try another network, or try again in a moment.",
   ],
   [/^O saque mínimo é de (\S+) (\S+)\.$/, "The minimum withdrawal is $1 $2."],
+  [
+    /^Esta carteira tem (\S+) USDC na Solana\. A cobrança é de (\S+) USDC\.$/,
+    "This wallet has $1 USDC on Solana. The charge is for $2 USDC.",
+  ],
+  [
+    /^Esta carteira não tem USDC suficiente na rede (.+) para esta cobrança\.$/,
+    "This wallet doesn't have enough USDC on the $1 network for this charge.",
+  ],
+  [
+    /^Troque a carteira para a rede (.+) e tente de novo\.$/,
+    "Switch the wallet to the $1 network and try again.",
+  ],
 
   // Publicação
   [
@@ -604,15 +616,13 @@ const ERROS_EN: Record<string, string> = {
     "No Stripe purchase on this account.",
   "Não consegui consultar a rede agora. Tente de novo em instantes.":
     "Couldn't query the network right now. Try again in a moment.",
-  "Valor da cobrança em disputa; tente de novo.":
-    "The charge amount is contended; try again.",
   "Muitas cobranças em aberto nesta rede; tente outra rede.":
     "Too many open charges on this network; try another network.",
   "Pagamento não encontrado.": "Payment not found.",
   "Cole o hash da transação (0x… com 64 caracteres) ou o link dela no explorer.":
     "Paste the transaction hash (0x… with 64 characters) or its explorer link.",
-  "Na Solana a confirmação é automática.":
-    "On Solana, confirmation is automatic.",
+  "Cole o hash da transação (a assinatura, com cerca de 88 caracteres) ou o link dela no explorer.":
+    "Paste the transaction hash (the signature, about 88 characters) or its explorer link.",
   "Esta transação já foi usada em outro pagamento.":
     "This transaction was already used for another payment.",
   "Esta transação falhou na rede (status de erro).":
@@ -627,6 +637,19 @@ const ERROS_EN: Record<string, string> = {
     "This transaction is older than the charge — use the transaction made for this payment.",
   "Esta transação foi feita depois que a cobrança expirou.":
     "This transaction was made after the charge expired.",
+  "Esta cobrança não está mais em aberto. Feche e gere outra.":
+    "This charge is no longer open. Close it and create another.",
+  "A rede não confirmou este pagamento. Se o valor saiu da carteira, cole o hash da transação; se não saiu, pague de novo.":
+    "The network didn't confirm this payment. If the amount left your wallet, paste the transaction hash; if it didn't, pay again.",
+  "A carteira não está mais conectada. Conecte de novo.":
+    "The wallet is no longer connected. Connect it again.",
+  "O pagamento foi recusado na carteira.":
+    "The payment was rejected in the wallet.",
+  "A carteira não enviou o pagamento.": "The wallet didn't send the payment.",
+  "A carteira não devolveu o hash da transação.":
+    "The wallet didn't return the transaction hash.",
+  "A carteira não liberou nenhuma conta.":
+    "The wallet didn't share any account.",
 
   // Indicações
   "Informe o código.": "Enter the code.",

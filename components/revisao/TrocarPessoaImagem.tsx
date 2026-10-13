@@ -570,7 +570,7 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
                   ? tx("Gerando…")
                   : resultado
                     ? tx("Gerar de novo")
-                    : tx("Trocar pessoa")}
+                    : tx("Sombra")}
               </Button>
               {resultado && (
                 <button

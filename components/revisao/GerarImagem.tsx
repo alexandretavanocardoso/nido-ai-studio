@@ -40,7 +40,7 @@ const TIPOS: Array<{
   },
   {
     id: "troca",
-    label: "Trocar pessoa",
+    label: "Sombra",
     icon: Replace,
     descricao:
       "Envie uma foto e troque a(s) pessoa(s) pelo(s) influencer(s) — cenário, luz e pose ficam iguais.",

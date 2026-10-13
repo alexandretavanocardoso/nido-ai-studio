@@ -42,6 +42,10 @@ const e = vi.hoisted(() => ({
   depois: [] as Array<() => unknown>,
   /** O RPC está apontando para outra rede (conferirAmbienteNft lança). */
   rpcErrado: false,
+  /** O gerador de imagens falha (a arte do NFT não sai). */
+  geradorFora: false,
+  /** Prompts enviados ao gerador de imagens. */
+  prompts: [] as string[],
 }));
 
 vi.mock("@/lib/db", () => ({ getPool: () => e.pool }));
@@ -121,6 +125,7 @@ vi.mock("@/lib/storage/s3", () => ({
   },
   putObject: async () => {},
   getBucket: () => "balde",
+  somarTamanho: async () => 0,
   getS3: () => ({}),
 }));
 vi.mock("sharp", () => {
@@ -142,6 +147,18 @@ vi.mock("@/lib/social/link-apify", async () => {
     },
   };
 });
+vi.mock("@/lib/ai/openai-imagem", async (original) => {
+  const real = await original<typeof import("@/lib/ai/openai-imagem")>();
+  return {
+    ...real,
+    getOpenAIKey: () => "chave-de-teste",
+    gerarImagemOpenAI: async (o: { prompt: string; tipo: string }) => {
+      e.prompts.push(`${o.tipo}:${o.prompt}`);
+      if (e.geradorFora) throw new real.OpenAIImagemError("O gerador de imagens falhou.");
+      return Buffer.from("arte");
+    },
+  };
+});
 vi.mock("@/lib/social/bundle", () => ({
   getBundle: () => ({}),
   contasDoTime: async (_b: unknown, teamId: string) => e.contas[teamId] ?? [],
@@ -154,6 +171,8 @@ import { debitar, carregarConta } from "@/lib/creditos";
 import { limparUsuario } from "@/lib/storage/cleanup";
 import type { ContaSocial } from "@/lib/social/bundle";
 import { decidirBadge, painelNft } from "./admin";
+import { ARTES_POR_VEZ, CREDITOS_ARTE_NFT, PROMPT_ARTE_NFT } from "./arte";
+import { escolherArteDoNft, gerarArtesDoNft } from "./arte-server";
 import {
   conferirNaRede,
   gravarBadges,
@@ -286,8 +305,17 @@ async function personagem(userId: string, nome = "Lila Nova", o: { retrato?: boo
     userId,
     JSON.stringify(c),
   ]);
+  // A arte do NFT (gerada a partir do retrato) é a imagem que o mint copia.
+  if (o.retrato !== false)
+    await sql("insert into nft_artes (character_id, user_id, key) values ($1, $2, $3)", [
+      c.id,
+      userId,
+      arteDe(userId, c.id),
+    ]);
   return c.id;
 }
+const arteDe = (userId: string, characterId: string) =>
+  `users/${userId}/nft/arte-${characterId}.jpg`;
 
 function carteiraDeTeste() {
   const { publicKey, privateKey } = generateKeyPairSync("ed25519");
@@ -337,6 +365,8 @@ beforeEach(() => {
     depois: [],
     leituras: {},
     rpcErrado: false,
+    geradorFora: false,
+    prompts: [],
   });
   vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -462,11 +492,11 @@ describe("mint, com créditos de verdade", () => {
     expect((await mints(pp)).map((m) => m.status)).toEqual(["falhou"]);
   });
 
-  it("sem retrato gerado não minta: a referência enviada nunca vira a imagem pública", async () => {
+  it("sem a arte do NFT não minta: a referência enviada nunca vira a imagem pública", async () => {
     const u = await conta(100);
-    const p = await personagem(u, "Sem Retrato", { retrato: false });
+    const p = await personagem(u, "Sem Arte", { retrato: false });
     await vincular(u);
-    expect(await codigo(await pedir(u, p))).toMatchObject({ status: 400, code: "SEM_RETRATO" });
+    expect(await codigo(await pedir(u, p))).toMatchObject({ status: 400, code: "SEM_ARTE" });
     expect(await mints(p)).toEqual([]);
     expect(e.lidas).toEqual([]);
     expect(await saldo(u)).toBe(100);
@@ -1884,53 +1914,114 @@ describe("imagem do NFT e saldos na tela", () => {
     return c;
   }
 
-  it("a imagem copiada no mint é o Retrato, mesmo com outra imagem escolhida como capa", async () => {
+  it("a imagem copiada no mint é a arte do NFT, não o retrato nem a capa escolhida", async () => {
     const u = await conta(100);
     const c = await comRetrato(u);
+    await sql("insert into nft_artes (character_id, user_id, key) values ($1, $2, $3)", [c.id, u, arteDe(u, c.id)]);
     await vincular(u);
     e.lidas = [];
     await pedir(u, c.id);
-    expect(e.lidas).toEqual([`users/${u}/generated/retrato.jpg`]);
+    expect(e.lidas).toEqual([arteDe(u, c.id)]);
   });
 
-  it("trocar a imagem do NFT: só com NFT mintado, só do dono, e copia o retrato atual", async () => {
-    const { POST } = await import("@/app/api/nft/personagem/[characterId]/imagem/route");
+  const gerar = (userId: string, characterId: string) =>
+    gerarArtesDoNft({ userId, characterId, s3: {} as never });
+  const escolher = (userId: string, characterId: string, key: string) =>
+    escolherArteDoNft({ userId, characterId, key });
+
+  it("gera cinco artes, a pessoa escolhe uma e é ela que o mint copia; depois do mint, não muda mais", async () => {
     const u = await conta(100);
     const c = await comRetrato(u);
     await vincular(u);
-    const chamar = (id = c.id) =>
-      POST(new Request(`https://app.exemplo/api/nft/personagem/${id}/imagem`, { method: "POST" }), {
-        params: Promise.resolve({ characterId: id }),
-      });
+    expect(await codigo(await pedir(u, c.id))).toMatchObject({ code: "SEM_ARTE" });
 
-    expect((await chamar()).status).toBe(401); // sem sessão
-    e.sessao = u;
-    expect((await chamar()).status).toBe(404); // ainda não mintou
-    await pedir(u, c.id);
-
-    // gera um retrato novo: o NFT não muda sozinho…
-    const [m] = await mints(c.id);
-    c.geradas!.unshift({
-      id: "novo",
-      key: `users/${u}/generated/retrato-novo.jpg`,
-      tipo: "retrato",
-      estilo: "3d",
-      qualidade: "padrao",
-      size: 1,
-      createdAt: 900,
-    });
-    await sql("update characters set data = $2 where id = $1", [c.id, JSON.stringify(c)]);
     e.lidas = [];
-    // …só quando o dono pede
-    const res = await chamar();
-    expect(res.status).toBe(200);
-    expect(e.lidas).toEqual([`users/${u}/generated/retrato-novo.jpg`]);
-    expect((await mints(c.id))[0].capa_key).toBe(m.capa_key);
-    expect(await saldo(u)).toBe(90); // não cobra
+    const r = (await gerar(u, c.id)) as { opcoes: string[]; escolhida: string | null };
+    expect(r.opcoes).toHaveLength(ARTES_POR_VEZ);
+    expect(new Set(r.opcoes).size).toBe(ARTES_POR_VEZ);
+    expect(r.escolhida).toBeNull();
+    expect(e.lidas).toEqual([`users/${u}/generated/retrato.jpg`]);
+    expect(e.prompts).toEqual(Array(ARTES_POR_VEZ).fill(`quadrado:${PROMPT_ARTE_NFT}`));
+    expect(await saldo(u)).toBe(100 - CREDITOS_ARTE_NFT);
+    expect(await estadoNft(u, c.id)).toMatchObject({ arte: null, artes: r.opcoes });
 
-    // outra conta não troca a imagem do NFT alheio
-    e.sessao = await conta();
-    expect((await chamar()).status).toBe(404);
+    // sem escolher, não minta; arte que não está entre as opções não vale
+    expect(await codigo(await pedir(u, c.id))).toMatchObject({ code: "SEM_ARTE" });
+    expect(await codigo(await escolher(u, c.id, `users/${u}/generated/retrato.jpg`))).toMatchObject({ status: 404 });
+    expect(await escolher(u, c.id, r.opcoes[2])).toMatchObject({ escolhida: r.opcoes[2] });
+    expect(await escolher(u, c.id, r.opcoes[4])).toMatchObject({ escolhida: r.opcoes[4] }); // muda de ideia
+    expect((await estadoNft(u, c.id)).arte).toBe(r.opcoes[4]);
+
+    e.lidas = [];
+    const m = (await pedir(u, c.id)) as { mint: { status: string } };
+    expect(m.mint.status).toBe("confirmado");
+    expect(e.lidas).toEqual([r.opcoes[4]]);
+    const antes = (await mints(c.id))[0].capa_key;
+
+    // depois do mint: nem gerar outras, nem trocar a escolha — e nada é cobrado
+    expect(await codigo(await gerar(u, c.id))).toMatchObject({ status: 409, code: "MINTADO" });
+    expect(await codigo(await escolher(u, c.id, r.opcoes[0]))).toMatchObject({ status: 409, code: "MINTADO" });
+    expect((await estadoNft(u, c.id)).arte).toBe(r.opcoes[4]);
+    expect((await mints(c.id))[0].capa_key).toBe(antes);
+    expect(await saldo(u)).toBe(100 - CREDITOS_ARTE_NFT - 10);
+  });
+
+  it("gerar outras cinco antes do mint troca as opções e desfaz a escolha", async () => {
+    const u = await conta(100);
+    const c = await comRetrato(u);
+    const a = (await gerar(u, c.id)) as { opcoes: string[] };
+    await escolher(u, c.id, a.opcoes[0]);
+    const b = (await gerar(u, c.id)) as { opcoes: string[]; escolhida: string | null };
+    expect(b.escolhida).toBeNull();
+    expect(b.opcoes.some((k) => a.opcoes.includes(k))).toBe(false);
+    expect(await codigo(await escolher(u, c.id, a.opcoes[0]))).toMatchObject({ status: 404 });
+    expect(await saldo(u)).toBe(100 - 2 * CREDITOS_ARTE_NFT);
+    // mint em andamento também trava a arte
+    await escolher(u, c.id, b.opcoes[1]);
+    await vincular(u);
+    e.situacao = "sem_registro";
+    expect(((await pedir(u, c.id)) as { mint: { status: string } }).mint.status).toBe("enviado");
+    expect(await codigo(await gerar(u, c.id))).toMatchObject({ status: 409 });
+  });
+
+  it("gerar as artes: sem retrato recusa sem cobrar; gerador fora devolve os créditos; plano grátis não gera", async () => {
+    const u = await conta(100);
+    const semRetrato = await personagem(u, "Sem Retrato", { retrato: false });
+    expect(await codigo(await gerar(u, semRetrato))).toMatchObject({ status: 400, code: "SEM_RETRATO" });
+    const c = await comRetrato(u);
+    e.geradorFora = true;
+    expect(await codigo(await gerar(u, c.id))).toMatchObject({ status: 502 });
+    expect(e.prompts).toHaveLength(2 * ARTES_POR_VEZ); // cada uma teve a segunda tentativa
+    expect(await saldo(u)).toBe(100);
+    expect(await estadoNft(u, c.id)).toMatchObject({ arte: null, artes: [] });
+    e.geradorFora = false;
+    const gratis = await conta(50, "gratis");
+    const g = await comRetrato(gratis);
+    expect(await codigo(await gerar(gratis, g.id))).toMatchObject({ status: 403, code: "PLANO" });
+    expect(await saldo(gratis)).toBe(50);
+    // personagem de outra conta
+    expect(await codigo(await gerar(gratis, c.id))).toMatchObject({ status: 404 });
+    expect(await codigo(await escolher(gratis, c.id, "x"))).toMatchObject({ status: 404 });
+  });
+
+  it("a limpeza do S3 poupa as opções de arte e a escolhida, mesmo antes do mint", async () => {
+    const u = await conta(100);
+    const c = await comRetrato(u);
+    const r = (await gerar(u, c.id)) as { opcoes: string[] };
+    await escolher(u, c.id, r.opcoes[1]);
+    const velho = new Date(Date.now() - 48 * 3600_000);
+    const arquivos = [...r.opcoes, `users/${u}/nft/arte-antiga.jpg`];
+    const apagados: string[] = [];
+    const s3 = {
+      send: async (cmd: { constructor: { name: string }; input: { Delete?: { Objects: Array<{ Key: string }> } } }) => {
+        if (cmd.constructor.name === "ListObjectsV2Command")
+          return { Contents: arquivos.map((Key) => ({ Key, LastModified: velho, Size: 10 })) };
+        apagados.push(...cmd.input.Delete!.Objects.map((o) => o.Key));
+        return {};
+      },
+    };
+    await limparUsuario(s3 as never, pool as never, u, 24 * 3600_000);
+    expect(apagados).toEqual([`users/${u}/nft/arte-antiga.jpg`]);
   });
 
   it("o estado traz o saldo de SOL da carteira e se o mint está disponível", async () => {

@@ -92,7 +92,19 @@ async function capasDeNft(pool: Pool, userId: string): Promise<string[]> {
       "select capa_key from nft_mints where user_id = $1 and capa_key is not null and status <> 'falhou'",
       [userId],
     );
-    return rows.map((r) => r.capa_key);
+    // A arte do NFT (lib/nft/arte-server.ts) também fica: é dela que sai a imagem do mint.
+    const artes = await pool
+      .query<{ key: string }>(
+        // As opções ainda por escolher e a escolhida (unnest pula a lista vazia).
+        `select unnest(opcoes) as key from nft_artes where user_id = $1
+         union select key from nft_artes where user_id = $1 and key is not null`,
+        [userId],
+      )
+      .catch((e) => {
+        if ((e as { code?: string }).code === "42P01") return { rows: [] };
+        throw e;
+      });
+    return [...rows.map((r) => r.capa_key), ...artes.rows.map((r) => r.key)];
   } catch (e) {
     if ((e as { code?: string }).code === "42P01") return [];
     throw e;

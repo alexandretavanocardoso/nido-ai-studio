@@ -470,7 +470,7 @@ export function VideosOrigem({ character }: { character: Character }) {
                                 >
                                   <UserRound className="h-3.5 w-3.5 shrink-0" />
                                   <span className="truncate">
-                                    {tx("Trocar pessoa")}
+                                    {tx("Sombra")}
                                   </span>
                                 </Button>
                               ) : v.key ? (
