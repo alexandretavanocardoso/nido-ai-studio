@@ -302,7 +302,7 @@ function ConexoesLiberada() {
                 "No Claude (claude.ai ou aplicativo), sem terminal e sem token: você autoriza com o seu login daqui.",
               )}
             </p>
-            <ol className="grid gap-3 text-[13px] text-ink">
+            <ol className="grid grid-cols-1 gap-3 text-[13px] text-ink">
               <li>
                 <strong>a.</strong>{" "}
                 {tx(
@@ -376,7 +376,7 @@ function ConexoesLiberada() {
                 "No navegador a sessão roda na nuvem, sem terminal: a conexão vem de um arquivo do seu repositório e o token fica guardado no ambiente.",
               )}
             </p>
-            <ol className="grid gap-4 text-[13px] text-ink-mute">
+            <ol className="grid grid-cols-1 gap-4 text-[13px] text-ink-mute">
               <li>
                 <div className="mb-1.5 text-ink">
                   <strong>a.</strong>{" "}
@@ -444,7 +444,7 @@ function ConexoesLiberada() {
                 "No ChatGPT, pelo navegador, sem terminal e sem token: você autoriza com o seu login daqui. Precisa de um plano pago do ChatGPT (Plus, Pro, Business, Enterprise ou Edu).",
               )}
             </p>
-            <ol className="grid gap-3 text-[13px] text-ink">
+            <ol className="grid grid-cols-1 gap-3 text-[13px] text-ink">
               <li>
                 <strong>a.</strong>{" "}
                 {tx(
@@ -501,7 +501,7 @@ function ConexoesLiberada() {
                 "O Codex da OpenAI guarda a conexão no computador: o que você configurar no terminal vale também para a extensão do editor e para o aplicativo.",
               )}
             </p>
-            <ol className="grid gap-4 text-[13px] text-ink-mute">
+            <ol className="grid grid-cols-1 gap-4 text-[13px] text-ink-mute">
               <li>
                 <div className="mb-1.5 text-ink">
                   <strong>a.</strong> {tx("No terminal, adicione o servidor:")}
@@ -583,7 +583,8 @@ function ConexoesLiberada() {
             {tx("Nenhum token criado ainda.")}
           </p>
         ) : (
-          <ul className="grid gap-2">
+          // grid-cols-1 (minmax(0,1fr)): o nome comprido do token trunca em vez de alargar a lista.
+          <ul className="grid grid-cols-1 gap-2">
             {tokens.map((t) => (
               <li
                 key={t.id}

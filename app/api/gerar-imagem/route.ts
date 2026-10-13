@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { missaoCumprida } from "@/lib/pontos-server";
 import { z } from "zod";
 import {
   generateImage,
@@ -314,6 +315,7 @@ export async function POST(req: Request) {
       });
     }
 
+    await missaoCumprida(userId, "primeira_imagem");
     if (s3) {
       const fileKey = newKey(userId!, "generated", "image/jpeg");
       await putObject(s3, fileKey, jpeg, "image/jpeg");

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { pontosPorPost } from "@/lib/pontos-server";
 import { getPool } from "@/lib/db";
 import { estadoPost, getBundle } from "@/lib/social/bundle";
 
@@ -41,8 +42,9 @@ export async function POST(req: Request) {
     if (postId) {
       try {
         const e = await estadoPost(bundle, postId);
-        await pool.query(
-          "update posts_agendados set status = $2, erros = $3, links = $4, updated_at = now() where bundle_post_id = $1",
+        const { rows } = await pool.query<{ id: string; user_id: string }>(
+          `update posts_agendados set status = $2, erros = $3, links = $4, updated_at = now()
+            where bundle_post_id = $1 returning id, user_id`,
           [
             postId,
             e.status,
@@ -50,6 +52,9 @@ export async function POST(req: Request) {
             e.links ? JSON.stringify(e.links) : null,
           ],
         );
+        // Pontos: post que saiu de verdade (webhook repetido não pontua de novo).
+        if (e.status === "POSTED" && rows[0])
+          await pontosPorPost(rows[0].user_id, rows[0].id);
       } catch (err) {
         console.error("[social/webhook]", err);
         return NextResponse.json(

@@ -117,7 +117,8 @@ export function CarteiraNaBarra() {
     : tx("Conectar carteira");
 
   return (
-    <div className="relative" ref={caixa}>
+    // No celular o painel se alinha à barra do topo (16px da borda), não ao botão: preso ao botão ele saía pela esquerda da tela.
+    <div className="sm:relative" ref={caixa}>
       <button
         type="button"
         onClick={() => setAberto((v) => !v)}
@@ -133,11 +134,12 @@ export function CarteiraNaBarra() {
                 <IconeDaCarteira key={c.endereco} carteira={c} />
               ))}
             </span>
-            <span className="mono hidden sm:inline">
+            {/* Abaixo de `lg` fica só o ícone: num tablet o texto tirava o lugar da busca. */}
+            <span className="mono hidden lg:inline">
               {abreviarEndereco(conectadas[0].endereco)}
             </span>
             {conectadas.length > 1 ? (
-              <span className="hidden text-ink-dim sm:inline">
+              <span className="hidden text-ink-dim lg:inline">
                 +{conectadas.length - 1}
               </span>
             ) : null}
@@ -145,12 +147,12 @@ export function CarteiraNaBarra() {
         ) : (
           <>
             <Wallet className="h-4 w-4" />
-            <span className="hidden md:inline">{tx("Conectar carteira")}</span>
+            <span className="hidden lg:inline">{tx("Conectar carteira")}</span>
           </>
         )}
       </button>
       {aberto ? (
-        <div className="absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-line bg-panel shadow-card">
+        <div className="absolute right-4 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-line bg-panel shadow-card sm:right-0">
           <div className="border-b border-line px-3.5 py-2.5 text-[11px] mono uppercase tracking-wider text-ink-dim">
             {tx("Carteira para pagar em USDC")}
           </div>

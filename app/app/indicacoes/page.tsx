@@ -325,7 +325,7 @@ function IndicacoesPageLiberada() {
     ],
   ];
   const tituloSecao =
-    "font-archivo text-[clamp(28px,3.6vw,46px)] font-black uppercase leading-[0.95] tracking-[-0.02em] [font-stretch:125%]";
+    "font-archivo text-[clamp(22px,7.4vw,28px)] sm:text-[clamp(28px,3.6vw,46px)] font-black uppercase leading-[0.95] tracking-[-0.02em] [font-stretch:125%]";
   const olho =
     "font-mono text-[11px] uppercase tracking-[0.18em] text-accent";
 
@@ -387,7 +387,8 @@ function IndicacoesPageLiberada() {
       </section>
 
       {/* Painel de quem indica: link, comissões, indicados e saques */}
-      <section className="grid gap-6">
+      {/* grid-cols-1 (minmax(0,1fr)): sem ele, o link comprido — que não quebra — alarga a coluna além da tela. */}
+      <section className="grid grid-cols-1 gap-6">
         <div className="flex max-w-[640px] flex-col gap-3">
           <span className={olho}>{tx("Seu painel")}</span>
           <h2 className={tituloSecao}>{tx("Seu link e seus ganhos")}</h2>
@@ -426,10 +427,11 @@ function IndicacoesPageLiberada() {
       ) : (
         <>
           {/* Link e código */}
-          <section className="card p-5 sm:p-6 grid gap-4">
+          <section className="card p-5 sm:p-6 grid grid-cols-1 gap-4">
             <div className="label-cap">{tx("Seu link de indicação")}</div>
             <div className="flex flex-wrap items-center gap-2">
-              <code className="mono flex-1 min-w-0 truncate rounded-xl border border-line bg-bg px-3.5 py-2.5 text-[13.5px] text-ink">
+              {/* basis de 220px: no celular o botão desce para a linha de baixo, em vez de espremer o link. */}
+              <code className="mono flex-1 basis-[220px] min-w-0 truncate rounded-xl border border-line bg-bg px-3.5 py-2.5 text-[13.5px] text-ink">
                 {resumo.link}
               </code>
               <Button
@@ -505,7 +507,7 @@ function IndicacoesPageLiberada() {
           </section>
 
           {/* Saldo e saque */}
-          <section className="card p-5 sm:p-6 grid gap-4">
+          <section className="card p-5 sm:p-6 grid grid-cols-1 gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="label-cap">{tx("Comissões")}</div>
               {resumo.stripe.conectado ? (
@@ -645,7 +647,7 @@ function IndicacoesPageLiberada() {
             ) : !resumo.stripe.pronto ? (
               <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-bg px-4 py-3">
                 <Landmark className="w-4 h-4 text-accent shrink-0" />
-                <span className="flex-1 min-w-[220px] text-[13px] text-ink-mute">
+                <span className="flex-1 basis-[180px] min-w-0 text-[13px] text-ink-mute">
                   {resumo.stripe.conectado
                     ? tx(
                         "Falta terminar o cadastro da sua conta de recebimento no Stripe.",
@@ -732,7 +734,7 @@ function IndicacoesPageLiberada() {
               {resumo.saques.map((s) => (
                 <div
                   key={s.id}
-                  className="flex items-center justify-between gap-3 border-t border-line px-5 sm:px-6 py-3"
+                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-line px-5 sm:px-6 py-3"
                 >
                   <span className="mono text-[12px] text-ink-dim">
                     {dia(s.quando)}

@@ -71,6 +71,21 @@ const config: Config = {
           to: { opacity: "1", transform: "none" },
         },
         "nido-pulse": { "0%,100%": { opacity: "1" }, "50%": { opacity: "0.3" } },
+        // Check-in dos pontos: o dia "estoura", os pontos sobem e somem, faíscas se espalham.
+        "ponto-pop": {
+          "0%": { transform: "scale(0.6)" },
+          "55%": { transform: "scale(1.18)" },
+          "100%": { transform: "scale(1)" },
+        },
+        "ponto-sobe": {
+          "0%": { opacity: "0", transform: "translate(-50%, 4px) scale(0.8)" },
+          "20%": { opacity: "1", transform: "translate(-50%, -8px) scale(1.1)" },
+          "100%": { opacity: "0", transform: "translate(-50%, -44px) scale(1)" },
+        },
+        "ponto-faisca": {
+          "0%": { opacity: "1", transform: "rotate(var(--giro)) translateY(0) scale(1)" },
+          "100%": { opacity: "0", transform: "rotate(var(--giro)) translateY(-26px) scale(0.3)" },
+        },
         "nido-drift-1": {
           "0%,100%": { transform: "translate(0,0) scale(1)" },
           "50%": { transform: "translate(-9%,7%) scale(1.18)" },
@@ -83,6 +98,9 @@ const config: Config = {
       animation: {
         "nido-rise": "nido-rise .5s cubic-bezier(.16,1,.3,1) both",
         "nido-pulse": "nido-pulse 1.6s infinite",
+        "ponto-pop": "ponto-pop .45s cubic-bezier(.2,1.4,.4,1) both",
+        "ponto-sobe": "ponto-sobe 1.1s ease-out both",
+        "ponto-faisca": "ponto-faisca .6s ease-out both",
         "nido-drift-1": "nido-drift-1 18s ease-in-out infinite",
         "nido-drift-2": "nido-drift-2 22s ease-in-out infinite",
       },

@@ -1,7 +1,15 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Eraser, Loader2, Lock, Sparkles, Type, X } from "lucide-react";
+import {
+  Eraser,
+  Loader2,
+  Lock,
+  Sparkles,
+  SquareDashedMousePointer,
+  Type,
+  X,
+} from "lucide-react";
 import type { VideoArquivo } from "@/lib/types";
 import { fileUrl } from "@/lib/storage/client";
 import {
@@ -21,6 +29,30 @@ import { cn } from "@/lib/cn";
 import { tx } from "@/lib/i18n/tx";
 import { useDuravel } from "@/lib/duravel";
 import { txErro } from "@/lib/i18n/erros";
+import {
+  caracteresPorLinha,
+  centroDaLegenda,
+  LEGENDA_ALTURA_LINHA,
+  LEGENDA_CONTORNO,
+  LEGENDA_FONTE,
+  LEGENDA_IMA,
+  quebrarLinhas,
+} from "@/lib/video/legenda-texto";
+
+const limitar = (n: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, n));
+
+/** Prévia da legenda nova: mesmas medidas do servidor, em % da largura do vídeo (cqw). */
+const PREVIA_FONTE = LEGENDA_FONTE * 100;
+const PREVIA_POR_LINHA = caracteresPorLinha(1, LEGENDA_FONTE);
+const PREVIA_CONTORNO = [-1, 0, 1]
+  .flatMap((x) => [-1, 0, 1].map((y) => [x, y]))
+  .filter(([x, y]) => x || y)
+  .map(
+    ([x, y]) =>
+      `${(x * PREVIA_FONTE * LEGENDA_CONTORNO).toFixed(2)}cqw ${(y * PREVIA_FONTE * LEGENDA_CONTORNO).toFixed(2)}cqw 0 #000`,
+  )
+  .join(", ");
 
 interface Caixa {
   x: number;
@@ -35,7 +67,13 @@ interface Props {
   characterId: string;
   onClose: () => void;
   /** Modo rápido: chamado com o vídeo novo (a edição gera outro arquivo; o original fica). */
-  onPronto: (novo: { key: string; size: number; duracao: number }) => void;
+  onPronto: (novo: {
+    key: string;
+    size: number;
+    duracao: number;
+    /** Registro da edição (vira o jobId do vídeo: é por ele que se pede reembolso). */
+    jobId?: string;
+  }) => void;
   /** Modo IA: chamado com o job em processamento (aparece na lista e termina sozinho). */
   onJob: (job: { jobId: string; duracao: number }) => void;
 }
@@ -55,6 +93,10 @@ export function LegendaEditor({
   const videoRef = useRef<HTMLVideoElement>(null);
   const areaRef = useRef<HTMLDivElement>(null);
   const inicio = useRef<{ x: number; y: number } | null>(null);
+  /** Movendo a área já marcada: onde o ponteiro a pegou (distância até o canto dela). */
+  const pega = useRef<{ dx: number; dy: number } | null>(null);
+  /** Ponteiro apertado sobre o vídeo (marcando ou movendo a área). */
+  const [arrastando, setArrastando] = useState(false);
   const [aspecto, setAspecto] = useState(9 / 16);
   const [duracao, setDuracao] = useState(0);
   const [tempo, setTempo] = useState(0);
@@ -93,13 +135,38 @@ export function LegendaEditor({
 
   function onDown(e: React.PointerEvent) {
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    inicio.current = pos(e);
+    const p = pos(e);
+    setArrastando(true);
+    // Dentro da área marcada, o arrasto move a área; fora dela, marca outra.
+    if (
+      caixa &&
+      p.x >= caixa.x &&
+      p.x <= caixa.x + caixa.w &&
+      p.y >= caixa.y &&
+      p.y <= caixa.y + caixa.h
+    ) {
+      pega.current = { dx: p.x - caixa.x, dy: p.y - caixa.y };
+      return;
+    }
+    inicio.current = p;
     setCaixa(null);
   }
 
   function onMove(e: React.PointerEvent) {
-    if (!inicio.current) return;
     const p = pos(e);
+    if (pega.current) {
+      const { dx, dy } = pega.current;
+      setCaixa((c) => {
+        if (!c) return c;
+        let x = limitar(p.x - dx, 0, 1 - c.w);
+        // Trocando o texto, a área gruda no meio do vídeo quando passa perto dele.
+        if (modo === "trocar" && Math.abs(x + c.w / 2 - 0.5) <= LEGENDA_IMA)
+          x = 0.5 - c.w / 2;
+        return { ...c, x, y: limitar(p.y - dy, 0, 1 - c.h) };
+      });
+      return;
+    }
+    if (!inicio.current) return;
     const a = inicio.current;
     setCaixa({
       x: Math.min(a.x, p.x),
@@ -111,8 +178,21 @@ export function LegendaEditor({
 
   function onUp() {
     inicio.current = null;
+    pega.current = null;
+    setArrastando(false);
     setCaixa((c) => (c && c.w > 0.02 && c.h > 0.01 ? c : null));
   }
+
+  /** A área como vai para o servidor; a prévia usa a mesma, pra legenda sair onde aparece. */
+  const areaEnviada = caixa ? comFolga(caixa) : null;
+  const linhasPrevia =
+    areaEnviada && modo === "trocar" && texto.trim()
+      ? quebrarLinhas(texto, PREVIA_POR_LINHA).split("\n")
+      : null;
+  const meioPrevia =
+    areaEnviada && linhasPrevia
+      ? centroDaLegenda(areaEnviada, linhasPrevia)
+      : 0.5;
 
   async function aplicar() {
     setErro(null);
@@ -127,7 +207,7 @@ export function LegendaEditor({
         // Uma folga em volta da caixa ajuda o delogo a não deixar contorno de letra.
         body: JSON.stringify({
           key: video.key,
-          caixa: comFolga(caixa),
+          caixa: areaEnviada,
           modo,
           texto: modo === "trocar" ? texto : undefined,
           qualidade,
@@ -139,6 +219,7 @@ export function LegendaEditor({
         jobId?: string;
         size?: number;
         duracao?: number;
+        edicaoId?: string | null;
         error?: string;
         code?: string;
       };
@@ -153,6 +234,7 @@ export function LegendaEditor({
         key: body.key,
         size: body.size ?? 0,
         duracao: body.duracao ?? duracao,
+        jobId: body.edicaoId ?? undefined,
       });
     } catch (e) {
       setErro((e as Error).message);
@@ -167,7 +249,7 @@ export function LegendaEditor({
       role="dialog"
       aria-modal="true"
     >
-      <div className="card w-full max-w-3xl p-5 sm:p-6 relative max-h-[94vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl">
+      <div className="card w-full max-w-3xl p-5 sm:p-6 relative max-h-[94dvh] overflow-y-auto rounded-t-3xl sm:rounded-3xl">
         <button
           type="button"
           onClick={onClose}
@@ -181,7 +263,7 @@ export function LegendaEditor({
         </h2>
         <p className="text-[13px] text-ink-mute mb-4">
           {tx(
-            "Escolha um quadro onde a legenda aparece e arraste um retângulo sobre ela. A área marcada vale pro vídeo todo. O original não é alterado: sai um vídeo novo.",
+            "Arraste um retângulo no vídeo: sobre a legenda que quer tirar, ou onde a nova vai ficar. A área marcada vale pro vídeo todo. O original não é alterado: sai um vídeo novo.",
           )}
         </p>
 
@@ -189,14 +271,17 @@ export function LegendaEditor({
           <div>
             <div
               ref={areaRef}
-              className="relative w-full max-h-[60vh] mx-auto bg-black rounded-lg overflow-hidden touch-none select-none cursor-crosshair"
+              className="relative w-full max-h-[60dvh] mx-auto bg-black rounded-lg overflow-hidden touch-none select-none cursor-crosshair"
               style={{
                 aspectRatio: aspecto,
-                maxWidth: `calc(60vh * ${aspecto})`,
+                maxWidth: `calc(60dvh * ${aspecto})`,
+                // A prévia da legenda mede a letra pela largura do vídeo (cqw).
+                containerType: "inline-size",
               }}
               onPointerDown={onDown}
               onPointerMove={onMove}
               onPointerUp={onUp}
+              onPointerCancel={onUp}
             >
               <video
                 ref={videoRef}
@@ -215,7 +300,7 @@ export function LegendaEditor({
               />
               {caixa && (
                 <div
-                  className="absolute border-2 border-accent bg-accent/20 pointer-events-none"
+                  className="absolute border-2 border-accent bg-accent/20 cursor-move"
                   style={{
                     left: `${caixa.x * 100}%`,
                     top: `${caixa.y * 100}%`,
@@ -224,6 +309,36 @@ export function LegendaEditor({
                   }}
                 />
               )}
+              {/* Sem área marcada: convite pra arrastar, em cima do vídeo. */}
+              {!caixa && (
+                <div className="pointer-events-none absolute inset-0 grid place-items-center p-3">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1.5 text-center text-[12px] font-semibold text-white shadow-lg animate-pulse">
+                    <SquareDashedMousePointer className="h-4 w-4 shrink-0 text-accent" />
+                    {modo === "trocar"
+                      ? tx("Arraste onde a legenda vai ficar")
+                      : tx("Arraste sobre a legenda que quer remover")}
+                  </span>
+                </div>
+              )}
+              {/* Guia do meio do vídeo, enquanto a legenda está grudada nele. */}
+              {arrastando && linhasPrevia && meioPrevia === 0.5 ? (
+                <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-accent/70" />
+              ) : null}
+              {/* Prévia da legenda nova, no lugar em que o servidor escreve. */}
+              {areaEnviada && linhasPrevia ? (
+                <div
+                  className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-pre text-center font-bold text-white"
+                  style={{
+                    left: `${meioPrevia * 100}%`,
+                    top: `${(areaEnviada.y + areaEnviada.h / 2) * 100}%`,
+                    fontSize: `${PREVIA_FONTE}cqw`,
+                    lineHeight: LEGENDA_ALTURA_LINHA,
+                    textShadow: PREVIA_CONTORNO,
+                  }}
+                >
+                  {linhasPrevia.join("\n")}
+                </div>
+              ) : null}
             </div>
             <input
               type="range"
@@ -270,6 +385,21 @@ export function LegendaEditor({
               ))}
             </div>
 
+            {!caixa && (
+              <div className="rounded-xl border border-accent/30 bg-accent/5 px-3.5 py-3 text-[12px] text-ink-mute leading-relaxed">
+                <strong className="text-ink">
+                  {modo === "trocar"
+                    ? tx("Marque no vídeo onde a legenda vai ficar.")
+                    : tx("Marque a legenda no vídeo.")}
+                </strong>{" "}
+                {modo === "trocar"
+                  ? tx(
+                      "Arraste um retângulo sobre a legenda atual. Se o vídeo não tem legenda, arraste no lugar onde a nova deve aparecer.",
+                    )
+                  : tx("Arraste um retângulo sobre a legenda que quer remover.")}
+              </div>
+            )}
+
             {modo === "trocar" && (
               <div>
                 <Textarea
@@ -283,7 +413,7 @@ export function LegendaEditor({
                 />
                 <p className="text-[11px] text-ink-dim mt-1">
                   {tx(
-                    "Sai centralizada no lugar da antiga, em branco com contorno, quebrando linha sozinha.",
+                    "Sai no meio da área marcada, em branco com contorno, quebrando linha sozinha.",
                   )}
                 </p>
               </div>
@@ -291,10 +421,8 @@ export function LegendaEditor({
 
             <p className="text-[12px] text-ink-mute leading-relaxed">
               {caixa
-                ? tx("Área marcada. Pode arrastar de novo pra ajustar.")
-                : tx(
-                    "Nenhuma área marcada ainda — arraste sobre a legenda no vídeo.",
-                  )}{" "}
+                ? `${tx("Área marcada. Arraste a área para mover, ou arraste fora dela para marcar outra.")} `
+                : null}
               {tx(
                 "A remoção reconstrói a área a partir dos pixels vizinhos: em fundo liso fica quase invisível; em fundo com muito detalhe pode sobrar um leve borrão (a nova legenda ajuda a esconder).",
               )}
@@ -364,7 +492,9 @@ export function LegendaEditor({
                 ? qualidade === "ia"
                   ? tx("Enviando os trechos pra IA…")
                   : tx("Processando… (até ~1 min)")
-                : `${modo === "remover" ? tx("Remover legenda") : tx("Trocar legenda")}${conta ? ` · ${creditos} créditos` : ""}`}
+                : !caixa
+                  ? tx("Marque a área no vídeo")
+                  : `${modo === "remover" ? tx("Remover legenda") : tx("Trocar legenda")}${conta ? ` · ${creditos} créditos` : ""}`}
             </Button>
           </div>
         </div>

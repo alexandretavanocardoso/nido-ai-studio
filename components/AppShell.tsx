@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { CarteiraNaBarra } from "@/components/carteira/CarteiraNaBarra";
+import { IndicadorPontos } from "@/components/pontos/IndicadorPontos";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
 import { liberadoNaTela } from "@/lib/em-teste";
 import { CreateDialog, type InicioCriar } from "@/components/home/CreateDialog";
@@ -441,17 +442,6 @@ function MenuLateral({
               },
             ]
           : []),
-        ...(liberadoNaTela("mcp", conta)
-          ? [
-              {
-                rotulo: tx("Claude e ChatGPT (MCP)"),
-                curto: tx("MCP"),
-                icon: Terminal,
-                href: "/app/conexoes",
-                ativo: pathname === "/app/conexoes",
-              },
-            ]
-          : []),
       ],
     },
   ];
@@ -467,7 +457,8 @@ function MenuLateral({
       ) : null}
       <aside
         className={cn(
-          "fixed top-3 bottom-3 left-3 z-40 flex flex-col overflow-hidden rounded-[18px] border border-white/[0.08] bg-[rgba(15,13,14,0.82)] backdrop-blur-[22px] font-geist text-nido-ink",
+          // overflow-y-auto: numa tela baixa (celular deitado, ou com a conta aberta) o menu inteiro rola; antes o rodapé era cortado e ficava inalcançável.
+          "fixed top-3 bottom-3 left-3 z-40 flex flex-col overflow-x-hidden overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-[18px] border border-white/[0.08] bg-[rgba(15,13,14,0.82)] backdrop-blur-[22px] font-geist text-nido-ink",
           "transition-[width,transform] duration-300 ease-[cubic-bezier(.16,1,.3,1)]",
           mini ? "w-[84px]" : "w-[248px]",
           gaveta
@@ -569,7 +560,8 @@ function MenuLateral({
 
         <nav
           aria-label={tx("Principal")}
-          className="flex flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden px-2.5 pt-1 pb-2.5 [scrollbar-width:none]"
+          // Em tela baixa (até 640px de altura) a lista não rola por dentro: quem rola é o menu inteiro.
+          className="flex min-h-[120px] flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden px-2.5 pt-1 pb-2.5 [scrollbar-width:none] [@media(max-height:640px)]:flex-none [@media(max-height:640px)]:overflow-visible"
         >
           {grupos.map((g, gi) => (
             <div key={g.rotulo} className="flex flex-col gap-0.5">
@@ -609,12 +601,13 @@ function MenuLateral({
                   <span className="font-geist-mono text-sm font-semibold">
                     {conta.total.toLocaleString("pt-BR")}
                   </span>
-                  <span className="text-xs text-nido-mute">
+                  {/* Com saldo de 6 dígitos a linha não cabe em 248px: quem cede é a palavra "créditos". */}
+                  <span className="min-w-0 truncate text-xs text-nido-mute">
                     {tx("créditos")}
                   </span>
                   <Link
                     href="/app/planos"
-                    className="ml-auto text-xs font-semibold text-nido-yellow hover:text-nido-yellow-hi"
+                    className="-my-2 ml-auto shrink-0 py-2 text-xs font-semibold text-nido-yellow hover:text-nido-yellow-hi"
                   >
                     {tx("Recarregar")}
                   </Link>
@@ -914,7 +907,9 @@ function BarraDoApp({
       <div className="flex shrink-0 items-center gap-2">
         <SeletorDePersonagem />
         <CarteiraNaBarra />
+        <IndicadorPontos />
         <AvisosRadar />
+        <AtalhoMcp />
         <button
           type="button"
           onClick={onCriar}
@@ -961,28 +956,31 @@ function SeletorDePersonagem() {
   }
 
   return (
-    <div className="relative" ref={caixa}>
+    // No celular a lista se alinha à barra (16px da borda), e não ao botão:
+    // presa ao botão, que fica no meio da barra, ela saía pela esquerda da tela.
+    <div className="sm:relative" ref={caixa}>
       <button
         type="button"
         onClick={() => setAberto((v) => !v)}
         aria-expanded={aberto}
         aria-label={tx("Trocar de personagem")}
         title={tx("Trocar de personagem")}
-        className="flex h-10 items-center gap-2 rounded-full border border-white/[0.08] bg-[rgba(15,13,14,0.6)] pl-1 pr-1 text-[13px] font-semibold text-nido-ink backdrop-blur-lg transition hover:border-white/[0.18] sm:pr-3"
+        className="flex h-10 items-center gap-2 rounded-full border border-white/[0.08] bg-[rgba(15,13,14,0.6)] pl-1 pr-1 text-[13px] font-semibold text-nido-ink backdrop-blur-lg transition hover:border-white/[0.18] md:pr-3"
       >
         <RostoDoPersonagem personagem={ativo} />
-        <span className="hidden max-w-[150px] truncate sm:inline">
+        {/* O nome só entra a partir de `md`: entre 640 e 767px ele tirava o lugar da busca. */}
+        <span className="hidden max-w-[150px] truncate md:inline">
           {ativo.identidade.nome || tx("Sem nome")}
         </span>
         <ChevronUp
           className={cn(
-            "hidden h-4 w-4 shrink-0 text-nido-mute transition sm:block",
+            "hidden h-4 w-4 shrink-0 text-nido-mute transition md:block",
             !aberto && "rotate-180",
           )}
         />
       </button>
       {aberto ? (
-        <div className="absolute right-0 z-40 mt-2 max-h-[60vh] w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-white/[0.08] bg-nido-panel p-1.5 shadow-card">
+        <div className="absolute right-4 z-40 mt-2 max-h-[60dvh] w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-white/[0.08] bg-nido-panel p-1.5 shadow-card sm:right-0">
           <div className="px-2.5 pt-1.5 pb-2 font-geist-mono text-[10px] uppercase tracking-[0.14em] text-nido-dim">
             {tx("Personagem")}
           </div>
@@ -1060,7 +1058,8 @@ function BuscaPersonagens() {
     : [];
 
   return (
-    <div ref={caixa} className="relative hidden w-full max-w-[380px] sm:block">
+    // min-w-0: num tablet a busca encolhe para o espaço que sobra, em vez de passar por cima dos botões da direita.
+    <div ref={caixa} className="relative hidden w-full min-w-0 max-w-[380px] sm:block">
       <label className="flex h-[42px] items-center gap-2.5 rounded-xl border border-white/[0.08] bg-[rgba(15,13,14,0.6)] pl-3.5 pr-2.5 text-nido-mute backdrop-blur-lg transition focus-within:border-white/[0.18] hover:border-white/[0.18]">
         <Search className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
         <input
@@ -1126,6 +1125,30 @@ interface AvisoRadar {
  *    Abrir o Radar do personagem limpa o dele.
  * O número é o que ainda não foi visto; abrir o sino marca como visto.
  */
+/** Conectar o Claude e o ChatGPT (MCP): um botão só, para quem tem acesso ao recurso (lib/em-teste.ts). */
+function AtalhoMcp() {
+  const { conta } = useCreditos();
+  const pathname = usePathname();
+  if (!conta || !liberadoNaTela("mcp", conta)) return null;
+  const ativo = pathname === "/app/conexoes";
+  return (
+    <Link
+      href="/app/conexoes"
+      title={tx("Claude e ChatGPT (MCP)")}
+      aria-label={tx("Claude e ChatGPT (MCP)")}
+      aria-current={ativo ? "page" : undefined}
+      className={cn(
+        "hidden h-9 w-9 items-center justify-center rounded-full border bg-panel transition sm:inline-flex",
+        ativo
+          ? "border-accent text-accent"
+          : "border-line text-ink hover:border-line-strong",
+      )}
+    >
+      <Terminal className="h-4 w-4" />
+    </Link>
+  );
+}
+
 function AvisosRadar() {
   const { user } = useAuth();
   const recursos = useRecursos();
@@ -1187,7 +1210,8 @@ function AvisosRadar() {
     setAberto((v) => !v);
   };
   return (
-    <div className="relative" ref={caixa}>
+    // No celular o painel se alinha à barra, não ao sino (ver SeletorDePersonagem).
+    <div className="sm:relative" ref={caixa}>
       <button
         type="button"
         onClick={abrir}
@@ -1203,7 +1227,7 @@ function AvisosRadar() {
         ) : null}
       </button>
       {aberto ? (
-        <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto rounded-xl border border-line bg-panel shadow-card z-40">
+        <div className="absolute right-4 sm:right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] max-h-[70dvh] overflow-y-auto rounded-xl border border-line bg-panel shadow-card z-40">
           <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 border-b border-line text-[11px] mono uppercase tracking-wider text-ink-dim">
             {tx("Notificações")}
             {prontos.length > 0 ? (

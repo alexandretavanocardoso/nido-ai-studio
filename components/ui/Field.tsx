@@ -90,7 +90,8 @@ export function Field({
               type="button"
               onClick={() => toggleLock(characterId, fieldId)}
               className={cn(
-                "h-5 w-5 inline-flex items-center justify-center rounded-md transition",
+                // O ::after aumenta a área de toque para ~36px sem mexer no desenho (o cadeado tem 20px).
+                "relative h-5 w-5 inline-flex items-center justify-center rounded-md transition after:absolute after:-inset-2 after:content-['']",
                 locked ? "text-accent" : "text-ink-dim hover:text-ink",
               )}
               aria-pressed={locked}

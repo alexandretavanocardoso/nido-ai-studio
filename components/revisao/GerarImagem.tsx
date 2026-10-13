@@ -80,20 +80,21 @@ export function GerarImagem({ character, tipo: tipoFixo }: Props) {
     <div className="grid gap-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         {!tipoFixo ? (
-          <div className="flex gap-1 border border-line rounded-full p-1 bg-panel">
+          <div className="flex w-full gap-1 border border-line rounded-full p-1 bg-panel min-[420px]:w-auto">
             {TIPOS.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setTipo(t.id)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-4 h-8 rounded-full text-[13px] font-semibold transition",
+                  // Abaixo de 420px os três tipos não cabem com ícone (somam 337px): ocupam a linha toda, só com o texto.
+                  "inline-flex flex-auto items-center justify-center gap-1.5 whitespace-nowrap px-1 min-[420px]:flex-none min-[420px]:px-4 h-8 rounded-full text-[13px] font-semibold transition",
                   tipo === t.id
                     ? "bg-accent text-bg"
                     : "text-ink-mute hover:text-ink",
                 )}
               >
-                <t.icon className="w-3.5 h-3.5" />
+                <t.icon className="hidden w-3.5 h-3.5 min-[420px]:block" />
                 {tx(t.label)}
               </button>
             ))}

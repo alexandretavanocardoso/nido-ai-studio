@@ -114,8 +114,9 @@ export function CarteiraConta({ className }: { className?: string }) {
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line bg-black">
             <LogoSolana className="w-6" />
           </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+          {/* basis de 180px: no celular os botões descem para a linha de baixo, em vez de espremer o nome. */}
+          <div className="min-w-0 flex-1 basis-[180px]">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="text-[14px] font-semibold text-ink">
                 {tx("Carteira Solana")}
               </span>

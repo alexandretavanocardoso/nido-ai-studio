@@ -69,8 +69,12 @@ export function TarefasEmAndamento() {
   const convite = convidar && (rodando.length > 0 || videos > 0);
   if (!rodando.length && !terminadas.length && !convite) return null;
   return (
+    <>
+    {/* O cartão é fixo no rodapé: este espaço no fim da página deixa rolar até o que ficaria embaixo dele (no celular ele cobria o último botão da tela). */}
+    <div aria-hidden className="h-20" />
+    {/* z-30: abaixo do menu-gaveta do celular (z-40), que antes ficava com a conta coberta por este cartão. */}
     <div
-      className="fixed bottom-4 right-4 z-40 grid gap-1.5 w-[min(300px,calc(100vw-2rem))] rounded-2xl border border-line-strong bg-panel/95 backdrop-blur px-3.5 py-3 shadow-xl"
+      className="fixed bottom-4 right-4 z-30 grid gap-1.5 w-[min(300px,calc(100vw-2rem))] rounded-2xl border border-line-strong bg-panel/95 backdrop-blur px-3.5 py-3 shadow-xl"
       role="status"
       aria-live="polite"
     >
@@ -107,20 +111,21 @@ export function TarefasEmAndamento() {
           <button
             type="button"
             onClick={() => void ligarNotificacoes()}
-            className="min-w-0 flex-1 truncate text-left font-semibold text-ink hover:text-accent"
+            className="-my-2 min-w-0 flex-1 truncate py-2 text-left font-semibold text-ink hover:text-accent"
           >
             {tx("Avisar quando terminar")}
           </button>
           <button
             type="button"
             onClick={dispensarConvite}
-            className="shrink-0 text-ink-dim hover:text-ink"
+            className="-my-2 shrink-0 py-2 pl-2 text-ink-dim hover:text-ink"
           >
             {tx("Agora não")}
           </button>
         </div>
       )}
     </div>
+    </>
   );
 }
 

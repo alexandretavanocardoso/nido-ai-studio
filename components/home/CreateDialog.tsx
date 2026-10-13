@@ -259,7 +259,7 @@ export function CreateDialog({ open, onClose, inicio, onTutorial }: Props) {
     >
       <div
         className={cn(
-          "card w-full p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto",
+          "card w-full p-6 sm:p-8 relative max-h-[90dvh] overflow-y-auto",
           mode === "pick"
             ? "max-w-[920px] sm:p-9 rounded-[22px] bg-[#121011] border-white/[0.09] shadow-[0_50px_120px_-30px_rgba(0,0,0,0.9)] animate-nido-rise font-geist text-nido-ink"
             : "max-w-2xl",

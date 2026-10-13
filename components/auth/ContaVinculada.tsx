@@ -80,8 +80,9 @@ export function ContaVinculada({
             </span>
           ) : null}
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+        {/* basis de 160px: no celular o botão desce para a linha de baixo, em vez de espremer o nome até sumir. */}
+        <div className="min-w-0 flex-1 basis-[160px]">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-[14px] font-semibold text-ink">{nome}</span>
             {vinculado ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-400">

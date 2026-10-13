@@ -56,13 +56,16 @@ export function TagInput({
       {value.map((tag) => (
         <span
           key={tag}
-          className="inline-flex items-center gap-1 rounded-full bg-accent/15 border border-accent/40 text-accent px-2.5 py-0.5 text-[13px] font-medium"
+          // max-w-full + truncate: uma tag comprida sem espaço (um @, um link) não passa da caixa.
+          className="inline-flex max-w-full min-w-0 items-center gap-1 rounded-full bg-accent/15 border border-accent/40 text-accent px-2.5 py-0.5 text-[13px] font-medium"
+          title={tag}
         >
-          {tag}
+          <span className="truncate">{tag}</span>
           <button
             type="button"
             onClick={() => onChange(value.filter((t) => t !== tag))}
-            className="opacity-70 hover:opacity-100"
+            // O ::after aumenta a área de toque do X (14px) para ~30px sem mexer no desenho.
+            className="relative shrink-0 opacity-70 hover:opacity-100 after:absolute after:-inset-2 after:content-['']"
             aria-label={`Remover ${tag}`}
           >
             <X className="w-3.5 h-3.5" />

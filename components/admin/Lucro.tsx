@@ -141,8 +141,8 @@ export function Lucro({
                   "Margem",
                   "Saldo",
                 ]}
-                larguras={["", 110, 104, 116, 100, 104, 76, 80]}
-                minimo={860}
+                larguras={["", 126, 120, 116, 100, 112, 76, 80]}
+                minimo={900}
               >
                 {usuarios.map((u) => (
                   <tr

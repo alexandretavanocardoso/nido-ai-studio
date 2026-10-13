@@ -337,6 +337,12 @@ export const CREDITOS_POST_POR_REDE = 6;
 /** Colocar uma fala num vídeo (ffmpeg). */
 export const CREDITOS_APLICAR_AUDIO = 2;
 
+/** Cortar um trecho do vídeo (ffmpeg). */
+export const CREDITOS_CORTAR_VIDEO = 2;
+/** Menor e maior trecho que dá para cortar (s). O maior é o que cabe no tempo da função, recodificando. */
+export const CORTE_MIN_SEGUNDOS = 0.5;
+export const CORTE_MAX_SEGUNDOS = 180;
+
 /**
  * Mintar o NFT do influencer na Solana (lib/nft). A NIDO paga a taxa da rede;
  * medido por simulação em 10/10/2026 (devnet e mainnet, scripts/nft-simular.mjs):

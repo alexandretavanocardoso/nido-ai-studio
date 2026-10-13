@@ -527,6 +527,7 @@ export const MAIS_FERRAMENTAS: Ferramenta[] = [
           createdAt: Date.now(),
           origem: "legenda",
           duracao: Number(r.duracao) || undefined,
+          jobId: r.edicaoId ? String(r.edicaoId) : undefined,
         };
         await getPool()!.query(
           `update characters

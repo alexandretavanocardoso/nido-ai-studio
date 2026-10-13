@@ -1189,7 +1189,8 @@ function VitrineDeBadges({
                   </span>
                   <span
                     className={cn(
-                      "text-[15px] font-bold leading-none tabular-nums",
+                      // 13px abaixo de 400px: com 5 por linha, "100M" a 15px passava do cartão.
+                      "text-[13px] min-[400px]:text-[15px] font-bold leading-none tabular-nums",
                       conquistado
                         ? "text-ink"
                         : aguardando

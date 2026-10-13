@@ -68,7 +68,7 @@ export function ConfirmacaoHost() {
       aria-labelledby="confirmacao-titulo"
       onClick={(e) => e.target === e.currentTarget && responder(false)}
     >
-      <div className="card w-full max-w-md p-6 rounded-3xl grid gap-4">
+      <div className="card w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 rounded-3xl grid gap-4">
         <div className="flex gap-3.5">
           <span
             className={cn(
@@ -92,7 +92,8 @@ export function ConfirmacaoHost() {
             ) : null}
           </div>
         </div>
-        <div className="flex justify-end gap-2">
+        {/* flex-wrap: dois botões compridos ("Manter agendado" / "Cancelar agendamento") não cabem lado a lado em 320px. */}
+        <div className="flex flex-wrap justify-end gap-2">
           <button
             type="button"
             onClick={() => responder(false)}

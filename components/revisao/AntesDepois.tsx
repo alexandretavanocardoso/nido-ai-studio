@@ -103,7 +103,7 @@ export function AntesDepois({
       aria-modal="true"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="card flex max-h-[94vh] w-full max-w-md flex-col gap-3 p-4">
+      <div className="card flex max-h-[94dvh] w-full max-w-md flex-col gap-3 p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h2 className="display text-lg uppercase text-ink">
@@ -126,8 +126,8 @@ export function AntesDepois({
         <div className="grid min-h-0 flex-1 place-items-center">
           <div
             ref={areaRef}
-            className="relative max-h-[66vh] w-full touch-none select-none overflow-hidden rounded-2xl bg-black"
-            style={{ aspectRatio: String(proporcao), maxWidth: `calc(66vh * ${proporcao})` }}
+            className="relative max-h-[66dvh] w-full touch-none select-none overflow-hidden rounded-2xl bg-black"
+            style={{ aspectRatio: String(proporcao), maxWidth: `calc(66dvh * ${proporcao})` }}
             onPointerDown={(e) => {
               arrastando.current = true;
               mover(e.clientX);

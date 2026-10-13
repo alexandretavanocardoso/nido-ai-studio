@@ -18,6 +18,21 @@ body {
 body {
   font-family: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* Palavra maior que a caixa (link, @ comprido, texto sem espaço) quebra em vez de vazar. */
+  overflow-wrap: break-word;
+}
+
+@layer base {
+  /*
+   * Um item de grid, por padrão, nunca fica menor que o seu conteúdo: um texto
+   * que não quebra lá dentro (`truncate`, um link) alargava a coluna e empurrava
+   * a tela inteira para fora (o body corta, então o resto sumia). Com mínimo
+   * zero a coluna respeita o pai e o texto trunca. Quem precisar de um mínimo
+   * próprio usa `min-w-*`, que vence esta regra.
+   */
+  :where(.grid) > * {
+    min-width: 0;
+  }
 }
 
 ::selection {
@@ -90,6 +105,14 @@ textarea:-webkit-autofill {
   -webkit-text-fill-color: #ffffff;
   -webkit-box-shadow: 0 0 0 100px #131112 inset;
   caret-color: #ffffff;
+}
+
+/* No toque, todo campo de texto tem letra de 16px: com menos, o iOS aproxima a
+   página ao focar o campo e não volta sozinho. */
+@media (hover: none) and (pointer: coarse) {
+  :is(input, textarea, select):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) {
+    font-size: 16px;
+  }
 }
 
 @layer utilities {

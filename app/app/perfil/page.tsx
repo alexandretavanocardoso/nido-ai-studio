@@ -77,7 +77,7 @@ export default function Perfil() {
       </section>
 
       {conta ? (
-        <section className="card grid gap-4 p-5">
+        <section className="card grid grid-cols-1 gap-4 p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-[12px] text-ink-mute">{tx("Plano")}</div>
@@ -121,7 +121,8 @@ export default function Perfil() {
       ) : null}
 
       {PROVEDORES_VINCULO.some((p) => recursos[p]) || comCarteira ? (
-        <section className="card grid gap-3 p-5">
+        // grid-cols-1 (minmax(0,1fr)): nome de conta comprido trunca em vez de alargar o cartão além da tela.
+        <section className="card grid grid-cols-1 gap-3 p-5">
           <div>
             <div className="text-[13px] font-semibold text-ink">
               {tx("Contas vinculadas")}

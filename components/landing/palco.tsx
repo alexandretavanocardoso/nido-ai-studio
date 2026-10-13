@@ -20,11 +20,21 @@ import {
  * (`pin`), informa o progresso do scroll de 0 a 1.
  */
 const LARGURA = { dk: 1280, mb: 390 } as const;
-/** Acima disso o quadro para de crescer e fica centralizado. */
-const LARGURA_MAX = 1920;
+/**
+ * Acima disso o quadro para de crescer e fica centralizado. O de celular para
+ * cedo: num tablet em pé ele vira uma coluna no meio da tela, em vez de letras
+ * gigantes de ponta a ponta.
+ */
+const LARGURA_MAX = { dk: 1920, mb: 560 } as const;
 /** Quanto o quadro pode passar da altura da tela para ocupar a largura toda. */
 const FOLGA_NA_ALTURA = 1.14;
-const CELULAR = "(max-width: 719px)";
+/**
+ * Quem recebe o quadro de celular: telas estreitas e tablets em pé (o quadro
+ * de desktop encolhido a 60% fica ilegível neles). Tela deitada, mesmo de
+ * celular, recebe o de desktop, que é paisagem como ela.
+ */
+const CELULAR =
+  "(max-width: 559px), (max-width: 959px) and (orientation: portrait)";
 
 interface Tela {
   /** null até o navegador medir a tela (o servidor não sabe o tamanho). */
@@ -129,7 +139,7 @@ export function Palco({
 
   const W = mob ? LARGURA.mb : LARGURA.dk;
   const H = mob ? hm : h;
-  let s = Math.min(tela.largura || W, LARGURA_MAX) / W;
+  let s = Math.min(tela.largura || W, LARGURA_MAX[mob ? "mb" : "dk"]) / W;
   // O quadro ocupa a largura toda da tela. Só encolhe pela altura quando
   // passaria muito dela: até FOLGA_NA_ALTURA a mais, ele fica na largura cheia
   // e o que sobra em cima e embaixo (as margens do desenho) fica fora da tela.
@@ -209,7 +219,7 @@ export function Palco({
       ref={sec}
       id={id}
       aria-label={rotulo}
-      className={`lp-sec${pin ? " pin" : ""}${comFaixas ? " faixas" : ""} ${classe}`}
+      className={`lp-sec${pin ? " pin" : ""}${comFaixas ? (mob ? " faixas fx-mb" : " faixas") : ""} ${classe}`}
       style={estilo}
     >
       <div className="lp-stage">

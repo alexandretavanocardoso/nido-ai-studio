@@ -18,14 +18,14 @@ export function SuggestionCounter({ character }: { character: Character }) {
     <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-accent/25 bg-accent/5 px-4 py-3">
       {pendentes > 0 ? (
         <>
-          <Sparkles className="w-4 h-4 text-accent" />
-          <div className="flex-1 min-w-0">
+          <Sparkles className="w-4 h-4 shrink-0 text-accent" />
+          {/* basis de 220px: no celular os botões descem para a linha de baixo, em vez de espremer o texto numa coluna estreita. */}
+          <div className="flex-1 basis-[220px] min-w-0">
             <div className="font-semibold text-ink text-[15px]">
               {pendentes} {pendentes === 1 ? "sugestão" : "sugestões"}{" "}
               {tx("para revisar")}
             </div>
             <div className="text-[13px] text-ink-mute">
-              Editar um campo{" "}
               {tx(
                 'Editar um campo com sugestão já conta como aceito; para aceitar sem editar, use "Confirmar".',
               )}

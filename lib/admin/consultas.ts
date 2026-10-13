@@ -93,7 +93,7 @@ export async function resumoAdmin(): Promise<ResumoAdmin> {
     db.query(
       `select
          (select count(*) from characters) as personagens,
-         (select count(*) from video_jobs) as videos,
+         (select count(*) from video_jobs where provedor <> 'ffmpeg') as videos, -- sem as edições (corte, legenda, fala)
          (select count(*) from video_jobs where status = 'erro' or error is not null) as videos_erro,
          (select count(*) from posts_agendados) as posts,
          (select count(*) from posts_agendados where status = 'SCHEDULED') as posts_agendados,

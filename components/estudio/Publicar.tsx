@@ -586,7 +586,8 @@ export function Publicar({ character }: { character: Character }) {
           </div>
 
           <div className="grid gap-3">
-            <div className="flex gap-1 border border-line rounded-full p-1 bg-panel w-fit">
+            {/* No celular as três opções dividem a linha e o texto pode ocupar duas linhas: na pílula de 32px, "Salvar no backlog" quebrava e ficava colado nas bordas. */}
+            <div className="flex w-full gap-1 rounded-2xl border border-line bg-panel p-1 sm:w-fit sm:rounded-full">
               {(
                 [
                   ["agendar", tx("Agendar")],
@@ -599,7 +600,7 @@ export function Publicar({ character }: { character: Character }) {
                   type="button"
                   onClick={() => setModo(id)}
                   className={cn(
-                    "px-3.5 h-8 rounded-full text-[12px] font-bold transition",
+                    "min-h-8 flex-auto rounded-xl px-2 py-1.5 text-center text-[12px] font-bold leading-tight transition sm:flex-none sm:whitespace-nowrap sm:rounded-full sm:px-3.5 sm:py-0",
                     modo === id
                       ? "bg-accent text-bg"
                       : "text-ink-mute hover:text-ink",

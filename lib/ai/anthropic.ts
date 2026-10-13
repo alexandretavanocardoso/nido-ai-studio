@@ -46,9 +46,11 @@ interface AskOptions {
 }
 
 /** Mensagem em português para erros de configuração da Anthropic (o resto vira "tente de novo"). */
-function mensagemAnthropic(err: unknown): string {
+export function mensagemAnthropic(err: unknown): string {
   const status = (err as { status?: number })?.status;
   const msg = (err as Error)?.message ?? "";
+  if (/credit balance is too low/i.test(msg))
+    return "A conta da Anthropic está sem créditos. Recarregue em console.anthropic.com (Plans & Billing).";
   if (/must be a valid workspace ID/i.test(msg))
     return "ANTHROPIC_WORKSPACE_ID inválido: use o ID do workspace que começa com wrkspc_ (Console → Settings → Workspaces).";
   if (/not scoped to a workspace|anthropic-workspace-id/i.test(msg))

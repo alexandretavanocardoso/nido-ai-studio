@@ -91,6 +91,8 @@ export function DashboardInfluencers({
 
   // Relatório em PDF (o mesmo do Dashboard do usuário): de todos ou de um influencer (`alvo`).
   const [menuPdf, setMenuPdf] = useState(false);
+  // O menu abre alinhado à direita do botão; com o botão no canto esquerdo da tela (celular), abre para a direita.
+  const [menuParaDireita, setMenuParaDireita] = useState(false);
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [erroPdf, setErroPdf] = useState<string | null>(null);
   async function baixarPdf(alvo: string | null) {
@@ -165,7 +167,12 @@ export function DashboardInfluencers({
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setMenuPdf((v) => !v)}
+                  onClick={(e) => {
+                    setMenuParaDireita(
+                      e.currentTarget.getBoundingClientRect().right < 304,
+                    );
+                    setMenuPdf((v) => !v);
+                  }}
                   disabled={gerandoPdf}
                   aria-haspopup="menu"
                   aria-expanded={menuPdf}
@@ -193,7 +200,10 @@ export function DashboardInfluencers({
                     />
                     <div
                       role="menu"
-                      className="absolute right-0 top-full z-40 mt-1.5 max-h-80 w-72 overflow-y-auto rounded-xl border border-line bg-card p-1 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.9)] [scrollbar-width:thin]"
+                      className={cn(
+                        "absolute top-full z-40 mt-1.5 max-h-80 w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-line bg-card p-1 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.9)] [scrollbar-width:thin]",
+                        menuParaDireita ? "left-0" : "right-0",
+                      )}
                     >
                       <div className="label-cap px-2.5 pb-1.5 pt-2">
                         Relatório de · {dias}d

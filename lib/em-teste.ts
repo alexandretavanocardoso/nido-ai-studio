@@ -17,6 +17,8 @@ export const SO_ADMIN = {
   stripe: true,
   /** NFT do influencer na Solana: vincular carteira, mintar e badges (lib/nft). */
   nft: true,
+  /** Pontos: o indicador da barra, o check-in diário e a página de pontos (lib/pontos.ts). */
+  pontos: true,
   /**
    * Entrar no app. Aberto por padrão; fechado, só as contas admin conseguem
    * entrar (ver o hook de sessão em lib/auth/server.ts).
@@ -60,6 +62,11 @@ export const SOBRE_O_RECURSO: Record<
     titulo: "NFT do influencer (Solana)",
     descricao:
       "Vincular a carteira, mintar o NFT do influencer e os badges (views, curtidas, comentários, reposts, quotes e salvos), na aba NFT do personagem (ao lado do Radar). Fechado, só as contas admin veem e mintam; os NFTs já mintados continuam existindo e os badges deles seguem sendo gravados.",
+  },
+  pontos: {
+    titulo: "Pontos e check-in diário",
+    descricao:
+      "O indicador de pontos na barra do topo, o check-in diário e a página de pontos. Fechado, só as contas admin veem e fazem check-in; os pontos de créditos gastos, primeiros passos, posts e indicação já contam para todas as contas e aparecem quando você liberar.",
   },
   login: {
     titulo: "Login de usuários",

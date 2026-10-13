@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth/server";
 import { getS3, ownsKey, presignGet } from "@/lib/storage/s3";
+import { registrarDownload } from "@/lib/video/reembolso-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +28,8 @@ export async function GET(
 
   const baixar =
     new URL(req.url).searchParams.get("baixar")?.slice(0, 120) || undefined;
+  // Vídeo gerado baixado: fica anotado no job (o admin vê ao julgar um reembolso).
+  if (baixar) await registrarDownload(userId, key);
   const url = await presignGet(s3, key, 3600, baixar);
   return NextResponse.redirect(url, {
     status: 302,

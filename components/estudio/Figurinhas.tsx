@@ -396,7 +396,8 @@ export function Figurinhas({ character }: { character: Character }) {
       </div>
 
       <div className="grid gap-3">
-        <div className="flex w-fit gap-1 rounded-full border border-line bg-panel p-1">
+        {/* No celular as duas opções ficam uma embaixo da outra: lado a lado, na pílula de 32px, "Trocar o personagem de uma figurinha" quebrava e ficava colado nas bordas. */}
+        <div className="flex w-full flex-col gap-1 rounded-2xl border border-line bg-panel p-1 sm:w-fit sm:flex-row sm:rounded-full">
           {(
             [
               ["gerar", "Criar figurinha", Sticker],
@@ -409,11 +410,11 @@ export function Figurinhas({ character }: { character: Character }) {
               onClick={() => setModo(id)}
               aria-pressed={modo === id}
               className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-bold transition",
+                "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-center text-[12.5px] font-bold leading-tight transition sm:whitespace-nowrap sm:rounded-full sm:py-0",
                 modo === id ? "bg-accent text-bg" : "text-ink-mute hover:text-ink",
               )}
             >
-              <Icone className="h-3.5 w-3.5" /> {tx(nome)}
+              <Icone className="h-3.5 w-3.5 shrink-0" /> {tx(nome)}
             </button>
           ))}
         </div>

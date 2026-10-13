@@ -116,7 +116,7 @@ export function FaixaNido({ dados }: { dados: DadosNido }) {
           ).map(([Icone, rotulo, valor, destaque]) => (
             <div
               key={rotulo}
-              className="flex flex-col gap-2.5 border-b border-r border-white/[0.06] px-6 py-[22px]"
+              className="flex min-w-0 flex-col gap-2.5 border-b border-r border-white/[0.06] px-6 py-[22px] [container-type:inline-size]"
             >
               <span
                 className={cn(
@@ -129,7 +129,8 @@ export function FaixaNido({ dados }: { dados: DadosNido }) {
               </span>
               <span
                 className={cn(
-                  "font-archivo text-[38px] font-extrabold leading-none tracking-[-0.02em] [font-stretch:112%]",
+                  // "US$ 128.458" a 38px não cabe num celular de 320px: encolhe com a célula.
+                  "whitespace-nowrap font-archivo text-[clamp(20px,13cqi,38px)] font-extrabold leading-none tracking-[-0.02em] [font-stretch:112%]",
                   destaque ? "text-nido-yellow" : "text-nido-paper",
                 )}
               >

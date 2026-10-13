@@ -30,6 +30,7 @@ import {
   AVULSO_MAX,
   AVULSO_MIN,
   BONUS_USDC,
+  CREDITOS_CORTAR_VIDEO,
   CREDITOS_LEGENDA,
   CREDITOS_POST_POR_REDE,
   CREDITOS_FIGURINHA,
@@ -642,6 +643,7 @@ function TabelaCustos() {
       `${FALADO_POR_SEGUNDO} / ${CORPO_INTEIRO_POR_SEGUNDO} ${tx("por segundo")}`,
     ],
     ["Editar legenda de vídeo", String(CREDITOS_LEGENDA)],
+    ["Cortar vídeo", String(CREDITOS_CORTAR_VIDEO)],
     ["Figurinha de WhatsApp (criar ou trocar o personagem)", String(CREDITOS_FIGURINHA)],
     [
       "IA de texto · sugerir campo / checar / regenerar / expandir ficha",
@@ -906,7 +908,7 @@ function PagamentoUsdc({
       role="dialog"
       aria-modal="true"
     >
-      <div className="card w-full max-w-md p-6 relative rounded-t-3xl sm:rounded-3xl">
+      <div className="card w-full max-w-md p-6 relative max-h-[94dvh] overflow-y-auto rounded-t-3xl sm:rounded-3xl">
         <button
           type="button"
           onClick={onClose}

@@ -103,7 +103,7 @@ export function VozStep({ id }: { id: string }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label={tx("Uso de emoji")} fieldId="voz.emoji">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {emojiOpcoes.map((o) => (
               <Chip
                 key={o.value}
@@ -119,7 +119,7 @@ export function VozStep({ id }: { id: string }) {
           label={tx("Tamanho médio das frases")}
           fieldId="voz.tamanhoFrase"
         >
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {tamanhoFraseOpcoes.map((o) => (
               <Chip
                 key={o.value}

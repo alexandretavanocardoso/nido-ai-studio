@@ -349,12 +349,12 @@ export function Demo() {
       </div>
     </>
   );
-  const caixa = (fonte: number, minimo: number) => (
+  const caixa = (fonte: number, minimo: number, linha?: number) => (
     <>
       <textarea
         rows={3}
         maxLength={240}
-        style={{ fontSize: fonte, minHeight: minimo }}
+        style={{ fontSize: fonte, minHeight: minimo, lineHeight: linha }}
         placeholder={tx("Descreva seu creator em uma frase…")}
         aria-label={tx("Descreva seu creator em uma frase")}
       />
@@ -398,7 +398,8 @@ export function Demo() {
             )}
           </p>
           <div className="dm-pbox" style={{ padding: 12, borderRadius: 16 }}>
-            {caixa(14.5, 64)}
+            {/* 16px: com menos, o iOS dá zoom na página ao tocar no campo. A linha mais justa mantém a altura que a caixa tinha com 14,5px. */}
+            {caixa(16, 64, 1.36)}
           </div>
           <div className="dm-ex">{chips}</div>
         </div>

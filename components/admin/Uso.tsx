@@ -91,8 +91,8 @@ export function Uso({ abrirUsuario }: { abrirUsuario: (id: string) => void }) {
                   "Custo ≈",
                   "Parte do total",
                 ]}
-                larguras={["", 140, 60, 88, 88, 88, 136]}
-                minimo={720}
+                larguras={["", 140, 60, 88, 88, 112, 124]}
+                minimo={732}
               >
                 {dados.porRecurso.map((r, i) => {
                   const pct = total ? (r.creditos / total) * 100 : 0;

@@ -128,7 +128,8 @@ export function CharacterHeader({
             title={dica}
             className={cn(
               "relative inline-flex items-center gap-2 h-11 text-[14px] font-semibold transition",
-              estreitas ? "px-2.5 sm:px-4" : "px-4",
+              // Com 3 abas, em 320px o respiro cheio passava 15px da tela.
+              estreitas ? "px-2.5 sm:px-4" : "px-2.5 min-[360px]:px-4",
               aba === id ? "text-ink" : "text-ink-mute hover:text-ink",
             )}
           >

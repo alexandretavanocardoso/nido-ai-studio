@@ -428,7 +428,8 @@ export function CalendarioPosts({
                   onKeyDown={(e) => e.key === "Enter" && setDiaAberto(d)}
                   {...soltarEm(d)}
                   className={cn(
-                    "min-h-[118px] p-1.5 text-left border-line transition flex flex-col gap-1 min-w-0 cursor-pointer",
+                    // Contêiner: os chips se ajustam à largura do dia (ver ChipPost).
+                    "min-h-[84px] sm:min-h-[118px] p-1.5 text-left border-line transition flex flex-col gap-1 min-w-0 cursor-pointer [container-type:inline-size]",
                     i % 7 !== 6 && "border-r",
                     i < 35 && "border-b",
                     doMes ? "bg-bg hover:bg-panel" : "bg-bg/40",
@@ -463,7 +464,11 @@ export function CalendarioPosts({
                   ))}
                   {lista.length > MAX_NO_MES && (
                     <span className="text-[10px] font-semibold text-accent px-1">
-                      +{lista.length - MAX_NO_MES} mais
+                      +{lista.length - MAX_NO_MES}
+                      <span className="hidden [@container(min-width:90px)]:inline">
+                        {" "}
+                        mais
+                      </span>
                     </span>
                   )}
                 </div>
@@ -579,11 +584,25 @@ function ChipPost({
 }) {
   const tom = STATUS_POST[p.status]?.tom ?? "neutro";
   const texto = p.titulo || p.texto || "—";
+  // No mês, num celular, o dia tem ~45px: não cabe hora nem rede. O chip vira
+  // só uma barra com a cor do status (os detalhes ficam na lista do dia, abaixo
+  // do calendário). A régua é a largura do dia (@container), não a da tela.
+  const cabe = grande ? "block" : "hidden [@container(min-width:90px)]:block";
   const conteudo = (
     <>
+      {grande ? null : (
+        <span
+          className={cn(
+            "block h-1.5 rounded-full [@container(min-width:90px)]:hidden",
+            PONTO_TOM[tom],
+          )}
+        />
+      )}
+      <span className={cabe}>
       <span
         className={cn(
-          "flex items-center gap-1.5 font-bold text-ink leading-tight",
+          // flex-wrap: com várias redes os ícones não cabem ao lado da hora e saíam do card, por cima do dia vizinho.
+          "flex flex-wrap items-center gap-x-1.5 gap-y-1 font-bold text-ink leading-tight",
           grande ? "text-[12px]" : "text-[10px]",
         )}
       >
@@ -597,7 +616,7 @@ function ChipPost({
         {hora(p.quando)}
         <IconesRedes
           redes={p.redes}
-          className="text-ink-mute gap-1 min-w-0"
+          className="text-ink-mute gap-1 min-w-0 flex-wrap"
           tamanho="h-3 w-3"
         />
       </span>
@@ -610,6 +629,7 @@ function ChipPost({
         )}
       >
         {texto}
+      </span>
       </span>
     </>
   );
@@ -772,9 +792,10 @@ function PostModal({
       aria-modal="true"
       onClick={(e) => e.target === e.currentTarget && onFechar()}
     >
-      <div className="card w-full max-w-3xl h-[min(600px,92vh)] grid grid-rows-[auto_1fr] sm:grid-rows-1 sm:grid-cols-[320px_minmax(0,1fr)] overflow-hidden rounded-t-3xl sm:rounded-3xl">
+      <div className="card w-full max-w-3xl h-[min(600px,92dvh)] grid grid-rows-[auto_1fr] sm:grid-rows-1 sm:grid-cols-[320px_minmax(0,1fr)] overflow-hidden rounded-t-3xl sm:rounded-3xl">
         {/* Mídia */}
-        <div className="bg-black grid place-items-center min-h-0 h-[38vh] sm:h-full">
+        {/* grid-rows-[minmax(0,1fr)]: sem a linha presa à altura da caixa, um vídeo em pé crescia até a largura da tela e cobria o resto do modal no celular. */}
+        <div className="bg-black grid grid-rows-[minmax(0,1fr)] place-items-center min-h-0 h-[38dvh] sm:h-full">
           {p.midiaKey ? (
             p.midiaTipo === "video" ? (
               <video

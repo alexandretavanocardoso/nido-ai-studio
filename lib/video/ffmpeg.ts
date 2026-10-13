@@ -3,6 +3,14 @@ import { spawn } from "node:child_process";
 import { stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import ffmpegStatic from "ffmpeg-static";
+import {
+  caracteresPorLinha,
+  centroDaLegenda,
+  LEGENDA_ALTURA_LINHA,
+  LEGENDA_CONTORNO,
+  LEGENDA_FONTE,
+  quebrarLinhas,
+} from "./legenda-texto";
 
 /**
  * ffmpeg no servidor (binário do pacote ffmpeg-static; FFMPEG_PATH sobrescreve).
@@ -87,24 +95,6 @@ export function caixaEmPixels(c: Caixa, largura: number, altura: number) {
   return { x, y, w, h };
 }
 
-/** Quebra o texto em linhas que caibam em `maxChars`. */
-export function quebrarLinhas(texto: string, maxChars: number): string {
-  const linhas: string[] = [];
-  for (const paragrafo of texto.trim().split(/\r?\n/)) {
-    let atual = "";
-    for (const palavra of paragrafo.split(/\s+/).filter(Boolean)) {
-      if (atual && (atual + " " + palavra).length > maxChars) {
-        linhas.push(atual);
-        atual = palavra;
-      } else {
-        atual = atual ? `${atual} ${palavra}` : palavra;
-      }
-    }
-    if (atual) linhas.push(atual);
-  }
-  return linhas.join("\n");
-}
-
 /** Escapa um caminho pra usar como valor de opção num filtro do ffmpeg. */
 function caminhoFiltro(p: string): string {
   return `'${p.replace(/\\/g, "/").replace(/:/g, "\\:").replace(/'/g, "\\'")}'`;
@@ -132,7 +122,7 @@ export async function editarLegenda(o: EditarLegenda): Promise<void> {
   const filtros = [`delogo=x=${px.x}:y=${px.y}:w=${px.w}:h=${px.h}`];
 
   if (o.modo === "trocar" && o.texto?.trim()) {
-    filtros.push(...(await filtrosTexto(o.texto, o.info, px, o.tmpDir)));
+    filtros.push(...(await filtrosTexto(o.texto, o.info, o.caixa, o.tmpDir)));
   }
 
   await run([
@@ -165,17 +155,16 @@ export async function editarLegenda(o: EditarLegenda): Promise<void> {
 async function filtrosTexto(
   texto: string,
   info: VideoInfo,
-  px: { x: number; y: number; w: number; h: number },
+  caixa: Caixa,
   tmpDir: string,
 ): Promise<string[]> {
-  const fontsize = Math.round(info.largura * 0.062);
-  const maxChars = Math.max(
-    8,
-    Math.floor((info.largura * 0.88) / (fontsize * 0.58)),
-  );
+  const px = caixaEmPixels(caixa, info.largura, info.altura);
+  const fontsize = Math.round(info.largura * LEGENDA_FONTE);
+  const maxChars = caracteresPorLinha(info.largura, fontsize);
   const linhas = quebrarLinhas(texto, maxChars).split("\n");
-  const alturaLinha = Math.round(fontsize * 1.25);
+  const alturaLinha = Math.round(fontsize * LEGENDA_ALTURA_LINHA);
   const topo = px.y + px.h / 2 - (linhas.length * alturaLinha) / 2;
+  const meio = Math.round(centroDaLegenda(caixa, linhas) * info.largura);
   const filtros: string[] = [];
   for (const [i, linha] of linhas.entries()) {
     const textfile = path.join(tmpDir, `legenda-${i}.txt`);
@@ -186,9 +175,10 @@ async function filtrosTexto(
         `textfile=${caminhoFiltro(textfile)}`,
         `fontsize=${fontsize}`,
         "fontcolor=white",
-        `borderw=${Math.max(2, Math.round(fontsize / 11))}`,
+        `borderw=${Math.max(2, Math.round(fontsize * LEGENDA_CONTORNO))}`,
         "bordercolor=black",
-        "x=(w-text_w)/2",
+        // Cada linha em volta de `meio`, sem sair do quadro (a largura real só o ffmpeg sabe).
+        `x='clip(${meio}-text_w/2,0,w-text_w)'`,
         `y=${Math.round(topo + i * alturaLinha)}`,
       ].join(":"),
     );
@@ -324,12 +314,43 @@ export async function cortarInicio(
   segundos: number,
   saida: string,
 ): Promise<void> {
+  await cortarTrecho(entrada, 0, segundos, saida);
+}
+
+/**
+ * Ajusta o trecho pedido (`inicio`–`fim`, em s) ao vídeo: o fim nunca passa da
+ * duração real (a tela mede pelo navegador, que pode diferir em centésimos).
+ * Devolve null se sobrar menos que `minimo`.
+ */
+export function ajustarCorte(
+  inicio: number,
+  fim: number,
+  duracaoVideo: number,
+  minimo: number,
+): { inicio: number; duracao: number } | null {
+  const de = Math.max(0, inicio);
+  const duracao = Number((Math.min(fim, duracaoVideo) - de).toFixed(3));
+  return duracao >= minimo ? { inicio: Number(de.toFixed(3)), duracao } : null;
+}
+
+/**
+ * Fica só com o trecho que começa em `inicio` e dura `duracao` (s), mantendo o
+ * áudio. Recodifica para cortar no quadro exato.
+ */
+export async function cortarTrecho(
+  entrada: string,
+  inicio: number,
+  duracao: number,
+  saida: string,
+): Promise<void> {
   await run([
     "-y",
+    // Antes do -i: o ffmpeg pula direto para perto do começo e acerta o quadro ao decodificar.
+    ...(inicio > 0 ? ["-ss", inicio.toFixed(3)] : []),
     "-i",
     entrada,
     "-t",
-    segundos.toFixed(3),
+    duracao.toFixed(3),
     "-c:v",
     "libx264",
     "-preset",
@@ -398,7 +419,7 @@ export async function comporRemocaoIA(o: {
   const recorte = `[ia]crop=${px.w}:${px.h}:${px.x}:${px.y}[area]`;
   const sobrepor = `[0:v][area]overlay=${px.x}:${px.y}:eof_action=pass[base]`;
   const texto = o.texto?.trim()
-    ? await filtrosTexto(o.texto, o.info, px, o.tmpDir)
+    ? await filtrosTexto(o.texto, o.info, o.caixa, o.tmpDir)
     : [];
   const final = texto.length
     ? `[base]${texto.join(",")}[out]`

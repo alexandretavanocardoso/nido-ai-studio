@@ -192,8 +192,8 @@ export function Pagamentos({
       {dados?.itens.length ? (
         <Tabela
           colunas={["Usuário", "Compra", "Valor", "Status", "Transação", ""]}
-          larguras={["", 170, 104, 100, 120, 92]}
-          minimo={720}
+          larguras={["", 170, 104, 110, 120, 92]}
+          minimo={730}
         >
           {dados.itens.map((p) => {
             const link = linkExplorer(p.rede, p.assinatura);

@@ -147,7 +147,8 @@ export function Agendamentos({ character }: { character: Character }) {
             )}
           </p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          // Colunas pela largura que sobra (cartão de ~260px, no máximo 3): com breakpoint de tela e o menu do app aberto, em 1280px o cartão ficava com 220px e os botões saíam dele.
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,max(260px,calc((100%_-_1.5rem)_/_3))),1fr))] gap-3">
             {backlog.map((p) => (
               <ItemBacklog key={p.id} post={p} onMudou={carregar} />
             ))}
@@ -266,7 +267,7 @@ function ItemBacklog({
       {agendando ? (
         <div className="grid gap-2">
           <SeletorHorario valor={quando} onChange={setQuando} />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
               variant="accent"
@@ -399,8 +400,9 @@ function EditarPost({
       aria-modal="true"
       onClick={(e) => e.target === e.currentTarget && onFechar()}
     >
-      <div className="card w-full max-w-3xl h-[min(620px,92vh)] grid grid-rows-[auto_1fr] sm:grid-rows-1 sm:grid-cols-[minmax(0,280px)_1fr] overflow-hidden rounded-t-3xl sm:rounded-3xl">
-        <div className="bg-black grid place-items-center min-h-0 h-[30vh] sm:h-full">
+      <div className="card w-full max-w-3xl h-[min(620px,92dvh)] grid grid-rows-[auto_1fr] sm:grid-rows-1 sm:grid-cols-[minmax(0,280px)_1fr] overflow-hidden rounded-t-3xl sm:rounded-3xl">
+        {/* grid-rows-[minmax(0,1fr)]: sem a linha presa à altura da caixa, um vídeo em pé crescia até a largura da tela e cobria o resto do modal no celular. */}
+        <div className="bg-black grid grid-rows-[minmax(0,1fr)] place-items-center min-h-0 h-[30dvh] sm:h-full">
           {p.midiaKey ? (
             p.midiaTipo === "video" ? (
               <video

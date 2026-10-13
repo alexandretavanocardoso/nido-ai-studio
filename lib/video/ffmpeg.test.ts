@@ -1,5 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { caixaEmPixels, quebrarLinhas } from "./ffmpeg";
+import { ajustarCorte, caixaEmPixels } from "./ffmpeg";
+import { centroDaLegenda, quebrarLinhas } from "./legenda-texto";
+
+describe("centroDaLegenda", () => {
+  it("fica no meio da área marcada", () => {
+    expect(centroDaLegenda({ x: 0.1, w: 0.4 }, ["oi"])).toBeCloseTo(0.3);
+  });
+
+  it("gruda no meio do vídeo quando a área está quase centralizada", () => {
+    expect(centroDaLegenda({ x: 0.22, w: 0.6 }, ["oi"])).toBe(0.5);
+  });
+
+  it("não deixa a linha mais comprida sair do quadro", () => {
+    const linhas = ["uma linha de vinte letras", "curta"];
+    const metade = (25 * 0.062 * 0.58) / 2;
+    expect(centroDaLegenda({ x: 0, w: 0.2 }, linhas)).toBeCloseTo(metade);
+    expect(centroDaLegenda({ x: 0.8, w: 0.2 }, linhas)).toBeCloseTo(1 - metade);
+  });
+});
+
+describe("ajustarCorte", () => {
+  it("mantém o trecho pedido quando ele cabe no vídeo", () => {
+    expect(ajustarCorte(2, 11.5, 15, 0.5)).toEqual({ inicio: 2, duracao: 9.5 });
+  });
+
+  it("segura o fim na duração real do vídeo", () => {
+    expect(ajustarCorte(10, 15.04, 15, 0.5)).toEqual({ inicio: 10, duracao: 5 });
+  });
+
+  it("recusa o trecho que fica menor que o mínimo", () => {
+    expect(ajustarCorte(14.8, 16, 15, 0.5)).toBeNull();
+    expect(ajustarCorte(20, 25, 15, 0.5)).toBeNull();
+  });
+});
 
 describe("caixaEmPixels", () => {
   it("converte frações em pixels", () => {

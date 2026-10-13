@@ -518,9 +518,13 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
     );
   const pilula = (ativo: boolean) =>
     cn(
-      "px-3 h-7 rounded-full text-[11px] font-bold mono transition",
+      // whitespace-nowrap: no celular a pílula desce para a linha de baixo (o grupo quebra em linhas), em vez de espremer o texto dentro dela.
+      "px-3 h-7 whitespace-nowrap rounded-full text-[11px] font-bold mono transition",
       ativo ? "bg-accent text-bg" : "text-ink-mute hover:text-ink",
     );
+  /** Caixa de um grupo de pílulas: uma linha vira pílula; se quebrar em duas, vira cartão arredondado. */
+  const grupoDePilulas =
+    "flex max-w-full flex-wrap gap-1 rounded-[18px] border border-line bg-panel p-1";
   const duracoes = (
     <div className="grid grid-cols-3 gap-2">
       {DURACOES_CRIAR.map((d) => {
@@ -561,7 +565,7 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
         if (e.target === e.currentTarget && !enviando) onClose();
       }}
     >
-      <div className="card flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl">
+      <div className="card flex max-h-[94dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl">
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-line p-5 sm:px-6">
           <div className="min-w-0">
             <h2 className="display text-xl text-ink uppercase">
@@ -627,7 +631,7 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
           <section hidden={etapa !== 1}>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               {faladoLigado ? (
-                <div className="flex gap-1 rounded-full border border-line bg-panel p-1">
+                <div className={grupoDePilulas}>
                   {(
                     [
                       ["falado", "Falado · voz do personagem"],
@@ -663,7 +667,7 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
                   <span className="text-[11px] text-ink-dim">
                     {tx("Duração")}
                   </span>
-                  <div className="flex gap-1 rounded-full border border-line bg-panel p-1">
+                  <div className={grupoDePilulas}>
                     {DURACOES_FALADO.map((d) => (
                       <button
                         key={d}
@@ -795,7 +799,7 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
                 <ArrowLeft className="h-4 w-4" />
                 {tx("Vozes naturais da ElevenLabs")}
               </button>
-              <div className="flex gap-1 rounded-full border border-line bg-panel p-1">
+              <div className={grupoDePilulas}>
                 {GENEROS.map(([id, nome]) => (
                   <button
                     key={id}

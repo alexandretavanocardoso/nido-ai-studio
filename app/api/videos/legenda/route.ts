@@ -27,6 +27,7 @@ import {
   uploadFromFile,
 } from "@/lib/storage/s3";
 import { editarLegenda, probe } from "@/lib/video/ffmpeg";
+import { registrarEdicao } from "@/lib/video/reembolso-server";
 import { comPastaTemporaria, contextoVideo } from "@/lib/video/server";
 
 export const runtime = "nodejs";
@@ -135,7 +136,15 @@ export async function POST(req: Request) {
       const key = newKey(userId, "videos", "video/mp4");
       const size = await uploadFromFile(s3, key, saida, "video/mp4");
       await somarArmazenamento(userId, size);
-      return { key, size, duracao: info.duracao };
+      const edicaoId = await registrarEdicao({
+        userId,
+        tipo: "legenda",
+        key,
+        duracao: info.duracao,
+        cobranca: cobrado.cobranca,
+        characterId: body.characterId,
+      });
+      return { key, size, duracao: info.duracao, edicaoId };
     });
     return NextResponse.json(resultado);
   } catch (e) {

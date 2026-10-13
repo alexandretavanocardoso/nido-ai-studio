@@ -92,7 +92,7 @@ export function LinkVideoModal({ onClose, onEncontrado }: Props) {
       role="dialog"
       aria-modal="true"
     >
-      <div className="card w-full max-w-lg p-5 sm:p-6 relative rounded-t-3xl sm:rounded-3xl max-h-[94vh] flex flex-col">
+      <div className="card w-full max-w-lg p-5 sm:p-6 relative rounded-t-3xl sm:rounded-3xl max-h-[94dvh] flex flex-col">
         <button
           type="button"
           onClick={onClose}
@@ -199,14 +199,14 @@ export function LinkVideoModal({ onClose, onEncontrado }: Props) {
                   controls
                   playsInline
                   preload="metadata"
-                  className="max-h-[52vh] w-full object-contain"
+                  className="max-h-[52dvh] w-full object-contain"
                 />
               ) : achado.thumb ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={achado.thumb}
                   alt=""
-                  className="max-h-[52vh] w-full object-contain"
+                  className="max-h-[52dvh] w-full object-contain"
                   referrerPolicy="no-referrer"
                 />
               ) : (

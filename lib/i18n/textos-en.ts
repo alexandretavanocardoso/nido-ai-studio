@@ -253,8 +253,19 @@ export const TEXTOS_EN: Record<string, string> = {
     "Scan with your wallet (Phantom, Solflare, Backpack…) or open it with the button. Pay the exact amount — confirmation is automatic.",
   "Escolha quantos créditos quer, a partir de":
     "Choose how many credits you want, starting at",
-  "Escolha um quadro onde a legenda aparece e arraste um retângulo sobre ela. A área marcada vale pro vídeo todo. O original não é alterado: sai um vídeo novo.":
-    "Pick a frame where the caption shows and drag a rectangle over it. The marked area applies to the whole video. The original isn't changed: a new video is created.",
+  "Arraste um retângulo no vídeo: sobre a legenda que quer tirar, ou onde a nova vai ficar. A área marcada vale pro vídeo todo. O original não é alterado: sai um vídeo novo.":
+    "Drag a rectangle on the video: over the caption you want to remove, or where the new one should go. The marked area applies to the whole video. The original isn't changed: a new video is created.",
+  "Arraste onde a legenda vai ficar": "Drag where the caption should go",
+  "Arraste sobre a legenda que quer remover":
+    "Drag over the caption you want to remove",
+  "Marque no vídeo onde a legenda vai ficar.":
+    "Mark on the video where the caption should go.",
+  "Arraste um retângulo sobre a legenda atual. Se o vídeo não tem legenda, arraste no lugar onde a nova deve aparecer.":
+    "Drag a rectangle over the current caption. If the video has no caption, drag where the new one should appear.",
+  "Marque a legenda no vídeo.": "Mark the caption on the video.",
+  "Arraste um retângulo sobre a legenda que quer remover.":
+    "Drag a rectangle over the caption you want to remove.",
+  "Marque a área no vídeo": "Mark the area on the video",
   "Escolhendo gostos e repertório": "Choosing tastes and references",
   "Escolher quadro": "Choose frame",
   "Escreva do jeito que ele falaria. Serve pra calibrar o estilo.":
@@ -538,8 +549,8 @@ export const TEXTOS_EN: Record<string, string> = {
   Lista: "List",
   "Login não configurado": "Sign-in not configured",
   Lugares: "Places",
-  "MB. Edite a legenda, troque a pessoa pelo personagem":
-    "MB. Edit the caption, swap the person for the character",
+  "MB. Corte, edite a legenda, troque a pessoa pelo personagem":
+    "MB. Trim, edit the caption, swap the person for the character",
   "MP4, MOV ou WebM até": "MP4, MOV or WebM up to",
   "Mais escolhido": "Most popular",
   Manias: "Quirks",
@@ -579,8 +590,6 @@ export const TEXTOS_EN: Record<string, string> = {
     "No character image stored yet. Generate a portrait (or upload a reference) and come back here.",
   "Nenhuma inconsistência detectada. Bom trabalho.":
     "No inconsistencies found. Nice work.",
-  "Nenhuma área marcada ainda — arraste sobre a legenda no vídeo.":
-    "No area marked yet — drag over the caption on the video.",
   Nicho: "Niche",
   "Nicho e Estratégia": "Niche & Strategy",
   "Nicho principal": "Main niche",
@@ -719,8 +728,8 @@ export const TEXTOS_EN: Record<string, string> = {
   "Roteiro de vídeo": "Video script",
   Roupa: "Outfit",
   Rápida: "Fast",
-  "Sai centralizada no lugar da antiga, em branco com contorno, quebrando linha sozinha.":
-    "Comes out centered where the old one was, white with an outline, wrapping automatically.",
+  "Sai no meio da área marcada, em branco com contorno, quebrando linha sozinha.":
+    "Comes out in the middle of the marked area, white with an outline, wrapping automatically.",
   "Salvar alterações": "Save changes",
   "Salvar no backlog": "Save to backlog",
   "Selecione um ou mais.": "Select one or more.",
@@ -870,8 +879,8 @@ export const TEXTOS_EN: Record<string, string> = {
     "· optional — complements the Look step fields",
   "· próxima recarga": "· next refill",
   "· rede Solana": "· Solana network",
-  "Área marcada. Pode arrastar de novo pra ajustar.":
-    "Area marked. You can drag again to adjust.",
+  "Área marcada. Arraste a área para mover, ou arraste fora dela para marcar outra.":
+    "Area marked. Drag the area to move it, or drag outside it to mark another one.",
   "É a capa do personagem": "It's the character cover",
   "Última geração:": "Last generation:",
   "— com as gírias, o humor e os bordões da ficha.":
@@ -1674,6 +1683,74 @@ export const TEXTOS_EN: Record<string, string> = {
   "Enviando o vídeo para criação": "Submitting the video for creation",
   "Editando a legenda do vídeo": "Editing the video caption",
   "Colocando a fala no vídeo": "Adding the speech to the video",
+  "Pedir reembolso": "Request a refund",
+  "Mais opções": "More options",
+  "Dos créditos deste vídeo": "Of this video's credits",
+  "Conte o que aconteceu com este vídeo. Nossa equipe analisa o pedido: se for aprovado, os créditos dele voltam para a sua conta; se não for, você recebe o motivo.":
+    "Tell us what happened with this video. Our team reviews the request: if it's approved, its credits go back to your account; if not, you get the reason.",
+  "O vídeo saiu com defeito": "The video came out with a defect",
+  "Trocou a pessoa errada": "It swapped the wrong person",
+  "Outro motivo": "Another reason",
+  "Escreva o motivo": "Write the reason",
+  "Detalhes (opcional): o que saiu errado e em que momento do vídeo":
+    "Details (optional): what went wrong and at what moment of the video",
+  "Enviar pedido": "Send request",
+  "Reembolso em análise": "Refund under review",
+  "Reembolso aprovado": "Refund approved",
+  "Reembolso recusado": "Refund declined",
+  "Você recebe um aviso quando sair a resposta.": "You'll get a notification when there's an answer.",
+  "créditos devolvidos": "credits returned",
+  Pontos: "Points",
+  pontos: "points",
+  "Check-in diário": "Daily check-in",
+  "dia seguido": "day in a row",
+  "dias seguidos": "days in a row",
+  "Comece hoje": "Start today",
+  "Próximo check-in em": "Next check-in in",
+  "Fazer check-in": "Check in",
+  "Ver como ganhar pontos": "See how to earn points",
+  "Você ganha pontos usando o app: check-in diário, créditos gastos, primeiros passos, posts e indicações.":
+    "You earn points by using the app: daily check-in, credits spent, first steps, posts and referrals.",
+  Ganhar: "Earn",
+  "Histórico": "History",
+  Feito: "Done",
+  Sempre: "Always",
+  "Créditos gastos em qualquer geração": "Credits spent on any generation",
+  "Se a geração falhar e o crédito voltar, os pontos saem.":
+    "If the generation fails and the credit comes back, the points are removed.",
+  "Post publicado nas redes": "Post published to social networks",
+  "Até": "Up to",
+  "Quem você indicou assinou um plano": "Someone you referred subscribed to a plan",
+  "Uma vez por pessoa indicada": "Once per referred person",
+  "Primeiros passos": "First steps",
+  "Completar a ficha do primeiro personagem": "Complete your first character's profile",
+  "Gerar a primeira imagem": "Generate your first image",
+  "Criar o primeiro vídeo": "Create your first video",
+  "Criar a voz do personagem": "Create the character's voice",
+  "Conectar a primeira rede social": "Connect your first social network",
+  "Publicar o primeiro post": "Publish your first post",
+  "Treinar a primeira persona": "Train your first persona",
+  "Assinar um plano pela primeira vez": "Subscribe to a plan for the first time",
+  "Nenhum ponto ainda. Faça o check-in de hoje para começar.":
+    "No points yet. Do today's check-in to get started.",
+  "Créditos gastos": "Credits spent",
+  "Gasto devolvido": "Spend refunded",
+  "Post publicado": "Post published",
+  "Indicado assinou um plano": "Referred user subscribed to a plan",
+  "Cortando o vídeo": "Trimming the video",
+  Cortar: "Trim",
+  Cortado: "Trimmed",
+  "Cortar vídeo": "Trim video",
+  "Arraste as alças para escolher o começo e o fim, ou digite os tempos. O original não é alterado: sai um vídeo novo.":
+    "Drag the handles to choose the start and the end, or type the times. The original isn't changed: you get a new video.",
+  "Começo do trecho": "Start of the clip",
+  "Fim do trecho": "End of the clip",
+  "Começo (s)": "Start (s)",
+  "Fim (s)": "End (s)",
+  "Duração (s)": "Duration (s)",
+  "O trecho pode ter até": "The clip can be up to",
+  "minutos.": "minutes.",
+  "Cortando… (até ~1 min)": "Trimming… (up to ~1 min)",
   "Buscando o vídeo do link": "Fetching the video from the link",
   "Enviando vídeo": "Uploading video",
   "Publicando o post": "Publishing the post",

@@ -497,13 +497,15 @@ export function GerarImagemAuto({ character, tipo }: Props) {
               {tx("Sem login, as imagens somem ao recarregar a página.")}
             </p>
           )}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {/* No celular, 2 colunas só se cada imagem tiver 150px (o que as 5 ações precisam); num celular estreito fica 1 por linha. */}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,150px),1fr))] sm:grid-cols-3 gap-3">
             {visiveis.map((r) => {
               const salvo = salvoNasRefs(r);
               return (
                 <figure
                   key={r.id}
-                  className="group relative aspect-[4/5] rounded-xl overflow-hidden border border-line bg-bg"
+                  // Contêiner: os botões de ação encolhem quando a imagem tem menos de 200px, senão os últimos eram cortados.
+                  className="group relative aspect-[4/5] rounded-xl overflow-hidden border border-line bg-bg [container-type:inline-size]"
                 >
                   <button
                     type="button"
@@ -528,7 +530,8 @@ export function GerarImagemAuto({ character, tipo }: Props) {
                     )}
                   </div>
                   {/* Ações (aparecem ao passar o mouse; no celular, sempre visíveis) */}
-                  <div className="absolute inset-x-0 bottom-0 flex justify-center gap-1.5 bg-gradient-to-t from-black/80 to-transparent pt-8 pb-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
+                  {/* pointer-events-none: tocar no degradê (fora dos botões) abre a imagem, em vez de não fazer nada. */}
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center gap-[3px] bg-gradient-to-t from-black/80 to-transparent pt-8 pb-2 opacity-100 transition [&>*]:pointer-events-auto sm:opacity-0 sm:group-hover:opacity-100 [@container(min-width:200px)]:gap-1.5">
                     <AcaoIcone
                       titulo={tx("Ver grande")}
                       onClick={() => setAberta(r)}
@@ -570,7 +573,10 @@ export function GerarImagemAuto({ character, tipo }: Props) {
                       )}
                       download={nomeArquivo(character.identidade.nome, r)}
                       title={tx("Baixar")}
-                      className="h-8 w-8 grid place-items-center rounded-full bg-white/15 text-white backdrop-blur hover:bg-white/30"
+                      className={cn(
+                        TAMANHO_ACAO,
+                        "grid place-items-center rounded-full bg-white/15 text-white backdrop-blur hover:bg-white/30",
+                      )}
                     >
                       <Download className="w-3.5 h-3.5" />
                     </a>
@@ -596,14 +602,15 @@ export function GerarImagemAuto({ character, tipo }: Props) {
           aria-modal="true"
           onClick={(e) => e.target === e.currentTarget && setAberta(null)}
         >
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3">
             <span className="text-[13px] text-white/80">
               {aberta.tipo === "retrato"
                 ? tx("Retrato")
                 : tx("Card de referência")}
               {ehCapa(aberta) ? tx(" · capa do personagem") : ""}
             </span>
-            <div className="flex items-center gap-2">
+            {/* flex-wrap: no celular os botões com texto não cabem numa linha só. */}
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               {aberta.key && !ehCapa(aberta) && (
                 <Button
                   size="sm"
@@ -644,7 +651,8 @@ export function GerarImagemAuto({ character, tipo }: Props) {
             </div>
           </div>
           <div
-            className="flex-1 min-h-0 p-4 pt-0 grid place-items-center"
+            // grid-rows-[minmax(0,1fr)]: prende a linha à altura da área; sem isso o `max-h-full` da imagem não vale e uma imagem em pé passava da tela deitada.
+            className="flex-1 min-h-0 p-4 pt-0 grid grid-rows-[minmax(0,1fr)] place-items-center"
             onClick={() => setAberta(null)}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -660,6 +668,10 @@ export function GerarImagemAuto({ character, tipo }: Props) {
     </div>
   );
 }
+
+/** Botão de ação sobre a imagem: 26px, ou 32px quando a imagem (o contêiner) tem 200px ou mais. */
+const TAMANHO_ACAO =
+  "h-[26px] w-[26px] [@container(min-width:200px)]:h-8 [@container(min-width:200px)]:w-8";
 
 function AcaoIcone({
   titulo,
@@ -679,7 +691,8 @@ function AcaoIcone({
       title={titulo}
       aria-label={titulo}
       className={cn(
-        "h-8 w-8 grid place-items-center rounded-full backdrop-blur transition",
+        TAMANHO_ACAO,
+        "grid place-items-center rounded-full backdrop-blur transition",
         ativo
           ? "bg-accent text-bg"
           : "bg-white/15 text-white hover:bg-white/30",

@@ -49,7 +49,7 @@ export function CardChoice({
             {icon}
           </div>
         ) : null}
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <div className="font-semibold text-ink">{title}</div>
           {description ? (
             <div className="text-[13px] text-ink-mute mt-0.5 leading-relaxed">
@@ -58,7 +58,7 @@ export function CardChoice({
           ) : null}
         </div>
         {selected ? (
-          <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-accent text-bg">
+          <span className="inline-flex shrink-0 items-center justify-center h-5 w-5 rounded-full bg-accent text-bg">
             <Check className="w-3.5 h-3.5" strokeWidth={3} />
           </span>
         ) : null}

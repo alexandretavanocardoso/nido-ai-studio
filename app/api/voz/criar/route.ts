@@ -13,6 +13,7 @@ import { carregarPersonagem } from "@/lib/personagens";
 import { bloqueioVoz, CREDITOS_CRIAR_VOZ } from "@/lib/planos";
 import { getObjectBuffer, newKey, ownsKey, putObject } from "@/lib/storage/s3";
 import { contextoVideo } from "@/lib/video/server";
+import { missaoCumprida } from "@/lib/pontos-server";
 import {
   clonarVoz,
   criarVozDesign,
@@ -156,6 +157,7 @@ export async function POST(req: Request) {
         amostraKey,
       ],
     );
+    await missaoCumprida(userId, "voz");
     return NextResponse.json({
       voiceId,
       nome,

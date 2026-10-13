@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import Link from "next/link";
 import {
   Bookmark,
@@ -149,6 +156,8 @@ export function Dashboard() {
   // Relatório em PDF do período escolhido: de todos ou de um personagem só (`alvo`).
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [menuPdf, setMenuPdf] = useState(false);
+  // O menu abre alinhado à direita do botão; com o botão no canto esquerdo da tela (celular), abre para a direita.
+  const [menuParaDireita, setMenuParaDireita] = useState(false);
   async function baixarPdf(alvo: string | null) {
     setMenuPdf(false);
     setGerandoPdf(true);
@@ -231,11 +240,13 @@ export function Dashboard() {
               <button
                 type="button"
                 // Com mais de um personagem, abre o menu pra escolher de quem é o relatório.
-                onClick={() =>
-                  personagens.length > 1
-                    ? setMenuPdf((v) => !v)
-                    : baixarPdf(null)
-                }
+                onClick={(e) => {
+                  if (personagens.length <= 1) return baixarPdf(null);
+                  setMenuParaDireita(
+                    e.currentTarget.getBoundingClientRect().right < 272,
+                  );
+                  setMenuPdf((v) => !v);
+                }}
                 disabled={gerandoPdf}
                 aria-haspopup={personagens.length > 1 ? "menu" : undefined}
                 aria-expanded={menuPdf}
@@ -268,7 +279,10 @@ export function Dashboard() {
                   />
                   <div
                     role="menu"
-                    className="absolute right-0 top-full z-40 mt-1.5 max-h-72 w-64 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1718] p-1 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.9)] [scrollbar-width:thin]"
+                    className={cn(
+                      "absolute top-full z-40 mt-1.5 max-h-72 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-white/10 bg-[#1a1718] p-1 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.9)] [scrollbar-width:thin]",
+                      menuParaDireita ? "left-0" : "right-0",
+                    )}
                   >
                     <div
                       className={cn(
@@ -442,7 +456,7 @@ export function Dashboard() {
           {aba === "campanha" ? null : aba === "geral" ? (
             <>
               <Grafico resumo={resumo} periodo={periodo} />
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] gap-3.5">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,480px),1fr))] gap-3.5">
                 <TabelaPersonagens linhas={resumo.personagens} />
                 <PorRede resumo={resumo} />
               </div>
@@ -547,7 +561,7 @@ function AdicionarLink({
       <div
         className={cn(
           cartao,
-          "grid w-full max-w-lg gap-5 rounded-b-none bg-[#151314] p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] sm:rounded-b-[18px]",
+          "grid max-h-[94dvh] w-full max-w-lg gap-5 overflow-y-auto rounded-b-none bg-[#151314] p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] sm:rounded-b-[18px]",
         )}
       >
         <div className="flex items-start justify-between gap-3">
@@ -976,7 +990,7 @@ function Kpis({ resumo, periodo }: { resumo: Resumo; periodo: Periodo }) {
     <div
       className={cn(
         cartao,
-        "grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] overflow-hidden",
+        "grid grid-cols-2 overflow-hidden sm:grid-cols-3 2xl:grid-cols-6",
       )}
     >
       {KPIS.map(({ campo, rotulo, icon: Icon }) => {
@@ -984,7 +998,8 @@ function Kpis({ resumo, periodo }: { resumo: Resumo; periodo: Periodo }) {
         return (
           <div
             key={campo}
-            className="flex flex-col gap-2.5 border-b border-r border-white/[0.06] px-6 py-[22px]"
+            // Cada célula é um contêiner: o número encolhe com ela (cqi), em vez de invadir a vizinha.
+            className="flex min-w-0 flex-col gap-2.5 border-b border-r border-white/[0.06] px-4 py-[22px] [container-type:inline-size] sm:px-6"
           >
             <span
               className={cn(
@@ -997,7 +1012,7 @@ function Kpis({ resumo, periodo }: { resumo: Resumo; periodo: Periodo }) {
             </span>
             <span
               className={cn(
-                "font-archivo text-[38px] font-extrabold leading-none tracking-[-0.02em] [font-stretch:112%]",
+                "whitespace-nowrap font-archivo text-[clamp(18px,18cqi,38px)] font-extrabold leading-none tracking-[-0.02em] [font-stretch:112%]",
                 campo === "views" ? "text-nido-yellow" : "text-nido-paper",
               )}
             >
@@ -1031,6 +1046,23 @@ function Grafico({ resumo, periodo }: { resumo: Resumo; periodo: Periodo }) {
   const colunas = {
     gridTemplateColumns: `repeat(${resumo.barras.length}, minmax(0, 1fr))`,
   };
+  // Com menos de ~62px por barra, "653,6 mil" não cabe ao lado do vizinho:
+  // os valores e as datas vão em pé (no celular, e no desktop com 90 dias).
+  const area = useRef<HTMLDivElement>(null);
+  const [emPe, setEmPe] = useState(false);
+  const barras = resumo.barras.length;
+  useEffect(() => {
+    const el = area.current;
+    if (!el) return;
+    const medir = () => setEmPe(el.clientWidth / Math.max(1, barras) < 62);
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [barras]);
+  const deitado = "inset-x-0 text-center";
+  const dePe =
+    "left-1/2 -translate-x-1/2 rotate-180 whitespace-nowrap [writing-mode:vertical-rl]";
   const rotulo = (d: Date) =>
     periodo === 7
       ? d.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "")
@@ -1048,8 +1080,13 @@ function Grafico({ resumo, periodo }: { resumo: Resumo; periodo: Periodo }) {
         </span>
       </div>
       <div
+        ref={area}
         style={colunas}
-        className="grid h-[220px] items-end gap-2.5 border-b border-white/[0.08] bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[length:100%_55px] pt-6"
+        className={cn(
+          "grid items-end border-b border-white/[0.08] bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[length:100%_55px]",
+          // Em pé, o valor precisa de ~65px livres acima da barra mais alta.
+          emPe ? "h-[260px] gap-1.5 pt-[72px]" : "h-[220px] gap-2.5 pt-6",
+        )}
       >
         {resumo.barras.map((b) => {
           const altura = `${((b.views / max) * 100).toFixed(1)}%`;
@@ -1063,7 +1100,8 @@ function Grafico({ resumo, periodo }: { resumo: Resumo; periodo: Periodo }) {
                   style={{ bottom: `calc(${altura} + 6px)` }}
                   className={cn(
                     mono,
-                    "absolute inset-x-0 text-center text-[10.5px] text-nido-soft",
+                    "absolute text-[10.5px] text-nido-soft",
+                    emPe ? dePe : deitado,
                   )}
                 >
                   {num(b.views)}
@@ -1077,13 +1115,16 @@ function Grafico({ resumo, periodo }: { resumo: Resumo; periodo: Periodo }) {
           );
         })}
       </div>
-      <div style={colunas} className="grid gap-2.5">
+      <div style={colunas} className={cn("grid", emPe ? "gap-1.5" : "gap-2.5")}>
         {resumo.barras.map((b) => (
           <span
             key={b.inicio.getTime()}
             className={cn(
               mono,
-              "text-center text-[10.5px] capitalize text-nido-dim",
+              "text-[10.5px] capitalize text-nido-dim",
+              emPe
+                ? "rotate-180 justify-self-center whitespace-nowrap [writing-mode:vertical-rl]"
+                : "text-center",
             )}
           >
             {rotulo(b.inicio)}
@@ -1128,9 +1169,15 @@ function TabelaPersonagens({
       : [{ rotulo: "Curtidas", valor: (l: LinhaPersonagem) => num(l.total.curtidas) }]),
     { rotulo: "Eng.", valor: (l) => pct(engajamento(l.total)) },
   ];
+  // A tabela em colunas só vale de `sm` para cima. No celular não sobra largura
+  // para o nome: cada personagem vira um bloco, com o nome em cima e os números
+  // embaixo, cada um com o seu rótulo.
   const grade = {
-    gridTemplateColumns: `minmax(${completa ? 180 : 0}px, 1.6fr) repeat(${colunas.length}, minmax(${completa ? 84 : 60}px, ${completa ? "1fr" : "0.6fr"}))`,
-  };
+    // 68px: a largura de "774,2 mil" (com menos, o número invadia a coluna ao lado).
+    "--grade": `minmax(${completa ? 180 : 0}px, 1.6fr) repeat(${colunas.length}, minmax(${completa ? 84 : 68}px, ${completa ? "1fr" : "0.6fr"}))`,
+  } as CSSProperties;
+  const colunasDaGrade =
+    "grid-cols-2 min-[400px]:grid-cols-4 sm:grid-cols-[var(--grade)]";
 
   return (
     <section className={cn(cartao, "flex min-w-0 flex-col overflow-hidden")}>
@@ -1141,12 +1188,12 @@ function TabelaPersonagens({
         </span>
       </div>
       <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className={cn(completa && "min-w-[860px]")}>
+        <div className={cn(completa && "sm:min-w-[860px]")}>
           <div
             style={grade}
             className={cn(
               mono,
-              "grid gap-3 border-t border-white/[0.06] px-[22px] py-2.5 text-[10px] uppercase tracking-[0.12em] text-nido-dim",
+              "hidden gap-3 border-t border-white/[0.06] px-[22px] py-2.5 text-[10px] uppercase tracking-[0.12em] text-nido-dim sm:grid sm:grid-cols-[var(--grade)]",
             )}
           >
             <span>{tx("Personagem")}</span>
@@ -1170,7 +1217,7 @@ function TabelaPersonagens({
             const eng = engajamento(l.total);
             const conteudo = (
               <>
-                <span className="flex min-w-0 items-center gap-2.5">
+                <span className="col-span-full flex min-w-0 items-center gap-2.5 sm:col-span-1">
                   <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-[10px] bg-[linear-gradient(135deg,#4a3820,#aa7d43)] text-[11px] font-bold">
                     {capa ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -1203,7 +1250,7 @@ function TabelaPersonagens({
                     key={col.rotulo}
                     className={cn(
                       mono,
-                      "text-right text-[12.5px]",
+                      "flex min-w-0 flex-col gap-0.5 text-[12.5px] sm:block sm:text-right",
                       i === colunas.length - 1
                         ? eng >= 0.05
                           ? "text-nido-yellow"
@@ -1213,13 +1260,18 @@ function TabelaPersonagens({
                           : "text-nido-ink",
                     )}
                   >
+                    <span className="text-[9.5px] uppercase tracking-[0.12em] text-nido-dim sm:hidden">
+                      {tx(col.rotulo)}
+                    </span>
                     {col.valor(l)}
                   </span>
                 ))}
               </>
             );
-            const classe =
-              "grid items-center gap-3 border-t border-white/[0.06] px-[22px] py-3";
+            const classe = cn(
+              "grid items-center gap-3 border-t border-white/[0.06] px-[22px] py-3",
+              colunasDaGrade,
+            );
             return c ? (
               <Link
                 key={l.characterId}

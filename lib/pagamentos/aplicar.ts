@@ -5,6 +5,7 @@ import {
   removerPlanoPorEstorno,
   retirarAvulsosPorEstorno,
 } from "@/lib/creditos";
+import { missaoCumprida } from "@/lib/pontos-server";
 import { getPool } from "@/lib/db";
 import { estornarComissao, registrarComissao } from "@/lib/indicacao/server";
 import {
@@ -78,6 +79,7 @@ export async function aplicarCompra(
   }
   // Indicação: comissão de quem indicou (opts.ref é o id do pagamento).
   await registrarComissao(opts.ref);
+  await missaoCumprida(userId, "plano");
 }
 
 /**

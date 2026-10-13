@@ -92,7 +92,7 @@ export function TutorialCriar({ open, onClose, onConcluir }: Props) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative flex max-h-[calc(100vh-32px)] w-full max-w-[640px] flex-col gap-5 overflow-y-auto rounded-[26px] border border-white/[0.09] bg-[#121011] p-5 font-geist text-nido-ink shadow-[0_50px_120px_-30px_rgba(0,0,0,0.9)] animate-nido-rise sm:p-7">
+      <div className="relative flex max-h-[calc(100dvh-32px)] w-full max-w-[640px] flex-col gap-5 overflow-y-auto rounded-[26px] border border-white/[0.09] bg-[#121011] p-5 font-geist text-nido-ink shadow-[0_50px_120px_-30px_rgba(0,0,0,0.9)] animate-nido-rise sm:p-7">
         <div className="flex items-center gap-3">
           <button
             type="button"

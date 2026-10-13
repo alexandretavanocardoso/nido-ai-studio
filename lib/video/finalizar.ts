@@ -3,6 +3,7 @@ import {
   type FigurinhaAnimada,
 } from "./figurinha-animada";
 import { criarAviso } from "@/lib/avisos-server";
+import { missaoCumprida } from "@/lib/pontos-server";
 import { getPool } from "@/lib/db";
 import { getFal } from "@/lib/fal";
 import { estornarSeHouver, type Cobranca } from "@/lib/creditos";
@@ -353,6 +354,7 @@ export async function finalizarJob(
         "update video_jobs set status = 'concluido', result_key = $2, updated_at = now() where id = $1",
         [job.id, key],
       );
+      await missaoCumprida(job.user_id, "persona");
       return publico({ status: "concluido", key });
     }
     if (concluido.urls && ehModeloTroca(job.modelo)) {
@@ -426,6 +428,9 @@ export async function finalizarJob(
       }),
       false,
     );
+    // Pontos: primeiro vídeo gerado (figurinha animada não conta como vídeo).
+    if (!(job.input as { figurinha?: unknown }).figurinha)
+      await missaoCumprida(job.user_id, "primeiro_video");
     return publico({ status: "concluido", key });
   } catch (e) {
     console.error("[videos] finalizar:", job.id, e);

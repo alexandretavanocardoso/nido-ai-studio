@@ -122,7 +122,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-nido-bg font-geist text-nido-ink">
       {/* Hero */}
-      <section className="relative flex min-h-[min(94vh,900px)] overflow-hidden">
+      <section className="relative flex min-h-[min(94svh,900px)] overflow-hidden">
         <FundoDoHero />
         <div
           className={cn(
@@ -188,7 +188,8 @@ export default function Home() {
               />
             </div>
             <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-2.5">
-              <div className="flex gap-0.5 rounded-[11px] border border-white/[0.06] bg-white/[0.04] p-[3px]">
+              {/* Abaixo de 420px os três modos não cabem com ícone (somam 342px): ocupam a linha toda, só com o texto. */}
+              <div className="flex w-full gap-0.5 rounded-[11px] border border-white/[0.06] bg-white/[0.04] p-[3px] min-[420px]:w-auto">
                 {modos.map((m) => (
                   <button
                     key={m.k}
@@ -196,13 +197,16 @@ export default function Home() {
                     onClick={() => setModo(m.k)}
                     aria-pressed={modo === m.k}
                     className={cn(
-                      "flex h-[30px] items-center gap-1.5 whitespace-nowrap rounded-lg px-[11px] text-[12.5px] font-medium transition hover:text-nido-paper",
+                      "flex h-[30px] flex-auto items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-1.5 text-[12.5px] font-medium transition hover:text-nido-paper min-[420px]:flex-none min-[420px]:px-[11px]",
                       modo === m.k
                         ? "bg-nido-yellow/[0.12] text-nido-yellow"
                         : "text-nido-mute",
                     )}
                   >
-                    <m.icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    <m.icon
+                      className="hidden h-3.5 w-3.5 min-[420px]:block"
+                      strokeWidth={1.75}
+                    />
                     {m.rotulo}
                   </button>
                 ))}

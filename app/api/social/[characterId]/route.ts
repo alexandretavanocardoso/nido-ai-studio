@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { missaoCumprida } from "@/lib/pontos-server";
 import { getPool } from "@/lib/db";
 import {
   contasDoTime,
@@ -50,6 +51,8 @@ export async function GET(
   if (teamId) {
     try {
       contas = await contasDoTime(bundle, teamId);
+      // Pontos: primeira rede conectada (a conexão acontece no bundle.social; é aqui que o app fica sabendo).
+      if (contas.length) await missaoCumprida(userId, "rede");
     } catch (e) {
       erroContas = mensagemBundle(e);
     }

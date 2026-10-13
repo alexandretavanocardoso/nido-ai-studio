@@ -273,10 +273,13 @@ export function VideoMarcador({
 
           {/* Convite pra marcar (até a primeira marca). */}
           {marcas.length === 0 && (
-            <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1.5 text-[12px] font-semibold text-white shadow-lg animate-pulse">
-                <MousePointerClick className="w-4 h-4 text-accent" />
-                {tx("Clique em quem você quer trocar")}
+            // Vídeo em pé deixa a caixa estreita: o aviso quebra em duas linhas em vez de ser cortado; com menos de 150px (celular deitado) fica só o ícone.
+            <div className="pointer-events-none absolute inset-x-2 top-3 flex justify-center [container-type:inline-size]">
+              <span className="inline-flex max-w-full items-center gap-1.5 rounded-2xl bg-black/75 px-3 py-1.5 text-[12px] font-semibold leading-tight text-white shadow-lg animate-pulse">
+                <MousePointerClick className="w-4 h-4 shrink-0 text-accent" />
+                <span className="hidden [@container(min-width:150px)]:inline">
+                  {tx("Clique em quem você quer trocar")}
+                </span>
               </span>
             </div>
           )}
@@ -651,10 +654,12 @@ export function ImagemMarcador({
             />
           ))}
           {marcas.length === 0 && (
-            <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1.5 text-[12px] font-semibold text-white shadow-lg animate-pulse">
-                <MousePointerClick className="w-4 h-4 text-accent" />
-                {tx("Clique em quem você quer trocar")}
+            <div className="pointer-events-none absolute inset-x-2 top-3 flex justify-center [container-type:inline-size]">
+              <span className="inline-flex max-w-full items-center gap-1.5 rounded-2xl bg-black/75 px-3 py-1.5 text-[12px] font-semibold leading-tight text-white shadow-lg animate-pulse">
+                <MousePointerClick className="w-4 h-4 shrink-0 text-accent" />
+                <span className="hidden [@container(min-width:150px)]:inline">
+                  {tx("Clique em quem você quer trocar")}
+                </span>
               </span>
             </div>
           )}

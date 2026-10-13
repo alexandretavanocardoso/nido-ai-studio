@@ -6,13 +6,19 @@ import { nanoid } from "nanoid";
 import {
   AlertTriangle,
   Captions,
+  CircleCheck,
+  CircleX,
+  Clock3,
   Download,
+  Ellipsis,
   Clapperboard,
   Link2,
   Loader2,
   Mic,
+  Scissors,
   Send,
   Sparkles,
+  Undo2,
   Upload,
   UserRound,
   X,
@@ -21,6 +27,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { AplicarFalaModal } from "@/components/revisao/AplicarFalaModal";
+import { CortarVideoModal } from "@/components/revisao/CortarVideoModal";
+import { PedirReembolsoModal } from "@/components/revisao/PedirReembolsoModal";
+import type { ReembolsoDoVideo } from "@/lib/video/reembolso";
 import { LinkVideoModal } from "@/components/revisao/LinkVideoModal";
 import type { VideoLink } from "@/components/revisao/SubstituirPessoaModal";
 import type { Character, VideoArquivo } from "@/lib/types";
@@ -66,6 +75,11 @@ const TIPOS: Record<
     selo: "bg-sky-500 text-white",
   },
   audio: { rotulo: "Com fala", icon: Mic, selo: "bg-ok text-bg" },
+  corte: {
+    rotulo: "Cortado",
+    icon: Scissors,
+    selo: "bg-orange-500 text-white",
+  },
 };
 
 /** Ação secundária do cartão: só o ícone (o nome fica na dica). */
@@ -124,6 +138,46 @@ export function VideosOrigem({ character }: { character: Character }) {
   );
   const [erro, setErro] = useState<string | null>(null);
   const [legendaDe, setLegendaDe] = useState<VideoArquivo | null>(null);
+  const [cortarDe, setCortarDe] = useState<VideoArquivo | null>(null);
+  const [reembolsoDe, setReembolsoDe] = useState<VideoArquivo | null>(null);
+  /** Pedidos de reembolso da conta, pelo job do vídeo. */
+  const [reembolsos, setReembolsos] = useState<
+    Record<string, ReembolsoDoVideo>
+  >({});
+  const temGerado = (character.videos ?? []).some(
+    (v) => v.jobId || ehEdicao(v),
+  );
+  /** Cartão com os três pontinhos aberto. */
+  const [menuDe, setMenuDe] = useState<string | null>(null);
+  /** Vídeo pronto que custou créditos (gerado ou editado): dá para pedir reembolso. */
+  const temReembolso = (v: VideoArquivo) =>
+    !v.status && !!v.key && pronto && (!!v.jobId || ehEdicao(v));
+  /** O pedido do vídeo: pelo job ou, em edição antiga (sem job), pelo arquivo. */
+  const pedidoDe = (v: VideoArquivo) =>
+    (v.jobId ? reembolsos[v.jobId] : undefined) ?? reembolsosPorKey[v.key];
+  const [reembolsosPorKey, setReembolsosPorKey] = useState<
+    Record<string, ReembolsoDoVideo>
+  >({});
+  useEffect(() => {
+    if (!pronto || !temGerado) return;
+    let vivo = true;
+    fetch("/api/videos/reembolso", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { itens?: ReembolsoDoVideo[] } | null) => {
+        if (vivo && b?.itens)
+          setReembolsos(Object.fromEntries(b.itens.map((p) => [p.jobId, p])));
+        if (vivo && b?.itens)
+          setReembolsosPorKey(
+            Object.fromEntries(
+              b.itens.filter((p) => p.key).map((p) => [p.key!, p]),
+            ),
+          );
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [pronto, temGerado]);
   const [trocarDe, setTrocarDe] = useState<VideoArquivo | null>(null);
   /** Vídeo trocado aberto no "antes e depois". */
   const [comparar, setComparar] = useState<VideoArquivo | null>(null);
@@ -232,7 +286,7 @@ export function VideosOrigem({ character }: { character: Character }) {
   const base = (v: VideoArquivo) =>
     v.name
       .replace(/\.[a-z0-9]+$/i, "")
-      .replace(/ \((legenda editada|com o personagem)\)$/, "");
+      .replace(/ \((legenda editada|com o personagem|cortado)\)$/, "");
 
   return (
     <div className="grid gap-3">
@@ -240,7 +294,7 @@ export function VideosOrigem({ character }: { character: Character }) {
         <div>
           <p className="text-[13px] text-ink-mute">
             {tx("MP4, MOV ou WebM até")} {MAX_MB}{" "}
-            {tx("MB. Edite a legenda, troque a pessoa pelo personagem")}
+            {tx("MB. Corte, edite a legenda, troque a pessoa pelo personagem")}
             {criarLigado ? tx(" ou crie um vídeo novo") : ""}.
           </p>
         </div>
@@ -342,7 +396,8 @@ export function VideosOrigem({ character }: { character: Character }) {
                     <p className="text-[12px] text-ink-dim">{tx(g.dica)}</p>
                   </div>
                 </header>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {/* O cartão precisa de ~260px para a linha de ações (botão + 5 ícones). Colunas pela largura que sobra, no máximo 3: com `xl:grid-cols-3` e o menu do app aberto, em 1280px cada cartão ficava com 220px e os ícones saíam dele. */}
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,max(260px,calc((100%_-_1.5rem)_/_3))),1fr))] gap-3">
                   {lista.map((v) => {
                     const tipo = TIPOS[v.origem ?? "upload"];
                     const de = v.origemId
@@ -418,7 +473,72 @@ export function VideosOrigem({ character }: { character: Character }) {
                         </div>
 
                         <figcaption className="grid flex-1 content-start gap-2 px-3 py-2.5">
-                          <div className="min-w-0">
+                          <div
+                            className={cn(
+                              "relative min-w-0",
+                              temReembolso(v) && "pr-8",
+                            )}
+                          >
+                            {/* Mais opções (os três pontinhos): o reembolso fica aqui, fora da vista do cartão. */}
+                            {temReembolso(v) ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setMenuDe(menuDe === v.id ? null : v.id)
+                                  }
+                                  aria-haspopup="menu"
+                                  aria-expanded={menuDe === v.id}
+                                  aria-label={tx("Mais opções")}
+                                  title={tx("Mais opções")}
+                                  className="absolute -right-1 -top-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full text-ink-mute transition hover:bg-panel hover:text-ink"
+                                >
+                                  <Ellipsis className="h-4 w-4" />
+                                </button>
+                                {menuDe === v.id ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      aria-label={tx("Fechar")}
+                                      onClick={() => setMenuDe(null)}
+                                      className="fixed inset-0 z-20 cursor-default"
+                                    />
+                                    <div
+                                      role="menu"
+                                      className="absolute bottom-full right-0 z-30 mb-2 w-64 overflow-hidden rounded-2xl border border-line-strong bg-card shadow-[0_12px_32px_rgba(0,0,0,0.7)]"
+                                    >
+                                      {pedidoDe(v) ? (
+                                        <SituacaoReembolso
+                                          pedido={pedidoDe(v)!}
+                                        />
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          role="menuitem"
+                                          onClick={() => {
+                                            setMenuDe(null);
+                                            setReembolsoDe(v);
+                                          }}
+                                          className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition hover:bg-panel"
+                                        >
+                                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-panel text-ink-mute">
+                                            <Undo2 className="h-4 w-4" />
+                                          </span>
+                                          <span className="min-w-0">
+                                            <span className="block text-[13px] font-semibold leading-tight text-ink">
+                                              {tx("Pedir reembolso")}
+                                            </span>
+                                            <span className="mt-0.5 block text-[11.5px] leading-snug text-ink-dim">
+                                              {tx("Dos créditos deste vídeo")}
+                                            </span>
+                                          </span>
+                                        </button>
+                                      )}
+                                    </div>
+                                  </>
+                                ) : null}
+                              </>
+                            ) : null}
                             <div
                               className="truncate text-[13px] font-semibold text-ink"
                               title={v.name}
@@ -510,6 +630,15 @@ export function VideosOrigem({ character }: { character: Character }) {
                               ) : null}
                               <button
                                 type="button"
+                                onClick={() => setCortarDe(v)}
+                                title={tx("Cortar")}
+                                aria-label={tx("Cortar")}
+                                className={acaoIcone}
+                              >
+                                <Scissors className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => setLegendaDe(v)}
                                 title={tx("Legenda")}
                                 aria-label={tx("Legenda")}
@@ -598,12 +727,13 @@ export function VideosOrigem({ character }: { character: Character }) {
             });
             setLegendaDe(null);
           }}
-          onPronto={({ key, size, duracao }) => {
+          onPronto={({ key, size, duracao, jobId }) => {
             adicionarVideo({
               name: `${base(legendaDe)} (legenda editada).mp4`,
               key,
               size,
               duracao,
+              jobId,
               contentType: "video/mp4",
               origem: "legenda",
               origemId: legendaDe.id,
@@ -613,17 +743,52 @@ export function VideosOrigem({ character }: { character: Character }) {
         />
       )}
 
+      {reembolsoDe && (
+        <PedirReembolsoModal
+          video={reembolsoDe}
+          onClose={() => setReembolsoDe(null)}
+          onPedido={(pedido) => {
+            setReembolsos((r) => ({ ...r, [pedido.jobId]: pedido }));
+            setReembolsosPorKey((r) => ({ ...r, [reembolsoDe.key]: pedido }));
+            setReembolsoDe(null);
+          }}
+        />
+      )}
+
+      {cortarDe && (
+        <CortarVideoModal
+          video={cortarDe}
+          onClose={() => setCortarDe(null)}
+          onPronto={({ key, size, duracao, jobId }) => {
+            // Corte de um vídeo enviado continua sendo vídeo de origem; o de um vídeo gerado fica com os gerados.
+            const enviado = (cortarDe.origem ?? "upload") === "upload";
+            adicionarVideo({
+              name: `${base(cortarDe)} (cortado).mp4`,
+              key,
+              size,
+              duracao,
+              jobId,
+              contentType: "video/mp4",
+              origem: enviado ? "upload" : "corte",
+              origemId: enviado ? undefined : cortarDe.id,
+            });
+            setCortarDe(null);
+          }}
+        />
+      )}
+
       {falaEm && (
         <AplicarFalaModal
           video={falaEm}
           audios={audios}
           onClose={() => setFalaEm(null)}
-          onPronto={({ key, size, duracao }) => {
+          onPronto={({ key, size, duracao, jobId }) => {
             adicionarVideo({
               name: `${base(falaEm)} (com fala).mp4`,
               key,
               size,
               duracao,
+              jobId,
               contentType: "video/mp4",
               origem: "audio",
               origemId: falaEm.id,
@@ -714,6 +879,56 @@ export function VideosOrigem({ character }: { character: Character }) {
           }}
         />
       )}
+    </div>
+  );
+}
+
+/** Edição feita na hora (corte, legenda rápida, fala): também dá para pedir reembolso. */
+const ehEdicao = (v: VideoArquivo) =>
+  v.origem === "legenda" || v.origem === "audio" || v.origem === "corte";
+
+/** Em que pé está o pedido de reembolso do vídeo; recusado, mostra o porquê. */
+function SituacaoReembolso({ pedido }: { pedido: ReembolsoDoVideo }) {
+  const s = {
+    pendente: {
+      icon: Clock3,
+      selo: "bg-panel text-ink-mute",
+      titulo: tx("Reembolso em análise"),
+      detalhe: tx("Você recebe um aviso quando sair a resposta."),
+    },
+    aprovado: {
+      icon: CircleCheck,
+      selo: "bg-ok/15 text-ok",
+      titulo: tx("Reembolso aprovado"),
+      detalhe: `${pedido.creditos} ${tx("créditos devolvidos")}`,
+    },
+    recusado: {
+      icon: CircleX,
+      selo: "bg-pink/15 text-pink",
+      titulo: tx("Reembolso recusado"),
+      detalhe: pedido.resposta ?? "",
+    },
+  }[pedido.status];
+  return (
+    <div className="flex items-start gap-3 px-3.5 py-3">
+      <span
+        className={cn(
+          "grid h-8 w-8 shrink-0 place-items-center rounded-full",
+          s.selo,
+        )}
+      >
+        <s.icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0 pt-px">
+        <div className="text-[13px] font-semibold leading-tight text-ink">
+          {s.titulo}
+        </div>
+        {s.detalhe ? (
+          <p className="mt-0.5 break-words text-[11.5px] leading-snug text-ink-mute">
+            {s.detalhe}
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }

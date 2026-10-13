@@ -267,7 +267,8 @@ export function VozIA({ character }: { character: Character }) {
               {voz ? tx("Criar outra voz") : tx("Criar a voz")}
             </summary>
             <div className="grid gap-3 mt-3">
-              <div className="flex gap-1 border border-line rounded-full p-1 bg-bg w-fit">
+              {/* flex-wrap + nowrap nas pílulas: no celular a segunda opção desce para a linha de baixo, em vez de o texto quebrar dentro da pílula. */}
+              <div className="flex w-fit max-w-full flex-wrap gap-1 border border-line rounded-[18px] p-1 bg-bg">
                 {(
                   [
                     ["design", tx("Pela descrição"), Wand2],
@@ -279,7 +280,7 @@ export function VozIA({ character }: { character: Character }) {
                     type="button"
                     onClick={() => setModo(id)}
                     className={cn(
-                      "inline-flex items-center gap-1.5 px-3 h-7 rounded-full text-[11px] font-bold mono transition",
+                      "inline-flex items-center gap-1.5 whitespace-nowrap px-3 h-7 rounded-full text-[11px] font-bold mono transition",
                       modo === id
                         ? "bg-accent text-bg"
                         : "text-ink-mute hover:text-ink",

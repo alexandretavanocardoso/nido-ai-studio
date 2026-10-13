@@ -53,7 +53,8 @@ export function CharacterListItem({ character: c, comNft }: Props) {
   const plataformas = c.nicho.plataformas.map((p) => p.toLowerCase());
 
   return (
-    <article className="group relative aspect-[3/4] overflow-hidden rounded-2xl border border-white/[0.07] bg-[linear-gradient(160deg,#2a2224_0%,#141112_75%)] font-geist transition duration-300 ease-[cubic-bezier(.16,1,.3,1)] hover:-translate-y-[3px] hover:border-nido-yellow/55 animate-nido-rise">
+    // O card é um contêiner: o rodapé (redes + "há 3 min") se ajusta à largura dele, que vai de ~137px (celular, 2 colunas) a 300px.
+    <article className="group relative aspect-[3/4] overflow-hidden rounded-2xl border border-white/[0.07] bg-[linear-gradient(160deg,#2a2224_0%,#141112_75%)] font-geist transition duration-300 ease-[cubic-bezier(.16,1,.3,1)] [container-type:inline-size] hover:-translate-y-[3px] hover:border-nido-yellow/55 animate-nido-rise">
       <Link
         href={`/app/personagem/${c.id}`}
         className="absolute inset-0 flex items-center justify-center overflow-hidden"
@@ -79,7 +80,7 @@ export function CharacterListItem({ character: c, comNft }: Props) {
                   <span
                     key={r.rede}
                     className={cn(
-                      "grid h-[18px] w-[22px] place-items-center rounded-[5px]",
+                      "grid h-[18px] w-[18px] place-items-center rounded-[5px] [@container(min-width:232px)]:w-[22px]",
                       on
                         ? "bg-nido-yellow/[0.16] text-nido-yellow"
                         : "bg-white/[0.06] text-nido-dim",
@@ -90,14 +91,16 @@ export function CharacterListItem({ character: c, comNft }: Props) {
                 );
               })}
             </span>
-            <span className="whitespace-nowrap font-geist-mono text-[10px] text-[#8a8278]">
+            {/* Só cabe ao lado das cinco redes a partir de ~195px de card (no celular, em 2 colunas, some). */}
+            <span className="hidden whitespace-nowrap font-geist-mono text-[10px] text-[#8a8278] [@container(min-width:196px)]:inline">
               {relativo(c.updatedAt)}
             </span>
           </span>
         </span>
       </Link>
 
-      <div className="pointer-events-none absolute left-2.5 top-2.5 z-10 flex items-center gap-1.5">
+      {/* inset-x + flex-wrap: no card estreito do celular o selo do NFT desce para a linha de baixo em vez de ser cortado ("In production" é mais largo que "Em produção"). */}
+      <div className="pointer-events-none absolute inset-x-2.5 top-2.5 z-10 flex flex-wrap items-center gap-1.5">
         <span
           className={cn(
             "flex h-[22px] items-center gap-1.5 rounded-full px-[9px] font-geist-mono text-[10px] font-semibold uppercase tracking-[0.08em] backdrop-blur",

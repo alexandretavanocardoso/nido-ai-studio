@@ -328,7 +328,7 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
       ) : (
         <section className="rounded-2xl border border-line bg-panel overflow-hidden grid lg:grid-cols-[minmax(0,1fr)_360px]">
           {/* Esquerda: a foto com as marcas (ou o resultado) */}
-          <div className="relative p-4 sm:p-5 h-[60vh] lg:h-[620px] flex flex-col gap-2 min-h-0">
+          <div className="relative p-4 sm:p-5 h-[60svh] lg:h-[620px] flex flex-col gap-2 min-h-0">
             <div className="flex items-center justify-between gap-2 shrink-0">
               <div className="flex gap-1 border border-line rounded-full p-0.5 bg-bg">
                 {(
@@ -625,7 +625,8 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
                     inteira
                   />
                 </button>
-                <div className="absolute inset-x-0 bottom-0 flex justify-center gap-1.5 bg-gradient-to-t from-black/80 to-transparent pt-8 pb-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
+                {/* pointer-events-none: tocar no degradê (fora dos botões) abre a imagem, em vez de não fazer nada — no celular ele cobre metade da miniatura. */}
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center gap-1.5 bg-gradient-to-t from-black/80 to-transparent pt-8 pb-2 opacity-100 transition [&>*]:pointer-events-auto sm:opacity-0 sm:group-hover:opacity-100">
                   <button
                     type="button"
                     onClick={() => setAberta(g.key)}
@@ -667,7 +668,7 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
           <img
             src={fileUrl(aberta)}
             alt=""
-            className="max-h-[90vh] max-w-full rounded-xl object-contain"
+            className="max-h-[90dvh] max-w-full rounded-xl object-contain"
           />
           <button
             type="button"

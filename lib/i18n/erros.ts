@@ -133,6 +133,14 @@ const PADROES: Padrao[] = [
     "The video must be at least $1s long.",
   ],
   [/^Vídeo maior que (\S+) minutos\.$/, "Video longer than $1 minutes."],
+  [
+    /^O trecho precisa ter pelo menos (\S+)s\.$/,
+    (m) => `The clip must be at least ${ponto(m[1])}s long.`,
+  ],
+  [
+    /^O trecho pode ter até (\S+) minutos\.$/,
+    "The clip can be up to $1 minutes long.",
+  ],
   [/^Formato não aceito: (.+)\.$/, "Format not accepted: $1."],
   [/^Arquivo maior que (\d+) MB\.$/, "File larger than $1 MB."],
   [
@@ -453,6 +461,17 @@ const ERROS_EN: Record<string, string> = {
     "Link expired. Look up the video again.",
   "Escreva o texto da nova legenda.": "Write the text of the new caption.",
   "Não consegui editar o vídeo.": "Couldn't edit the video.",
+  "Não consegui cortar o vídeo.": "Couldn't trim the video.",
+  "Você já fez o check-in. O próximo libera 24 horas depois do último.":
+    "You've already checked in. The next one unlocks 24 hours after the last.",
+  "Não consegui registrar o check-in.": "Couldn't register the check-in.",
+  "Escreva o motivo do reembolso.": "Write the reason for the refund.",
+  "Só dá para pedir reembolso de um vídeo pronto.":
+    "You can only request a refund for a finished video.",
+  "Este vídeo não gastou créditos.": "This video didn't use any credits.",
+  "Você já pediu o reembolso deste vídeo.":
+    "You've already requested a refund for this video.",
+  "Não consegui registrar o pedido.": "Couldn't register the request.",
   "Não consegui colocar a fala no vídeo.":
     "Couldn't add the voice-over to the video.",
   "Não consegui ler o vídeo.": "Couldn't read the video.",

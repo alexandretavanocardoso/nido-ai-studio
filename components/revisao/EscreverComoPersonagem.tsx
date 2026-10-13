@@ -202,14 +202,15 @@ export function EscreverComoPersonagem({
         ))}
       </div>
 
-      <div className="flex gap-1 border border-line rounded-full p-1 bg-panel w-fit">
+      {/* flex-wrap + nowrap nas pílulas: no celular as redes que não cabem descem para a linha de baixo, em vez de o texto quebrar dentro da pílula. */}
+      <div className="flex w-fit max-w-full flex-wrap gap-1 border border-line rounded-[18px] p-1 bg-panel">
         {PLATAFORMAS.map((p) => (
           <button
             key={p.id}
             type="button"
             onClick={() => setPlataforma(p.id)}
             className={cn(
-              "px-3 h-7 rounded-full text-[11px] font-bold mono transition",
+              "px-3 h-7 whitespace-nowrap rounded-full text-[11px] font-bold mono transition",
               plataforma === p.id
                 ? "bg-accent text-bg"
                 : "text-ink-mute hover:text-ink",

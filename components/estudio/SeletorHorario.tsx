@@ -225,7 +225,8 @@ export function SeletorHorario({
                   onClick={() => setHoraAberta(false)}
                   aria-hidden
                 />
-                <div className="absolute left-0 top-full mt-2 z-20 w-[300px] rounded-2xl border border-line bg-card p-3 shadow-2xl grid gap-3">
+                {/* Num celular de 320px, 300px a partir do botão passavam da tela: a largura acompanha a tela. */}
+                <div className="absolute left-0 top-full mt-2 z-20 w-[min(300px,calc(100vw-5.5rem))] rounded-2xl border border-line bg-card p-3 shadow-2xl grid gap-3">
                   <div>
                     <div className="text-[11px] text-ink-dim mb-1.5">
                       {tx("Hora")}

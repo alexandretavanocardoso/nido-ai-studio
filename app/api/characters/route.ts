@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { missaoCumprida } from "@/lib/pontos-server";
 import { z } from "zod";
 import { getPool } from "@/lib/db";
 import { getUserId } from "@/lib/auth/server";
@@ -86,5 +87,19 @@ export async function PUT(req: Request) {
     if (!rowCount) recusados.push(c.id);
     else if (novo) total++;
   }
+  // Pontos: primeira ficha completa (nome + uma referência, como em lib/completion.ts).
+  const completa = parsed.data.characters.some((c) => {
+    const p = c as {
+      id: string;
+      identidade?: { nome?: string };
+      visual?: { referencias?: unknown[] };
+    };
+    return (
+      !recusados.includes(p.id) &&
+      !!p.identidade?.nome?.trim() &&
+      !!p.visual?.referencias?.length
+    );
+  });
+  if (completa) await missaoCumprida(ctx.userId, "ficha");
   return NextResponse.json({ ok: true, recusados });
 }

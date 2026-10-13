@@ -1,4 +1,5 @@
 import type Stripe from "stripe";
+import { pontosPorIndicacao } from "@/lib/pontos-server";
 import { customAlphabet, nanoid } from "nanoid";
 import { getPool } from "@/lib/db";
 import type { RedeUsdc } from "@/lib/pagamentos/redes-usdc";
@@ -152,6 +153,8 @@ export async function registrarComissao(pagamentoId: string): Promise<void> {
     );
     const p = rows[0];
     if (!p) return;
+    // Pontos de quem indicou: uma vez por indicado, na primeira assinatura.
+    await pontosPorIndicacao(p.indicador_user_id, p.user_id);
     const centavos = comissaoEmCentavos(Number(p.valor));
     if (!centavos) return;
     await pool().query(

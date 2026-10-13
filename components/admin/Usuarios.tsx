@@ -87,8 +87,8 @@ export function Usuarios({
             "Acesso",
             "",
           ]}
-          larguras={["", 108, 88, 96, 112, 120, 36]}
-          minimo={700}
+          larguras={["", 124, 88, 96, 112, 120, 36]}
+          minimo={716}
         >
           {usuarios.map((u) => (
             <tr

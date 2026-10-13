@@ -105,7 +105,7 @@ export function RevisaoStep({
       <PontosEmAberto character={c} />
 
       <section>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <h3 className="label-cap">{tx("Ficha do Influenciador")}</h3>
           <div className="flex gap-1 text-xs">
             <button

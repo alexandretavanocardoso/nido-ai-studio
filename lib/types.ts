@@ -81,7 +81,7 @@ export interface VideoArquivo {
   contentType: string;
   createdAt: number;
   /** De onde veio. Ausente = upload (vídeos antigos). */
-  origem?: "upload" | "legenda" | "substituicao" | "criado" | "audio";
+  origem?: "upload" | "legenda" | "substituicao" | "criado" | "audio" | "corte";
   /** Vídeo a partir do qual este foi gerado. */
   origemId?: string;
   /** Link de onde veio o vídeo de origem (quando a troca foi feita por link). */

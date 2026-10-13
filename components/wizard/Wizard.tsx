@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCharacters } from "@/lib/store";
 import { STEPS, stepIndex } from "@/data/steps";
@@ -37,6 +37,36 @@ import {
 import { useT, type Chave } from "@/lib/i18n";
 import { tx } from "@/lib/i18n/tx";
 
+/**
+ * Larguras mínimas do conteúdo (em px) para cada layout desta tela. A régua é
+ * a largura que SOBRA para o conteúdo, medida na tela, e não um breakpoint: o
+ * menu lateral do app ocupa 124 ou 288px, então a mesma tela de 1024px deixa
+ * 852 ou 688px para cá. Com `lg:`, as três colunas da ficha esmagavam o
+ * formulário em ~110px. (Medido por JS e não por @container: um contêiner aqui
+ * prenderia os modais do Estúdio dentro dele em navegadores mais antigos.)
+ *  - Ficha: menu de etapas ao lado a partir de 760; prévia na terceira coluna
+ *    a partir de 1060 (entre os dois, a prévia fica embaixo do formulário).
+ *  - Estúdio: menu de ferramentas ao lado a partir de 860.
+ * Abaixo disso o menu vira a faixa horizontal acima do conteúdo.
+ */
+const LARGURA_MENU = { ficha: 760, estudio: 860 } as const;
+const LARGURA_PREVIA_AO_LADO = 1060;
+
+/** Largura atual de um elemento (0 até medir). Use com `ref={medir}`. */
+function useLargura() {
+  const [el, medir] = useState<HTMLElement | null>(null);
+  const [largura, setLargura] = useState(0);
+  useLayoutEffect(() => {
+    if (!el) return;
+    const ler = () => setLargura(el.clientWidth);
+    ler();
+    const ro = new ResizeObserver(ler);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [el]);
+  return [largura, medir] as const;
+}
+
 export function Wizard({ id }: { id: string }) {
   const recursos = useRecursos();
   const { user } = useAuth();
@@ -61,6 +91,10 @@ export function Wizard({ id }: { id: string }) {
           : "ficha";
   // Radar e NFT ocupam a largura toda: não têm menu lateral.
   const semMenu = aba === "radar" || aba === "nft";
+  const [largura, medir] = useLargura();
+  const menuAoLado =
+    !semMenu && largura >= LARGURA_MENU[aba === "ficha" ? "ficha" : "estudio"];
+  const previaAoLado = aba === "ficha" && largura >= LARGURA_PREVIA_AO_LADO;
   const currentId = useMemo<StepId>(() => {
     const raw = params?.get("step");
     return (STEP_IDS as readonly string[]).includes(raw ?? "")
@@ -127,8 +161,8 @@ export function Wizard({ id }: { id: string }) {
         />
         {aba === "ficha" && <SuggestionCounter character={character} />}
 
-        {/* Mobile/tablet: nav horizontal rolável acima do conteúdo */}
-        <div className={cn("mb-6 lg:hidden", semMenu && "hidden")}>
+        {/* Pouca largura: nav horizontal rolável acima do conteúdo */}
+        <div className={cn("mb-6", (semMenu || menuAoLado) && "hidden")}>
           {aba === "ficha" ? (
             <StepTabs
               current={currentId}
@@ -146,16 +180,18 @@ export function Wizard({ id }: { id: string }) {
         </div>
 
         <div
+          ref={medir}
           className={cn(
-            "grid grid-cols-1 gap-6",
-            aba === "estudio" && "lg:grid-cols-[230px_minmax(0,1fr)]",
-            aba === "ficha" && "lg:grid-cols-[230px_minmax(0,1fr)_300px]",
+            "grid gap-6",
+            previaAoLado
+              ? "grid-cols-[230px_minmax(0,1fr)_300px]"
+              : menuAoLado
+                ? "grid-cols-[230px_minmax(0,1fr)]"
+                : "grid-cols-1",
           )}
         >
-          {/* Desktop: nav vertical sticky */}
-          <aside
-            className={cn("hidden min-w-0", !semMenu && "lg:block")}
-          >
+          {/* Com largura: nav vertical sticky */}
+          <aside className={cn("min-w-0", !menuAoLado && "hidden")}>
             <div className="sticky top-20">
               {aba === "ficha" ? (
                 <StepTabs
@@ -225,8 +261,14 @@ export function Wizard({ id }: { id: string }) {
           </div>
 
           {aba === "ficha" && (
-            <aside className="min-w-0">
-              <div className="sticky top-6 grid gap-3">
+            // Fora da terceira coluna a prévia fica embaixo do formulário (na coluna dele), com largura de cartão: sem o limite, a imagem 4:5 ocupava a tela inteira num tablet.
+            <aside
+              className={cn(
+                "min-w-0",
+                menuAoLado && !previaAoLado && "col-start-2",
+              )}
+            >
+              <div className="sticky top-6 grid w-full max-w-[400px] gap-3">
                 <CharacterCard character={character} />
                 <ExportarFicha character={character} />
               </div>

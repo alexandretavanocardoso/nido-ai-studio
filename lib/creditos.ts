@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import { recursosDisponiveis } from "@/lib/recursos";
 import { PLANOS, type Intervalo, type PlanoId } from "@/lib/planos";
+import { pontosPorGasto, tirarPontosDoEstorno } from "@/lib/pontos-server";
 
 /**
  * Créditos por conta (tabelas creditos_conta / creditos_mov, migration 0005).
@@ -202,6 +203,8 @@ export async function debitar(userId: string, qtd: number, motivo: string, ref?:
     [userId, qtd, nanoid(14), motivo, ref ?? id]
   );
   if (!rows[0]) return null;
+  // Crédito gasto rende pontos (lib/pontos.ts); o estorno desta cobrança tira.
+  await pontosPorGasto(userId, qtd, id);
   return { id, userId, total: qtd, doPlano: rows[0].do_plano, doAvulso: rows[0].do_avulso };
 }
 
@@ -213,6 +216,7 @@ export async function estornar(c: Cobranca, motivo = "estorno"): Promise<void> {
     [c.userId, c.doPlano, c.doAvulso]
   );
   await registrar(pool(), c.userId, c.total, c.doPlano, c.doAvulso, motivo, c.id);
+  await tirarPontosDoEstorno(c.userId, c.id, c.total);
 }
 
 /** Créditos avulsos (pacote comprado): somam e renovam a validade para 12 meses. */

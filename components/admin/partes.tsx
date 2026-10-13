@@ -54,6 +54,7 @@ const MOTIVOS: Record<string, string> = {
   video_troca: "Troca de pessoa em vídeo",
   video_criar: "Criar vídeo",
   video_legenda: "Legenda de vídeo",
+  video_corte: "Corte de vídeo",
   video_link: "Vídeo por link",
   video_fala: "Fala no vídeo",
   voz: "Voz",
@@ -61,6 +62,7 @@ const MOTIVOS: Record<string, string> = {
   post_redes: "Post nas redes",
   nft_mint: "Mint do NFT",
   estorno: "Estorno (geração falhou)",
+  estorno_reembolso_video: "Reembolso de vídeo (aprovado pelo admin)",
   estorno_parcial: "Estorno parcial",
   bonus_cadastro: "Bônus de cadastro",
   ativacao_plano: "Plano ativado",
@@ -184,8 +186,9 @@ export function Kpi({
         <span className="label-cap truncate">{rotulo}</span>
         {Icone ? <Icone className="w-4 h-4 text-ink-dim shrink-0" /> : null}
       </div>
+      {/* No celular (2 cartões por linha) um valor como "US$ 28.277,35" não cabe numa linha: quebra depois do "US$" em vez de ser cortado. */}
       <div
-        className="mt-2 text-2xl sm:text-3xl font-bold text-ink tabular-nums truncate"
+        className="mt-2 text-xl sm:text-3xl font-bold text-ink tabular-nums break-words sm:truncate"
         title={typeof valor === "string" ? valor : undefined}
       >
         {valor}
@@ -271,10 +274,9 @@ export function Secao({
 }
 
 /**
- * Tabela que cabe na largura disponível, sem barra de rolagem: as colunas têm
- * largura definida (`larguras`, "" = o que sobrar) e o texto longo é cortado
- * com reticências. Em telas muito estreitas dá para arrastar para o lado, mas
- * a barra não aparece.
+ * Tabela que cabe na largura disponível: as colunas têm largura definida
+ * (`larguras`, "" = o que sobrar) e o texto longo é cortado com reticências.
+ * Em telas estreitas ela rola para o lado, com uma barra fina à vista.
  */
 export function Tabela({
   colunas,
@@ -290,7 +292,7 @@ export function Tabela({
 }) {
   return (
     <div className="card overflow-hidden">
-      <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="overflow-x-auto [scrollbar-width:thin] [scrollbar-color:#3a3536_transparent]">
         <table
           className="w-full table-fixed text-left text-[13px]"
           style={{ minWidth: minimo }}

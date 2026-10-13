@@ -20,7 +20,13 @@ interface Props {
   video: VideoArquivo;
   audios: AudioArquivo[];
   onClose: () => void;
-  onPronto: (novo: { key: string; size: number; duracao: number }) => void;
+  onPronto: (novo: {
+    key: string;
+    size: number;
+    duracao: number;
+    /** Registro da edição (vira o jobId do vídeo: é por ele que se pede reembolso). */
+    jobId?: string;
+  }) => void;
 }
 
 /** Coloca uma fala (voz do personagem) num vídeo: substitui ou mistura com o áudio original. */
@@ -53,6 +59,7 @@ export function AplicarFalaModal({ video, audios, onClose, onPronto }: Props) {
         key?: string;
         size?: number;
         duracao?: number;
+        edicaoId?: string | null;
         error?: string;
         code?: string;
       };
@@ -62,7 +69,12 @@ export function AplicarFalaModal({ video, audios, onClose, onPronto }: Props) {
           msg: txErro(b.error ?? `Falha (HTTP ${res.status}).`),
           code: b.code,
         });
-      onPronto({ key: b.key, size: b.size ?? 0, duracao: b.duracao ?? 0 });
+      onPronto({
+        key: b.key,
+        size: b.size ?? 0,
+        duracao: b.duracao ?? 0,
+        jobId: b.edicaoId ?? undefined,
+      });
     } catch (e) {
       setErro({ msg: (e as Error).message });
     } finally {
@@ -76,7 +88,7 @@ export function AplicarFalaModal({ video, audios, onClose, onPronto }: Props) {
       role="dialog"
       aria-modal="true"
     >
-      <div className="card w-full max-w-lg p-5 sm:p-6 relative max-h-[94vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl">
+      <div className="card w-full max-w-lg p-5 sm:p-6 relative max-h-[94dvh] overflow-y-auto rounded-t-3xl sm:rounded-3xl">
         <button
           type="button"
           onClick={onClose}
@@ -125,7 +137,8 @@ export function AplicarFalaModal({ video, audios, onClose, onPronto }: Props) {
           ))}
         </div>
 
-        <div className="flex gap-1 border border-line rounded-full p-1 bg-panel w-fit mb-4">
+        {/* flex-wrap + nowrap nas pílulas: no celular a segunda opção desce para a linha de baixo, em vez de o texto quebrar dentro da pílula. */}
+        <div className="flex w-fit max-w-full flex-wrap gap-1 border border-line rounded-[18px] p-1 bg-panel mb-4">
           {(
             [
               ["misturar", tx("Por cima do áudio original")],
@@ -137,7 +150,7 @@ export function AplicarFalaModal({ video, audios, onClose, onPronto }: Props) {
               type="button"
               onClick={() => setModo(id)}
               className={cn(
-                "px-3 h-7 rounded-full text-[11px] font-bold mono transition",
+                "px-3 h-7 whitespace-nowrap rounded-full text-[11px] font-bold mono transition",
                 modo === id
                   ? "bg-accent text-bg"
                   : "text-ink-mute hover:text-ink",

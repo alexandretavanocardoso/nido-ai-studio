@@ -276,7 +276,7 @@ export function SubstituirPessoaModal({
       <div
         className={cn(
           "card w-full max-w-5xl relative flex flex-col rounded-t-3xl sm:rounded-3xl",
-          "h-[94vh] lg:h-[min(780px,92vh)] overflow-y-auto lg:overflow-hidden",
+          "h-[94dvh] lg:h-[min(780px,92dvh)] overflow-y-auto lg:overflow-hidden",
           semBarra,
         )}
       >
@@ -314,7 +314,7 @@ export function SubstituirPessoaModal({
 
         <div className="flex-1 min-h-0 grid lg:grid-cols-[minmax(0,1fr)_400px]">
           {/* Esquerda: o vídeo, ocupando a altura toda */}
-          <section className="flex flex-col min-h-0 p-5 sm:p-6 gap-3 h-[62vh] lg:h-auto">
+          <section className="flex flex-col min-h-0 p-5 sm:p-6 gap-3 h-[62dvh] lg:h-auto">
             <div className="flex items-center justify-between gap-2 shrink-0">
               <span className="text-[13px] font-semibold text-ink">
                 {tx("Quem trocar no vídeo")}
@@ -562,7 +562,6 @@ export function SubstituirPessoaModal({
                       [
                         "kling",
                         tx("Padrão"),
-                        "Kling O3 Edit",
                         tx(
                           "Partes de 15s; a roupa inventada pode variar entre elas.",
                         ),
@@ -570,13 +569,12 @@ export function SubstituirPessoaModal({
                       [
                         "seedance",
                         tx("Premium"),
-                        tx("Seedance 2.5"),
                         tx(
                           "Até 30s de uma vez; cenário, objetos e roupa mais fiéis. Recusa rostos reais.",
                         ),
                       ],
                     ] as const
-                  ).map(([id, titulo, sub, dica]) => (
+                  ).map(([id, titulo, dica]) => (
                     <button
                       key={id}
                       type="button"
@@ -592,7 +590,6 @@ export function SubstituirPessoaModal({
                       <div className="text-[13px] font-bold text-ink">
                         {titulo}
                       </div>
-                      <div className="text-[11px] text-ink-dim">{sub}</div>
                     </button>
                   ))}
                 </div>

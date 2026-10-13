@@ -29,7 +29,8 @@ export function IdentidadeStep({ id }: { id: string }) {
       </Field>
 
       <Field label={tx("Gênero")} fieldId="identidade.genero">
-        <div className="grid grid-cols-3 gap-3">
+        {/* auto-fit: a opção marcada ("Não-binário" + selo) precisa de ~160px; num celular viram uma por linha. */}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3">
           {generos.map((g) => (
             <CardChoice
               key={g.value}
@@ -47,7 +48,8 @@ export function IdentidadeStep({ id }: { id: string }) {
         fieldId="identidade.forma"
         hint={tx("A natureza do personagem define o resto da imagem.")}
       >
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {/* No máximo 3 por linha; com menos de ~150px por opção, 2 ou 1. */}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(max(150px,calc((100%_-_1.5rem)_/_3)),1fr))] gap-3">
           {formas.map((f) => (
             <CardChoice
               key={f.value}
