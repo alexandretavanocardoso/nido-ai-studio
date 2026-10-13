@@ -11,6 +11,7 @@ import {
   Gift,
   Inbox,
   LayoutDashboard,
+  Newspaper,
   Radar,
   ShieldCheck,
   TrendingUp,
@@ -27,6 +28,7 @@ import { Indicacoes } from "./Indicacoes";
 import { Leads } from "./Leads";
 import { Lucro } from "./Lucro";
 import { Nft } from "./Nft";
+import { Noticias } from "./Noticias";
 import { Pagamentos } from "./Pagamentos";
 import { Reembolsos } from "./Reembolsos";
 import { Uso } from "./Uso";
@@ -42,6 +44,7 @@ const ABAS = [
   { id: "indicacoes", titulo: "Indicações", icone: Gift },
   { id: "leads", titulo: "Leads", icone: Inbox },
   { id: "fornecedores", titulo: "Fornecedores", icone: Radar },
+  { id: "noticias", titulo: "Notícias", icone: Newspaper },
   { id: "uso", titulo: "Uso de créditos", icone: BarChart3 },
   { id: "lucro", titulo: "Lucro", icone: TrendingUp },
   { id: "nft", titulo: "NFT", icone: IconeNft },
@@ -127,6 +130,7 @@ export function AdminApp({ email }: { email: string }) {
           {aba === "indicacoes" && <Indicacoes abrirUsuario={abrirUsuario} />}
           {aba === "leads" && <Leads />}
           {aba === "fornecedores" && <Fornecedores />}
+          {aba === "noticias" && <Noticias />}
           {aba === "uso" && <Uso abrirUsuario={abrirUsuario} />}
           {aba === "lucro" && <Lucro abrirUsuario={abrirUsuario} />}
           {aba === "nft" && <Nft abrirUsuario={abrirUsuario} />}

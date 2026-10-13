@@ -1,11 +1,10 @@
 import { z } from "zod";
+import { AIParseError, PRECO_TEXTO } from "@/lib/ai/anthropic";
 import {
-  AIParseError,
-  AIProviderError,
-  getClient,
-  mensagemAnthropic,
-  PRECO_TEXTO,
-} from "@/lib/ai/anthropic";
+  pesquisarNaWeb,
+  PRECO_BUSCA_WEB,
+  reemitirJson,
+} from "@/lib/ai/busca-web";
 import { objetosJsonNoTexto } from "@/lib/radar/gerar";
 import {
   CATEGORIAS,
@@ -28,7 +27,6 @@ const MODELO = process.env.FORNECEDORES_MODEL?.trim() || "claude-sonnet-5-5";
 /** Buscas na web por categoria (US$ 0,01 cada + os tokens dos resultados). */
 const MAX_BUSCAS = 6;
 const MAX_EMPRESAS = 8;
-const PRECO_BUSCA = 0.01;
 
 /** O que cada categoria quer dizer para o NIDO, e termos de busca em chinês. */
 const ALVO: Record<Categoria, { oQue: string; emChines: string }> = {
@@ -183,84 +181,35 @@ export async function pesquisarCategoria(o: {
   conhecidas: string[];
   hoje: string;
 }): Promise<PesquisaFeita> {
-  const client = getClient();
-  const tools = [
-    { type: "web_search_20250305", name: "web_search", max_uses: MAX_BUSCAS },
-  ];
-  const mensagens: Array<{ role: "user" | "assistant"; content: unknown }> = [
-    { role: "user", content: pedidoFornecedores(o) },
-  ];
-  let entrada = 0;
-  let saida = 0;
-  let buscas = 0;
-  let textoFinal = "";
-  const somar = (uso: {
-    input_tokens?: number;
-    output_tokens?: number;
-    server_tool_use?: { web_search_requests?: number };
-  }) => {
-    entrada += uso?.input_tokens ?? 0;
-    saida += uso?.output_tokens ?? 0;
-    buscas += uso?.server_tool_use?.web_search_requests ?? 0;
-  };
-  const textoDe = (content: Array<{ type: string; text?: string }>) =>
-    content.map((b) => (b.type === "text" ? (b.text ?? "") : "")).join("");
-  try {
-    // A busca roda no servidor da Anthropic; uma resposta longa pode vir em pedaços (pause_turn).
-    for (let volta = 0; volta < 4; volta++) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res: any = await client.messages.create({
-        model: MODELO,
-        max_tokens: 8000,
-        system:
-          "Você é um analista de parcerias de uma plataforma de IA generativa. Você descobre fornecedores pouco conhecidos, confere o que eles realmente vendem e julga, com rigor, com quem vale a pena negociar.",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        messages: mensagens as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        tools: tools as any,
-      });
-      somar(res.usage);
-      textoFinal = textoDe(res.content);
-      if (res.stop_reason !== "pause_turn") break;
-      mensagens.push({ role: "assistant", content: res.content });
-    }
-  } catch (e) {
-    throw new AIProviderError(e, mensagemAnthropic(e));
-  }
+  const r = await pesquisarNaWeb({
+    modelo: MODELO,
+    system:
+      "Você é um analista de parcerias de uma plataforma de IA generativa. Você descobre fornecedores pouco conhecidos, confere o que eles realmente vendem e julga, com rigor, com quem vale a pena negociar.",
+    user: pedidoFornecedores(o),
+    maxBuscas: MAX_BUSCAS,
+    maxTokens: 8000,
+  });
+  let { entrada, saida } = r;
 
   let empresas: EmpresaAchada[];
   try {
-    empresas = lerEmpresas(textoFinal, o.categoria);
+    empresas = lerEmpresas(r.texto, o.categoria);
   } catch (e) {
-    if (!(e instanceof AIParseError) || !textoFinal.trim()) throw e;
-    // A pesquisa já foi paga: em vez de jogar fora, pede só o JSON do que ela achou.
+    if (!(e instanceof AIParseError) || !r.texto.trim()) throw e;
     console.warn(
       "[fornecedores] resposta sem JSON legível; pedindo reemissão. Fim da resposta:",
-      textoFinal.slice(-300),
+      r.texto.slice(-300),
     );
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res: any = await client.messages.create({
-        model: MODELO,
-        max_tokens: 8000,
-        system:
-          "Você converte anotações de pesquisa em JSON. Responda APENAS com o objeto JSON pedido, sem texto em volta, sem Markdown.",
-        messages: [
-          {
-            role: "user",
-            content:
-              "Estas são as anotações de uma pesquisa de fornecedores. Devolva o mesmo conteúdo neste formato, sem inventar nada e sem acrescentar empresas:\n" +
-              '{"empresas": [{"nome": "...", "pais": "...", "categorias": ["video" | "imagem" | "voz"], "oferece": "...", "api": "sim" | "nao" | "incerto", "preco": "...", "site": "https://...", "linkedin": "https://...", "pessoas": "...", "porque": "...", "nota": 1-10, "fontes": [{"titulo": "...", "url": "https://..."}]}]}\n\n[ANOTAÇÕES]\n' +
-              textoFinal.slice(0, 24_000),
-          },
-        ],
-      });
-      somar(res.usage);
-      empresas = lerEmpresas(textoDe(res.content), o.categoria);
-    } catch (erro) {
-      if (erro instanceof AIParseError) throw erro;
-      throw new AIProviderError(erro, mensagemAnthropic(erro));
-    }
+    const de = await reemitirJson({
+      modelo: MODELO,
+      formato:
+        '{"empresas": [{"nome": "...", "pais": "...", "categorias": ["video" | "imagem" | "voz"], "oferece": "...", "api": "sim" | "nao" | "incerto", "preco": "...", "site": "https://...", "linkedin": "https://...", "pessoas": "...", "porque": "...", "nota": 1-10, "fontes": [{"titulo": "...", "url": "https://..."}]}]}',
+      anotacoes: r.texto,
+      maxTokens: 8000,
+    });
+    entrada += de.entrada;
+    saida += de.saida;
+    empresas = lerEmpresas(de.texto, o.categoria);
   }
 
   return {
@@ -268,10 +217,10 @@ export async function pesquisarCategoria(o: {
     custo: {
       entrada,
       saida,
-      buscas,
+      buscas: r.buscas,
       usd:
         (entrada * PRECO_TEXTO.entrada + saida * PRECO_TEXTO.saida) / 1_000_000 +
-        buscas * PRECO_BUSCA,
+        r.buscas * PRECO_BUSCA_WEB,
     },
   };
 }
