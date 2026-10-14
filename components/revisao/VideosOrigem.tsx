@@ -934,7 +934,7 @@ function SituacaoReembolso({ pedido }: { pedido: ReembolsoDoVideo }) {
 }
 
 /** Há quanto tempo o vídeo está sendo gerado (conta a partir do envio), atualizado a cada segundo. */
-function TempoDecorrido({ desde }: { desde: number }) {
+export function TempoDecorrido({ desde }: { desde: number }) {
   const [agora, setAgora] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setAgora(Date.now()), 1000);

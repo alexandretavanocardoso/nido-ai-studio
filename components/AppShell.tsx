@@ -22,6 +22,7 @@ import {
   CircleCheck,
   Coins,
   Flame,
+  Ghost,
   Gift,
   House,
   ImageIcon,
@@ -411,14 +412,24 @@ function MenuLateral({
     },
     {
       rotulo: tx("Estúdio"),
-      itens: FERRAMENTAS.map((f) => ({
-        rotulo: tx(f.rotulo),
-        curto: tx(f.curto),
-        icon: f.icon,
-        ...(alvo
-          ? { href: linkEstudio(alvo.id, f.secao) }
-          : { onClick: onCriar }),
-      })),
+      itens: [
+        // Sombra sem personagem, no topo: não depende do personagem ativo.
+        {
+          rotulo: tx("Sombra"),
+          curto: tx("Sombra"),
+          icon: Ghost,
+          href: "/app/sombra",
+          ativo: pathname === "/app/sombra",
+        },
+        ...FERRAMENTAS.map((f) => ({
+          rotulo: tx(f.rotulo),
+          curto: tx(f.curto),
+          icon: f.icon,
+          ...(alvo
+            ? { href: linkEstudio(alvo.id, f.secao) }
+            : { onClick: onCriar }),
+        })),
+      ],
     },
     {
       rotulo: tx("Conta"),

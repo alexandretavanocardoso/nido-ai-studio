@@ -77,6 +77,7 @@ import {
   SEEDANCE_TROCA,
 } from "@/lib/video/precos";
 import { comPastaTemporaria, contextoVideo } from "@/lib/video/server";
+import { SOMBRA_SEM_PERSONAGEM } from "@/lib/sombra";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,7 +89,8 @@ const MAX_SEGUNDOS = Number(process.env.VIDEO_MAX_SECONDS ?? 60);
 const COTA_DIARIA = Number(process.env.VIDEO_DAILY_SECONDS ?? 180);
 
 const BodySchema = z.object({
-  characterId: z.string().min(1),
+  /** Ausente: Sombra sem personagem (/app/sombra); o job fica com SOMBRA_SEM_PERSONAGEM. */
+  characterId: z.string().min(1).optional(),
   /** Vídeo de origem: arquivo no S3 (videoKey) OU link já buscado (linkId, /api/videos/link). */
   videoKey: z.string().min(1).optional(),
   linkId: z.string().min(1).optional(),
@@ -173,6 +175,7 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   const body = parsed.data;
+  const characterId = body.characterId ?? SOMBRA_SEM_PERSONAGEM;
   if (!!body.videoKey === !!body.linkId)
     return NextResponse.json(
       { error: "Informe o vídeo (arquivo ou link).", code: "BAD_INPUT" },
@@ -246,7 +249,7 @@ export async function POST(req: Request) {
       [
         nanoid(14),
         userId,
-        body.characterId,
+        characterId,
         `${DECLARACAO_VIDEO_LINK} [${link.url}]`,
         readIp(req),
       ],
@@ -610,7 +613,7 @@ export async function POST(req: Request) {
         [
           jobId,
           userId,
-          body.characterId,
+          characterId,
           "fal",
           troca.modelo ?? MOTORES_TROCA[body.motor].modelo,
           // O primeiro trecho pode ser uma tomada sem troca (sem pedido no motor).
@@ -655,9 +658,11 @@ export async function POST(req: Request) {
         ],
       );
 
-      if (body.registrar)
+      // Sem personagem, o vídeo aparece no histórico da Sombra (lido dos jobs).
+      if (body.registrar && body.characterId)
         await registrarNosPersonagens({
           userId,
+          characterId: body.characterId,
           body,
           jobId,
           antesKey,
@@ -694,6 +699,7 @@ export async function POST(req: Request) {
  */
 async function registrarNosPersonagens(o: {
   userId: string;
+  characterId: string;
   body: z.infer<typeof BodySchema>;
   jobId: string;
   antesKey: string | null;
@@ -702,7 +708,7 @@ async function registrarNosPersonagens(o: {
 }): Promise<void> {
   const { body } = o;
   const origem = body.videoKey
-    ? (await carregarPersonagem(o.userId, body.characterId))?.videos?.find(
+    ? (await carregarPersonagem(o.userId, o.characterId))?.videos?.find(
         (v) => v.key === body.videoKey,
       )
     : undefined;
@@ -722,7 +728,7 @@ async function registrarNosPersonagens(o: {
     origem: "substituicao" as const,
     fonte: o.link?.url,
   };
-  await registrarVideoNoBanco(o.userId, body.characterId, {
+  await registrarVideoNoBanco(o.userId, o.characterId, {
     ...video,
     origemId: origem?.id,
   });
@@ -730,7 +736,7 @@ async function registrarNosPersonagens(o: {
   const outros = new Set(
     (body.pessoas ?? [])
       .map((p) => p.characterId)
-      .filter((id): id is string => !!id && id !== body.characterId),
+      .filter((id): id is string => !!id && id !== o.characterId),
   );
   for (const id of outros) await registrarVideoNoBanco(o.userId, id, video);
 }

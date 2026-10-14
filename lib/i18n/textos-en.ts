@@ -3254,4 +3254,76 @@ export const TEXTOS_EN: Record<string, string> = {
     "The photo is larger than 10 MB.",
   "Não consegui trocar a foto de perfil. Tente de novo.":
     "Couldn't change your profile photo. Try again.",
+  "A Sombra precisa do armazenamento configurado.":
+    "Shadow needs storage to be set up.",
+  "A imagem passa de 10 MB.":
+    "The image is larger than 10 MB.",
+  "A troca em vídeo não está configurada (FAL_KEY).":
+    "Video swapping is not set up (FAL_KEY).",
+  "Clique ou arraste um vídeo (MP4, MOV ou WebM, até 60s). Depois marque quem trocar e envie a imagem de quem entra no lugar — cenário, câmera e áudio ficam iguais.":
+    "Click or drag a video (MP4, MOV or WebM, up to 60s). Then mark who to swap and upload the image of who takes their place — scene, camera and audio stay the same.",
+  "Clique ou arraste uma foto (JPEG, PNG ou WebP). Depois marque quem trocar e envie a imagem de quem entra no lugar — cenário, luz e pose ficam iguais.":
+    "Click or drag a photo (JPEG, PNG or WebP). Then mark who to swap and upload the image of who takes their place — scene, lighting and pose stay the same.",
+  "Clique para trocar a imagem.":
+    "Click to change the image.",
+  "Da imagem enviada":
+    "From the uploaded image",
+  "Entra com o look da imagem":
+    "Comes in with the image's look",
+  "Enviar a imagem de quem entra":
+    "Upload the image of who comes in",
+  "Envie o vídeo":
+    "Upload the video",
+  "Envie um vídeo MP4, MOV ou WebM.":
+    "Upload an MP4, MOV or WebM video.",
+  "Envie uma imagem em JPG, PNG ou WebP.":
+    "Upload a JPG, PNG or WebP image.",
+  "Imagens geradas":
+    "Generated images",
+  "Imagem de quem entra":
+    "Image of who comes in",
+  "Não consegui ler a imagem.":
+    "Couldn't read the image.",
+  "O vídeo passa de 500 MB.":
+    "The video is larger than 500 MB.",
+  "Os créditos foram devolvidos.":
+    "Your credits were refunded.",
+  "Outro vídeo":
+    "Another video",
+  "Pessoa":
+    "Person",
+  "Pro":
+    "Pro",
+  "Quem entra no lugar":
+    "Who takes their place",
+  "Rosto nítido, de frente. De corpo inteiro funciona melhor.":
+    "A sharp, front-facing face. Full body works best.",
+  "Sem marcar ninguém, a IA troca a pessoa principal da foto. Mais de uma pessoa? Clique em cada uma na foto.":
+    "Without marking anyone, the AI swaps the main person in the photo. More than one person? Click each one in the photo.",
+  "Sem marcar ninguém, a IA troca a pessoa principal do vídeo. Mais de uma pessoa? Pause e clique em cada uma.":
+    "Without marking anyone, the AI swaps the main person in the video. More than one person? Pause and click each one.",
+  "Troque a pessoa de uma foto ou de um vídeo por quem você quiser, só enviando as imagens. Não precisa criar um personagem.":
+    "Swap the person in a photo or video for anyone you want, just by uploading the images. No character needed.",
+  "Use só fotos e imagens que você tem direito de usar e sinalize quando o resultado for sintético.":
+    "Only use photos and images you have the right to use, and flag when the result is synthetic.",
+  "Use só vídeos e imagens que você tem direito de usar e sinalize quando o resultado for sintético.":
+    "Only use videos and images you have the right to use, and flag when the result is synthetic.",
+  "Veste o look de quem entra":
+    "Wears the look of who comes in",
+  "Vídeo enviado. Leva de 3 a 10 minutos; ele aparece no histórico abaixo e você recebe um aviso quando ficar pronto.":
+    "Video sent. It takes 3 to 10 minutes; it shows up in the history below and you get a notification when it's ready.",
+  "Vídeos gerados":
+    "Generated videos",
+  "para usar a Sombra.":
+    "to use Shadow.",
+  "vira":
+    "becomes",
+  "Colar o link de um vídeo":
+    "Paste a video link",
+  "A foto original não está mais disponível para comparar.":
+    "The original photo is no longer available to compare.",
+  "Arraste a divisória para comparar a foto original com a nova.":
+    "Drag the divider to compare the original photo with the new one.",
+  "Outro link":
+    "Another link",
 };

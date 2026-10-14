@@ -225,3 +225,140 @@ export function AntesDepois({
     </div>
   );
 }
+
+/**
+ * Antes e depois de uma troca em imagem: a foto original e a nova
+ * sobrepostas, com a mesma divisória arrastável do vídeo. À esquerda da
+ * divisória, o original; à direita, o resultado.
+ */
+export function AntesDepoisImagem({
+  antes,
+  depois,
+  titulo,
+  onClose,
+}: {
+  /** src da foto original. */
+  antes: string;
+  /** src da foto nova. */
+  depois: string;
+  titulo?: string;
+  onClose: () => void;
+}) {
+  const areaRef = useRef<HTMLDivElement>(null);
+  /** Posição da divisória (0 = só o depois, 1 = só o antes). */
+  const [corte, setCorte] = useState(0.5);
+  const [proporcao, setProporcao] = useState(1);
+  const [semAntes, setSemAntes] = useState(false);
+
+  const arrastando = useRef(false);
+  const mover = useCallback((clientX: number) => {
+    const r = areaRef.current?.getBoundingClientRect();
+    if (r?.width) setCorte(Math.min(1, Math.max(0, (clientX - r.left) / r.width)));
+  }, []);
+  useEffect(() => {
+    const move = (e: PointerEvent) => arrastando.current && mover(e.clientX);
+    const solta = () => (arrastando.current = false);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", solta);
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") setCorte((c) => Math.max(0, c - 0.05));
+      if (e.key === "ArrowRight") setCorte((c) => Math.min(1, c + 0.05));
+    };
+    window.addEventListener("keydown", tecla);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", solta);
+      window.removeEventListener("keydown", tecla);
+    };
+  }, [mover, onClose]);
+
+  const selo =
+    "absolute top-3 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white mono pointer-events-none";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="card flex max-h-[94dvh] w-full max-w-3xl flex-col gap-3 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="display text-lg uppercase text-ink">
+              {tx("Antes e depois")}
+            </h2>
+            {titulo ? (
+              <p className="truncate text-[12px] text-ink-mute">{titulo}</p>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={tx("Fechar")}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-line text-ink-mute hover:border-ink hover:text-ink"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="grid min-h-0 flex-1 place-items-center">
+          <div
+            ref={areaRef}
+            className="relative max-h-[74dvh] w-full touch-none select-none overflow-hidden rounded-2xl bg-black"
+            style={{ aspectRatio: String(proporcao), maxWidth: `calc(74dvh * ${proporcao})` }}
+            onPointerDown={(e) => {
+              arrastando.current = true;
+              mover(e.clientX);
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={depois}
+              alt={tx("Depois")}
+              draggable={false}
+              className="absolute inset-0 h-full w-full object-cover"
+              onLoad={(e) => {
+                const i = e.currentTarget;
+                if (i.naturalWidth && i.naturalHeight)
+                  setProporcao(i.naturalWidth / i.naturalHeight);
+              }}
+            />
+            {/* O original por cima, recortado até a divisória (esticado ao quadro do resultado). */}
+            {semAntes ? null : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={antes}
+                alt={tx("Antes")}
+                draggable={false}
+                className="absolute inset-0 h-full w-full object-cover"
+                style={{ clipPath: `inset(0 ${(1 - corte) * 100}% 0 0)` }}
+                onError={() => setSemAntes(true)}
+              />
+            )}
+            <span className={cn(selo, "left-3")}>{tx("Antes")}</span>
+            <span className={cn(selo, "right-3")}>{tx("Depois")}</span>
+            <div
+              className="absolute inset-y-0 w-0.5 -translate-x-1/2 bg-white"
+              style={{ left: `${corte * 100}%` }}
+            >
+              <div className="absolute left-1/2 top-1/2 grid h-9 w-9 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize place-items-center rounded-full bg-white text-black shadow-lg">
+                <ChevronsLeftRight className="h-4 w-4" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {semAntes ? (
+          <p className="text-[12px] text-pink">
+            {tx("A foto original não está mais disponível para comparar.")}
+          </p>
+        ) : null}
+        <p className="text-[11px] text-ink-dim">
+          {tx("Arraste a divisória para comparar a foto original com a nova.")}
+        </p>
+      </div>
+    </div>
+  );
+}

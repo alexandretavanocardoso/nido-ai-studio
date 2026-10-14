@@ -9,6 +9,7 @@ import { getFal } from "@/lib/fal";
 import { estornarSeHouver, type Cobranca } from "@/lib/creditos";
 import { somarArmazenamento } from "@/lib/limites";
 import { getS3, newKey, putObject } from "@/lib/storage/s3";
+import { SOMBRA_SEM_PERSONAGEM } from "@/lib/sombra";
 import type { Character, VideoArquivo } from "@/lib/types";
 import { consultarJob, type Provedor } from "./jobs";
 import {
@@ -519,6 +520,9 @@ async function atualizarPersonagem(
   job: Job,
   patch: Partial<VideoArquivo>,
 ): Promise<ItemDoJob | null> {
+  // Sombra sem personagem: não há ficha a atualizar; o aviso leva à tela dela.
+  if (job.character_id === SOMBRA_SEM_PERSONAGEM)
+    return { nome: "Vídeo da Sombra", href: "/app/sombra" };
   const pool = getPool()!;
   const { rows } = await pool.query<{ id: string; data: Character }>(
     `select id, data from characters

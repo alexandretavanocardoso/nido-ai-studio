@@ -22,6 +22,8 @@ export interface ImagemGerada {
   qualidade: "padrao" | "pro";
   /** Modelo que gerou (lib/ai/modelos-imagem.ts). Ausente = Nano Banana (galerias antigas). */
   modelo?: string;
+  /** Troca: a foto de antes (a original, ou o resultado anterior na correção da pele), para o "antes e depois". */
+  antesKey?: string;
   size: number;
   createdAt: number;
 }

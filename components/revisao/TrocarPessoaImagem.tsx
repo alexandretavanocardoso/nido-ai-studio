@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import {
+  ChevronsLeftRight,
   Download,
   Hand,
   ImagePlus,
@@ -28,6 +29,7 @@ import { ErroGeracao } from "@/components/creditos/ErroGeracao";
 import { Button } from "@/components/ui/Button";
 import { CapaImagem } from "@/components/ui/CapaImagem";
 import { confirmar } from "@/components/ui/Confirmacao";
+import { AntesDepoisImagem } from "@/components/revisao/AntesDepois";
 import {
   EscolherImagemPersonagem,
   useImagensPersonagem,
@@ -148,6 +150,10 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
     false,
   );
   const [aberta, setAberta] = useState<string | null>(null);
+  /** Troca aberta no "antes e depois" (keys da foto de antes e do resultado). */
+  const [comparar, setComparar] = useState<{ antes: string; depois: string } | null>(
+    null,
+  );
 
   const { qualidade } = motorApi(motor);
   const creditos = creditosImagem("nano-banana", qualidade);
@@ -244,6 +250,8 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
         estilo: character.visual.estilo ?? "realista",
         qualidade,
         modelo: "nano-banana",
+        // Na correção da pele, o "antes" é o resultado que foi corrigido.
+        antesKey: corrigir ? (resultado ?? undefined) : foto.key,
         size: body.size ?? 0,
         createdAt: Date.now(),
       };
@@ -587,6 +595,22 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
                 </button>
               )}
               {resultado && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setComparar({
+                      antes:
+                        trocas.find((g) => g.key === resultado)?.antesKey ??
+                        foto.key,
+                      depois: resultado,
+                    })
+                  }
+                  className="inline-flex items-center justify-center gap-1.5 text-[13px] font-semibold text-ink-mute hover:text-ink h-9"
+                >
+                  <ChevronsLeftRight className="w-4 h-4" /> {tx("Antes e depois")}
+                </button>
+              )}
+              {resultado && (
                 <a
                   href={downloadUrl(resultado, `troca-${Date.now()}.jpg`)}
                   className="inline-flex items-center justify-center gap-1.5 text-[13px] font-semibold text-ink-mute hover:text-ink h-9"
@@ -635,6 +659,18 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
                   >
                     <Maximize2 className="w-3.5 h-3.5" />
                   </button>
+                  {g.antesKey ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setComparar({ antes: g.antesKey!, depois: g.key })
+                      }
+                      title={tx("Antes e depois")}
+                      className="h-8 w-8 rounded-full bg-black/70 text-white grid place-items-center hover:bg-black"
+                    >
+                      <ChevronsLeftRight className="w-3.5 h-3.5" />
+                    </button>
+                  ) : null}
                   <a
                     href={downloadUrl(g.key, `troca-${g.id}.jpg`)}
                     title={tx("Baixar")}
@@ -656,6 +692,14 @@ export function TrocarPessoaImagem({ character }: { character: Character }) {
           </div>
         </section>
       )}
+
+      {comparar ? (
+        <AntesDepoisImagem
+          antes={fileUrl(comparar.antes)}
+          depois={fileUrl(comparar.depois)}
+          onClose={() => setComparar(null)}
+        />
+      ) : null}
 
       {aberta && (
         <div

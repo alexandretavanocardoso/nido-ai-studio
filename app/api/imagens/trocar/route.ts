@@ -1,6 +1,8 @@
+import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import sharp from "sharp";
+import { pastaSombra, SUFIXO_ANTES } from "@/lib/sombra";
 import {
   generateImage,
   ImageBlockedError,
@@ -48,7 +50,8 @@ const PER_MINUTE = Number(process.env.IMAGE_RATE_LIMIT_PER_MINUTE ?? 5);
 
 const BodySchema = z
   .object({
-    characterId: z.string().min(1),
+    /** Ausente: Sombra sem personagem (/app/sombra); o resultado vai para a pasta dela. */
+    characterId: z.string().min(1).optional(),
     /** Foto original (já enviada ao S3). */
     fotoKey: z.string().min(1),
     qualidade: z.enum(["padrao", "pro"]).default("padrao"),
@@ -221,10 +224,24 @@ export async function POST(req: Request) {
       });
     }
 
-    const fileKey = newKey(userId, "generated", "image/jpeg");
-    await putObject(s3, fileKey, jpeg, "image/jpeg");
-    await somarArmazenamento(userId, jpeg.length);
-    return NextResponse.json({ key: fileKey, size: jpeg.length });
+    if (body.characterId) {
+      const fileKey = newKey(userId, "generated", "image/jpeg");
+      await putObject(s3, fileKey, jpeg, "image/jpeg");
+      await somarArmazenamento(userId, jpeg.length);
+      return NextResponse.json({ key: fileKey, size: jpeg.length });
+    }
+    // Sem personagem, a foto não entra em ficha nenhuma: fica na pasta da
+    // Sombra, com a original ao lado (mesmo nome + "-antes") para o "antes e
+    // depois" — a foto enviada em si é apagada pela limpeza de órfãos.
+    const base = `${pastaSombra(userId)}${nanoid(12)}`;
+    const fileKey = `${base}.jpg`;
+    const antesKey = `${base}${SUFIXO_ANTES}`;
+    await Promise.all([
+      putObject(s3, fileKey, jpeg, "image/jpeg"),
+      putObject(s3, antesKey, foto, "image/jpeg"),
+    ]);
+    await somarArmazenamento(userId, jpeg.length + foto.length);
+    return NextResponse.json({ key: fileKey, antesKey, size: jpeg.length });
   } catch (e) {
     await estornarSeHouver(cobranca);
     if (e instanceof ImageConfigError)

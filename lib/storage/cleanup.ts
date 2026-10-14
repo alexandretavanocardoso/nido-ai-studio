@@ -63,15 +63,19 @@ export async function limparUsuario(
   const emUso = new Set(rows.flatMap((r) => r.json.match(KEY_RE) ?? []));
   for (const key of await capasDeNft(pool, userId)) emUso.add(key);
 
-  // PFPs gerados no perfil (lib/pfp-server.ts): ficam enquanto a conta existir.
+  // Pastas da conta, fora de qualquer personagem, que ficam enquanto a conta
+  // existir: os PFPs do perfil (lib/pfp-server.ts) e as fotos da Sombra sem
+  // personagem (lib/sombra.ts).
   const conta = await pool.query(`select 1 from "user" where "id" = $1`, [userId]);
-  const pfps = conta.rowCount ? `${prefix}pfp/` : null;
+  const guardadas = conta.rowCount
+    ? [`${prefix}pfp/`, `${prefix}sombra/`]
+    : [];
 
   const lixo: string[] = [];
   for await (const obj of listObjects(s3, Bucket, prefix)) {
     stats.arquivos++;
     const velho = (obj.LastModified?.getTime() ?? Date.now()) < Date.now() - graceMs;
-    if (velho && !emUso.has(obj.Key) && !(pfps && obj.Key.startsWith(pfps))) {
+    if (velho && !emUso.has(obj.Key) && !guardadas.some((g) => obj.Key.startsWith(g))) {
       lixo.push(obj.Key);
       stats.bytes += obj.Size;
     }

@@ -81,13 +81,17 @@ describe("cleanupOrphans", () => {
     expect(apagados).toEqual(["users/u1/refs/antiga.jpg"]);
   });
 
-  it("PFPs ficam enquanto a conta existe; de conta apagada, vão embora", async () => {
+  it("PFPs e fotos da Sombra ficam enquanto a conta existe; de conta apagada, vão embora", async () => {
     const { s3, apagados } = fakeS3({
       "users/u1/": [
         { Key: "users/u1/pfp/a.jpg", LastModified: VELHO },
+        { Key: "users/u1/sombra/s.jpg", LastModified: VELHO },
         { Key: "users/u1/refs/foto.jpg", LastModified: VELHO },
       ],
-      "users/u2/": [{ Key: "users/u2/pfp/b.jpg", LastModified: VELHO }],
+      "users/u2/": [
+        { Key: "users/u2/pfp/b.jpg", LastModified: VELHO },
+        { Key: "users/u2/sombra/t.jpg", LastModified: VELHO },
+      ],
     });
     const pool = {
       query: vi.fn(async (sql: string, [userId]: [string]) =>
@@ -97,6 +101,10 @@ describe("cleanupOrphans", () => {
       ),
     } as unknown as Pool;
     await cleanupOrphans(s3, pool);
-    expect(apagados).toEqual(["users/u1/refs/foto.jpg", "users/u2/pfp/b.jpg"]);
+    expect(apagados).toEqual([
+      "users/u1/refs/foto.jpg",
+      "users/u2/pfp/b.jpg",
+      "users/u2/sombra/t.jpg",
+    ]);
   });
 });
