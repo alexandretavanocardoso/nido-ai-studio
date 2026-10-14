@@ -49,6 +49,8 @@ import {
   proximaCena,
   unirCenas,
 } from "./cadeia";
+import { enviarFaladoSapiens, getSapiens } from "./sapiens";
+import { enviarFaladoWan } from "./wan";
 
 /**
  * Finalização de jobs de vídeo, chamada de três lugares:
@@ -250,18 +252,39 @@ export async function finalizarJob(
           userId: job.user_id,
           videoUrl: e.videoUrl,
         });
-        // O avatar da próxima cena só é criado agora: um por vez (ver falado.ts).
-        const rw = getRunway();
-        if (!rw) return falhar(job, "Runway não configurado no servidor.");
         const proxima = falado.cenas[prontas];
-        // Corpo inteiro não tem avatar: a próxima cena já vai para o modelo.
-        const avatarId = falado.corpo
-          ? undefined
-          : (proxima.avatarId ??
-            (await criarAvatarDaCena(rw, s3, falado.nome, proxima)));
-        const seguinte = falado.corpo
-          ? await enviarCorpoInteiro(rw, s3, proxima, falado.corpo.vertical)
-          : idDaEspera(avatarId!);
+        let avatarId: string | undefined;
+        let seguinte: string;
+        if (falado.corpo?.modelo === "wan3") {
+          const fal = getFal();
+          if (!fal) return falhar(job, "fal.ai não configurado no servidor.");
+          seguinte = await enviarFaladoWan(fal, s3, {
+            jobId: job.id,
+            cena: proxima,
+            vertical: falado.corpo.vertical,
+          });
+        } else if (job.provedor === "sapiens" && falado.corpo?.modelo) {
+          const chave = getSapiens();
+          if (!chave)
+            return falhar(job, "Sapiens não configurado no servidor.");
+          seguinte = await enviarFaladoSapiens(chave, s3, {
+            modelo: falado.corpo.modelo,
+            cena: proxima,
+            vertical: falado.corpo.vertical,
+          });
+        } else {
+          // O avatar da próxima cena só é criado agora: um por vez (ver falado.ts).
+          const rw = getRunway();
+          if (!rw) return falhar(job, "Runway não configurado no servidor.");
+          // Corpo inteiro não tem avatar: a próxima cena já vai para o modelo.
+          avatarId = falado.corpo
+            ? undefined
+            : (proxima.avatarId ??
+              (await criarAvatarDaCena(rw, s3, falado.nome, proxima)));
+          seguinte = falado.corpo
+            ? await enviarCorpoInteiro(rw, s3, proxima, falado.corpo.vertical)
+            : idDaEspera(avatarId!);
+        }
         const cenas = falado.cenas.map((c, i) =>
           i === prontas && avatarId ? { ...c, avatarId } : c,
         );
@@ -305,6 +328,7 @@ export async function finalizarJob(
         const proxima = await proximaCena({
           s3,
           userId: job.user_id,
+          jobId: job.id,
           provedor: job.provedor,
           modelo: job.modelo,
           input: job.input,

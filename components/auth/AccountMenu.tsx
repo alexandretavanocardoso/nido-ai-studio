@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, LogOut, Zap, Languages, ShieldCheck } from "lucide-react";
+import { Banknote, ChevronDown, LogOut, Zap, Languages, ShieldCheck } from "lucide-react";
 import { SaldoCreditos } from "@/components/creditos/SaldoCreditos";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { cn } from "@/lib/cn";
 import { useRecursos } from "@/components/RecursosProvider";
 import { IDIOMAS, useIdioma, useT } from "@/lib/i18n";
+import { MOEDAS } from "@/lib/moeda";
+import { useMoeda } from "@/lib/moeda-client";
 import { tx } from "@/lib/i18n/tx";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
 
@@ -34,6 +36,7 @@ export function AccountMenu() {
   const t = useT();
   const { conta } = useCreditos();
   const { idioma, setIdioma } = useIdioma();
+  const { moeda, setMoeda } = useMoeda();
   // user === null → ainda carregando (não mostra nada pra não piscar)
   if (user === null) return null;
 
@@ -129,6 +132,29 @@ export function AccountMenu() {
                   >
                     <span aria-hidden>{i.bandeira}</span>
                     {i.id === "pt" ? tx("PT-BR") : "EN"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="px-3.5 py-2.5 border-b border-line">
+              <div className="flex items-center gap-2 text-[12px] text-ink-dim mb-1.5">
+                <Banknote className="w-3.5 h-3.5" /> {tx("Moeda")}
+              </div>
+              <div className="grid grid-cols-2 gap-1">
+                {MOEDAS.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setMoeda(m.id)}
+                    title={tx(m.rotulo)}
+                    className={cn(
+                      "h-8 rounded-lg text-[12px] font-semibold transition",
+                      moeda === m.id
+                        ? "bg-accent text-bg"
+                        : "text-ink-mute hover:text-ink hover:bg-bg",
+                    )}
+                  >
+                    {m.id}
                   </button>
                 ))}
               </div>

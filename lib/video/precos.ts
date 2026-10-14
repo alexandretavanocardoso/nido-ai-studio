@@ -27,6 +27,46 @@ export function custoTroca(
 }
 
 /**
+ * Modelos da troca (Sombra): cada um é um motor (ver lib/video/troca.ts) e,
+ * no Kling, o formato. A tela ordena pelo preço. Qualquer plano usa qualquer
+ * um; cada um cobra o seu preço.
+ */
+export const MODELOS_TROCA = {
+  kling_standard: {
+    label: "Kling O3 Standard",
+    nota: "Partes de 15s · o mais barato",
+    motor: "kling",
+    qualidade: "standard",
+  },
+  kling_pro: {
+    label: "Kling O3 Pro",
+    nota: "Partes de 15s · mais nítido",
+    motor: "kling",
+    qualidade: "pro",
+  },
+  kling_4k: {
+    label: "Kling O3 4K",
+    nota: "Partes de 15s · em 4K",
+    motor: "kling",
+    qualidade: "4k",
+  },
+  seedance: {
+    label: "Seedance 2.5",
+    nota: "Até 30s de uma vez · recusa rostos reais",
+    motor: "seedance",
+    qualidade: null,
+  },
+} as const;
+export type ModeloTroca = keyof typeof MODELOS_TROCA;
+export const MODELOS_TROCA_IDS = Object.keys(MODELOS_TROCA) as ModeloTroca[];
+
+/** Custo em dólar por segundo de cada modelo da troca. */
+export function custoPorSegundoTroca(m: ModeloTroca): number {
+  const { qualidade } = MODELOS_TROCA[m];
+  return qualidade ? KLING_TROCA.porSegundo[qualidade] : SEEDANCE_TROCA.porSegundo;
+}
+
+/**
  * Troca "tomada por tomada" (só Kling). Num vídeo editado com cortes rápidos,
  * mandar várias tomadas juntas faz o motor trocar a primeira e se perder nas
  * seguintes. Aí cada tomada (o pedaço entre dois cortes de câmera) vai sozinha;
@@ -119,7 +159,7 @@ export function custoTrocaPremium(duracao: number): number {
 }
 
 /**
- * Runway image-to-video: criar vídeo novo a partir da imagem do personagem.
+ * Criar vídeo novo a partir da imagem do personagem (Runway, Sapiens ou fal).
  * `duracoes` é o que cada modelo aceita POR CENA; o vídeo pedido (10, 15 ou
  * 30s, igual em todos os modelos) é gerado em cenas seguidas e unido no fim.
  */
@@ -156,24 +196,36 @@ export const MODELOS_CRIAR = {
     duracoes: [5, 10, 15],
     audio: true,
   },
+  // Só no fal (ver lib/video/wan.ts), em 720p: US$ 0,10/s com ou sem áudio
+  // (conferido em 14/10/2026). Gera de 2 a 30s de uma vez: cada duração é uma cena só.
+  wan3: {
+    label: "Wan 3.0",
+    nota: "Alibaba · até 30s numa cena",
+    porSegundo: 0.1,
+    duracoes: [10, 15, 30],
+    audio: true,
+  },
 } as const;
 export type ModeloCriar = keyof typeof MODELOS_CRIAR;
 
 /**
  * Serviço que gera cada modelo. O Veo 3.1 Fast existe nos dois: vai pelo
  * Sapiens (US$ 0,079/s, ou US$ 0,119/s com áudio) quando a chave dele está
- * configurada, senão pelo Runway (os preços da tabela acima).
+ * configurada, senão pelo Runway (os preços da tabela acima). O Wan 3.0 só
+ * existe no fal.
  */
-export type ProvedorCriar = "runway" | "sapiens";
+export type ProvedorCriar = "runway" | "sapiens" | "fal";
 const NO_SAPIENS: readonly ModeloCriar[] = ["kling_v3", "veo3.1_fast"];
 const NO_RUNWAY: readonly ModeloCriar[] = ["gen4_turbo", "gen4.5", "veo3.1_fast"];
+const NO_FAL: readonly ModeloCriar[] = ["wan3"];
 
 export function provedorCriar(
   modelo: ModeloCriar,
-  ligado: { runway: boolean; sapiens: boolean },
+  ligado: { runway: boolean; sapiens: boolean; fal?: boolean },
 ): ProvedorCriar | null {
   if (ligado.sapiens && NO_SAPIENS.includes(modelo)) return "sapiens";
   if (ligado.runway && NO_RUNWAY.includes(modelo)) return "runway";
+  if (ligado.fal && NO_FAL.includes(modelo)) return "fal";
   return null;
 }
 
@@ -183,28 +235,98 @@ export function modeloPadraoCriar(ligado: { sapiens: boolean }): ModeloCriar {
 }
 
 /**
- * Vídeo falado: a fala sai da voz do personagem (ElevenLabs) e o Runway
- * (gwm1_avatars) gera o vídeo dele falando o áudio, com os lábios
- * sincronizados. O vídeo dura o que o áudio durar. Runway: 2 créditos de
- * entrada + 2 a cada 6s (US$ 0,01 por crédito), conferido em 08/10/2026.
+ * Vídeo falado: a fala sai da voz do personagem (ElevenLabs) e um modelo de
+ * vídeo gera o personagem falando o áudio, com os lábios sincronizados. O
+ * vídeo dura o que o áudio durar. `porSegundo` é o custo aproximado em dólar
+ * (vídeo + fala). O modelo é escolhido pelo usuário:
+ *  - "avatar": avatar do Runway (gwm1_avatars; cabeça e ombros, o único
+ *    enquadramento que ele aceita). Runway: 2 créditos de entrada + 2 a cada
+ *    6s (US$ 0,01 por crédito), conferido em 08/10/2026. Mais barato.
+ *  - "hailuo3": Hailuo 3 no Runway, que recebe a imagem inteira e o áudio da
+ *    fala como referência e gera o personagem de corpo inteiro falando — 10
+ *    créditos do Runway por segundo + 2 por imagem (testado em 08/10/2026),
+ *    no mínimo 5s por cena.
+ *  - "wan3": Wan 3.0 no fal (reference-to-video, 720p, US$ 0,10/s), também
+ *    com a imagem e o áudio da fala como referência; de 2s por cena para cima.
+ *  - "seedance*": Seedance (ByteDance) no Sapiens, reference-to-video em
+ *    720p com a imagem e o áudio da fala; de 4 a 15s por cena. Preços cotados
+ *    em POST /videos/quote em 14/10/2026: 2.0 Mini US$ 0,068/s, 2.0 Fast
+ *    US$ 0,109/s, 2.5 US$ 0,208/s, 2.0 US$ 0,226/s.
+ * Nos de corpo inteiro cada cena tem até 15s de fala (o limite do áudio de
+ * referência), e o som do vídeo final volta a ser a fala original.
  */
-export const FALADO_ROTULO = "Runway Avatar";
-/** Custo aproximado por segundo, em dólar (Runway + fala na ElevenLabs). */
-export const FALADO_CUSTO_POR_SEGUNDO = 0.01;
-
-/**
- * Enquadramento do vídeo falado. "close": avatar do Runway (cabeça e ombros,
- * o único que ele aceita). "inteiro": Hailuo 3 no Runway, que recebe a imagem
- * inteira e o áudio da fala como referência e gera o personagem de corpo
- * inteiro falando — 10 créditos do Runway por segundo + 2 por imagem (testado
- * em 08/10/2026), até 15s de fala por cena.
- */
-export type Enquadramento = "close" | "inteiro";
-export const CORPO_CUSTO_POR_SEGUNDO = 0.11;
+export const MODELOS_FALADO = {
+  avatar: {
+    label: "Runway Avatar",
+    nota: "Close · cabeça e ombros",
+    provedor: "runway",
+    inteiro: false,
+    porSegundo: 0.01,
+    minSegundos: 1,
+  },
+  hailuo3: {
+    label: "Hailuo 3",
+    nota: "Corpo inteiro, com gestos",
+    provedor: "runway",
+    inteiro: true,
+    porSegundo: 0.11,
+    minSegundos: 5,
+  },
+  wan3: {
+    label: "Wan 3.0",
+    nota: "Corpo inteiro · Alibaba",
+    provedor: "fal",
+    inteiro: true,
+    porSegundo: 0.11,
+    minSegundos: 2,
+  },
+  seedance20_mini: {
+    label: "Seedance 2.0 Mini",
+    nota: "Corpo inteiro · ByteDance",
+    provedor: "sapiens",
+    inteiro: true,
+    porSegundo: 0.078,
+    minSegundos: 4,
+  },
+  seedance20_fast: {
+    label: "Seedance 2.0 Fast",
+    nota: "Corpo inteiro · ByteDance",
+    provedor: "sapiens",
+    inteiro: true,
+    porSegundo: 0.119,
+    minSegundos: 4,
+  },
+  seedance25: {
+    label: "Seedance 2.5",
+    nota: "Corpo inteiro · ByteDance, o mais novo",
+    provedor: "sapiens",
+    inteiro: true,
+    porSegundo: 0.218,
+    minSegundos: 4,
+  },
+  seedance20: {
+    label: "Seedance 2.0",
+    nota: "Corpo inteiro · ByteDance, qualidade cheia",
+    provedor: "sapiens",
+    inteiro: true,
+    porSegundo: 0.236,
+    minSegundos: 4,
+  },
+} as const;
+export type ModeloFalado = keyof typeof MODELOS_FALADO;
+export const MODELOS_FALADO_IDS = Object.keys(MODELOS_FALADO) as ModeloFalado[];
+/** Serviço de vídeo de cada modelo falado (a fala é sempre da ElevenLabs). */
+export const provedorFalado = (m: ModeloFalado) => MODELOS_FALADO[m].provedor;
 export const CORPO_MAX_SEGUNDOS = 15;
 /** Segundos gerados (e cobrados) numa cena de corpo inteiro com `fala` segundos. */
-export const segundosDaCenaInteira = (fala: number) =>
-  Math.min(CORPO_MAX_SEGUNDOS, Math.max(5, Math.ceil(fala)));
+export const segundosDaCenaInteira = (
+  fala: number,
+  modelo: ModeloFalado = "hailuo3",
+) =>
+  Math.min(
+    CORPO_MAX_SEGUNDOS,
+    Math.max(MODELOS_FALADO[modelo].minSegundos, Math.ceil(fala)),
+  );
 
 /** Ritmo médio da fala em português, para estimar a duração pelo texto. */
 export const CARACTERES_POR_SEGUNDO = 15;

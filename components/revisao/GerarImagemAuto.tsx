@@ -39,6 +39,7 @@ import { usePersona } from "@/lib/persona/usePersona";
 import { MODELOS_IMAGEM, type ModeloImagem } from "@/lib/ai/modelos-imagem";
 import { tx } from "@/lib/i18n/tx";
 import { txErro } from "@/lib/i18n/erros";
+import { dinheiro } from "@/lib/moeda";
 
 const MAX_REFS = 4;
 /** Tamanho máximo da galeria; as mais antigas saem (o arquivo é limpo pelo cron). */
@@ -349,7 +350,7 @@ export function GerarImagemAuto({ character, tipo }: Props) {
                   <div className="text-[11px] text-ink-dim truncate">
                     {conta
                       ? `${creditosImagem(m, mm.temQualidade ? qualidade : "padrao")} créditos`
-                      : `~US$ ${mm.custo[mm.temQualidade ? qualidade : "padrao"].toFixed(2)}`}{" "}
+                      : `~${dinheiro(mm.custo[mm.temQualidade ? qualidade : "padrao"], { de: "USD" })}`}{" "}
                     · {mm.rotulo}
                   </div>
                 </button>

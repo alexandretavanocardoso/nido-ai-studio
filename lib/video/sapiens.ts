@@ -1,11 +1,16 @@
 import sharp from "sharp";
+import type { S3Client } from "@aws-sdk/client-s3";
+import { presignGet } from "@/lib/storage/s3";
+import type { CenaFalada } from "./falado";
 import type { EstadoVideo } from "./jobs";
-import type { ModeloCriar } from "./precos";
+import type { ModeloCriar, ModeloFalado } from "./precos";
 
 /**
  * Sapiens Sintéticos (API no formato da OpenAI, cobrada do saldo em dólar da conta).
  *  - image-to-video (Kling V3 Standard, Veo 3.1 Fast): cria um vídeo novo a
  *    partir da imagem do personagem e de um texto, mais barato que no Runway.
+ *  - reference-to-video (Seedance): vídeo falado de corpo inteiro, com a
+ *    imagem e o áudio da fala como referências.
  * A API está em beta: modelo e preço podem mudar (conferir em GET /models e
  * POST /videos/quote). Server-side apenas. Chave em SAPIENS_KEY.
  */
@@ -15,6 +20,14 @@ const BASE = "https://www.sapiensinteticos.com/api/v1";
 export const MODELO_SAPIENS: Partial<Record<ModeloCriar, string>> = {
   kling_v3: "kling-v3-standard-image-to-video",
   "veo3.1_fast": "veo3.1-fast-image-to-video",
+};
+
+/** Id de cada modelo do vídeo falado que roda no Sapiens. */
+export const MODELO_SAPIENS_FALADO: Partial<Record<ModeloFalado, string>> = {
+  seedance20_mini: "seedance-2-0-mini-reference-to-video-basic",
+  seedance20_fast: "seedance-2-0-fast-reference-to-video-basic",
+  seedance25: "seedance-2-5-reference-to-video-basic",
+  seedance20: "seedance-2-0-reference-to-video-basic",
 };
 
 export function getSapiens(): string | null {
@@ -109,6 +122,39 @@ export async function enviarCriacaoSapiens(
     audio: input.audio,
   });
   console.info("[sapiens] vídeo na fila:", video.id, model, `US$ ${cobrado}`);
+  return video.id;
+}
+
+/**
+ * Pede uma cena falada de corpo inteiro: o Seedance recebe a imagem (já no
+ * formato do vídeo, ver `formatoDaImagem`) e o áudio da fala como referências
+ * e gera o personagem falando, no ritmo do áudio. De 4 a 15s por cena.
+ */
+export async function enviarFaladoSapiens(
+  chave: string,
+  s3: S3Client,
+  o: { modelo: ModeloFalado; cena: CenaFalada; vertical: boolean },
+): Promise<string> {
+  const model = MODELO_SAPIENS_FALADO[o.modelo];
+  if (!model) throw new Error("Este modelo não está disponível no Sapiens.");
+  const { video, cobrado } = await chamar(chave, "/videos", {
+    model,
+    prompt:
+      "The person from @Image1, with the same face, hair and outfit and in the same place as @Image1, stands with the full body in frame and talks directly to the camera, saying exactly the words of @Audio1 with precise lip sync. @Audio1 is the only voice: no other speech, no music. Natural small hand gestures and expression that fit the speech. Static camera. The scene fills the whole frame edge to edge: no borders, no letterbox bars. No text or captions on screen.",
+    reference_image_urls: [await presignGet(s3, o.cena.imagemKey, 86_400)],
+    reference_audio_urls: [await presignGet(s3, o.cena.audioKey, 86_400)],
+    seconds: o.cena.duracao ?? 5,
+    resolution: "720p",
+    aspect_ratio: o.vertical ? "9:16" : "16:9",
+    // O som gerado é trocado pela fala original na união das cenas.
+    audio: true,
+  });
+  console.info(
+    "[sapiens] cena falada na fila:",
+    video.id,
+    model,
+    `US$ ${cobrado}`,
+  );
   return video.id;
 }
 

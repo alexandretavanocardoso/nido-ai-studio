@@ -138,6 +138,33 @@ export function promptTrocaImagem(o: {
 }
 
 /**
+ * Edição de um quadro de vídeo só pelo pedido escrito (sem personagem): o
+ * quadro-guia da Sombra quando muda só a cena, só um detalhe, ou o lugar novo
+ * em "personagem e cena". `pedido` já em inglês.
+ */
+export function promptEditarQuadro(o: {
+  /** true: muda o fundo e o lugar; false: muda só o que o pedido disser. */
+  cena: boolean;
+  pedido: string;
+  /** Estilo em que a imagem inteira deve ser redesenhada (ex.: anime). */
+  estilo?: string | null;
+}): string {
+  const pedido = o.pedido.trim().replace(/[.\s]+$/, "");
+  return [
+    o.cena
+      ? `Edit IMAGE 1 (a frame of a video). Change ONLY the background and setting: ${pedido}.`
+      : `Edit IMAGE 1 (a frame of a video). Change ONLY this: ${pedido}.`,
+    o.cena
+      ? "Every person, animal and object in the foreground stays exactly the same — faces, hair, clothes, pose, what they hold — at the same position and size, now in the new place. Keep the camera angle, framing and crop; the new place's light falls naturally on them."
+      : "Everything else stays exactly the same: every person, the background, the objects, the camera angle, framing, crop and lighting. A changed item keeps the position, size and perspective of the original, and the same grip when someone holds or wears it.",
+    o.estilo
+      ? `Redraw the WHOLE image as ${o.estilo}. One consistent style across the entire image, same composition and poses.`
+      : "Keep the visual style of IMAGE 1: if it is a real photo, the result is a real photo, and everything new looks naturally photographed in that scene.",
+    "Add or remove no person. No added text, labels, borders or watermarks.",
+  ].join("\n");
+}
+
+/**
  * Segunda passada sobre o resultado de uma troca: às vezes as mãos ficam com
  * a pele da pessoa original. Aqui a IA recebe só o resultado e iguala a pele
  * das mãos à do rosto — sem a imagem do personagem, não há o que colar.

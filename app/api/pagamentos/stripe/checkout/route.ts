@@ -2,6 +2,7 @@ import { liberadoOuResponder } from "@/lib/admin/acesso";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { idiomaDoPedido } from "@/lib/ai/idioma";
 import { allow } from "@/lib/ai/rate-limit";
 import { getAuth } from "@/lib/auth/server";
 import { lerCompra } from "@/lib/pagamentos/aplicar";
@@ -16,7 +17,7 @@ const BodySchema = z.object({
   intervalo: z.string().optional(),
   pacote: z.string().optional(),
   creditos: z.number().optional(),
-  /** USD quando a interface está em inglês (só cartão); padrão BRL. */
+  /** A moeda escolhida pelo usuário (lib/moeda.ts); USD só aceita cartão. Padrão BRL. */
   moeda: z.enum(["BRL", "USD"]).optional(),
 });
 
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
       email: sessao.user.email ?? null,
       compra,
       moeda: parsed.success ? parsed.data.moeda : undefined,
+      idioma: idiomaDoPedido(req),
       origem:
         process.env.BETTER_AUTH_URL?.replace(/\/$/, "") ||
         new URL(req.url).origin,

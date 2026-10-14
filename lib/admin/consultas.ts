@@ -517,11 +517,9 @@ export interface LucroAdmin {
   }>;
 }
 
-/** Reais por dólar para somar receita em BRL e USD (padrão: a paridade da tabela de preços). */
-export function cambioUsdBrl(): number {
-  const v = Number(process.env.CAMBIO_USD_BRL);
-  return v > 0 ? v : 5.3;
-}
+/** Reais por dólar para somar receita em BRL e USD (o mesmo câmbio da moeda da tela). */
+export { cambioUsdBrl } from "@/lib/moeda";
+import { cambioUsdBrl } from "@/lib/moeda";
 
 /** Créditos gastos, já descontados os estornos ($1 = MOTIVOS_ADMIN). */
 const CREDITOS_LIQUIDOS = `case

@@ -457,16 +457,11 @@ export const MAIS_FERRAMENTAS: Ferramenta[] = [
           estilo: a.estilo,
           // Na rota, "foto" = manter a roupa do original (o mesmo nome da troca em imagem).
           roupa: a.roupa === "video" ? "foto" : "personagem",
+          // A rota põe o vídeo na lista do personagem com este nome.
+          nome: "Vídeo (com os personagens · Claude Code).mp4",
         },
         req,
       );
-      await registrarVideo(userId, c, {
-        name: "Vídeo (com os personagens · Claude Code).mp4",
-        jobId: String(r.jobId),
-        antesKey: r.antesKey ? String(r.antesKey) : undefined,
-        origem: "substituicao",
-        duracao: Number(r.duracao) || undefined,
-      });
       return {
         job_id: r.jobId,
         duracao_segundos: r.duracao,

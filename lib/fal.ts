@@ -29,7 +29,7 @@ export function mensagemDeErro(e: unknown): string {
         return "O filtro de conteúdo da IA barrou este vídeo ou as imagens enviadas. Isso costuma acontecer com cenas de filmes e séries, pessoas famosas, marcas ou conteúdo sensível. Tente com outro vídeo ou outra imagem.";
       // Seedance bloqueia vídeos/imagens com rosto de pessoa real reconhecível.
       if (det && /likeness|real people|private information/i.test(det))
-        return "O motor Premium (Seedance) recusa vídeos em que aparece o rosto de uma pessoa real. Use o motor Padrão (Kling O3) para este vídeo.";
+        return "O Seedance recusa vídeos em que aparece o rosto de uma pessoa real. Use um dos modelos Kling O3 para este vídeo.";
       return `O fal recusou a entrada${det ? `: ${det}` : "."}`;
     }
     return `Falha no fal.ai (HTTP ${e.status}).`;

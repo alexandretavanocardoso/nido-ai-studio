@@ -316,6 +316,8 @@ async function trocarAnimada(
           motor: "kling",
           // Figurinha tem 512px: a qualidade mais barata já passa disso.
           qualidade: "standard",
+          // O resultado vai para as figurinhas, não para a lista de vídeos.
+          registrar: false,
         }),
       }),
     );

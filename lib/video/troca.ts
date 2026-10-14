@@ -1,4 +1,5 @@
 import { pedidoDoEstilo, type EstiloTroca } from "./estilos";
+import type { EdicaoTroca } from "./modos";
 import {
   ehCoisa,
   nomeDoTipo,
@@ -145,6 +146,11 @@ export function promptTroca(
    * ("foto": só a cabeça e a pele viram o personagem; a roupa original fica).
    */
   roupa?: RoupaTroca,
+  /**
+   * Pedido escrito pelo usuário (em inglês). No modo "personagem_cena" ele é o
+   * lugar novo; no "personagem", um pedido a mais (tem prioridade sobre as regras).
+   */
+  edicao?: EdicaoTroca,
 ): string {
   const oQueAcontece = acao?.trim() || undefined;
   // O Kling recusa pedidos com mais de 2500 caracteres. As regras são fixas;
@@ -165,6 +171,7 @@ export function promptTroca(
       estilo,
       oQueAcontece && encurtar(oQueAcontece, maxAcao),
       roupa,
+      edicao,
     );
     if (texto.length <= PEDIDO_MAX) return texto;
   }
@@ -182,7 +189,46 @@ export function promptTroca(
     estilo,
     oQueAcontece && encurtar(oQueAcontece, 120),
     roupa,
+    edicao,
   ).slice(0, PEDIDO_MAX);
+}
+
+/**
+ * Pedido à IA sem ninguém a trocar: só o que o usuário escreveu muda — o fundo
+ * ("cena") ou um detalhe, como um acessório ("detalhe"). Pessoas, movimento e
+ * câmera ficam como no vídeo. `ancora` (só Kling): um quadro do vídeo com a
+ * mudança já feita, enviado como @Image1, para todos os trechos saírem iguais.
+ */
+export function promptEdicao(
+  motor: MotorTroca,
+  edicao: EdicaoTroca,
+  removerTexto: boolean,
+  ancora = false,
+  estilo?: EstiloTroca,
+): string {
+  const pedido = (edicao.pedido ?? "").trim().replace(/[.\s]+$/, "");
+  const visual = pedidoDoEstilo(estilo);
+  const cena = edicao.modo === "cena";
+  return [
+    cena
+      ? `In @Video1, change ONLY the background and setting: ${pedido}.`
+      : `In @Video1, change ONLY this: ${pedido}.`,
+    ancora && motor === "kling"
+      ? "@Image1 is a frame of this same video with the change already done: match it exactly in every frame."
+      : "",
+    cena
+      ? "Every person, animal and object in the foreground stays exactly as in @Video1 (faces, hair, clothes, movements, what they hold), now in the new place. Keep the camera angle, framing and camera movement of @Video1; the new place's light falls naturally on everyone."
+      : "Everything else stays exactly as in @Video1: every person (face, hair, clothes, movements), the background, the objects, the camera angle, framing and lighting. A changed item follows the original frame by frame (position, size, perspective) and keeps the same grip when someone holds or wears it.",
+    "The change is the same in every frame, also when people move or the camera turns. Add or remove no person.",
+    visual
+      ? `Render the ENTIRE video as ${visual}. The same style in every frame, never a photo or a mix of photo and drawing.`
+      : "Everything new must look really filmed by this camera: the scene's light and shadows, same sharpness, grain and motion blur. Never a pasted cutout.",
+    removerTexto
+      ? "Remove all on-screen text, captions and subtitles."
+      : "Keep the on-screen text of @Video1.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /** Limite do Kling é 2500 caracteres; fica uma folga. */
@@ -219,7 +265,12 @@ function montarPedido(
   estilo?: EstiloTroca,
   acao?: string,
   roupa?: RoupaTroca,
+  edicao?: EdicaoTroca,
 ): string {
+  // O pedido do usuário: no modo "personagem_cena" ele é o lugar novo (e
+  // substitui a regra de manter o cenário); senão, um pedido a mais.
+  const pedido = edicao?.pedido?.trim().replace(/[.\s]+$/, "");
+  const novaCena = edicao?.modo === "personagem_cena" && !!pedido;
   // Animal ou objeto na lista: as regras de pessoa (cabeça, roupa, costas) só
   // valem para as pessoas, e as coisas têm as regras delas. Só com pessoas, o
   // pedido é o de sempre.
@@ -337,10 +388,15 @@ function montarPedido(
     acao
       ? `What happens in @Video1 (same moments, speed and force): ${acao}`
       : "",
-    visual
-      ? // "add or remove no…": sem isto aparecem figurantes e objetos que não existem no vídeo.
-        `Keep the scene of @Video1: the same place, objects, ${legendas}camera angle and framing — only the rendering style changes; add or remove no person or object.`
-      : `Keep the background, objects, ${legendas}camera angle, framing and lighting of @Video1 unchanged; add or remove no person or object.`,
+    pedido && !novaCena
+      ? `Also do this (it takes priority over the rules above where they conflict): ${pedido}.`
+      : "",
+    novaCena
+      ? `NEW SCENE: ${pedido}. Everyone is now in this new place, with the same positions, poses and movements, and its light falls naturally on them. Keep the ${legendas}camera angle, framing and camera movement of @Video1; add or remove no person.`
+      : visual
+        ? // "add or remove no…": sem isto aparecem figurantes e objetos que não existem no vídeo.
+          `Keep the scene of @Video1: the same place, objects, ${legendas}camera angle and framing — only the rendering style changes; add or remove no person or object.`
+        : `Keep the background, objects, ${legendas}camera angle, framing and lighting of @Video1 unchanged; add or remove no person or object.`,
     removerTexto ? "Remove all on-screen text, captions and subtitles." : "",
   ]
     .filter(Boolean)
@@ -361,53 +417,66 @@ function inputMotor(
     estilo?: EstiloTroca;
     acao?: string;
     roupa?: RoupaTroca;
+    edicao?: EdicaoTroca;
   },
 ): Record<string, unknown> {
   // Só a cabeça: a referência é o close do rosto — a imagem de corpo inteiro
   // traz a roupa do personagem, que o motor tende a copiar.
   const referencia = (a: AlvoTroca) =>
     o.roupa === "foto" ? (a.rostoUrl ?? a.personagemUrl) : a.personagemUrl;
+  // Ninguém a trocar (só a cena, ou só um detalhe): vale só o pedido escrito.
+  const soPedido = !o.alvos.length && o.edicao ? o.edicao : null;
   if (motor === "kling")
     return {
-      prompt: promptTroca(
-        motor,
-        o.alvos,
-        o.removerTexto,
-        !!o.ancoraUrl,
-        o.outras,
-        o.naAncora,
-        o.sobraNaAncora,
-        o.estilo,
-        o.acao,
-        o.roupa,
-      ),
+      prompt: soPedido
+        ? promptEdicao(motor, soPedido, o.removerTexto, !!o.ancoraUrl, o.estilo)
+        : promptTroca(
+            motor,
+            o.alvos,
+            o.removerTexto,
+            !!o.ancoraUrl,
+            o.outras,
+            o.naAncora,
+            o.sobraNaAncora,
+            o.estilo,
+            o.acao,
+            o.roupa,
+            o.edicao,
+          ),
       video_url: o.videoUrl,
       keep_audio: false,
       // Quadro do vídeo com a troca já feita: guia o visual de todos os trechos (@Image1).
       ...(o.ancoraUrl ? { image_urls: [o.ancoraUrl] } : {}),
       // O Kling pede 1 a 3 imagens extras de cada personagem: o close do rosto
       // (melhora rosto, barba e chapéu); sem ele, a própria imagem principal.
-      elements: o.alvos.map((a) => ({
-        frontal_image_url: referencia(a),
-        reference_image_urls: [a.rostoUrl ?? a.personagemUrl],
-      })),
+      ...(soPedido
+        ? {}
+        : {
+            elements: o.alvos.map((a) => ({
+              frontal_image_url: referencia(a),
+              reference_image_urls: [a.rostoUrl ?? a.personagemUrl],
+            })),
+          }),
     };
   return {
     task: "editing",
-    prompt: promptTroca(
-      motor,
-      o.alvos,
-      o.removerTexto,
-      false,
-      o.outras,
-      undefined,
-      false,
-      o.estilo,
-      o.acao,
-      o.roupa,
-    ),
+    prompt: soPedido
+      ? promptEdicao(motor, soPedido, o.removerTexto, false, o.estilo)
+      : promptTroca(
+          motor,
+          o.alvos,
+          o.removerTexto,
+          false,
+          o.outras,
+          undefined,
+          false,
+          o.estilo,
+          o.acao,
+          o.roupa,
+          o.edicao,
+        ),
     video_urls: [o.videoUrl],
-    image_urls: o.alvos.map(referencia),
+    ...(soPedido ? {} : { image_urls: o.alvos.map(referencia) }),
     resolution: "720p",
     // Duração do trecho (o Seedance gera de 4 a 30s); o áudio original corta o excesso no final.
     duration: Math.min(30, Math.max(4, Math.round(o.duracao))),
@@ -767,6 +836,7 @@ async function enviarTomadas(
     jobId: string;
     tomadas: TomadaEnvio[];
     prazo?: number;
+    edicao?: EdicaoTroca;
   },
   modelo: string,
   maxTrecho: number,
@@ -829,6 +899,7 @@ async function enviarTomadas(
             removerTexto: o.removerTexto,
             estilo: o.estilo,
             roupa: o.roupa,
+            edicao: o.edicao,
             acao: p.tomada.acao,
             ancoraUrl,
             naAncora: ancoraUrl ? p.tomada.naAncora : undefined,
@@ -893,6 +964,11 @@ export async function iniciarTroca(o: {
    * devolve os créditos em vez de ser cortada no meio pelo servidor.
    */
   prazo?: number;
+  /**
+   * O que mudar além (ou no lugar) da troca de pessoa, escrito pelo usuário
+   * (ver ./modos.ts). Sem alvos, só ele vale.
+   */
+  edicao?: EdicaoTroca;
 }): Promise<InputTroca> {
   const { maxTrecho } = MOTORES_TROCA[o.motor];
   const modelo =
@@ -940,6 +1016,7 @@ export async function iniciarTroca(o: {
             removerTexto: o.removerTexto,
             estilo: o.estilo,
             roupa: o.roupa,
+            edicao: o.edicao,
             acao: acaoDoTrecho(
               o.acoesPorTrecho?.[i],
               o.alvosPorTrecho?.[i],

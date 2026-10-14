@@ -19,6 +19,7 @@ import {
   precoPlano,
   type Intervalo,
 } from "@/lib/planos";
+import { moedaAtual } from "@/lib/moeda";
 import { recursosDoPlano } from "@/lib/planos-recursos";
 import { IMG } from "./cenas";
 import { useCena } from "./palco";
@@ -270,10 +271,10 @@ export function Planos() {
 
   const cartoes: ReactNode[] = PLANOS_PAGOS.map((id, i) => {
     const p = PLANOS[id];
-    // Em inglês os preços aparecem (e o cartão cobra) em dólar, como na página de planos do app.
-    const emDolar = idiomaAtual() === "en";
+    // Na moeda escolhida (lib/moeda.ts), como na página de planos do app.
+    const emDolar = moedaAtual() === "USD";
     const cifra = emDolar ? "US$" : "R$";
-    const total = precoPlano(id, intervalo, emDolar ? "USD" : "BRL");
+    const total = precoPlano(id, intervalo, moedaAtual());
     const porMes = intervalo === "mensal" ? total : Math.round(total / 12);
     return (
       <div
@@ -299,7 +300,7 @@ export function Planos() {
           {usdc
             ? emDolar
               ? ` · ${tx("mesmo valor em USDC")}`
-              : ` · ${tx("ou")} US$ ${num(precoPlano(id, intervalo, "USD"))} ${tx("em USDC")}`
+              : ` · ${tx("ou")} ${num(precoPlano(id, intervalo, "USD"))} USDC`
             : ""}
         </p>
         <div className="cr">

@@ -11,8 +11,8 @@
  */
 import type { ModeloImagem } from "@/lib/ai/modelos-imagem";
 import type {
-  Enquadramento,
   ModeloCriar,
+  ModeloFalado,
   QualidadeTroca,
 } from "@/lib/video/precos";
 
@@ -35,8 +35,6 @@ export interface Plano {
   qualidadePro: boolean;
   /** Troca de pessoa (Kling O3, fal.ai): duração máxima por vídeo. null = não disponível. */
   troca: { segundosMax: number } | null;
-  /** Troca de pessoa Premium (Seedance 2.5). */
-  trocaPremium: boolean;
   criarVideo: ModeloCriar[];
   veoComAudio: boolean;
   /** Créditos do plano que sobram passam para o mês seguinte (até 1 mês). */
@@ -64,7 +62,6 @@ export const PLANOS: Record<PlanoId, Plano> = {
     modelosImagem: ["nano-banana", "seedream"],
     qualidadePro: false,
     troca: null,
-    trocaPremium: false,
     criarVideo: [],
     veoComAudio: false,
     rollover: false,
@@ -87,7 +84,6 @@ export const PLANOS: Record<PlanoId, Plano> = {
     modelosImagem: ["nano-banana", "seedream", "flux2", "gpt-image"],
     qualidadePro: false,
     troca: { segundosMax: 15 },
-    trocaPremium: false,
     criarVideo: ["gen4_turbo"],
     veoComAudio: false,
     rollover: false,
@@ -110,8 +106,7 @@ export const PLANOS: Record<PlanoId, Plano> = {
     modelosImagem: ["persona", "nano-banana", "seedream", "flux2", "gpt-image"],
     qualidadePro: true,
     troca: { segundosMax: 30 },
-    trocaPremium: true,
-    criarVideo: ["gen4_turbo", "gen4.5", "veo3.1_fast", "kling_v3"],
+    criarVideo: ["gen4_turbo", "gen4.5", "veo3.1_fast", "kling_v3", "wan3"],
     veoComAudio: false,
     rollover: true,
     armazenamentoGB: 50,
@@ -131,8 +126,7 @@ export const PLANOS: Record<PlanoId, Plano> = {
     modelosImagem: ["persona", "nano-banana", "seedream", "flux2", "gpt-image"],
     qualidadePro: true,
     troca: { segundosMax: 60 },
-    trocaPremium: true,
-    criarVideo: ["gen4_turbo", "gen4.5", "veo3.1_fast", "kling_v3"],
+    criarVideo: ["gen4_turbo", "gen4.5", "veo3.1_fast", "kling_v3", "wan3"],
     veoComAudio: true,
     rollover: true,
     armazenamentoGB: 200,
@@ -235,6 +229,7 @@ const CRIAR_POR_SEGUNDO: Record<ModeloCriar, number> = {
   "gen4.5": 12,
   "veo3.1_fast": 10,
   kling_v3: 6,
+  wan3: 10,
 };
 /** Com áudio (só os modelos que têm). */
 const CRIAR_POR_SEGUNDO_COM_AUDIO: Partial<Record<ModeloCriar, number>> = {
@@ -274,16 +269,23 @@ export const FALADO_POR_SEGUNDO = 2;
 export const CREDITOS_CENARIO = 5;
 /** Corpo inteiro: Hailuo 3 no Runway (~US$ 0,10/s + imagem) + a fala. */
 export const CORPO_INTEIRO_POR_SEGUNDO = 12;
+/** Corpo inteiro: Wan 3.0 no fal (720p, US$ 0,10/s) + a fala. */
+export const WAN_FALADO_POR_SEGUNDO = 11;
+/** Por segundo de cada modelo do vídeo falado (Seedance no Sapiens: o preço da cotação + a fala). */
+export const FALADO_POR_SEGUNDO_MODELO: Record<ModeloFalado, number> = {
+  avatar: FALADO_POR_SEGUNDO,
+  hailuo3: CORPO_INTEIRO_POR_SEGUNDO,
+  wan3: WAN_FALADO_POR_SEGUNDO,
+  seedance20_mini: 8,
+  seedance20_fast: 12,
+  seedance25: 22,
+  seedance20: 24,
+};
 export function creditosVideoFalado(
   segundos: number,
-  enquadramento: Enquadramento = "close",
+  modelo: ModeloFalado = "avatar",
 ): number {
-  return (
-    segundos *
-    (enquadramento === "inteiro"
-      ? CORPO_INTEIRO_POR_SEGUNDO
-      : FALADO_POR_SEGUNDO)
-  );
+  return segundos * FALADO_POR_SEGUNDO_MODELO[modelo];
 }
 
 /** Figurinha de WhatsApp: uma imagem (Nano Banana) + a remoção do fundo. */
@@ -438,12 +440,6 @@ export function bloqueioVoz(plano: PlanoId): string | null {
   return PLANOS[plano].voz
     ? null
     : "A voz do personagem está disponível a partir do plano Starter.";
-}
-
-export function bloqueioTrocaPremium(plano: PlanoId): string | null {
-  return PLANOS[plano].trocaPremium
-    ? null
-    : "O motor Premium (Seedance 2.5) está disponível a partir do plano Creator.";
 }
 
 /** Vídeo falado usa a voz do personagem: vale o plano que libera voz e criar vídeo. */

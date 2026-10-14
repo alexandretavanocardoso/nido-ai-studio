@@ -69,6 +69,8 @@ export function IdiomaDoDocumento() {
   return null;
 }
 
+let jaMontou = false;
+
 /**
  * Aplica o idioma escolhido a tx()/useT() e remonta a árvore quando ele muda.
  * O servidor e a primeira renderização no navegador saem no idioma padrão
@@ -76,8 +78,13 @@ export function IdiomaDoDocumento() {
  */
 export function ComIdioma({ children }: { children: ReactNode }) {
   const idioma = useIdioma((s) => s.idioma);
-  const [montado, setMontado] = useState(false);
-  useEffect(() => setMontado(true), []);
+  // Remontado depois da hidratação (ex.: troca de moeda em volta dele): já
+  // pode usar o idioma salvo, sem passar de novo pelo padrão.
+  const [montado, setMontado] = useState(jaMontou);
+  useEffect(() => {
+    jaMontou = true;
+    setMontado(true);
+  }, []);
   const efetivo = montado ? idioma : IDIOMA_PADRAO;
   definirIdiomaAtivo(efetivo);
   return <Fragment key={efetivo}>{children}</Fragment>;

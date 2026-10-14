@@ -9,6 +9,7 @@ import {
   type Cobranca,
 } from "@/lib/creditos";
 import { getPool } from "@/lib/db";
+import { getFal, mensagemDeErro } from "@/lib/fal";
 import {
   armazenamentoOuResponder,
   liberarVaga,
@@ -47,11 +48,22 @@ import {
   DURACOES_FALADO,
   FALA_MAX_CARACTERES,
   MAX_CENAS_FALADAS,
+  MODELOS_FALADO,
+  MODELOS_FALADO_IDS,
+  provedorFalado,
   segundosDaCenaInteira,
   segundosDoMp3,
+  type ModeloFalado,
 } from "@/lib/video/precos";
 import { getRunway, mensagemDeErroRunway } from "@/lib/video/runway";
+import {
+  enviarFaladoSapiens,
+  getSapiens,
+  mensagemDeErroSapiens,
+  MODELO_SAPIENS_FALADO,
+} from "@/lib/video/sapiens";
 import { contextoVideo } from "@/lib/video/server";
+import { enviarFaladoWan, WAN_REFERENCIA } from "@/lib/video/wan";
 import {
   falar,
   getEleven,
@@ -82,9 +94,30 @@ const BodySchema = z.object({
     .max(MAX_CENAS_FALADAS)
     .default([]),
   duracao: z.number().int(),
-  /** close: avatar (cabeça e ombros) · inteiro: corpo inteiro (Hailuo 3). */
-  enquadramento: z.enum(["close", "inteiro"]).default("close"),
+  /** Modelo do vídeo (ver MODELOS_FALADO em lib/video/precos). */
+  modelo: z
+    .enum(MODELOS_FALADO_IDS as [ModeloFalado, ...ModeloFalado[]])
+    .optional(),
+  /** Antigo, de antes da escolha do modelo: close = avatar · inteiro = Hailuo 3. */
+  enquadramento: z.enum(["close", "inteiro"]).optional(),
 });
+
+/** Modelo gravado no job (coluna `modelo`): o id do modelo no serviço. */
+const modeloNoServico = (m: ModeloFalado): string =>
+  m === "avatar"
+    ? MODELO_FALADO
+    : m === "hailuo3"
+      ? MODELO_CORPO
+      : m === "wan3"
+        ? WAN_REFERENCIA
+        : MODELO_SAPIENS_FALADO[m]!;
+
+/** Chave que falta, por serviço, na mensagem de configuração. */
+const CHAVE: Record<string, string> = {
+  runway: "RUNWAYML_API_SECRET",
+  fal: "FAL_KEY",
+  sapiens: "SAPIENS_KEY",
+};
 
 /** Quanto a fala pode passar da duração escolhida antes de ser recusada. */
 const FOLGA = 1.15;
@@ -94,8 +127,9 @@ class Recusa extends Error {}
 
 /**
  * POST — vídeo falado: a fala é gerada com a voz do personagem (ElevenLabs) e
- * o Runway (gwm1_avatars) gera o vídeo dele falando o áudio, com os lábios
- * sincronizados. O vídeo dura o que a fala durar.
+ * o modelo escolhido (avatar ou Hailuo 3 no Runway, Wan 3.0 no fal, Seedance
+ * no Sapiens) gera o vídeo dele falando o áudio, com os lábios sincronizados. O vídeo dura o que
+ * a fala durar.
  * Assíncrono: devolve o id do job, acompanhado em /api/videos/jobs/[id].
  */
 export async function POST(req: Request) {
@@ -103,17 +137,7 @@ export async function POST(req: Request) {
   if (ctx instanceof NextResponse) return ctx;
   const { userId, s3 } = ctx;
   const pool = getPool();
-  const runway = getRunway();
   const el = getEleven();
-  if (!pool || !runway || !el)
-    return NextResponse.json(
-      {
-        error:
-          "Vídeo falado não configurado (RUNWAYML_API_SECRET e ELEVENLABS_API_KEY).",
-        code: "CONFIG_MISSING",
-      },
-      { status: 500 },
-    );
 
   const parsed = BodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success)
@@ -122,6 +146,20 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   const body = parsed.data;
+  const modelo: ModeloFalado =
+    body.modelo ?? (body.enquadramento === "inteiro" ? "hailuo3" : "avatar");
+  const provedor = provedorFalado(modelo);
+  const runway = provedor === "runway" ? getRunway() : null;
+  const fal = provedor === "fal" ? getFal() : null;
+  const sapiens = provedor === "sapiens" ? getSapiens() : null;
+  if (!pool || !el || (!runway && !fal && !sapiens))
+    return NextResponse.json(
+      {
+        error: `Vídeo falado com o ${MODELOS_FALADO[modelo].label} não configurado (${CHAVE[provedor]} e ELEVENLABS_API_KEY).`,
+        code: "CONFIG_MISSING",
+      },
+      { status: 500 },
+    );
   if (!(DURACOES_FALADO as readonly number[]).includes(body.duracao))
     return NextResponse.json(
       {
@@ -153,22 +191,24 @@ export async function POST(req: Request) {
   // Cobra o teto (a duração escolhida); o que a fala não usar volta em seguida.
   const falas = cenasDaFala(body.fala);
   const cenarios = falas.map((_, i) => body.cenarios[i] ?? "");
-  const inteiro = body.enquadramento === "inteiro";
-  // Corpo inteiro: cada cena gera no mínimo 5s e segundos inteiros, então o
-  // teto considera essa folga por cena (o que não for usado volta).
+  const inteiro = MODELOS_FALADO[modelo].inteiro;
+  // Corpo inteiro: cada cena gera um mínimo de segundos, e segundos inteiros,
+  // então o teto considera essa folga por cena (o que não for usado volta).
   const teto =
     creditosVideoFalado(
       inteiro
-        ? Math.ceil(body.duracao * FOLGA) + 1 + 6 * falas.length
+        ? Math.ceil(body.duracao * FOLGA) +
+            1 +
+            (MODELOS_FALADO[modelo].minSegundos + 1) * falas.length
         : body.duracao,
-      body.enquadramento,
+      modelo,
     ) +
     cenarios.filter(Boolean).length * CREDITOS_CENARIO;
   const cobrado = await cobrarOuResponder(
     userId,
     teto,
     "video_falado",
-    inteiro ? MODELO_CORPO : MODELO_FALADO,
+    modeloNoServico(modelo),
   );
   if (cobrado instanceof NextResponse) {
     await liberarVaga(vaga.vaga);
@@ -195,10 +235,10 @@ export async function POST(req: Request) {
         `No corpo inteiro cada cena pode ter até ${CORPO_MAX_SEGUNDOS}s de fala. Divida a fala em mais cenas (uma linha em branco entre elas) ou encurte.`,
       );
     // Duração do vídeo (a da fala) e segundos cobrados: no corpo inteiro o
-    // modelo gera segundos inteiros, no mínimo 5 por cena.
+    // modelo gera segundos inteiros, com um mínimo por cena.
     const duracaoVideo = Math.min(body.duracao, Math.max(1, Math.ceil(real)));
     const segundos = inteiro
-      ? porCena.reduce((t, s) => t + segundosDaCenaInteira(s), 0)
+      ? porCena.reduce((t, s) => t + segundosDaCenaInteira(s, modelo), 0)
       : duracaoVideo;
 
     // Close: o avatar só aceita retrato de perto, então recorta em volta do
@@ -224,7 +264,7 @@ export async function POST(req: Request) {
     );
 
     const creditos =
-      creditosVideoFalado(segundos, body.enquadramento) +
+      creditosVideoFalado(segundos, modelo) +
       noCenario.filter(Boolean).length * CREDITOS_CENARIO;
     if (cobranca && creditos < cobranca.total) {
       // Mesma divisão do estorno parcial: os avulsos voltam primeiro.
@@ -270,14 +310,21 @@ export async function POST(req: Request) {
         cenas = imagens.map((imagemKey, i) => ({
           imagemKey,
           audioKey: audioKeys[i],
-          duracao: segundosDaCenaInteira(porCena[i]),
+          duracao: segundosDaCenaInteira(porCena[i], modelo),
         }));
-        idExterno = await enviarCorpoInteiro(
-          runway,
-          s3,
-          cenas[0],
-          formato.vertical,
-        );
+        idExterno = fal
+          ? await enviarFaladoWan(fal, s3, {
+              jobId,
+              cena: cenas[0],
+              vertical: formato.vertical,
+            })
+          : sapiens
+            ? await enviarFaladoSapiens(sapiens, s3, {
+                modelo,
+                cena: cenas[0],
+                vertical: formato.vertical,
+              })
+            : await enviarCorpoInteiro(runway!, s3, cenas[0], formato.vertical);
       } else {
         if (noCenario.some((img) => !img)) {
           const { rows } = await pool.query<{ avatar: string }>(
@@ -290,7 +337,7 @@ export async function POST(req: Request) {
           const anterior = rows[0]?.avatar;
           if (
             anterior &&
-            (await estadoAvatar(runway, anterior)).estado === "pronto"
+            (await estadoAvatar(runway!, anterior)).estado === "pronto"
           )
             avatarBase = anterior;
         }
@@ -304,13 +351,13 @@ export async function POST(req: Request) {
         // Só o avatar da primeira cena é criado agora: o Runway recusa avatares
         // criados ao mesmo tempo, então os outros esperam a vez (na finalização).
         if (cenas[0].avatarId) {
-          idExterno = await enviarVideoFalado(runway, s3, {
+          idExterno = await enviarVideoFalado(runway!, s3, {
             avatarId: cenas[0].avatarId,
             audioKey: cenas[0].audioKey,
           });
         } else {
           cenas[0].avatarId = await criarAvatarDaCena(
-            runway,
+            runway!,
             s3,
             nome,
             cenas[0],
@@ -319,17 +366,23 @@ export async function POST(req: Request) {
         }
       }
     } catch (e) {
-      throw new Recusa(mensagemDeErroRunway(e));
+      throw new Recusa(
+        fal
+          ? mensagemDeErro(e)
+          : sapiens
+            ? mensagemDeErroSapiens(e)
+            : mensagemDeErroRunway(e),
+      );
     }
 
     await pool.query(
       `insert into video_jobs (id, user_id, character_id, provedor, tipo, modelo, fal_request_id, input, duracao)
-       values ($1, $2, $3, 'runway', 'criar', $4, $5, $6, $7)`,
+       values ($1, $2, $3, $8, 'criar', $4, $5, $6, $7)`,
       [
         jobId,
         userId,
         body.characterId,
-        inteiro ? MODELO_CORPO : MODELO_FALADO,
+        modeloNoServico(modelo),
         idExterno!,
         JSON.stringify({
           imageKey: body.imageKey,
@@ -343,12 +396,15 @@ export async function POST(req: Request) {
             nome,
             cenas: cenas!,
             partes: [],
-            ...(inteiro ? { corpo: { vertical: formato.vertical } } : {}),
+            ...(inteiro
+              ? { corpo: { vertical: formato.vertical, modelo } }
+              : {}),
           },
           // Devolvida pela finalização se o serviço falhar.
           cobranca,
         }),
         duracaoVideo,
+        provedor,
       ],
     );
     return NextResponse.json({ jobId, duracao: duracaoVideo, creditos });

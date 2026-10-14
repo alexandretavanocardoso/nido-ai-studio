@@ -18,22 +18,22 @@ import {
   cenasDoVideo,
   custoCriar,
   cenasDaFala,
-  CORPO_CUSTO_POR_SEGUNDO,
   CORPO_MAX_SEGUNDOS,
   DURACOES_CRIAR,
   DURACOES_FALADO,
   FALA_MAX_CARACTERES,
   MAX_CENAS_FALADAS,
   ROTEIRO_INTEIRO,
-  FALADO_CUSTO_POR_SEGUNDO,
-  FALADO_ROTULO,
   MODELOS_CRIAR,
+  MODELOS_FALADO,
+  MODELOS_FALADO_IDS,
   modeloPadraoCriar,
   provedorCriar,
+  provedorFalado,
   segundosDaCenaInteira,
   segundosDaFala,
-  type Enquadramento,
   type ModeloCriar,
+  type ModeloFalado,
 } from "@/lib/video/precos";
 import {
   avisarCreditos,
@@ -43,9 +43,7 @@ import { ErroGeracao } from "@/components/creditos/ErroGeracao";
 import {
   bloqueioCriarVideo,
   bloqueioVideoFalado,
-  CORPO_INTEIRO_POR_SEGUNDO,
   CREDITOS_CENARIO,
-  FALADO_POR_SEGUNDO,
   CREDITOS_CRIAR_VOZ,
   CREDITOS_TEXTO,
   creditosCriarVideo,
@@ -53,6 +51,7 @@ import {
 } from "@/lib/planos";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
+import { SeletorModelo } from "@/components/ui/SeletorModelo";
 import { cn } from "@/lib/cn";
 import {
   EscolherImagemPersonagem,
@@ -64,6 +63,7 @@ import { fileUrl } from "@/lib/storage/client";
 import { tx } from "@/lib/i18n/tx";
 import { useDuravel } from "@/lib/duravel";
 import { txErro } from "@/lib/i18n/erros";
+import { dinheiro } from "@/lib/moeda";
 
 interface Props {
   character: Character;
@@ -110,13 +110,19 @@ const MAX_CENA = 1000;
 
 /**
  * Cria um vídeo novo do personagem a partir de uma imagem dele.
- * Falado: a fala é gerada com a voz do personagem (ElevenLabs) e um modelo de
- * avatar anima a imagem falando, com os lábios sincronizados.
- * Cena: o Runway ou o Sapiens anima a imagem a partir de uma descrição (sem fala).
+ * Falado: a fala é gerada com a voz do personagem (ElevenLabs) e o modelo
+ * escolhido (Runway Avatar, Hailuo 3 ou Wan 3.0) anima a imagem falando, com
+ * os lábios sincronizados.
+ * Cena: o modelo escolhido (Runway, Sapiens ou fal) anima a imagem a partir de
+ * uma descrição (sem fala).
  */
 export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
   const recursos = useRecursos();
-  const faladoLigado = recursos.runway && recursos.voz;
+  // Modelos do falado que algum serviço configurado neste deploy gera.
+  const faladosDisponiveis = MODELOS_FALADO_IDS.filter(
+    (id) => recursos[provedorFalado(id)],
+  );
+  const faladoLigado = recursos.voz && faladosDisponiveis.length > 0;
   const opcoes = useImagensPersonagem(character);
   // Só os modelos que algum serviço configurado neste deploy gera.
   const disponiveis = (Object.keys(MODELOS_CRIAR) as ModeloCriar[]).filter(
@@ -135,8 +141,11 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
   const [texto, setTexto] = useState(() => cenaInicial(character));
   /** O que o personagem fala (modo falado). */
   const [fala, setFala] = useState("");
-  /** Close (avatar, cabeça e ombros) ou o personagem de corpo inteiro. */
-  const [enquadramento, setEnquadramento] = useState<Enquadramento>("close");
+  /** Modelo do falado: close (avatar) ou o personagem de corpo inteiro. */
+  const [modeloFalado, setModeloFalado] = useState<ModeloFalado>(
+    faladosDisponiveis[0] ?? "avatar",
+  );
+  const mf = MODELOS_FALADO[modeloFalado];
   /** Cenário de cada cena da fala (cada parágrafo é uma cena). Vazio: fundo da imagem. */
   const [cenarios, setCenarios] = useState<string[]>([]);
   const [vozes, setVozes] = useState<Voz[] | null>(null);
@@ -360,10 +369,10 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
   const cenariosUsados = cenariosLigados
     ? cenasFala.map((_, i) => (cenarios[i] ?? "").trim())
     : [];
-  const inteiro = falado && enquadramento === "inteiro";
-  // Corpo inteiro: o modelo gera segundos inteiros (mínimo 5) e até 15s por cena.
+  const inteiro = falado && mf.inteiro;
+  // Corpo inteiro: o modelo gera segundos inteiros (com um mínimo) e até 15s por cena.
   const segundosInteiro = cenasFala.reduce(
-    (t, f) => t + segundosDaCenaInteira(segundosDaFala(f)),
+    (t, f) => t + segundosDaCenaInteira(segundosDaFala(f), modeloFalado),
     0,
   );
   const cenaLonga =
@@ -454,7 +463,7 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
                   fala,
                   cenarios: cenariosUsados,
                   duracao,
-                  enquadramento,
+                  modelo: modeloFalado,
                 }
               : {
                   characterId: character.id,
@@ -483,7 +492,7 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
         jobId: body.jobId,
         duracao: body.duracao ?? duracao,
         rotulo: falado
-          ? `${tx("Falado")} · ${inteiro ? tx("Corpo inteiro") : FALADO_ROTULO}`
+          ? `${tx("Falado")} · ${mf.label}`
           : MODELOS_CRIAR[modelo].label,
       });
     } catch (e) {
@@ -502,11 +511,11 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
   const preco = (id: ModeloCriar, segundos: number, comSom: boolean) =>
     conta
       ? `${creditosCriarVideo(id, segundos, comSom)} ${tx("créditos")}`
-      : `~US$ ${custoCriar(id, segundos, comSom).toFixed(2)}`;
+      : `~${dinheiro(custoCriar(id, segundos, comSom), { de: "USD" })}`;
   const precoFalado = (segundos: number) =>
     conta
-      ? `${creditosVideoFalado(segundos, enquadramento) + cenariosUsados.filter(Boolean).length * CREDITOS_CENARIO} ${tx("créditos")}`
-      : `~US$ ${(segundos * (inteiro ? CORPO_CUSTO_POR_SEGUNDO : FALADO_CUSTO_POR_SEGUNDO) + cenariosUsados.filter(Boolean).length * 0.04).toFixed(2)}`;
+      ? `${creditosVideoFalado(segundos, modeloFalado) + cenariosUsados.filter(Boolean).length * CREDITOS_CENARIO} ${tx("créditos")}`
+      : `~${dinheiro(segundos * mf.porSegundo + cenariosUsados.filter(Boolean).length * 0.04, { de: "USD" })}`;
   const podeAvancar =
     !!imagem &&
     !convertendo &&
@@ -1045,51 +1054,11 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
             </div>
           </section>
 
+          {/* O modelo do falado é escolhido no rodapé; aqui, o que ele faz. */}
           <section hidden={etapa !== 2 || !falado || biblioteca}>
-            <div className={rotulo}>{tx("Enquadramento")}</div>
-            <div className="grid grid-cols-2 gap-2">
-              {(
-                [
-                  [
-                    "close",
-                    "Close",
-                    "Cabeça e ombros · mais barato",
-                    FALADO_POR_SEGUNDO,
-                    FALADO_CUSTO_POR_SEGUNDO,
-                  ],
-                  [
-                    "inteiro",
-                    "Corpo inteiro",
-                    "A imagem inteira, com gestos",
-                    CORPO_INTEIRO_POR_SEGUNDO,
-                    CORPO_CUSTO_POR_SEGUNDO,
-                  ],
-                ] as const
-              ).map(([id, nome, nota, creditos, dolar]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setEnquadramento(id)}
-                  aria-pressed={enquadramento === id}
-                  className={cartao(enquadramento === id)}
-                >
-                  <div className="text-[13px] font-bold text-ink">
-                    {tx(nome)}
-                  </div>
-                  <div className="truncate text-[11px] text-ink-dim">
-                    {tx(nota)}
-                  </div>
-                  <div className="mono mt-1 text-[11px] text-ink-mute">
-                    {conta
-                      ? `${creditos} ${tx("créditos/s")}`
-                      : `US$ ${dolar.toFixed(2)}/s`}
-                  </div>
-                </button>
-              ))}
-            </div>
             <p
               className={cn(
-                "mt-2 text-[11px] leading-relaxed text-ink-dim",
+                "text-[11px] leading-relaxed text-ink-dim",
                 cenaLonga && "text-pink",
               )}
             >
@@ -1098,51 +1067,14 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
                     "No corpo inteiro cada cena pode ter até 15s de fala: separe a fala em mais cenas (linha em branco) na parte 1.",
                   )
                 : inteiro
-                  ? tx(
-                      "O personagem aparece de corpo inteiro, como na imagem, falando com esta voz. Cada cena tem no mínimo 5s e até 15s; o resultado varia mais que no close.",
-                    )
+                  ? `${tx("O personagem aparece de corpo inteiro, como na imagem, falando com esta voz.")} ${tx("Cada cena tem de")} ${mf.minSegundos} ${tx("a 15s; o resultado varia mais que no close.")}`
                   : tx(
                       "Close do personagem falando com esta voz, com os lábios sincronizados. Na primeira vez o Runway prepara o avatar antes (leva um pouco mais).",
                     )}
             </p>
           </section>
 
-          {/* ---------- Parte 2 (cena): modelo, duração e formato ---------- */}
-          <section hidden={etapa !== 2 || falado}>
-            <div className={rotulo}>{tx("Modelo")}</div>
-            <div
-              className={cn(
-                "grid grid-cols-1 gap-2",
-                disponiveis.length === 4 ? "sm:grid-cols-4" : "sm:grid-cols-3",
-              )}
-            >
-              {disponiveis.map((id) => {
-                const mm = MODELOS_CRIAR[id];
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setModelo(id)}
-                    aria-pressed={modelo === id}
-                    className={cartao(modelo === id)}
-                  >
-                    <div className="text-[13px] font-bold text-ink">
-                      {mm.label}
-                    </div>
-                    <div className="truncate text-[11px] text-ink-dim">
-                      {mm.nota}
-                    </div>
-                    <div className="mono mt-1 text-[11px] text-ink-mute">
-                      {conta
-                        ? `${creditosCriarVideo(id, 1, false)} ${tx("créditos/s")}`
-                        : `US$ ${mm.porSegundo.toFixed(2)}/s`}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
+          {/* ---------- Parte 2 (cena): duração e formato (o modelo fica no rodapé) ---------- */}
           <section hidden={etapa !== 2 || falado}>
             <div className={rotulo}>{tx("Duração")}</div>
             {duracoes}
@@ -1217,32 +1149,80 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
         </div>
 
         <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-line p-5 sm:px-6">
-          <div className="min-w-0">
-            <div className="text-[12px] text-ink-mute">
-              {falado
-                ? `${tx("Falado")} · ${inteiro ? tx("Corpo inteiro") : FALADO_ROTULO} · ${duracao === ROTEIRO_INTEIRO ? tx("Roteiro inteiro") : `${tx("até")} ${duracao}s`}`
-                : `${MODELOS_CRIAR[modelo].label} · ${duracao}s · ${vertical ? "9:16" : "16:9"}${comAudio ? ` · ${tx("Com áudio")}` : ""}`}
-            </div>
-            <div className="text-[15px] font-bold text-ink">
-              {falado
-                ? `${fala.trim() ? "~" : `${tx("até")} `}${precoFalado(
-                    !fala.trim()
-                      ? duracao
-                      : inteiro
-                        ? segundosInteiro
-                        : Math.min(duracao, Math.max(1, segundosFala)),
-                  )}`
-                : preco(modelo, gerados, comAudio)}
-              {conta ? null : (
-                <span className="text-[11px] font-normal text-ink-dim">
-                  {" "}
-                  {falado
-                    ? tx("· cobrança real no Runway e na ElevenLabs")
-                    : provedorCriar(modelo, recursos) === "sapiens"
-                      ? tx("· cobrança real no painel do Sapiens")
-                      : tx("· cobrança real no painel do Runway")}
-                </span>
-              )}
+          <div className="flex min-w-0 items-center gap-3">
+            {falado ? (
+              <SeletorModelo
+                rotulo={tx("Modelo")}
+                valor={modeloFalado}
+                onChange={setModeloFalado}
+                // Do mais caro para o mais barato.
+                opcoes={[...faladosDisponiveis]
+                  .sort(
+                    (a, b) =>
+                      creditosVideoFalado(1, b) - creditosVideoFalado(1, a),
+                  )
+                  .map((id) => ({
+                    id,
+                    label: MODELOS_FALADO[id].label,
+                    nota: tx(MODELOS_FALADO[id].nota),
+                    preco: conta
+                      ? `${creditosVideoFalado(1, id)} ${tx("créditos/s")}`
+                      : `${dinheiro(MODELOS_FALADO[id].porSegundo, { de: "USD" })}/s`,
+                  }))}
+              />
+            ) : (
+              <SeletorModelo
+                rotulo={tx("Modelo")}
+                valor={modelo}
+                onChange={setModelo}
+                opcoes={[...disponiveis]
+                  .sort(
+                    (a, b) =>
+                      creditosCriarVideo(b, 1, false) -
+                      creditosCriarVideo(a, 1, false),
+                  )
+                  .map((id) => ({
+                    id,
+                    label: MODELOS_CRIAR[id].label,
+                    nota: tx(MODELOS_CRIAR[id].nota),
+                    preco: conta
+                      ? `${creditosCriarVideo(id, 1, false)} ${tx("créditos/s")}`
+                      : `${dinheiro(MODELOS_CRIAR[id].porSegundo, { de: "USD" })}/s`,
+                  }))}
+              />
+            )}
+            <div className="min-w-0">
+              <div className="text-[15px] font-bold leading-tight text-ink">
+                {falado
+                  ? `${fala.trim() ? "~" : `${tx("até")} `}${precoFalado(
+                      !fala.trim()
+                        ? duracao
+                        : inteiro
+                          ? segundosInteiro
+                          : Math.min(duracao, Math.max(1, segundosFala)),
+                    )}`
+                  : preco(modelo, gerados, comAudio)}
+              </div>
+              <div className="mt-0.5 text-[11px] text-ink-mute">
+                {falado
+                  ? `${tx("Falado")} · ${duracao === ROTEIRO_INTEIRO ? tx("Roteiro inteiro") : `${tx("até")} ${duracao}s`}`
+                  : `${duracao}s · ${vertical ? "9:16" : "16:9"}${comAudio ? ` · ${tx("Com áudio")}` : ""}`}
+                {conta
+                  ? null
+                  : ` ${
+                      falado
+                        ? provedorFalado(modeloFalado) === "fal"
+                          ? tx("· cobrança real no fal.ai e na ElevenLabs")
+                          : provedorFalado(modeloFalado) === "sapiens"
+                            ? tx("· cobrança real no Sapiens e na ElevenLabs")
+                            : tx("· cobrança real no Runway e na ElevenLabs")
+                        : provedorCriar(modelo, recursos) === "sapiens"
+                          ? tx("· cobrança real no painel do Sapiens")
+                          : provedorCriar(modelo, recursos) === "fal"
+                            ? tx("· cobrança real no painel do fal.ai")
+                            : tx("· cobrança real no painel do Runway")
+                    }`}
+              </div>
             </div>
           </div>
           {etapa === 1 ? (

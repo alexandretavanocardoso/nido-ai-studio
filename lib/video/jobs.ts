@@ -1,6 +1,7 @@
 import { consultar as consultarFal, getFal } from "./fal";
 import { consultarRunway, getRunway } from "./runway";
 import { consultarSapiens, getSapiens } from "./sapiens";
+import { endpointFal } from "./wan";
 
 /** Estado de um job de vídeo, igual para qualquer serviço. */
 export type EstadoVideo =
@@ -38,5 +39,5 @@ export async function consultarJob(
   const fal = getFal();
   if (!fal)
     return { estado: "erro", mensagem: "fal.ai não configurado no servidor." };
-  return consultarFal(fal, modelo, idExterno);
+  return consultarFal(fal, endpointFal(modelo), idExterno);
 }

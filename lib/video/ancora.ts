@@ -11,6 +11,7 @@ import {
 import {
   ehCoisa,
   nomeDoTipo,
+  promptEditarQuadro,
   promptTrocaImagem,
   type RoupaTroca,
   type TipoAlvo,
@@ -825,6 +826,105 @@ export async function passadaConfere(o: {
   }
 }
 
+/**
+ * O pedido escrito pelo usuário, em inglês: os motores e o resto do pedido
+ * estão em inglês. Sem Gemini, ou se falhar, segue como foi escrito.
+ */
+export async function pedidoEmIngles(texto: string): Promise<string> {
+  const limpo = texto.trim().replace(/\s+/g, " ");
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey || !limpo) return limpo;
+  try {
+    const res = await new GoogleGenAI({ apiKey }).models.generateContent({
+      model: MODELO_VISAO,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text:
+                "Translate this video-editing request into English. Keep its exact meaning, names and details; add nothing. Answer with the translation only, in one line.\n\n" +
+                limpo,
+            },
+          ],
+        },
+      ],
+    });
+    const t = (res.text ?? "").trim().replace(/\s+/g, " ");
+    return t.length > 2 ? t.slice(0, 450) : limpo;
+  } catch (e) {
+    console.warn(
+      "[ancora] tradução do pedido falhou (vai como foi escrito):",
+      (e as Error).message,
+    );
+    return limpo;
+  }
+}
+
+/**
+ * Aplica o pedido escrito num quadro (Nano Banana): o lugar novo (`cena`) ou
+ * só um detalhe. Null se falhar ou demorar demais.
+ */
+export async function editarQuadro(o: {
+  quadro: Buffer;
+  info: VideoInfo;
+  cena: boolean;
+  /** Já em inglês. */
+  pedido: string;
+  estilo?: EstiloTroca;
+}): Promise<Buffer | null> {
+  const base = await sharp(o.quadro)
+    .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+  const geracao = generateImage({
+    prompt: promptEditarQuadro({
+      cena: o.cena,
+      pedido: o.pedido,
+      estilo: pedidoDoEstilo(o.estilo),
+    }),
+    referencias: [{ mimeType: "image/jpeg", data: base.toString("base64") }],
+    aspectRatio: proporcaoMaisProxima(o.info.largura, o.info.altura),
+    imageSize: "1K",
+    qualidade: "padrao",
+  }).catch((e) => {
+    console.warn("[ancora] edição do quadro falhou:", (e as Error).message);
+    return null;
+  });
+  return Promise.race([
+    geracao,
+    new Promise<null>((ok) => setTimeout(() => ok(null), LIMITE_MS)),
+  ]);
+}
+
+/**
+ * Quadro-guia quando ninguém é trocado (só a cena, ou só um detalhe): um
+ * quadro do começo do vídeo com o pedido já aplicado. Sem ele cada trecho do
+ * Kling inventa o seu fundo. Null se não der (a troca segue sem guia).
+ */
+export async function quadroDoPedido(o: {
+  arquivo: string;
+  dir: string;
+  info: VideoInfo;
+  cena: boolean;
+  /** Já em inglês. */
+  pedido: string;
+  estilo?: EstiloTroca;
+}): Promise<Buffer | null> {
+  try {
+    const candidatos = instantesCandidatos(o.info.duracao);
+    const saida = path.join(o.dir, "pedido-quadro.jpg");
+    await extrairQuadro(o.arquivo, candidatos[1] ?? candidatos[0], saida);
+    return await editarQuadro({ ...o, quadro: await readFile(saida) });
+  } catch (e) {
+    console.warn(
+      "[ancora] sem quadro-guia do pedido (segue sem ele):",
+      (e as Error).message,
+    );
+    return null;
+  }
+}
+
 /** Lado do quadro em que o usuário clicou (fração 0–1), em palavras. */
 function ladoDoClique(x: number): string {
   return x < 0.36
@@ -993,6 +1093,8 @@ export async function prepararAncora(o: {
   estilo?: EstiloTroca;
   /** Roupa de quem é trocado: do personagem (padrão) ou a do vídeo ("foto"). */
   roupa?: RoupaTroca;
+  /** Lugar novo pedido pelo usuário (em inglês): o quadro-guia já sai nele. */
+  cena?: string;
 }): Promise<Ancora> {
   let descricoes = o.descricoes;
   // Em paralelo com o resto: quem mais aparece no vídeo (varre ~1 quadro por segundo).
@@ -1125,7 +1227,7 @@ export async function prepararAncora(o: {
       return { imagem: null, descricoes, outras: [], naAncora: [] };
 
     const outrasP = outrasDe(descricoes);
-    const { imagem, feitos } = await trocarNoQuadro({
+    let { imagem, feitos } = await trocarNoQuadro({
       quadro,
       alvos: naAncora,
       descricoes,
@@ -1137,6 +1239,18 @@ export async function prepararAncora(o: {
       roupa: o.roupa,
       posicoes,
     });
+    // Personagem e cena: o quadro-guia também mostra o lugar novo. Se a cena
+    // não sair, fica sem guia — com o lugar antigo ele contradiria o pedido.
+    if (o.cena && imagem) {
+      imagem = await editarQuadro({
+        quadro: imagem,
+        info: o.info,
+        cena: true,
+        pedido: o.cena,
+        estilo: o.estilo,
+      });
+      if (!imagem) feitos = [];
+    }
     return { imagem, descricoes, outras: await outrasP, naAncora: feitos };
   } catch (e) {
     console.warn(

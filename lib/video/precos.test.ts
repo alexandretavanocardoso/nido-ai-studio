@@ -73,9 +73,37 @@ describe("criar vídeo em cenas", () => {
     const soSapiens = { runway: false, sapiens: true };
     expect(provedorCriar("gen4_turbo", soSapiens)).toBeNull();
     expect(provedorCriar("veo3.1_fast", soSapiens)).toBe("sapiens");
+    expect(provedorCriar("wan3", os2)).toBeNull();
+    expect(provedorCriar("wan3", { ...os2, fal: true })).toBe("fal");
+    expect(
+      provedorCriar("gen4.5", { runway: false, sapiens: false, fal: true }),
+    ).toBeNull();
     const { modeloPadraoCriar } = await import("./precos");
     expect(modeloPadraoCriar({ sapiens: true })).toBe("kling_v3");
     expect(modeloPadraoCriar({ sapiens: false })).toBe("gen4.5");
+  });
+});
+
+describe("modelos do vídeo falado", () => {
+  it("corpo inteiro: mínimo por cena de cada modelo, até 15s", async () => {
+    const { segundosDaCenaInteira, provedorFalado } = await import("./precos");
+    expect(segundosDaCenaInteira(3.2)).toBe(5); // Hailuo 3: mínimo 5s
+    expect(segundosDaCenaInteira(3.2, "wan3")).toBe(4);
+    expect(segundosDaCenaInteira(0.8, "wan3")).toBe(2);
+    expect(segundosDaCenaInteira(20, "wan3")).toBe(15);
+    expect(provedorFalado("wan3")).toBe("fal");
+    expect(provedorFalado("hailuo3")).toBe("runway");
+    expect(provedorFalado("avatar")).toBe("runway");
+    expect(provedorFalado("seedance20_mini")).toBe("sapiens");
+    expect(segundosDaCenaInteira(2.1, "seedance25")).toBe(4); // Seedance: 4 a 15s
+    expect(segundosDaCenaInteira(14.2, "seedance20")).toBe(15);
+  });
+
+  it("Wan 3.0 no criar vídeo: cada duração sai numa cena só", async () => {
+    const { cenasDoVideo } = await import("./precos");
+    expect(cenasDoVideo("wan3", 10)).toEqual([10]);
+    expect(cenasDoVideo("wan3", 15)).toEqual([15]);
+    expect(cenasDoVideo("wan3", 30)).toEqual([30]);
   });
 });
 

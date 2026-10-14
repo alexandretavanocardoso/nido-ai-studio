@@ -17,7 +17,6 @@ import { carregarConta } from "@/lib/creditos";
 import { getPool } from "@/lib/db";
 import { carregarPersonagem } from "@/lib/personagens";
 import {
-  CORPO_INTEIRO_POR_SEGUNDO,
   CREDITOS_CENARIO,
   CREDITOS_LINK,
   CREDITOS_TEXTO,
@@ -25,7 +24,7 @@ import {
   creditosFala,
   creditosImagem,
   creditosTroca,
-  FALADO_POR_SEGUNDO,
+  creditosVideoFalado,
   PLANOS,
 } from "@/lib/planos";
 import { getS3, presignGet } from "@/lib/storage/s3";
@@ -37,9 +36,12 @@ import {
   FALA_MAX_CARACTERES,
   MAX_CENAS_FALADAS,
   MODELOS_CRIAR,
+  MODELOS_FALADO,
+  MODELOS_FALADO_IDS,
   modeloPadraoCriar,
   ROTEIRO_INTEIRO,
   type ModeloCriar,
+  type ModeloFalado,
 } from "@/lib/video/precos";
 import { getSapiens } from "@/lib/video/sapiens";
 
@@ -298,7 +300,7 @@ export const FERRAMENTAS: Ferramenta[] = [
     name: "criar_video_falado",
     description: [
       "Cria um vídeo do personagem falando um texto com a voz dele (lábios sincronizados). Assíncrono: devolve um job_id; acompanhe com status_do_video (leva alguns minutos).",
-      `Custo: ${FALADO_POR_SEGUNDO} créditos por segundo em close (cabeça e ombros) ou ${CORPO_INTEIRO_POR_SEGUNDO} por segundo em corpo inteiro, mais ${CREDITOS_CENARIO} créditos por cenário. Um vídeo de 30s em close custa cerca de ${30 * FALADO_POR_SEGUNDO} créditos; em corpo inteiro, cerca de ${30 * CORPO_INTEIRO_POR_SEGUNDO}. Confirme com a pessoa antes de gerar.`,
+      `Modelos (créditos por segundo): ${MODELOS_FALADO_IDS.map((m) => `${m} = ${MODELOS_FALADO[m].label}, ${MODELOS_FALADO[m].inteiro ? "corpo inteiro" : "close de cabeça e ombros"}, ${creditosVideoFalado(1, m)}`).join("; ")}. Mais ${CREDITOS_CENARIO} créditos por cenário. Um vídeo de 30s no avatar custa cerca de ${creditosVideoFalado(30)} créditos. Confirme com a pessoa antes de gerar.`,
       `A fala tem até ${FALA_MAX_CARACTERES} caracteres (cerca de 15 por segundo). Cada parágrafo (separado por linha em branco) é uma cena, até ${MAX_CENAS_FALADAS}; em corpo inteiro cada cena pode ter até 15s de fala.`,
       "O personagem precisa ter uma voz (veja em ver_personagem); sem voz_id, usa a primeira. Sem imagem_key, usa a imagem padrão do personagem.",
     ].join("\n"),
@@ -314,7 +316,10 @@ export const FERRAMENTAS: Ferramenta[] = [
         .max(MAX_CENAS_FALADAS)
         .default([])
         .describe("Cenário de cada cena, na ordem (em inglês funciona melhor). Vazio ou ausente: o fundo da própria imagem."),
-      enquadramento: z.enum(["close", "inteiro"]).default("close"),
+      modelo: z
+        .enum(MODELOS_FALADO_IDS as [ModeloFalado, ...ModeloFalado[]])
+        .default("avatar")
+        .describe("avatar: close (cabeça e ombros), o mais barato · os outros: corpo inteiro."),
       imagem_key: z.string().optional().describe("Imagem do personagem (de ver_personagem)."),
       voz_id: z.string().optional().describe("Voz do personagem (de ver_personagem)."),
     }),
@@ -323,7 +328,7 @@ export const FERRAMENTAS: Ferramenta[] = [
         personagem_id: string;
         fala: string;
         cenarios: string[];
-        enquadramento: "close" | "inteiro";
+        modelo: ModeloFalado;
         imagem_key?: string;
         voz_id?: string;
       };
@@ -351,7 +356,7 @@ export const FERRAMENTAS: Ferramenta[] = [
           fala: a.fala,
           cenarios: a.cenarios,
           duracao,
-          enquadramento: a.enquadramento,
+          modelo: a.modelo,
         },
         req,
       );
@@ -605,16 +610,11 @@ export const FERRAMENTAS: Ferramenta[] = [
           estilo: a.estilo,
           // Na rota, "foto" = manter a roupa do original (o mesmo nome da troca em imagem).
           roupa: a.roupa === "video" ? "foto" : "personagem",
+          // A rota põe o vídeo na lista do personagem com este nome.
+          nome: "Vídeo por link (com o personagem · Claude Code).mp4",
         },
         req,
       );
-      await registrarVideo(userId, c, {
-        name: "Vídeo por link (com o personagem · Claude Code).mp4",
-        jobId: String(r.jobId),
-        antesKey: r.antesKey ? String(r.antesKey) : undefined,
-        origem: "substituicao",
-        duracao: Number(r.duracao) || undefined,
-      });
       return {
         job_id: r.jobId,
         duracao_segundos: r.duracao,

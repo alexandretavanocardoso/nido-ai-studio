@@ -14,6 +14,7 @@ import { txErro } from "@/lib/i18n/erros";
 import { tx } from "@/lib/i18n/tx";
 import { capaSrc } from "@/lib/storage/client";
 import { useCharacters } from "@/lib/store";
+import { converter, dinheiro } from "@/lib/moeda";
 
 const cartao = "rounded-[18px] border border-white/[0.07] bg-nido-panel";
 const mono = "font-geist-mono";
@@ -58,12 +59,9 @@ export interface DadosNido {
   erro?: string | null;
 }
 
-const dolar = (v: number) =>
-  v.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: v >= 100 ? 0 : 2,
-  });
+/** Ganhos vêm do Nido em dólar: aparecem na moeda escolhida (lib/moeda.ts), convertidos pelo câmbio. */
+const ganho = (v: number) =>
+  dinheiro(v, { de: "USD", casas: converter(v, "USD") >= 100 ? 0 : 2 });
 const compacto = new Intl.NumberFormat("pt-BR", {
   notation: "compact",
   maximumFractionDigits: 1,
@@ -110,7 +108,7 @@ export function FaixaNido({ dados }: { dados: DadosNido }) {
         >
           {(
             [
-              [CircleDollarSign, "Ganhos em campanhas", dolar(dados.ganhos ?? 0), true],
+              [CircleDollarSign, "Ganhos em campanhas", ganho(dados.ganhos ?? 0), true],
               [Trophy, "Campanhas que participou", String(campanhas.length), false],
             ] as const
           ).map(([Icone, rotulo, valor, destaque]) => (
@@ -316,7 +314,7 @@ export function PorCampanha({
                       {p?.identidade.nome || tx("Sem nome")}
                     </span>
                     <span className={cn(mono, "block text-[11px] text-nido-dim")}>
-                      {dolar(t.ganho)} · {t.n}{" "}
+                      {ganho(t.ganho)} · {t.n}{" "}
                       {t.n === 1 ? tx("campanha") : tx("campanhas")}
                     </span>
                   </span>
@@ -374,7 +372,7 @@ export function PorCampanha({
                   {tx("Ganho")}
                 </div>
                 <div className="text-[14px] font-bold text-nido-yellow">
-                  {dolar(c.ganho)}
+                  {ganho(c.ganho)}
                 </div>
               </div>
               <div className="min-w-0">

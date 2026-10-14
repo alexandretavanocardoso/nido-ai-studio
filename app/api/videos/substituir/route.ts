@@ -23,11 +23,11 @@ import {
 } from "@/lib/limites";
 import {
   bloqueioTroca,
-  bloqueioTrocaPremium,
   creditosTroca,
   creditosTrocaPremium,
 } from "@/lib/planos";
 import { getPool } from "@/lib/db";
+import { carregarPersonagem, registrarVideoNoBanco } from "@/lib/personagens";
 import {
   downloadToFile,
   getObjectBuffer,
@@ -52,12 +52,20 @@ import {
   personagemSemFundo,
 } from "@/lib/video/troca";
 import { descreverPessoas } from "@/lib/video/pessoas";
+import {
+  MODOS_TROCA,
+  MODOS_TROCA_IDS,
+  PEDIDO_TROCA_MAX,
+  type ModoTroca,
+} from "@/lib/video/modos";
 import { ehCoisa } from "@/lib/prompts/trocar-imagem";
 import {
   acoesDosTrechos,
   linhaDoTempoDosAlvos,
+  pedidoEmIngles,
   prepararAncora,
   prepararTomadas,
+  quadroDoPedido,
 } from "@/lib/video/ancora";
 import {
   custoTroca,
@@ -119,8 +127,24 @@ const BodySchema = z.object({
    * ou "foto" (só a cabeça e a pele mudam; a roupa do vídeo fica).
    */
   roupa: z.enum(["foto", "personagem"]).default("personagem"),
+  /**
+   * O que muda (ver lib/video/modos.ts): o personagem (padrão), personagem e
+   * cena, só a cena ou só um detalhe. Nos dois últimos ninguém é trocado.
+   */
+  modo: z
+    .enum(MODOS_TROCA_IDS as [ModoTroca, ...ModoTroca[]])
+    .default("personagem"),
+  /** Pedido escrito pelo usuário (o lugar novo, o detalhe a mudar…). */
+  pedido: z.string().trim().max(PEDIDO_TROCA_MAX).optional(),
   /** Usar só os primeiros N segundos do vídeo (ausente = o vídeo inteiro). */
   segundos: z.union([z.literal(10), z.literal(15), z.literal(30)]).optional(),
+  /**
+   * Pôr o vídeo na lista do personagem (e dos marcados) já no pedido. A
+   * figurinha animada manda false: o resultado dela vai para as figurinhas.
+   */
+  registrar: z.boolean().default(true),
+  /** Nome do vídeo na lista. Ausente: o do vídeo de origem + "(com o personagem)". */
+  nome: z.string().trim().min(1).max(200).optional(),
 });
 
 /**
@@ -154,13 +178,24 @@ export async function POST(req: Request) {
       { error: "Informe o vídeo (arquivo ou link).", code: "BAD_INPUT" },
       { status: 400 },
     );
+  const modo = MODOS_TROCA[body.modo];
+  if (modo.pedidoObrigatorio && !body.pedido)
+    return NextResponse.json(
+      { error: "Escreva o que mudar no vídeo.", code: "BAD_INPUT" },
+      { status: 400 },
+    );
+  // Só a cena ou só um detalhe: ninguém é trocado (marcas e imagem não valem).
+  if (!modo.personagem) {
+    body.pessoas = undefined;
+    body.imageKey = undefined;
+  }
   // Uma imagem por pessoa marcada, ou uma só para a pessoa principal.
   const imagens = body.pessoas
     ? body.pessoas.map((p) => p.imageKey)
     : body.imageKey
       ? [body.imageKey]
       : [];
-  if (!imagens.length)
+  if (modo.personagem && !imagens.length)
     return NextResponse.json(
       { error: "Escolha a imagem do personagem.", code: "BAD_INPUT" },
       { status: 400 },
@@ -283,11 +318,9 @@ export async function POST(req: Request) {
           { status: 400 },
         );
 
-      // Plano: motor e duração permitidos.
+      // Plano: duração permitida (qualquer modelo; cada um cobra o seu preço).
       const plano = await planoAtual(userId);
-      const bloqueio =
-        bloqueioTroca(plano, duracao) ??
-        (premium ? bloqueioTrocaPremium(plano) : null);
+      const bloqueio = bloqueioTroca(plano, duracao);
       if (bloqueio)
         return NextResponse.json(
           { error: bloqueio, code: "PLANO" },
@@ -317,7 +350,10 @@ export async function POST(req: Request) {
       // Vídeo de cortes rápidos (Kling): cada tomada vai sozinha ao motor, as
       // curtas em câmera lenta. O Kling cobra pelo que processa — é isso que é
       // cobrado aqui (o máximo; tomada sem ninguém a trocar é devolvida abaixo).
-      const tomadas = premium
+      // Só no modo "personagem": nos outros o pedido muda o lugar ou um
+      // detalhe, e o quadro-guia por tomada só sabe trocar pessoas.
+      const tomadas =
+        premium || body.modo !== "personagem"
         ? null
         : trocaPorTomadas(cortesDeCamera(viradas), duracao);
       let segundosCobrados = tomadas
@@ -379,13 +415,28 @@ export async function POST(req: Request) {
       // cada uma aparece. Tomada por tomada, cada tomada tem a sua âncora: a do
       // vídeo inteiro só é feita se for preciso descrever a pessoa principal.
       const semAncoraGeral = {
-        imagem: null,
+        imagem: null as Buffer | null,
         descricoes: descricoes as Array<string | undefined>,
         outras: [] as string[],
         naAncora: [] as number[],
       };
+      // O pedido escrito vai em inglês, como o resto do pedido ao motor.
+      const pedido = body.pedido ? await pedidoEmIngles(body.pedido) : undefined;
+      const edicao = pedido ? { modo: body.modo, pedido } : undefined;
       const [ancora, personagensUrl, linha] = await Promise.all([
-        body.motor === "kling" && !(tomadas && body.pessoas)
+        !modo.personagem
+          ? // Ninguém a trocar: o guia é um quadro com o pedido já aplicado.
+            body.motor === "kling" && pedido
+            ? quadroDoPedido({
+                arquivo,
+                dir,
+                info,
+                cena: body.modo === "cena",
+                pedido,
+                estilo: body.estilo,
+              }).then((imagem) => ({ ...semAncoraGeral, imagem }))
+            : semAncoraGeral
+          : body.motor === "kling" && !(tomadas && body.pessoas)
           ? prepararAncora({
               arquivo,
               dir,
@@ -397,6 +448,7 @@ export async function POST(req: Request) {
               quem,
               estilo: body.estilo,
               roupa: body.roupa,
+              cena: body.modo === "personagem_cena" ? pedido : undefined,
             })
           : semAncoraGeral,
         Promise.all(
@@ -483,6 +535,7 @@ export async function POST(req: Request) {
           roupa: body.roupa,
           jobId,
           prazo,
+          edicao,
           tomadas: preparadas.map((t) => ({
             inicio: t.inicio,
             duracao: t.duracao,
@@ -538,6 +591,7 @@ export async function POST(req: Request) {
           roupa: body.roupa,
           jobId,
           prazo,
+          edicao,
           ancora: ancora.imagem,
           outras: ancora.outras,
           naAncora: ancora.naAncora,
@@ -573,6 +627,9 @@ export async function POST(req: Request) {
             imageKey: imagens[0],
             estilo: body.estilo,
             roupa: body.roupa,
+            modo: body.modo,
+            // O pedido como foi escrito e como foi ao motor (em inglês).
+            pedido: body.pedido ? { escrito: body.pedido, enviado: pedido } : undefined,
             antesKey,
             pessoas: body.pessoas?.map((p, i) => ({
               ...p,
@@ -598,6 +655,19 @@ export async function POST(req: Request) {
         ],
       );
 
+      if (body.registrar)
+        await registrarNosPersonagens({
+          userId,
+          body,
+          jobId,
+          antesKey,
+          duracao,
+          link,
+        }).catch((e) =>
+          // A tela também registra; aqui é a garantia, não pode derrubar o pedido.
+          console.error("[videos/substituir] registro no personagem:", e),
+        );
+
       return NextResponse.json({
         jobId,
         antesKey,
@@ -616,4 +686,51 @@ export async function POST(req: Request) {
   } finally {
     await liberarVaga(vaga.vaga);
   }
+}
+
+/**
+ * Põe o vídeo "processando" no personagem e nos personagens das pessoas
+ * marcadas, no banco (ver `registrarVideoNoBanco`). Mesmo nome que a tela dá.
+ */
+async function registrarNosPersonagens(o: {
+  userId: string;
+  body: z.infer<typeof BodySchema>;
+  jobId: string;
+  antesKey: string | null;
+  duracao: number;
+  link: { url: string; plataforma: string; titulo: string | null } | null;
+}): Promise<void> {
+  const { body } = o;
+  const origem = body.videoKey
+    ? (await carregarPersonagem(o.userId, body.characterId))?.videos?.find(
+        (v) => v.key === body.videoKey,
+      )
+    : undefined;
+  const base = origem?.name
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/ \((legenda editada|com o personagem|cortado)\)$/, "");
+  const nome =
+    body.nome ??
+    (o.link
+      ? `${(o.link.titulo || `Vídeo do ${o.link.plataforma}`).slice(0, 60)} (com o personagem).mp4`
+      : `${base || "Vídeo"} (com o personagem).mp4`);
+  const video = {
+    name: nome,
+    jobId: o.jobId,
+    antesKey: o.antesKey ?? undefined,
+    duracao: o.duracao,
+    origem: "substituicao" as const,
+    fonte: o.link?.url,
+  };
+  await registrarVideoNoBanco(o.userId, body.characterId, {
+    ...video,
+    origemId: origem?.id,
+  });
+  // O vídeo de origem só existe na lista do personagem principal.
+  const outros = new Set(
+    (body.pessoas ?? [])
+      .map((p) => p.characterId)
+      .filter((id): id is string => !!id && id !== body.characterId),
+  );
+  for (const id of outros) await registrarVideoNoBanco(o.userId, id, video);
 }

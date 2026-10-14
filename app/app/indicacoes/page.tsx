@@ -39,6 +39,7 @@ import type { ResumoIndicacao } from "@/lib/indicacao/server";
 import { REDES_USDC, type RedeUsdc } from "@/lib/pagamentos/redes-usdc";
 import { PLANOS, type PlanoId } from "@/lib/planos";
 import { idiomaAtual, tx } from "@/lib/i18n/tx";
+import { moedaAtual, naMoeda } from "@/lib/moeda";
 import { txErro } from "@/lib/i18n/erros";
 
 type Resumo = ResumoIndicacao & { link: string };
@@ -87,11 +88,12 @@ function IndicacoesPageLiberada() {
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
-  // Simulador: indicações novas por mês e quanto cada indicado gasta por mês em plano.
-  const emDolar = idiomaAtual() === "en";
-  const moedaSim = emDolar ? "USD" : "BRL";
+  // Simulador: indicações novas por mês e quanto cada indicado gasta por mês
+  // em plano, na moeda escolhida (lib/moeda.ts). Os saldos reais aparecem na
+  // moeda em que foram pagos.
+  const moedaSim = moedaAtual();
   const precos = (["starter", "creator", "studio"] as const).map((id) =>
-    emDolar ? PLANOS[id].precoUSD : PLANOS[id].precoBRL,
+    naMoeda({ BRL: PLANOS[id].precoBRL, USD: PLANOS[id].precoUSD }),
   );
   const [simN, setSimN] = useState(10);
   const [simValor, setSimValor] = useState(precos[1]);

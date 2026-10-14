@@ -4,6 +4,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { S3Client } from "@aws-sdk/client-s3";
+import { getFal, mensagemDeErro } from "@/lib/fal";
 import {
   downloadToFile,
   newKey,
@@ -20,6 +21,7 @@ import {
   mensagemDeErroSapiens,
 } from "./sapiens";
 import { comPastaTemporaria } from "./server";
+import { enviarCriacaoWan } from "./wan";
 
 /**
  * "Criar vídeo" em cenas encadeadas. Os modelos geram poucos segundos por vez
@@ -71,7 +73,8 @@ async function baixar(url: string, arquivo: string): Promise<void> {
 export async function proximaCena(o: {
   s3: S3Client;
   userId: string;
-  /** Serviço que gera o job (coluna `provedor`): Runway ou Sapiens. */
+  jobId: string;
+  /** Serviço que gera o job (coluna `provedor`): Runway, Sapiens ou fal. */
   provedor: string;
   modelo: string;
   input: Record<string, unknown>;
@@ -79,12 +82,16 @@ export async function proximaCena(o: {
   videoUrl: string;
 }): Promise<{ idExterno: string; input: Record<string, unknown> }> {
   const sapiens = o.provedor === "sapiens" ? getSapiens() : null;
-  const runway = o.provedor === "sapiens" ? null : getRunway();
-  if (!sapiens && !runway)
+  const fal = o.provedor === "fal" ? getFal() : null;
+  const runway =
+    o.provedor === "sapiens" || o.provedor === "fal" ? null : getRunway();
+  if (!sapiens && !runway && !fal)
     throw new FalhaDaCadeia(
       o.provedor === "sapiens"
         ? "Sapiens não configurado no servidor."
-        : "Runway não configurado no servidor.",
+        : o.provedor === "fal"
+          ? "fal.ai não configurado no servidor."
+          : "Runway não configurado no servidor.",
     );
   return comPastaTemporaria(async (dir) => {
     const cena = path.join(dir, "cena.mp4");
@@ -111,13 +118,19 @@ export async function proximaCena(o: {
     try {
       idExterno = sapiens
         ? await enviarCriacaoSapiens(sapiens, pedido)
-        : await enviarCriacao(runway!, pedido);
+        : fal
+          ? await enviarCriacaoWan(fal, { ...pedido, jobId: o.jobId })
+          : await enviarCriacao(runway!, pedido);
     } catch (e) {
       // Sapiens ocupado (nada cobrado): a próxima consulta do job tenta de novo.
       if (e instanceof ErroSapiens && e.passageiro) throw e;
       // Recusa do serviço (moderação, saldo, entrada): não adianta repetir.
       throw new FalhaDaCadeia(
-        sapiens ? mensagemDeErroSapiens(e) : mensagemDeErroRunway(e),
+        sapiens
+          ? mensagemDeErroSapiens(e)
+          : fal
+            ? mensagemDeErro(e)
+            : mensagemDeErroRunway(e),
       );
     }
     return {

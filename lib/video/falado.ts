@@ -15,6 +15,7 @@ import {
   uploadFromFile,
 } from "@/lib/storage/s3";
 import { juntarFalas } from "./ffmpeg";
+import type { ModeloFalado } from "./precos";
 import { mensagemDeErroRunway } from "./runway";
 import { comPastaTemporaria } from "./server";
 
@@ -294,8 +295,11 @@ export interface Falado {
   nome: string;
   cenas: CenaFalada[];
   partes: string[];
-  /** Corpo inteiro (Hailuo 3) em vez do avatar em close. */
-  corpo?: { vertical: boolean };
+  /**
+   * Corpo inteiro em vez do avatar em close. `modelo` (ver MODELOS_FALADO):
+   * sem ele, Hailuo 3 no Runway (os jobs de antes da escolha).
+   */
+  corpo?: { vertical: boolean; modelo?: ModeloFalado };
 }
 
 /**

@@ -5,6 +5,7 @@ import {
   alvosNosTrechos,
   entradasDosAlvos,
   PEDIDO_MAX,
+  promptEdicao,
   promptTroca,
 } from "./troca";
 import { trechosTroca } from "./ffmpeg";
@@ -250,6 +251,44 @@ describe("animal ou objeto marcado", () => {
     expect(cheio.length).toBeLessThanOrEqual(PEDIDO_MAX);
     // Encolheu as descrições, mas as regras do fim continuam inteiras.
     expect(cheio).toMatch(/Remove all on-screen text, captions and subtitles\.$/);
+  });
+});
+
+describe("pedido escrito (o que mudar)", () => {
+  it("só a cena: troca o fundo e mantém as pessoas", () => {
+    const p = promptEdicao("kling", { modo: "cena", pedido: "on a beach at sunset." }, false, true);
+    expect(p).toMatch(/change ONLY the background and setting: on a beach at sunset\.$/m);
+    expect(p).toMatch(/@Image1 is a frame of this same video with the change already done/);
+    expect(p).toMatch(/Every person, animal and object in the foreground stays exactly/);
+    expect(p).toMatch(/Keep the on-screen text of @Video1/);
+    expect(p).not.toMatch(/character|@Element/);
+    // Seedance não usa quadro-guia.
+    expect(promptEdicao("seedance", { modo: "cena", pedido: "x" }, true, true)).not.toMatch(/@Image1/);
+  });
+
+  it("só um detalhe: muda só o pedido, o fundo fica", () => {
+    const p = promptEdicao("kling", { modo: "detalhe", pedido: "swap the cap for a straw hat" }, true);
+    expect(p).toMatch(/change ONLY this: swap the cap for a straw hat\./);
+    expect(p).toMatch(/Everything else stays exactly as in @Video1: every person .* the background/);
+    expect(p).toMatch(/Remove all on-screen text/);
+  });
+
+  it("personagem e cena: o lugar novo entra no lugar da regra de manter o cenário", () => {
+    const p = promptTroca("kling", [{ descricao: "the man in green" }], false, true, [], undefined, false, undefined, undefined, undefined, { modo: "personagem_cena", pedido: "in a snowy forest" });
+    expect(p).toMatch(/the man in green → replace with the character @Element1/);
+    expect(p).toMatch(/NEW SCENE: in a snowy forest\. Everyone is now in this new place/);
+    expect(p).not.toMatch(/Keep the background, objects/);
+    expect(p.length).toBeLessThanOrEqual(PEDIDO_MAX);
+  });
+
+  it("personagem com pedido: vale como pedido a mais, e o cenário continua", () => {
+    const p = promptTroca("kling", [{}], false, false, [], undefined, false, undefined, undefined, undefined, { modo: "personagem", pedido: "he holds a white cup" });
+    expect(p).toMatch(/Also do this \(it takes priority over the rules above where they conflict\): he holds a white cup\./);
+    expect(p).toMatch(/Keep the background, objects/);
+    // Sem pedido, nada muda.
+    expect(promptTroca("kling", [{}], false, false, [], undefined, false, undefined, undefined, undefined, { modo: "personagem" })).toBe(
+      promptTroca("kling", [{}], false),
+    );
   });
 });
 

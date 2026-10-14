@@ -485,8 +485,8 @@ const ERROS_EN: Record<string, string> = {
     "No credits on fal.ai. Add balance to the account.",
   "Chave do fal inválida ou sem permissão. Confira FAL_KEY.":
     "Invalid fal key, or it lacks permission. Check FAL_KEY.",
-  "O motor Premium (Seedance) recusa vídeos em que aparece o rosto de uma pessoa real. Use o motor Padrão (Kling O3) para este vídeo.":
-    "The Premium engine (Seedance) refuses videos showing a real person's face. Use the Standard engine (Kling O3) for this video.",
+  "O Seedance recusa vídeos em que aparece o rosto de uma pessoa real. Use um dos modelos Kling O3 para este vídeo.":
+    "Seedance refuses videos showing a real person's face. Use one of the Kling O3 models for this video.",
   "O filtro de conteúdo da IA barrou este vídeo ou as imagens enviadas. Isso costuma acontecer com cenas de filmes e séries, pessoas famosas, marcas ou conteúdo sensível. Tente com outro vídeo ou outra imagem.":
     "The AI's content filter blocked this video or the images you sent. This usually happens with scenes from films and series, famous people, brands or sensitive content. Try another video or another image.",
   "Falha no fal.ai.": "fal.ai failed.",

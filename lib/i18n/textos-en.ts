@@ -920,6 +920,23 @@ export const TEXTOS_EN: Record<string, string> = {
   "Na Ethereum a taxa da rede costuma ser alta — Base e Arbitrum saem bem mais baratas.":
     "Ethereum network fees tend to be high — Base and Arbitrum are much cheaper.",
   // trocar pessoa em foto
+  "O que mudar": "What to change",
+  "Personagem e cena": "Character and scene",
+  "Só a cena": "Scene only",
+  "Só um detalhe": "One detail only",
+  "Troca a pessoa; o resto fica igual": "Swaps the person; everything else stays",
+  "Troca a pessoa e muda o lugar": "Swaps the person and changes the place",
+  "As pessoas ficam; o fundo muda": "People stay; the background changes",
+  "Muda só o que você pedir": "Changes only what you ask for",
+  "Ex.: ele segura uma xícara branca": "E.g. he holds a white cup",
+  "Ex.: numa praia ao pôr do sol": "E.g. on a beach at sunset",
+  "Ex.: num escritório moderno com janelas grandes": "E.g. in a modern office with large windows",
+  "Ex.: troque o boné por um chapéu de palha": "E.g. swap the cap for a straw hat",
+  Pedido: "Request",
+  "Obrigatório neste modo.": "Required in this mode.",
+  "Opcional: algo a mais que a IA deve fazer.": "Optional: anything else the AI should do.",
+  "Gerar vídeo": "Generate video",
+  "Escreva o que mudar no vídeo.": "Describe what to change in the video.",
   "Imagem enviada": "Uploaded image",
   "a imagem enviada": "the uploaded image",
   "Enviar uma imagem": "Upload an image",
@@ -2015,24 +2032,64 @@ export const TEXTOS_EN: Record<string, string> = {
   "O personagem fala exatamente este texto, com a voz dele. Uma linha em branco separa as cenas (até 4): cada uma pode ter o seu cenário.":
     "The character says exactly this text, in their own voice. A blank line separates scenes (up to 4): each can have its own setting.",
 
-  "Enquadramento":
-    "Framing",
-  "Close":
-    "Close-up",
-  "Cabeça e ombros · mais barato":
-    "Head and shoulders · cheapest",
-  "Corpo inteiro":
-    "Full body",
-  "A imagem inteira, com gestos":
-    "The whole image, with gestures",
+  "Close · cabeça e ombros":
+    "Close-up · head and shoulders",
+  "Corpo inteiro, com gestos":
+    "Full body, with gestures",
+  "Corpo inteiro · Alibaba":
+    "Full body · Alibaba",
+  "Moeda":
+    "Currency",
+  "Real (R$)":
+    "Brazilian real (R$)",
+  "Dólar (US$)":
+    "US dollar (US$)",
+  "Preços e valores aparecem nesta moeda, em qualquer idioma.":
+    "Prices and amounts show in this currency, in any language.",
+  "Partes de 15s · o mais barato":
+    "15s parts · the cheapest",
+  "Partes de 15s · mais nítido":
+    "15s parts · sharper",
+  "Partes de 15s · em 4K":
+    "15s parts · in 4K",
+  "Até 30s de uma vez · recusa rostos reais":
+    "Up to 30s at once · refuses real faces",
+  "de vídeo":
+    "of video",
+  "Corpo inteiro · ByteDance":
+    "Full body · ByteDance",
+  "Corpo inteiro · ByteDance, o mais novo":
+    "Full body · ByteDance, the newest",
+  "Corpo inteiro · ByteDance, qualidade cheia":
+    "Full body · ByteDance, full quality",
+  "· cobrança real no Sapiens e na ElevenLabs":
+    "· actual billing on Sapiens and ElevenLabs",
+  "Melhor do Runway":
+    "Runway's best",
+  "Google · pode ter áudio":
+    "Google · can have audio",
+  "Até 15s por cena":
+    "Up to 15s per scene",
+  "Alibaba · até 30s numa cena":
+    "Alibaba · up to 30s in one scene",
+  "O personagem aparece de corpo inteiro, como na imagem, falando com esta voz.":
+    "The character appears full body, as in the image, speaking in this voice.",
+  "Cada cena tem de":
+    "Each scene lasts from",
+  "a 15s; o resultado varia mais que no close.":
+    "to 15s; results vary more than in the close-up.",
+  "· cobrança real no painel do fal.ai":
+    "· actual billing in the fal.ai dashboard",
   "No corpo inteiro cada cena pode ter até 15s de fala: separe a fala em mais cenas (linha em branco) na parte 1.":
     "In full body each scene can have up to 15s of speech: split the speech into more scenes (blank line) in part 1.",
   "O personagem aparece de corpo inteiro, como na imagem, falando com esta voz. Cada cena tem no mínimo 5s e até 15s; o resultado varia mais que no close.":
     "The character appears full body, as in the image, speaking in this voice. Each scene lasts at least 5s and up to 15s; results vary more than in the close-up.",
   "Close do personagem falando com esta voz, com os lábios sincronizados. Na primeira vez o Runway prepara o avatar antes (leva um pouco mais).":
     "Close-up of the character speaking in this voice, lips in sync. The first time, Runway prepares the avatar first (takes a bit longer).",
-  "Criar vídeo falado · com a voz do personagem (close / corpo inteiro)":
-    "Create spoken video · in the character's voice (close-up / full body)",
+  "Criar vídeo falado · com a voz do personagem (conforme o modelo)":
+    "Create spoken video · in the character's voice (depends on the model)",
+  "Criar vídeo · Wan 3.0":
+    "Create video · Wan 3.0",
 
   "O navegador não conseguiu abrir este vídeo (arquivo indisponível ou formato que ele não toca, como HEVC/H.265). A troca ainda funciona: sem marcar ninguém, a IA troca a pessoa principal.":
     "The browser couldn't open this video (file unavailable or a format it can't play, such as HEVC/H.265). The swap still works: with nobody marked, the AI swaps the main person.",

@@ -43,6 +43,7 @@ import {
   Zap,
   type LucideIcon,
   UserRound,
+  Banknote,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { CarteiraNaBarra } from "@/components/carteira/CarteiraNaBarra";
@@ -70,6 +71,8 @@ import type { Character } from "@/lib/types";
 import { PLANOS } from "@/lib/planos";
 import { cn } from "@/lib/cn";
 import { IDIOMAS, useIdioma, useT } from "@/lib/i18n";
+import { MOEDAS } from "@/lib/moeda";
+import { useMoeda } from "@/lib/moeda-client";
 import { tx } from "@/lib/i18n/tx";
 
 interface Criar {
@@ -673,6 +676,7 @@ function ContaDoMenu({
   const { user, disabled, signOut } = useAuth();
   const { conta } = useCreditos();
   const { idioma, setIdioma } = useIdioma();
+  const { moeda, setMoeda } = useMoeda();
   const t = useT();
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
@@ -775,6 +779,31 @@ function ContaDoMenu({
                   )}
                 >
                   {i.id === "pt" ? tx("PT-BR") : "EN"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 px-2.5 py-1">
+            <Banknote
+              className="h-4 w-4 shrink-0 text-nido-mute"
+              aria-label={tx("Moeda")}
+            />
+            <div className="grid flex-1 grid-cols-2 gap-1">
+              {MOEDAS.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setMoeda(m.id)}
+                  aria-pressed={moeda === m.id}
+                  title={tx(m.rotulo)}
+                  className={cn(
+                    "h-7 rounded-lg text-[12px] font-semibold transition",
+                    moeda === m.id
+                      ? "bg-nido-yellow text-nido-bg"
+                      : "text-nido-mute hover:bg-white/[0.05] hover:text-nido-ink",
+                  )}
+                >
+                  {m.id}
                 </button>
               ))}
             </div>

@@ -17,23 +17,32 @@ import {
 import { ErroGeracao } from "@/components/creditos/ErroGeracao";
 import {
   bloqueioTroca,
-  bloqueioTrocaPremium,
   creditosTroca,
   creditosTrocaPremium,
   TROCA_POR_SEGUNDO_QUALIDADE,
+  TROCA_PREMIUM_POR_SEGUNDO,
 } from "@/lib/planos";
 import { DECLARACAO_VIDEO_LINK } from "@/lib/declaracoes";
 import {
+  MODOS_TROCA,
+  MODOS_TROCA_IDS,
+  PEDIDO_TROCA_MAX,
+  type ModoTroca,
+} from "@/lib/video/modos";
+import {
+  custoPorSegundoTroca,
   custoTroca,
   custoTrocaPremium,
   KLING_TROCA,
-  QUALIDADES_TROCA,
+  MODELOS_TROCA,
+  MODELOS_TROCA_IDS,
   SEEDANCE_TROCA,
   segundosCobradosTroca,
   trocaPorTomadas,
-  type QualidadeTroca,
+  type ModeloTroca,
 } from "@/lib/video/precos";
 import { Button } from "@/components/ui/Button";
+import { SeletorModelo } from "@/components/ui/SeletorModelo";
 import { cn } from "@/lib/cn";
 import {
   EscolherImagemPersonagem,
@@ -50,13 +59,14 @@ import { useCharacters } from "@/lib/store";
 import { useDuravel } from "@/lib/duravel";
 import { tx } from "@/lib/i18n/tx";
 import { txErro } from "@/lib/i18n/erros";
+import { dinheiro } from "@/lib/moeda";
 
-type Motor = "kling" | "seedance";
-
-const ROTULO_QUALIDADE: Record<QualidadeTroca, string> = {
-  standard: "Standard",
-  pro: "Pro",
-  "4k": "4K",
+/** Créditos por segundo de cada modelo da troca. */
+const creditosPorSegundo = (m: ModeloTroca) => {
+  const { qualidade } = MODELOS_TROCA[m];
+  return qualidade
+    ? TROCA_POR_SEGUNDO_QUALIDADE[qualidade]
+    : TROCA_PREMIUM_POR_SEGUNDO;
 };
 
 /** Vídeo buscado por link (/api/videos/link): não está no S3, só na cópia temporária da IA. */
@@ -89,9 +99,10 @@ interface Props {
 }
 
 /**
- * Troca a pessoa do vídeo pelo personagem, mantendo cenário, câmera e áudio. Dois motores:
- *  - Kling O3 Edit (fal.ai) — padrão, em Standard, Pro ou 4K; vídeos longos viram trechos de até 15s.
- *  - Seedance 2.5 (fal.ai) — premium; até 30s de uma vez, cenário e objetos mais fiéis.
+ * Troca a pessoa do vídeo pelo personagem, mantendo cenário, câmera e áudio.
+ * O modelo é escolhido no rodapé (ver MODELOS_TROCA em lib/video/precos):
+ *  - Kling O3 Edit (fal.ai), em Standard, Pro ou 4K; vídeos longos viram trechos de até 15s.
+ *  - Seedance 2.5 (fal.ai); até 30s de uma vez, cenário e objetos mais fiéis.
  * Os dois podem remover legendas/textos da tela no mesmo passo.
  * Mostra o custo estimado antes de enviar.
  */
@@ -113,12 +124,19 @@ export function SubstituirPessoaModal({
   const personagens = useCharacters((s) => s.characters);
   const srcVideo = video ? fileUrl(video.key) : (link?.videoUrl ?? null);
   const marcasSemImagem = marcas.some((m) => !m.imageKey);
-  const [motor, setMotor] = useState<Motor>("kling");
-  /** Formato do Kling O3 (só vale no motor padrão). */
-  const [qualidade, setQualidade] = useState<QualidadeTroca>("pro");
+  /** Modelo da troca: o motor e, no Kling, o formato. */
+  const [modeloTroca, setModeloTroca] = useState<ModeloTroca>("kling_pro");
+  const { motor } = MODELOS_TROCA[modeloTroca];
+  const qualidade = MODELOS_TROCA[modeloTroca].qualidade ?? "pro";
   const [removerTexto, setRemoverTexto] = useState(false);
   /** Estilo visual do vídeo: realista ou redesenhado (desenho, anime, 3D). */
   const [estilo, setEstilo] = useState<EstiloTroca>("realista");
+  /** O que muda: o personagem, personagem e cena, só a cena ou só um detalhe. */
+  const [modo, setModo] = useState<ModoTroca>("personagem");
+  /** Pedido escrito (o lugar novo, o detalhe a mudar…). */
+  const [pedido, setPedido] = useState("");
+  const comPersonagem = MODOS_TROCA[modo].personagem;
+  const faltaPedido = MODOS_TROCA[modo].pedidoObrigatorio && !pedido.trim();
   /** De onde vem a roupa: do personagem, ou a do vídeo (só a cabeça muda). */
   const [roupa, setRoupa] = useState<"personagem" | "foto">("personagem");
   /** Duração do vídeo inteiro. */
@@ -130,7 +148,8 @@ export function SubstituirPessoaModal({
   // Um corte só vale se for menor que o vídeo; senão é o vídeo inteiro.
   const cortando = corte > 0 && corte < duracaoTotal - 0.2;
   const duracao = cortando ? corte : duracaoTotal;
-  const marcaForaDoCorte = cortando && marcas.some((m) => m.t > corte);
+  const marcaForaDoCorte =
+    comPersonagem && cortando && marcas.some((m) => m.t > corte);
   /** Com link: declaração obrigatória de direito de uso do vídeo. */
   const [direitos, setDireitos] = useState(false);
   const [enviando, setEnviando] = useDuravel<boolean>(
@@ -183,8 +202,12 @@ export function SubstituirPessoaModal({
         creditos: creditosTrocaPremium(segundos),
         custo: custoTrocaPremium(segundos),
       };
-    // Padrão: os segundos que o motor processa (iguais aos do vídeo, salvo cortes rápidos).
-    const cobrados = segundosCobradosTroca(cortesAte(segundos), segundos);
+    // Padrão: os segundos que o motor processa (iguais aos do vídeo, salvo
+    // cortes rápidos — que só vão tomada por tomada no modo "personagem").
+    const cobrados =
+      modo === "personagem"
+        ? segundosCobradosTroca(cortesAte(segundos), segundos)
+        : segundos;
     return {
       creditos: creditosTroca(cobrados, qualidade),
       custo: custoTroca(cobrados, qualidade),
@@ -193,7 +216,9 @@ export function SubstituirPessoaModal({
   const { creditos, custo } = precoDe(duracao);
   /** Tomadas do vídeo, quando ele vai tomada por tomada (só no motor Padrão). */
   const tomadas =
-    premium || !duracao ? null : trocaPorTomadas(cortesAte(duracao), duracao);
+    premium || !duracao || modo !== "personagem"
+      ? null
+      : trocaPorTomadas(cortesAte(duracao), duracao);
   // Trechos menores que o vídeo, do menor para o maior, e o vídeo inteiro por último.
   const opcoesDeCorte = [
     ...CORTES.filter((c) => c < duracaoTotal - 0.2),
@@ -201,14 +226,13 @@ export function SubstituirPessoaModal({
   ];
   const minimo = premium ? SEEDANCE_TROCA.minSegundos : KLING_TROCA.minSegundos;
   const curtoDemais = duracao > 0 && duracao < minimo;
-  const bloqueio = conta
-    ? ((duracao ? bloqueioTroca(conta.plano, duracao) : null) ??
-      (premium ? bloqueioTrocaPremium(conta.plano) : null))
-    : null;
+  const bloqueio =
+    conta && duracao ? bloqueioTroca(conta.plano, duracao) : null;
 
   async function enviar() {
-    if (marcas.length ? marcasSemImagem : !imagem)
+    if (comPersonagem && (marcas.length ? marcasSemImagem : !imagem))
       return setErro("Escolha a imagem do personagem.");
+    if (faltaPedido) return setErro("Escreva o que mudar no vídeo.");
     setErro(null);
     setEnviando(true);
     try {
@@ -220,8 +244,8 @@ export function SubstituirPessoaModal({
           videoKey: link ? undefined : video?.key,
           linkId: link?.linkId,
           direitos: link ? direitos : undefined,
-          imageKey: marcas.length ? undefined : imagem,
-          pessoas: marcas.length
+          imageKey: !comPersonagem || marcas.length ? undefined : imagem,
+          pessoas: comPersonagem && marcas.length
             ? marcas.map((m) => ({
                 x: m.x,
                 y: m.y,
@@ -237,6 +261,8 @@ export function SubstituirPessoaModal({
           removerTexto,
           estilo,
           roupa,
+          modo,
+          pedido: pedido.trim() || undefined,
           segundos: cortando ? corte : undefined,
         }),
       });
@@ -256,9 +282,11 @@ export function SubstituirPessoaModal({
         jobId: body.jobId,
         duracao: body.duracao ?? duracao,
         antesKey: body.antesKey ?? undefined,
-        outros: [...new Set(marcas.map((m) => m.characterId))].filter(
-          (id) => id !== character.id,
-        ),
+        outros: comPersonagem
+          ? [...new Set(marcas.map((m) => m.characterId))].filter(
+              (id) => id !== character.id,
+            )
+          : [],
       });
     } catch (e) {
       setErro((e as Error).message);
@@ -267,7 +295,9 @@ export function SubstituirPessoaModal({
     }
   }
 
-  const semBarra = "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+  // Barra fina mas visível: no celular é ela que mostra que o modal rola.
+  const barraFina =
+    "[scrollbar-width:thin] [scrollbar-color:#3a3a3a_transparent] [&::-webkit-scrollbar]:w-1.5";
   const listaPersonagens = personagens.length ? personagens : [character];
 
   return (
@@ -280,7 +310,7 @@ export function SubstituirPessoaModal({
         className={cn(
           "card w-full max-w-5xl relative flex flex-col rounded-t-3xl sm:rounded-3xl",
           "h-[94dvh] lg:h-[min(780px,92dvh)] overflow-y-auto lg:overflow-hidden",
-          semBarra,
+          barraFina,
         )}
       >
         {/* Cabeçalho */}
@@ -315,12 +345,13 @@ export function SubstituirPessoaModal({
           />
         )}
 
-        <div className="flex-1 min-h-0 grid lg:grid-cols-[minmax(0,1fr)_400px]">
+        {/* Abaixo de lg o modal inteiro rola (uma rolagem só); no lg cada coluna cabe na altura. */}
+        <div className="grid lg:flex-1 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_400px]">
           {/* Esquerda: o vídeo, ocupando a altura toda */}
           <section className="flex flex-col min-h-0 p-5 sm:p-6 gap-3 h-[62dvh] lg:h-auto">
             <div className="flex items-center justify-between gap-2 shrink-0">
               <span className="text-[13px] font-semibold text-ink">
-                {tx("Quem trocar no vídeo")}
+                {comPersonagem ? tx("Quem trocar no vídeo") : tx("Vídeo")}
               </span>
               {link && (
                 <span className="text-[12px] text-ink-dim truncate">
@@ -331,7 +362,15 @@ export function SubstituirPessoaModal({
                 </span>
               )}
             </div>
-            {srcVideo ? (
+            {srcVideo && !comPersonagem ? (
+              // Ninguém a trocar: não tem o que marcar, é só para assistir.
+              <video
+                src={srcVideo}
+                controls
+                playsInline
+                className="flex-1 min-h-0 w-full rounded-xl bg-black object-contain"
+              />
+            ) : srcVideo ? (
               <div className="flex-1 min-h-0">
                 <VideoMarcador
                   src={srcVideo}
@@ -365,11 +404,11 @@ export function SubstituirPessoaModal({
           </section>
 
           {/* Direita: opções + botão fixo embaixo */}
-          <aside className="flex flex-col min-h-0 border-t lg:border-t-0 lg:border-l border-line">
+          <aside className="flex flex-col lg:min-h-0 border-t lg:border-t-0 lg:border-l border-line">
             <div
               className={cn(
-                "flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 grid content-start gap-5",
-                semBarra,
+                "p-5 sm:p-6 grid content-start gap-5 lg:flex-1 lg:min-h-0 lg:overflow-y-auto",
+                barraFina,
               )}
             >
               {link ? (
@@ -386,7 +425,49 @@ export function SubstituirPessoaModal({
                   </span>
                 </label>
               ) : null}
-              {marcas.length === 0 && srcVideo ? (
+              <div>
+                <div className="mb-2 text-[13px] font-semibold text-ink">
+                  {tx("O que mudar")}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {MODOS_TROCA_IDS.map((id) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setModo(id)}
+                      aria-pressed={modo === id}
+                      title={tx(MODOS_TROCA[id].nota)}
+                      className={cn(
+                        "h-8 whitespace-nowrap rounded-full border px-3 text-[12.5px] font-bold transition",
+                        modo === id
+                          ? "border-accent bg-accent text-bg"
+                          : "border-line text-ink-mute hover:border-line-strong hover:text-ink",
+                      )}
+                    >
+                      {tx(MODOS_TROCA[id].label)}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-ink-dim">
+                  {tx(MODOS_TROCA[modo].nota)}
+                </p>
+                <textarea
+                  value={pedido}
+                  onChange={(e) =>
+                    setPedido(e.target.value.slice(0, PEDIDO_TROCA_MAX))
+                  }
+                  rows={2}
+                  placeholder={tx(MODOS_TROCA[modo].exemplo)}
+                  aria-label={tx("Pedido")}
+                  className="mt-2 w-full resize-none rounded-xl border border-line bg-bg px-3 py-2 text-[13px] text-ink placeholder:text-ink-dim focus:border-accent focus:outline-none"
+                />
+                <p className="mt-1 text-[11px] text-ink-dim">
+                  {MODOS_TROCA[modo].pedidoObrigatorio
+                    ? tx("Obrigatório neste modo.")
+                    : tx("Opcional: algo a mais que a IA deve fazer.")}
+                </p>
+              </div>
+              {comPersonagem && marcas.length === 0 && srcVideo ? (
                 <div className="rounded-xl border border-accent/30 bg-accent/5 px-3.5 py-3 text-[12px] text-ink-mute leading-relaxed">
                   <strong className="text-ink">
                     {tx("Tem mais de uma pessoa no vídeo?")}
@@ -396,7 +477,7 @@ export function SubstituirPessoaModal({
                   )}
                 </div>
               ) : null}
-              {marcas.length === 0 ? (
+              {!comPersonagem ? null : marcas.length === 0 ? (
                 <div>
                   <div className="text-[13px] font-semibold text-ink mb-2">
                     {tx("Personagem")}
@@ -476,7 +557,7 @@ export function SubstituirPessoaModal({
                           <div className="text-[11px] text-ink-dim">
                             {conta
                               ? `${precoDe(seg).creditos} ${tx("créditos")}`
-                              : `~US$ ${precoDe(seg).custo.toFixed(2)}`}
+                              : `~${dinheiro(precoDe(seg).custo, { de: "USD" })}`}
                           </div>
                         </button>
                       );
@@ -523,6 +604,7 @@ export function SubstituirPessoaModal({
                 </p>
               </div>
 
+              {comPersonagem ? (
               <div>
                 <div className="mb-2 text-[13px] font-semibold text-ink">
                   {tx("Roupa")}
@@ -554,81 +636,7 @@ export function SubstituirPessoaModal({
                   ))}
                 </div>
               </div>
-
-              <div>
-                <div className="text-[13px] font-semibold text-ink mb-2">
-                  {tx("Motor")}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {(
-                    [
-                      [
-                        "kling",
-                        tx("Padrão"),
-                        tx(
-                          "Partes de 15s; a roupa inventada pode variar entre elas.",
-                        ),
-                      ],
-                      [
-                        "seedance",
-                        tx("Premium"),
-                        tx(
-                          "Até 30s de uma vez; cenário, objetos e roupa mais fiéis. Recusa rostos reais.",
-                        ),
-                      ],
-                    ] as const
-                  ).map(([id, titulo, dica]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => setMotor(id)}
-                      title={dica}
-                      className={cn(
-                        "rounded-xl border px-3 py-2 text-left transition",
-                        motor === id
-                          ? "border-accent bg-accent/10"
-                          : "border-line hover:border-line-strong",
-                      )}
-                    >
-                      <div className="text-[13px] font-bold text-ink">
-                        {titulo}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {!premium && (
-                <div>
-                  <div className="text-[13px] font-semibold text-ink mb-2">
-                    {tx("Formato")}
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {QUALIDADES_TROCA.map((q) => (
-                      <button
-                        key={q}
-                        type="button"
-                        onClick={() => setQualidade(q)}
-                        className={cn(
-                          "rounded-xl border px-3 py-2 text-left transition",
-                          qualidade === q
-                            ? "border-accent bg-accent/10"
-                            : "border-line hover:border-line-strong",
-                        )}
-                      >
-                        <div className="text-[13px] font-bold text-ink">
-                          {ROTULO_QUALIDADE[q]}
-                        </div>
-                        <div className="text-[11px] text-ink-dim">
-                          {conta
-                            ? `${TROCA_POR_SEGUNDO_QUALIDADE[q]} ${tx("créditos/s")}`
-                            : `US$ ${KLING_TROCA.porSegundo[q].toFixed(2)}/s`}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              ) : null}
 
               <label className="inline-flex items-center gap-2 text-[13px] text-ink cursor-pointer">
                 <input
@@ -671,22 +679,41 @@ export function SubstituirPessoaModal({
               {erro ? <ErroGeracao mensagem={erro} code={erroCode} /> : null}
             </div>
 
-            <footer className="shrink-0 border-t border-line p-5 sm:p-6 grid gap-2">
-              <div className="flex items-baseline justify-between text-[13px]">
-                <span className="text-ink-mute">
-                  {duracao
-                    ? cortando
-                      ? `${duracao}s ${tx("de")} ${duracaoTotal.toFixed(1)}s`
-                      : `${duracao.toFixed(1)}s de vídeo`
-                    : tx("Calculando duração…")}
-                </span>
-                <strong className="text-ink">
-                  {duracao
-                    ? conta
-                      ? `${tomadas ? `${tx("até")} ` : ""}${creditos} créditos`
-                      : `~US$ ${custo.toFixed(2)}`
-                    : "…"}
-                </strong>
+            {/* Preso embaixo enquanto o modal rola (abaixo de lg): modelo, preço e botão sempre à vista. */}
+            <footer className="sticky bottom-0 z-10 bg-[#131112] lg:static shrink-0 border-t border-line p-5 sm:p-6 grid gap-2">
+              <div className="flex min-w-0 items-center gap-3">
+                <SeletorModelo
+                  rotulo={tx("Modelo")}
+                  valor={modeloTroca}
+                  onChange={setModeloTroca}
+                  // Do mais caro para o mais barato.
+                  opcoes={[...MODELOS_TROCA_IDS]
+                    .sort((a, b) => creditosPorSegundo(b) - creditosPorSegundo(a))
+                    .map((id) => ({
+                      id,
+                      label: MODELOS_TROCA[id].label,
+                      nota: tx(MODELOS_TROCA[id].nota),
+                      preco: conta
+                        ? `${creditosPorSegundo(id)} ${tx("créditos/s")}`
+                        : `${dinheiro(custoPorSegundoTroca(id), { de: "USD" })}/s`,
+                    }))}
+                />
+                <div className="min-w-0">
+                  <div className="text-[15px] font-bold leading-tight text-ink">
+                    {duracao
+                      ? conta
+                        ? `${tomadas ? `${tx("até")} ` : ""}${creditos} ${tx("créditos")}`
+                        : `~${dinheiro(custo, { de: "USD" })}`
+                      : "…"}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-ink-mute">
+                    {duracao
+                      ? cortando
+                        ? `${duracao}s ${tx("de")} ${duracaoTotal.toFixed(1)}s`
+                        : `${duracao.toFixed(1)}s ${tx("de vídeo")}`
+                      : tx("Calculando duração…")}
+                  </div>
+                </div>
               </div>
               <Button
                 variant="accent"
@@ -694,7 +721,9 @@ export function SubstituirPessoaModal({
                 onClick={enviar}
                 disabled={
                   enviando ||
-                  (marcas.length ? marcasSemImagem : !imagem) ||
+                  (comPersonagem &&
+                    (marcas.length ? marcasSemImagem : !imagem)) ||
+                  faltaPedido ||
                   curtoDemais ||
                   marcaForaDoCorte ||
                   !!bloqueio ||
@@ -704,7 +733,9 @@ export function SubstituirPessoaModal({
                 {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 {enviando
                   ? tx("Preparando o vídeo…")
-                  : tx("Gerar vídeo com o personagem")}
+                  : comPersonagem
+                    ? tx("Gerar vídeo com o personagem")
+                    : tx("Gerar vídeo")}
               </Button>
             </footer>
           </aside>

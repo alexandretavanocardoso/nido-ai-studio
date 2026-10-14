@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Banknote,
   Coins,
   HardDrive,
   Languages,
@@ -24,6 +25,8 @@ import { PROVEDORES_VINCULO } from "@/lib/auth/vinculos";
 import { cn } from "@/lib/cn";
 import { liberadoNaTela } from "@/lib/em-teste";
 import { IDIOMAS, useIdioma } from "@/lib/i18n";
+import { MOEDAS } from "@/lib/moeda";
+import { useMoeda } from "@/lib/moeda-client";
 import { tx } from "@/lib/i18n/tx";
 import { PLANOS } from "@/lib/planos";
 
@@ -35,6 +38,7 @@ export default function Perfil() {
   const { user, signOut } = useAuth();
   const { conta } = useCreditos();
   const { idioma, setIdioma } = useIdioma();
+  const { moeda, setMoeda } = useMoeda();
   const router = useRouter();
 
   // user === null → ainda carregando (não mostra nada pra não piscar)
@@ -157,6 +161,36 @@ export default function Perfil() {
               )}
             >
               {i.id === "pt" ? tx("PT-BR") : "EN"}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="card flex flex-wrap items-center justify-between gap-3 p-5">
+        <div>
+          <div className="flex items-center gap-2 text-[13px] font-semibold text-ink">
+            <Banknote className="h-4 w-4" /> {tx("Moeda")}
+          </div>
+          <p className="mt-0.5 text-[12px] text-ink-dim">
+            {tx("Preços e valores aparecem nesta moeda, em qualquer idioma.")}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-1 rounded-xl border border-line p-1">
+          {MOEDAS.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setMoeda(m.id)}
+              aria-pressed={moeda === m.id}
+              title={tx(m.rotulo)}
+              className={cn(
+                "h-8 rounded-lg px-4 text-[12.5px] font-semibold transition",
+                moeda === m.id
+                  ? "bg-accent text-black"
+                  : "text-ink-mute hover:text-ink",
+              )}
+            >
+              {m.id}
             </button>
           ))}
         </div>

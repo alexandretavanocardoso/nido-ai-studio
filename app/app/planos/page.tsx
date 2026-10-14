@@ -35,8 +35,8 @@ import {
   CREDITOS_POST_POR_REDE,
   CREDITOS_FIGURINHA,
   CREDITOS_TEXTO,
-  CORPO_INTEIRO_POR_SEGUNDO,
-  FALADO_POR_SEGUNDO,
+  creditosCriarVideo,
+  FALADO_POR_SEGUNDO_MODELO,
   DESCONTO_ANUAL,
   PACOTES,
   PLANOS,
@@ -54,7 +54,13 @@ import {
   type PlanoPago,
 } from "@/lib/planos";
 import { recursosDoPlano } from "@/lib/planos-recursos";
-import { idiomaAtual, tx } from "@/lib/i18n/tx";
+import { tx } from "@/lib/i18n/tx";
+import {
+  dinheiro as dinheiroNaMoeda,
+  localeAtual,
+  moedaAtual,
+  naMoeda,
+} from "@/lib/moeda";
 import { REDES_USDC, type RedeUsdc } from "@/lib/pagamentos/redes-usdc";
 import {
   acompanharPagamento,
@@ -83,26 +89,23 @@ type Compra =
   | { tipo: "pacote"; pacote: PacoteId }
   | { tipo: "avulso"; creditos: number };
 
-type Moeda = "BRL" | "USD";
-/** Em inglês os preços aparecem (e o cartão cobra) em dólar; em português, em real. */
-const moedaAtual = (): Moeda => (idiomaAtual() === "en" ? "USD" : "BRL");
-const local = () => (idiomaAtual() === "en" ? "en-US" : "pt-BR");
-const dinheiro = (v: number, casas = 0) =>
-  v.toLocaleString(local(), {
-    style: "currency",
-    currency: moedaAtual(),
+/**
+ * Os preços aparecem (e o cartão cobra) na moeda escolhida pelo usuário
+ * (lib/moeda.ts); o idioma decide só a escrita dos números.
+ */
+const dinheiro = (v: number) => dinheiroNaMoeda(v, { casas: 0 });
+const dinheiroCentavos = (v: number) => dinheiroNaMoeda(v);
+const num = (v: number, casas = 0) =>
+  v.toLocaleString(localeAtual(), {
     minimumFractionDigits: casas,
     maximumFractionDigits: casas,
   });
-const brl = (v: number) => dinheiro(v);
-const brlCentavos = (v: number) => dinheiro(v, 2);
-const num = (v: number) => v.toLocaleString(local());
 const data = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString(local()) : "—";
+  iso ? new Date(iso).toLocaleDateString(localeAtual()) : "—";
 const rotuloCartao = () =>
   moedaAtual() === "USD" ? tx("Pagar com cartão") : tx("Cartão, Pix ou boleto");
 const precoPacote = (id: PacoteId) =>
-  moedaAtual() === "USD" ? PACOTES[id].precoUSD : PACOTES[id].precoBRL;
+  naMoeda({ BRL: PACOTES[id].precoBRL, USD: PACOTES[id].precoUSD });
 
 export default function PlanosPage() {
   return (
@@ -352,19 +355,19 @@ function Conteudo() {
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-ink">
-                    {brl(mensalEquiv)}
+                    {dinheiro(mensalEquiv)}
                     <span className="text-sm font-normal text-ink-dim">
                       {tx("/mês")}
                     </span>
                   </div>
                   <div className="text-[12px] text-ink-dim">
                     {intervalo === "anual"
-                      ? `${brl(total)} ${tx("à vista por 12 meses")}`
+                      ? `${dinheiro(total)} ${tx("à vista por 12 meses")}`
                       : tx("cobrado todo mês no cartão")}
                     {recursos.usdc &&
                       (moedaAtual() === "USD"
                         ? ` · ${tx("mesmo valor em USDC")}`
-                        : ` · ou US$ ${precoPlano(id, intervalo, "USD")} em USDC`)}
+                        : ` · ${tx("ou")} ${num(precoPlano(id, intervalo, "USD"))} USDC`)}
                   </div>
                 </div>
                 <div className="rounded-xl border border-line bg-bg px-3.5 py-3">
@@ -455,11 +458,11 @@ function Conteudo() {
                   {tx("créditos")}
                 </div>
                 <div className="text-2xl font-bold text-ink">
-                  {brl(precoPacote(id))}
+                  {dinheiro(precoPacote(id))}
                   {recursos.usdc && moedaAtual() === "BRL" && (
                     <span className="text-[12px] font-normal text-ink-dim">
                       {" "}
-                      {tx("· US$")} {pk.precoUSD} {tx("em USDC")}
+                      · {tx("ou")} {num(pk.precoUSD)} USDC
                     </span>
                   )}
                 </div>
@@ -545,10 +548,10 @@ function CompraManual(o: {
         </div>
         <p className="text-[13px] text-ink-mute mb-3">
           {tx("Escolha quantos créditos quer, a partir de")} {AVULSO_MIN}.{" "}
-          {brlCentavos(PRECO_CREDITO[moedaAtual()])} {tx("por crédito")}
+          {dinheiroCentavos(PRECO_CREDITO[moedaAtual()])} {tx("por crédito")}
           {o.usdc &&
             moedaAtual() === "BRL" &&
-            ` (US$ ${PRECO_CREDITO.USD.toFixed(2)} em USDC)`}
+            ` (${num(PRECO_CREDITO.USD, 2)} USDC)`}
           {tx("; valem 12 meses como os pacotes.")}
         </p>
         <div className="flex items-center gap-3 flex-wrap">
@@ -566,12 +569,11 @@ function CompraManual(o: {
           <span className="text-ink-mute text-sm">{tx("créditos")}</span>
           {valido && (
             <span className="text-2xl font-bold text-ink">
-              {brlCentavos(precoAvulso(n, moedaAtual()))}
+              {dinheiroCentavos(precoAvulso(n, moedaAtual()))}
               {o.usdc && moedaAtual() === "BRL" && (
                 <span className="text-[12px] font-normal text-ink-dim">
                   {" "}
-                  {tx("· US$")} {precoAvulso(n, "USD").toFixed(2)}{" "}
-                  {tx("em USDC")}
+                  · {tx("ou")} {num(precoAvulso(n, "USD"), 2)} USDC
                 </span>
               )}
             </span>
@@ -586,7 +588,7 @@ function CompraManual(o: {
         {melhor && (
           <p className="text-[12px] text-ink-dim mt-2">
             {tx("Dica: o pacote de")} {num(PACOTES[melhor].creditos)}{" "}
-            {tx("créditos sai por")} {brl(precoPacote(melhor))}{" "}
+            {tx("créditos sai por")} {dinheiro(precoPacote(melhor))}{" "}
             {tx("— mais créditos pelo mesmo preço ou menos.")}
           </p>
         )}
@@ -633,14 +635,18 @@ function TabelaCustos() {
       `${TROCA_POR_SEGUNDO_QUALIDADE.standard} / ${TROCA_POR_SEGUNDO} / ${TROCA_POR_SEGUNDO_QUALIDADE["4k"]} ${tx("por segundo")}`,
     ],
     [
-      "Trocar pessoa · Premium Seedance 2.5 (mínimo 4s)",
+      "Trocar pessoa · Seedance 2.5 (mínimo 4s)",
       `${TROCA_PREMIUM_POR_SEGUNDO} ${tx("por segundo")}`,
     ],
     ["Criar vídeo · Gen-4 Turbo / Gen-4.5", tx("5 / 12 por segundo")],
     ["Criar vídeo · Veo 3.1 Fast (sem / com áudio)", tx("10 / 15 por segundo")],
     [
-      "Criar vídeo falado · com a voz do personagem (close / corpo inteiro)",
-      `${FALADO_POR_SEGUNDO} / ${CORPO_INTEIRO_POR_SEGUNDO} ${tx("por segundo")}`,
+      "Criar vídeo · Wan 3.0",
+      `${creditosCriarVideo("wan3", 1, false)} ${tx("por segundo")}`,
+    ],
+    [
+      "Criar vídeo falado · com a voz do personagem (conforme o modelo)",
+      `${Math.min(...Object.values(FALADO_POR_SEGUNDO_MODELO))}–${Math.max(...Object.values(FALADO_POR_SEGUNDO_MODELO))} ${tx("por segundo")}`,
     ],
     ["Editar legenda de vídeo", String(CREDITOS_LEGENDA)],
     ["Cortar vídeo", String(CREDITOS_CORTAR_VIDEO)],

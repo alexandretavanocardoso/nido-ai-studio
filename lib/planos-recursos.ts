@@ -21,9 +21,6 @@ export function recursosDoPlano(id: PlanoPago): string[] {
       p.troca
         ? `Swap the person in a video (keeps scene and audio) up to ${p.troca.segundosMax}s`
         : "",
-      p.trocaPremium
-        ? "Premium swap (Seedance 2.5): up to 30s at once, more faithful scene"
-        : "",
       p.criarVideo.length
         ? `Create video: ${modelosVideo}${p.veoComAudio ? " (with audio)" : ""}`
         : "",
@@ -40,9 +37,6 @@ export function recursosDoPlano(id: PlanoPago): string[] {
       : "Nano Banana, Seedream, Flux.2 e GPT Image",
     p.troca
       ? `Trocar pessoa em vídeo (mantém cenário e áudio) até ${p.troca.segundosMax}s`
-      : "",
-    p.trocaPremium
-      ? "Troca Premium (Seedance 2.5): até 30s de uma vez, cenário mais fiel"
       : "",
     p.criarVideo.length
       ? `Criar vídeo: ${modelosVideo}${p.veoComAudio ? " (com áudio)" : ""}`

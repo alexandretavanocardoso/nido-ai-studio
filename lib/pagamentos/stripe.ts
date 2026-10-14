@@ -21,7 +21,7 @@ import {
 } from "./aplicar";
 
 /**
- * Stripe: cartão, Pix e boleto em BRL; em USD (interface em inglês), cartão.
+ * Stripe: cartão, Pix e boleto em BRL; em USD (moeda escolhida pelo usuário), cartão.
  *  - Plano mensal → assinatura no cartão (renova sozinha; ativada a cada `invoice.paid`).
  *  - Plano anual e pacotes → pagamento único (cartão, Pix ou boleto — os métodos
  *    que estiverem ligados no Dashboard do Stripe).
@@ -45,17 +45,22 @@ function centavos(reais: number) {
 
 export type MoedaStripe = "BRL" | "USD";
 
+/**
+ * Nome do produto (no idioma de quem compra) e preço (na moeda escolhida):
+ * os dois são independentes. Sem idioma, vale o da moeda (USD → inglês).
+ */
 export function descricao(
   compra: Compra,
   moeda: MoedaStripe = "BRL",
+  idioma: "pt" | "en" = moeda === "USD" ? "en" : "pt",
 ): { nome: string; valor: number } {
-  const en = moeda === "USD";
+  const en = idioma === "en";
   const qtd = (n: number) => n.toLocaleString(en ? "en-US" : "pt-BR");
   if (compra.tipo === "pacote") {
     const p = PACOTES[compra.pacote];
     return {
       nome: `NIDO Studio · ${qtd(p.creditos)} ${en ? "credits" : "créditos"}`,
-      valor: en ? p.precoUSD : p.precoBRL,
+      valor: moeda === "USD" ? p.precoUSD : p.precoBRL,
     };
   }
   if (compra.tipo === "avulso")
@@ -125,11 +130,14 @@ export async function criarCheckout(
     compra: Compra;
     origem: string;
     moeda?: MoedaStripe;
+    /** Idioma da página do Stripe e do nome do produto (o da interface). */
+    idioma?: "pt" | "en";
   },
 ): Promise<string> {
   const conta = await carregarConta(o.userId);
   const moeda = o.moeda ?? "BRL";
-  const { nome, valor } = descricao(o.compra, moeda);
+  const idioma = o.idioma ?? (moeda === "USD" ? "en" : "pt");
+  const { nome, valor } = descricao(o.compra, moeda, idioma);
   const metadata = {
     userId: o.userId,
     tipo: o.compra.tipo,
@@ -181,7 +189,7 @@ export async function criarCheckout(
             },
           },
     ],
-    locale: moeda === "USD" ? "en" : "pt-BR",
+    locale: idioma === "en" ? "en" : "pt-BR",
     success_url: `${o.origem}/app/planos?pagamento=sucesso`,
     cancel_url: `${o.origem}/app/planos?pagamento=cancelado`,
   });

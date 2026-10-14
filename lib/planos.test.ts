@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  bloqueioTrocaPremium,
   bloqueioCriarVideo,
   bloqueioImagem,
   bloqueioTroca,
   creditosCriarVideo,
+  creditosVideoFalado,
   creditosImagem,
   creditosTrocaPremium,
   creditosTroca,
@@ -35,6 +35,10 @@ describe("custo em créditos", () => {
     expect(creditosCriarVideo("gen4_turbo", 10, true)).toBe(50); // Gen-4 não tem áudio
     expect(creditosCriarVideo("kling_v3", 10, false)).toBe(60);
     expect(creditosCriarVideo("kling_v3", 10, true)).toBe(80);
+    expect(creditosCriarVideo("wan3", 10, true)).toBe(100); // Wan: mesmo preço com áudio
+    expect(creditosVideoFalado(10)).toBe(20); // avatar
+    expect(creditosVideoFalado(10, "hailuo3")).toBe(120);
+    expect(creditosVideoFalado(10, "wan3")).toBe(110);
   });
 });
 
@@ -58,17 +62,15 @@ describe("bloqueios por plano", () => {
     expect(bloqueioCriarVideo("gratis", "gen4_turbo", false)).not.toBeNull();
   });
 
-  it("starter: sem Pro, troca até 15s, sem Premium", () => {
+  it("starter: sem Pro, troca até 15s", () => {
     expect(bloqueioImagem("starter", "nano-banana", "pro")).not.toBeNull();
     expect(bloqueioTroca("starter", 15)).toBeNull();
     expect(bloqueioTroca("starter", 16)).not.toBeNull();
-    expect(bloqueioTrocaPremium("starter")).not.toBeNull();
     expect(bloqueioCriarVideo("starter", "gen4.5", false)).not.toBeNull();
   });
 
-  it("creator e studio liberam Pro e troca Premium; áudio só no studio", () => {
+  it("creator e studio liberam Pro; áudio só no studio", () => {
     expect(bloqueioImagem("creator", "gpt-image", "pro")).toBeNull();
-    expect(bloqueioTrocaPremium("creator")).toBeNull();
     expect(bloqueioCriarVideo("creator", "veo3.1_fast", true)).not.toBeNull();
     expect(bloqueioCriarVideo("studio", "veo3.1_fast", true)).toBeNull();
     expect(bloqueioTroca("studio", 60)).toBeNull();
@@ -76,7 +78,7 @@ describe("bloqueios por plano", () => {
 });
 
 describe("o que cabe em cada plano", () => {
-  it("Creator (que anuncia a Troca Premium) paga um vídeo Premium de 30s", () => {
+  it("Creator paga uma troca de 30s no Seedance 2.5 (o modelo mais caro)", () => {
     expect(PLANOS.creator.creditos).toBeGreaterThanOrEqual(
       creditosTrocaPremium(30),
     );
