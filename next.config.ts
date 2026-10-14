@@ -30,6 +30,8 @@ const nextConfig: NextConfig = {
   // Garante que o binário e a fonte das legendas vão junto nas funções de vídeo.
   outputFileTracingIncludes: {
     "/api/videos/**": ["./node_modules/ffmpeg-static/ffmpeg*", "./assets/fonts/**"],
+    // A logo do pingente do PFP (lib/pfp-server.ts), lida do disco.
+    "/api/conta/pfp": ["./public/logo/NIDO AI STUDIO SEM FUNDO.png"],
   },
 };
 

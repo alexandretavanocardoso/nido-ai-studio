@@ -102,8 +102,8 @@ const num = (v: number, casas = 0) =>
   });
 const data = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString(localeAtual()) : "—";
-const rotuloCartao = () =>
-  moedaAtual() === "USD" ? tx("Pagar com cartão") : tx("Cartão, Pix ou boleto");
+/** O Stripe cobra em reais (o servidor converte o preço em dólar): dá cartão, Pix e boleto. */
+const rotuloCartao = () => tx("Cartão, Pix ou boleto");
 const precoPacote = (id: PacoteId) =>
   naMoeda({ BRL: PACOTES[id].precoBRL, USD: PACOTES[id].precoUSD });
 
@@ -169,7 +169,7 @@ function Conteudo() {
       const res = await fetch("/api/pagamentos/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...compra, moeda: moedaAtual() }),
+        body: JSON.stringify({ ...compra, moeda: "BRL" }),
       });
       const body = (await res.json().catch(() => ({}))) as {
         url?: string;

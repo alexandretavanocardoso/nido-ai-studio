@@ -1,9 +1,9 @@
 import { idiomaAtual } from "@/lib/i18n/tx";
 
 /**
- * Moeda em que os valores aparecem (R$ ou US$), escolhida pelo usuário e
- * independente do idioma: o idioma decide só a escrita do número (1.234,56
- * em português, 1,234.56 em inglês). Ativada por <ComMoeda> (lib/moeda-client).
+ * Moeda em que os valores aparecem: sempre dólar (US$), em qualquer idioma. O
+ * idioma decide só a escrita do número (1.234,56 em português, 1,234.56 em
+ * inglês). `definirMoedaAtiva` fica para os testes; a tela não troca a moeda.
  *
  *  - Preço de tabela que existe nas duas moedas (planos, pacotes, crédito
  *    avulso): `naMoeda({ BRL, USD })` pega o da moeda ativa, sem câmbio.
@@ -14,12 +14,6 @@ import { idiomaAtual } from "@/lib/i18n/tx";
  */
 export type Moeda = "BRL" | "USD";
 
-export const MOEDAS: Array<{ id: Moeda; simbolo: string; rotulo: string }> = [
-  { id: "BRL", simbolo: "R$", rotulo: "Real (R$)" },
-  { id: "USD", simbolo: "US$", rotulo: "Dólar (US$)" },
-];
-
-/** Moeda de quem ainda não escolheu (e a da primeira renderização, no servidor). */
 export const MOEDA_PADRAO: Moeda = "USD";
 
 /** Reais por dólar (CAMBIO_USD_BRL no servidor; padrão: a paridade da tabela de preços). */

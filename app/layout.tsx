@@ -9,8 +9,6 @@ import { ConfirmacaoHost } from "@/components/ui/Confirmacao";
 import { CreditosProvider } from "@/components/creditos/CreditosProvider";
 import { recursosDisponiveis } from "@/lib/recursos";
 import { ComIdioma, IdiomaDoDocumento } from "@/lib/i18n";
-import { cambioUsdBrl } from "@/lib/moeda";
-import { ComMoeda } from "@/lib/moeda-client";
 
 const TITULO = "NIDO AI Studio — Create your AI Influencer";
 const DESCRICAO =
@@ -66,12 +64,10 @@ export default function RootLayout({
               <CharactersSyncer />
               <CapturarIndicacao />
               <StorageMigrator />
-              <ComMoeda cambio={cambioUsdBrl()}>
-                <ComIdioma>
-                  {children}
-                  <ConfirmacaoHost />
-                </ComIdioma>
-              </ComMoeda>
+              <ComIdioma>
+                {children}
+                <ConfirmacaoHost />
+              </ComIdioma>
               <IdiomaDoDocumento />
             </CreditosProvider>
           </AuthProvider>

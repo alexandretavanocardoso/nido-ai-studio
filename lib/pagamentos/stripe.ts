@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { getPool } from "@/lib/db";
 import { situacaoDoReembolso } from "./reembolso";
 import { ativarPlano, carregarConta } from "@/lib/creditos";
+import { cambioUsdBrl } from "@/lib/moeda";
 import {
   PACOTES,
   PLANOS,
@@ -21,7 +22,8 @@ import {
 } from "./aplicar";
 
 /**
- * Stripe: cartão, Pix e boleto em BRL; em USD (moeda escolhida pelo usuário), cartão.
+ * Stripe: cobra em BRL (cartão, Pix e boleto), com o preço em dólar da tela
+ * convertido pelo câmbio (CAMBIO_USD_BRL). Em USD, só cartão.
  *  - Plano mensal → assinatura no cartão (renova sozinha; ativada a cada `invoice.paid`).
  *  - Plano anual e pacotes → pagamento único (cartão, Pix ou boleto — os métodos
  *    que estiverem ligados no Dashboard do Stripe).
@@ -46,8 +48,9 @@ function centavos(reais: number) {
 export type MoedaStripe = "BRL" | "USD";
 
 /**
- * Nome do produto (no idioma de quem compra) e preço (na moeda escolhida):
- * os dois são independentes. Sem idioma, vale o da moeda (USD → inglês).
+ * Nome do produto (no idioma de quem compra) e preço. O preço da tela é em
+ * dólar; em BRL ele é convertido pelo câmbio (CAMBIO_USD_BRL) na hora de
+ * cobrar, para dar Pix e boleto. Sem idioma, vale o da moeda (USD → inglês).
  */
 export function descricao(
   compra: Compra,
@@ -56,22 +59,27 @@ export function descricao(
 ): { nome: string; valor: number } {
   const en = idioma === "en";
   const qtd = (n: number) => n.toLocaleString(en ? "en-US" : "pt-BR");
+  const naMoeda = (usd: number) =>
+    moeda === "USD" ? usd : Math.round(usd * cambioUsdBrl() * 100) / 100;
   if (compra.tipo === "pacote") {
     const p = PACOTES[compra.pacote];
     return {
       nome: `NIDO Studio · ${qtd(p.creditos)} ${en ? "credits" : "créditos"}`,
-      valor: moeda === "USD" ? p.precoUSD : p.precoBRL,
+      valor: naMoeda(p.precoUSD),
     };
   }
   if (compra.tipo === "avulso")
     return {
       nome: `NIDO Studio · ${qtd(compra.creditos)} ${en ? "credits" : "créditos"}`,
-      valor: precoAvulso(compra.creditos, moeda),
+      valor: naMoeda(precoAvulso(compra.creditos, "USD")),
     };
   const nome = en
     ? `NIDO Studio · ${PLANOS[compra.plano].nome} plan (${compra.intervalo === "mensal" ? "monthly" : "yearly"})`
     : `NIDO Studio · Plano ${PLANOS[compra.plano].nome} (${compra.intervalo})`;
-  return { nome, valor: precoPlano(compra.plano, compra.intervalo, moeda) };
+  return {
+    nome,
+    valor: naMoeda(precoPlano(compra.plano, compra.intervalo, "USD")),
+  };
 }
 
 /** Apelido (lookup key) do preço no catálogo do Stripe. */
@@ -154,13 +162,17 @@ export async function criarCheckout(
       ? { customer_email: o.email }
       : {};
 
-  // Créditos por quantidade: o preço do catálogo é por crédito.
+  // Créditos por quantidade: o preço do catálogo é por crédito. Em BRL o valor
+  // vem do câmbio do dia, que o catálogo não acompanha: o preço é montado na hora.
   const quantidade = o.compra.tipo === "avulso" ? o.compra.creditos : 1;
   const unitario =
     o.compra.tipo === "avulso"
       ? centavos(PRECO_CREDITO[moeda])
       : centavos(valor);
-  const price = await precoCatalogo(stripe, o.compra, moeda, unitario);
+  const price =
+    moeda === "USD"
+      ? await precoCatalogo(stripe, o.compra, moeda, unitario)
+      : null;
 
   const session = await stripe.checkout.sessions.create({
     mode: assinatura ? "subscription" : "payment",

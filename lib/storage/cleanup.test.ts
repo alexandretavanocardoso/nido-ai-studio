@@ -67,4 +67,36 @@ describe("cleanupOrphans", () => {
     await cleanupOrphans(s3, pool);
     expect(apagados).toEqual(["users/u1/refs/a.jpg"]);
   });
+
+  it("a foto de perfil enviada não é apagada", async () => {
+    const { s3, apagados } = fakeS3({
+      "users/u1/": [
+        { Key: "users/u1/refs/foto.jpg", LastModified: VELHO },
+        { Key: "users/u1/refs/antiga.jpg", LastModified: VELHO },
+      ],
+    });
+    // A linha da foto de perfil vem na mesma consulta das fichas (o endereço do arquivo).
+    const pool = fakePool({ u1: ["/api/storage/file/users/u1/refs/foto.jpg"] });
+    await cleanupOrphans(s3, pool);
+    expect(apagados).toEqual(["users/u1/refs/antiga.jpg"]);
+  });
+
+  it("PFPs ficam enquanto a conta existe; de conta apagada, vão embora", async () => {
+    const { s3, apagados } = fakeS3({
+      "users/u1/": [
+        { Key: "users/u1/pfp/a.jpg", LastModified: VELHO },
+        { Key: "users/u1/refs/foto.jpg", LastModified: VELHO },
+      ],
+      "users/u2/": [{ Key: "users/u2/pfp/b.jpg", LastModified: VELHO }],
+    });
+    const pool = {
+      query: vi.fn(async (sql: string, [userId]: [string]) =>
+        sql.includes('from "user"')
+          ? { rows: [], rowCount: userId === "u1" ? 1 : 0 }
+          : { rows: [] },
+      ),
+    } as unknown as Pool;
+    await cleanupOrphans(s3, pool);
+    expect(apagados).toEqual(["users/u1/refs/foto.jpg", "users/u2/pfp/b.jpg"]);
+  });
 });

@@ -755,4 +755,22 @@ const ERROS_EN: Record<string, string> = {
   "Não consegui conferir a transação.": "Couldn't check the transaction.",
   "Não consegui criar a cobrança.": "Couldn't create the charge.",
   "Não consegui liberar espaço.": "Couldn't free up space.",
+  "A geração de PFP não está configurada (OPENAI_API_KEY).":
+    "PFP generation is not set up (OPENAI_API_KEY).",
+  "Foto não encontrada. Envie de novo.":
+    "Photo not found. Upload it again.",
+  "Não consegui usar a sua foto de perfil. Envie uma foto.":
+    "Couldn't use your profile photo. Upload a photo instead.",
+  "Não consegui ler essa imagem. Envie um JPG, PNG ou WebP.":
+    "Couldn't read that image. Upload a JPG, PNG or WebP.",
+  "Não consegui gerar o PFP. Os créditos foram devolvidos.":
+    "Couldn't generate the PFP. Your credits were refunded.",
+  "PFP não encontrado.":
+    "PFP not found.",
+  "Você já gerou os 3 PFPs da sua conta.":
+    "You've already generated the 3 PFPs your account allows.",
+  "Só o admin pode excluir PFPs.":
+    "Only an admin can delete PFPs.",
+  "Este PFP é a sua foto de perfil. Troque a foto antes de excluir.":
+    "This PFP is your profile photo. Change your photo before deleting it.",
 };

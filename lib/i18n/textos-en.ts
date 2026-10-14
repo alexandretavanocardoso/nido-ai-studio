@@ -2038,14 +2038,6 @@ export const TEXTOS_EN: Record<string, string> = {
     "Full body, with gestures",
   "Corpo inteiro · Alibaba":
     "Full body · Alibaba",
-  "Moeda":
-    "Currency",
-  "Real (R$)":
-    "Brazilian real (R$)",
-  "Dólar (US$)":
-    "US dollar (US$)",
-  "Preços e valores aparecem nesta moeda, em qualquer idioma.":
-    "Prices and amounts show in this currency, in any language.",
   "Partes de 15s · o mais barato":
     "15s parts · the cheapest",
   "Partes de 15s · mais nítido":
@@ -2966,8 +2958,12 @@ export const TEXTOS_EN: Record<string, string> = {
     "Couldn't open Google sign-in. Try again.",
   "Sua conta, seu plano e as contas vinculadas.":
     "Your account, your plan and linked accounts.",
-  "Login pelo Google. Nome e foto vêm da sua conta Google.":
-    "Signed in with Google. Name and photo come from your Google account.",
+  "Login pelo Google. O nome vem da sua conta Google.":
+    "Signed in with Google. Your name comes from your Google account.",
+  "Editar foto":
+    "Edit photo",
+  "Não consegui ler essa imagem.":
+    "Couldn't read that image.",
   "Próxima recarga em":
     "Next refill on",
   "do plano":
@@ -3222,4 +3218,40 @@ export const TEXTOS_EN: Record<string, string> = {
     "Reading from the network who published the posts added by link. The numbers will show up shortly.",
   "Em cada rede vale uma conta: a conectada em Estúdio → Publicar, ou a do primeiro post cadastrado por link. Só os posts dela contam, e cada conta serve a um personagem só. Números digitados à mão não contam. Com conta não conectada, as marcas mais altas passam por conferência.":
     "One account counts per network: the one connected in Studio → Publish, or the one from the first post added by link. Only its posts count, and each account serves a single character. Numbers typed in by hand do not count. With an account that is not connected, the highest milestones go through a review.",
+  "Gerar meu PFP":
+    "Generate my PFP",
+  "Transforme sua foto num avatar no estilo NIDO, com o colar da marca. Baixe ou use como foto de perfil.":
+    "Turn your photo into a NIDO-style avatar, with the brand's necklace. Download it or use it as your profile photo.",
+  "Usar minha foto de perfil":
+    "Use my profile photo",
+  "Enviar uma foto":
+    "Upload a photo",
+  "Gerando o PFP. Leva até um minuto.":
+    "Generating the PFP. It takes up to a minute.",
+  "PFP gerado":
+    "Generated PFP",
+  "Sua foto":
+    "Your photo",
+  "Usar como foto":
+    "Use as photo",
+  "Excluir este PFP?":
+    "Delete this PFP?",
+  "A imagem é apagada e não dá para recuperar.":
+    "The image is deleted and can't be recovered.",
+  "Foto de perfil atual":
+    "Current profile photo",
+  "Abrir":
+    "Open",
+  "Você já gerou os":
+    "You've already generated the",
+  "PFPs da sua conta.":
+    "PFPs your account allows.",
+  "PFPs gerados.":
+    "PFPs generated.",
+  "Envie uma foto em JPG, PNG ou WebP.":
+    "Upload a JPG, PNG or WebP photo.",
+  "A foto passa de 10 MB.":
+    "The photo is larger than 10 MB.",
+  "Não consegui trocar a foto de perfil. Tente de novo.":
+    "Couldn't change your profile photo. Try again.",
 };

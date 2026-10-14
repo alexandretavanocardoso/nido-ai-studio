@@ -54,17 +54,24 @@ export async function limparUsuario(
        union all
        select concat_ws(' ', key, key_alta) from personas_treino where user_id = $1
        union all
-       select amostra_key from vozes where user_id = $1 and amostra_key is not null`,
+       select amostra_key from vozes where user_id = $1 and amostra_key is not null
+       union all
+       -- A foto de perfil enviada no Perfil (/api/storage/file/users/…).
+       select coalesce("image", '') from "user" where "id" = $1`,
     [userId],
   );
   const emUso = new Set(rows.flatMap((r) => r.json.match(KEY_RE) ?? []));
   for (const key of await capasDeNft(pool, userId)) emUso.add(key);
 
+  // PFPs gerados no perfil (lib/pfp-server.ts): ficam enquanto a conta existir.
+  const conta = await pool.query(`select 1 from "user" where "id" = $1`, [userId]);
+  const pfps = conta.rowCount ? `${prefix}pfp/` : null;
+
   const lixo: string[] = [];
   for await (const obj of listObjects(s3, Bucket, prefix)) {
     stats.arquivos++;
     const velho = (obj.LastModified?.getTime() ?? Date.now()) < Date.now() - graceMs;
-    if (velho && !emUso.has(obj.Key)) {
+    if (velho && !emUso.has(obj.Key) && !(pfps && obj.Key.startsWith(pfps))) {
       lixo.push(obj.Key);
       stats.bytes += obj.Size;
     }

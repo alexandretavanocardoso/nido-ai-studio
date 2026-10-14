@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Banknote,
   Coins,
   HardDrive,
   Languages,
@@ -15,6 +14,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ContaVinculada } from "@/components/auth/ContaVinculada";
+import { EditarFoto } from "@/components/conta/EditarFoto";
+import { GerarPfp } from "@/components/conta/GerarPfp";
 import { GoogleIcon } from "@/components/auth/GoogleIcon";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
 import { CarteiraConta } from "@/components/nft/CarteiraConta";
@@ -25,8 +26,6 @@ import { PROVEDORES_VINCULO } from "@/lib/auth/vinculos";
 import { cn } from "@/lib/cn";
 import { liberadoNaTela } from "@/lib/em-teste";
 import { IDIOMAS, useIdioma } from "@/lib/i18n";
-import { MOEDAS } from "@/lib/moeda";
-import { useMoeda } from "@/lib/moeda-client";
 import { tx } from "@/lib/i18n/tx";
 import { PLANOS } from "@/lib/planos";
 
@@ -38,8 +37,8 @@ export default function Perfil() {
   const { user, signOut } = useAuth();
   const { conta } = useCreditos();
   const { idioma, setIdioma } = useIdioma();
-  const { moeda, setMoeda } = useMoeda();
   const router = useRouter();
+  const [erroFoto, setErroFoto] = useState<string | null>(null);
 
   // user === null → ainda carregando (não mostra nada pra não piscar)
   if (user === null) return null;
@@ -63,22 +62,26 @@ export default function Perfil() {
       </header>
 
       <section className="card flex flex-wrap items-center gap-4 p-5">
-        <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full bg-[linear-gradient(135deg,#5c2a1f,#aa7d43)] text-2xl font-bold text-ink">
-          {user.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={user.image} alt="" className="h-full w-full object-cover" />
-          ) : (
-            (nome[0] ?? "?").toUpperCase()
-          )}
-        </span>
+        <EditarFoto
+          imagem={user.image ?? null}
+          inicial={(nome[0] ?? "?").toUpperCase()}
+          onErro={setErroFoto}
+        />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[17px] font-semibold text-ink">{nome}</div>
           <div className="truncate text-[13px] text-ink-mute">{user.email}</div>
           <div className="mt-1 text-[11.5px] text-ink-dim">
-            {tx("Login pelo Google. Nome e foto vêm da sua conta Google.")}
+            {tx("Login pelo Google. O nome vem da sua conta Google.")}
           </div>
+          {erroFoto ? (
+            <div className="mt-1 text-[12px] text-pink" role="alert">
+              {erroFoto}
+            </div>
+          ) : null}
         </div>
       </section>
+
+      <GerarPfp fotoDoPerfil={user.image ?? null} />
 
       {conta ? (
         <section className="card grid grid-cols-1 gap-4 p-5">
@@ -161,36 +164,6 @@ export default function Perfil() {
               )}
             >
               {i.id === "pt" ? tx("PT-BR") : "EN"}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="card flex flex-wrap items-center justify-between gap-3 p-5">
-        <div>
-          <div className="flex items-center gap-2 text-[13px] font-semibold text-ink">
-            <Banknote className="h-4 w-4" /> {tx("Moeda")}
-          </div>
-          <p className="mt-0.5 text-[12px] text-ink-dim">
-            {tx("Preços e valores aparecem nesta moeda, em qualquer idioma.")}
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-1 rounded-xl border border-line p-1">
-          {MOEDAS.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setMoeda(m.id)}
-              aria-pressed={moeda === m.id}
-              title={tx(m.rotulo)}
-              className={cn(
-                "h-8 rounded-lg px-4 text-[12.5px] font-semibold transition",
-                moeda === m.id
-                  ? "bg-accent text-black"
-                  : "text-ink-mute hover:text-ink",
-              )}
-            >
-              {m.id}
             </button>
           ))}
         </div>
