@@ -98,7 +98,9 @@ export async function POST(req: Request) {
         body.inicio,
         body.fim,
         info.duracao,
-        CORTE_MIN_SEGUNDOS,
+        // Folga: um trecho de 5s no fim do vídeo não pode ser recusado porque
+        // a duração real é centésimos menor que a medida pelo navegador.
+        CORTE_MIN_SEGUNDOS - 0.1,
       );
       if (!trecho) throw new LimiteError(CURTO_DEMAIS);
       await cortarTrecho(entrada, trecho.inicio, trecho.duracao, saida);

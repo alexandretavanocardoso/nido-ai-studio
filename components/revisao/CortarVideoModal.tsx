@@ -329,6 +329,12 @@ export function CortarVideoModal({ video, onClose, onPronto }: Props) {
           />
         </div>
 
+        {/* As alças param no mínimo: sem o aviso, parece que travaram. */}
+        {duracao > 0 && trecho <= CORTE_MIN_SEGUNDOS + 0.05 ? (
+          <p className="text-[12px] text-ink-dim mt-3">
+            {txErro(`O trecho precisa ter pelo menos ${CORTE_MIN_SEGUNDOS}s.`)}
+          </p>
+        ) : null}
         {longoDemais ? (
           <p className="text-[12px] text-pink mt-3">
             {tx("O trecho pode ter até")} {CORTE_MAX_SEGUNDOS / 60}{" "}
