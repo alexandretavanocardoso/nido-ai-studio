@@ -19,6 +19,8 @@ export const SO_ADMIN = {
   nft: true,
   /** Pontos: o indicador da barra, o check-in diário e a página de pontos (lib/pontos.ts). */
   pontos: true,
+  /** Live: o personagem ao vivo, respondendo o chat com avatar em tempo real (lib/live). */
+  live: true,
   /**
    * Entrar no app. Aberto por padrão; fechado, só as contas admin conseguem
    * entrar (ver o hook de sessão em lib/auth/server.ts).
@@ -67,6 +69,11 @@ export const SOBRE_O_RECURSO: Record<
     titulo: "Pontos e check-in diário",
     descricao:
       "O indicador de pontos na barra do topo, o check-in diário e a página de pontos. Fechado, só as contas admin veem e fazem check-in; os pontos de créditos gastos, primeiros passos, posts e indicação já contam para todas as contas e aparecem quando você liberar.",
+  },
+  live: {
+    titulo: "Live do personagem",
+    descricao:
+      "A página Estúdio → Live: o personagem entra ao vivo com o avatar em tempo real (Runway + LiveKit), responde o chat com a voz dele e vira uma fonte para o OBS. Fechado, só as contas admin veem e entram no ar.",
   },
   login: {
     titulo: "Login de usuários",

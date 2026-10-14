@@ -773,4 +773,55 @@ const ERROS_EN: Record<string, string> = {
     "Only an admin can delete PFPs.",
   "Este PFP é a sua foto de perfil. Troque a foto antes de excluir.":
     "This PFP is your profile photo. Change your photo before deleting it.",
+  "Live não configurada no servidor (LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET, RUNWAYML_API_SECRET e ELEVENLABS_API_KEY).":
+    "Live is not set up on the server (LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET, RUNWAYML_API_SECRET and ELEVENLABS_API_KEY).",
+  "Live não encontrada.": "Live not found.",
+  "Duração da live inválida: use de 1 a 120 minutos.": "Invalid live length: use 1 to 120 minutes.",
+  "Esta live já entrou no ar em outra aba.":
+    "This live already went on air in another tab.",
+  "O avatar ainda está sendo preparado.": "The avatar is still being prepared.",
+  "Esta live já terminou.": "This live has already ended.",
+  "O tempo desta live acabou.": "This live is out of time.",
+  "A live não está no ar.": "The live isn't on air.",
+  "Não consegui escrever a resposta. Tente de novo.":
+    "Couldn't write the reply. Try again.",
+  "Não consegui ligar o chat. Tente de novo.": "Couldn't connect the chat. Try again.",
+  "Origem do chat inválida.": "Invalid chat source.",
+  "Chat do YouTube não configurado no servidor (YOUTUBE_API_KEY).":
+    "YouTube chat is not set up on the server (YOUTUBE_API_KEY).",
+  "A cota diária da API do YouTube acabou. Volta amanhã.":
+    "The YouTube API daily quota ran out. It resets tomorrow.",
+  "O chat dessa live do YouTube terminou ou não foi encontrado.":
+    "That YouTube live chat has ended or wasn't found.",
+  "O chat dessa live do YouTube está desligado.": "That YouTube live chat is turned off.",
+  "Cole o link da live do YouTube (ou o id do vídeo).":
+    "Paste the YouTube live link (or the video ID).",
+  "Esse vídeo não está ao vivo agora (ou o chat dele está desligado).":
+    "That video isn't live right now (or its chat is turned off).",
+  "Chat do Kick não configurado no servidor (KICK_CLIENT_ID e KICK_CLIENT_SECRET).":
+    "Kick chat is not set up on the server (KICK_CLIENT_ID and KICK_CLIENT_SECRET).",
+  "Escreva o nome do canal do Kick (ou cole o link).":
+    "Type the Kick channel name (or paste the link).",
+  "Canal do Kick não encontrado.": "Kick channel not found.",
+  "Não consegui conferir a transmissão agora.": "Couldn't check the stream right now.",
+  "Rede de transmissão inválida.": "Invalid streaming platform.",
+  "Persona não encontrada.": "Persona not found.",
+  "Bot do Discord não configurado no servidor (DISCORD_BOT_TOKEN).":
+    "Discord bot is not set up on the server (DISCORD_BOT_TOKEN).",
+  "Cole o link do canal de voz ou palco (no Discord: botão direito no canal → Copiar link).":
+    "Paste the voice or stage channel link (in Discord: right-click the channel → Copy link).",
+  "O bot do NIDO não está nesse servidor (ou não vê esse canal). Convide o bot primeiro.":
+    "The NIDO bot isn't in that server (or can't see that channel). Invite the bot first.",
+  "Esse canal não é de voz nem palco.": "That channel isn't a voice or stage channel.",
+  "O bot não vê esse canal de voz ou palco. Convide o bot de novo.":
+    "The bot can't see that voice or stage channel. Invite the bot again.",
+  "O bot não conseguiu entrar no canal. Confira as permissões (conectar e falar).":
+    "The bot couldn't join the channel. Check its permissions (connect and speak).",
+  "O bot não conseguiu entrar no canal.": "The bot couldn't join the channel.",
+  "Imagem do cenário não encontrada.": "Scene image not found.",
+  "Descreva o cenário (ex.: numa praia ao pôr do sol).": "Describe the scene (e.g.: on a beach at sunset).",
+  "Escreva o nome de quem vai aparecer.": "Type the name of who will appear.",
+  "Descreva quem é e como fala (pelo menos uma frase).":
+    "Describe who they are and how they talk (at least one sentence).",
+  "Escolha um personagem ou envie uma foto.": "Pick a character or upload a photo.",
 };

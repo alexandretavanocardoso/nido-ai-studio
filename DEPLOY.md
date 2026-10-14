@@ -160,6 +160,20 @@ Authorization: Bearer <CRON_SECRET>
 - [ ] Comprar o menor pacote de créditos no Stripe (modo teste) e ver o saldo subir.
 - [ ] Sugerir campo com IA (chave da Anthropic com workspace).
 
+## Live do personagem (em teste: só admin)
+
+- [x] A migration `db/migrations/0037_lives.sql` já está aplicada no Neon (14/10).
+- [x] A migration `db/migrations/0038_lives_avulsa_transmissao.sql` já está aplicada no Neon (14/10).
+- [x] A migration `db/migrations/0039_lives_cena.sql` já está aplicada no Neon (14/10).
+- [ ] Criar um projeto no LiveKit Cloud e pôr `LIVEKIT_URL` (wss://…), `LIVEKIT_API_KEY` e `LIVEKIT_API_SECRET` na Vercel. Depois, **redeploy**.
+- [ ] Chat do YouTube: no Google Cloud, ativar a "YouTube Data API v3" e criar uma chave de API; pôr em `YOUTUBE_API_KEY`.
+- [ ] Chat do Kick: criar um app em kick.com → Settings → Developer, com o escopo `events:subscribe`, webhooks ligados e a URL `https://aistudio.nido.global/api/live/kick/webhook`; pôr `KICK_CLIENT_ID` e `KICK_CLIENT_SECRET`. O webhook só chega no domínio público (não funciona no localhost).
+- [ ] Bot do Discord (só voz, opcional):
+  1. Em discord.com/developers → Applications: crie um app (ou use o do login com Discord) → **Bot** → gere o token e ligue **Message Content Intent**.
+  2. Na Vercel: `DISCORD_BOT_TOKEN` (e `DISCORD_BOT_CLIENT_ID` = Application ID, se o app não for o do login). Redeploy.
+  3. Publique o processo do bot, que precisa ficar sempre ligado (a Vercel não serve): no **Railway**, novo serviço a partir deste repositório com **Root Directory** `worker/discord`, comando de início `npm start`, e as variáveis `DATABASE_URL`, `DISCORD_BOT_TOKEN`, `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` (as mesmas do app). Custa uns US$ 5/mês. Para testar no computador: `cd worker/discord && npm install && node --env-file=../../.env node_modules/tsx/dist/cli.mjs bot.ts`.
+- Detalhes no [TECNICO.md](TECNICO.md), seção "Live do personagem".
+
 ## Landing page
 
 - [ ] Rodar a migration `db/migrations/0022_leads.sql` no Neon. Sem ela, os formulários da landing (whitelist e plano Agência) respondem "Não foi possível registrar agora".

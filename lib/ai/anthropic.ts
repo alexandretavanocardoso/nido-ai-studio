@@ -43,6 +43,12 @@ interface AskOptions {
   model?: string;
   /** Idioma do texto gerado (padrão: o que o prompt pedir, em geral português). */
   idioma?: IdiomaIA;
+  /** Raciocínio do modelo (padrão: o do modelo). */
+  thinking?: Anthropic.ThinkingConfigParam;
+  /** Esforço (padrão: o do modelo). */
+  effort?: Anthropic.OutputConfig["effort"];
+  /** Guarda o system prompt em cache (vale quando ele se repete em várias chamadas seguidas). */
+  cacheSystem?: boolean;
 }
 
 /** Mensagem em português para erros de configuração da Anthropic (o resto vira "tente de novo"). */
@@ -97,6 +103,9 @@ export async function askClaude({
   maxTokens = 4096,
   model = DEFAULT_MODEL,
   idioma,
+  thinking,
+  effort,
+  cacheSystem,
 }: AskOptions): Promise<string> {
   const client = getClient();
   const t0 = Date.now();
@@ -105,8 +114,18 @@ export async function askClaude({
     res = await client.messages.create({
       model,
       max_tokens: maxTokens,
-      system: system + instrucaoIdioma(idioma),
+      system: cacheSystem
+        ? [
+            {
+              type: "text",
+              text: system + instrucaoIdioma(idioma),
+              cache_control: { type: "ephemeral" },
+            },
+          ]
+        : system + instrucaoIdioma(idioma),
       messages: [{ role: "user", content: user }],
+      ...(thinking ? { thinking } : {}),
+      ...(effort ? { output_config: { effort } } : {}),
     });
   } catch (err) {
     throw new AIProviderError(err, mensagemAnthropic(err));

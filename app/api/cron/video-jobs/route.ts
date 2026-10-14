@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { getPool } from "@/lib/db";
+import { acertarLivesAbertas } from "@/lib/live/server";
 import { finalizarJob, jobsPendentes } from "@/lib/video/finalizar";
+import { getRunway } from "@/lib/video/runway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,7 +11,8 @@ export const maxDuration = 300;
 /**
  * Cron — verifica os jobs de vídeo pendentes e finaliza os que o serviço já
  * terminou. Cobre o Runway (sem webhook) e webhooks do fal que se perderam.
- * Jobs pendentes há mais de 48h viram erro e os créditos voltam.
+ * Jobs pendentes há mais de 48h viram erro e os créditos voltam. De quebra,
+ * acerta as lives que ficaram no ar sem ninguém encerrar (lib/live).
  * A Vercel manda `Authorization: Bearer $CRON_SECRET`.
  */
 export async function GET(req: Request) {
@@ -28,6 +32,15 @@ export async function GET(req: Request) {
       resultado.falha = (resultado.falha ?? 0) + 1;
     }
   }
-  console.log("[cron] video-jobs", { verificados: ids.length, resultado });
-  return NextResponse.json({ ok: true, verificados: ids.length, resultado });
+  const pool = getPool();
+  const rw = getRunway();
+  const lives =
+    pool && rw
+      ? await acertarLivesAbertas(pool, rw).catch((e) => {
+          console.error("[cron/video-jobs] lives", e);
+          return 0;
+        })
+      : 0;
+  console.log("[cron] video-jobs", { verificados: ids.length, resultado, lives });
+  return NextResponse.json({ ok: true, verificados: ids.length, resultado, lives });
 }

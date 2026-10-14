@@ -1,0 +1,25 @@
+{
+  "name": "nido-live-discord",
+  "private": true,
+  "description": "Bot do Discord da Live do NIDO: entra na chamada ou no palco e fala com a voz do avatar (lê o áudio da sala do LiveKit) e manda o chat do canal para a fila da live.",
+  "type": "module",
+  "scripts": {
+    "start": "tsx bot.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@discordjs/voice": "0.19.2",
+    "@livekit/rtc-node": "1.1.0",
+    "@neondatabase/serverless": "1.2.0",
+    "@snazzah/davey": "0.1.12",
+    "discord.js": "14.27.0",
+    "opusscript": "0.1.1",
+    "tsx": "4.23.15",
+    "ws": "8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.12",
+    "typescript": "^5.7.2"
+  }
+}

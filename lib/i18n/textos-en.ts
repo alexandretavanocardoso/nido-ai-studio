@@ -3326,4 +3326,250 @@ export const TEXTOS_EN: Record<string, string> = {
     "Drag the divider to compare the original photo with the new one.",
   "Outro link":
     "Another link",
+  // Live (components/live/Live.tsx)
+  "Lives recentes": "Recent lives",
+  "Nenhuma live ainda.": "No lives yet.",
+  "Imagem do avatar": "Avatar image",
+  "Um retrato de frente, do peito para cima, funciona melhor.":
+    "A front-facing portrait, chest up, works best.",
+  "Duração máxima": "Maximum length",
+  "Preparar a live": "Prepare the live",
+  "Entrar no ar?": "Go on air?",
+  "Serão cobrados": "This charges",
+  "O que você não usar volta ao encerrar.": "Whatever you don't use comes back when it ends.",
+  "Entrar no ar": "Go on air",
+  "Encerrar a live?": "End the live?",
+  "O avatar sai do ar e os minutos que sobraram voltam como créditos.":
+    "The avatar goes off air and the leftover minutes come back as credits.",
+  "Encerrar": "End",
+  "restam": "left",
+  "O Runway está montando o avatar a partir da imagem.":
+    "Runway is building the avatar from the image.",
+  "Leva de 1 a 3 minutos. Pode deixar esta página aberta.":
+    "It takes 1 to 3 minutes. You can keep this page open.",
+  "O avatar não pôde ser preparado.": "The avatar couldn't be prepared.",
+  "Tentar com outra imagem": "Try another image",
+  "Live encerrada.": "Live ended.",
+  "Tempo no ar": "Time on air",
+  "Créditos cobrados": "Credits charged",
+  "Fazer outra live": "Do another live",
+  "O avatar está entrando na sala…": "The avatar is joining the room…",
+  "O avatar saiu da sala.": "The avatar left the room.",
+  "Volte para a sala para continuar a live.": "Go back to the room to continue the live.",
+  "O avatar está pronto. Entre no ar quando quiser.":
+    "The avatar is ready. Go on air whenever you want.",
+  "AO VIVO": "LIVE",
+  "Trazer o avatar de volta": "Bring the avatar back",
+  "Voltar para a sala": "Back to the room",
+  "Ouvindo aqui": "Listening here",
+  "Mudo aqui": "Muted here",
+  "Descartar": "Discard",
+  "3. Ligue o chat da Twitch, do YouTube ou do Kick (ou cole as mensagens) e responda por aqui, uma a uma ou sozinho.":
+    "3. Connect the Twitch, YouTube or Kick chat (or paste messages) and reply from here, one by one or automatically.",
+  "Marque a live como conteúdo feito com IA na plataforma em que for transmitir.":
+    "Label the live as AI-generated content on the platform you stream to.",
+  "Link do palco": "Stage link",
+  "Copiar link do palco (OBS)": "Copy stage link (OBS)",
+  "Quem tiver o link vê a live: não compartilhe.":
+    "Anyone with the link can watch the live: don't share it.",
+  "Esperando o avatar…": "Waiting for the avatar…",
+  "Pensando na resposta…": "Thinking of a reply…",
+  "Falando": "Speaking",
+  "Livre": "Idle",
+  "Parar": "Stop",
+  "Responder sozinho": "Auto-reply",
+  "Canal da Twitch": "Twitch channel",
+  "Link da live do YouTube": "YouTube live link",
+  "Canal do Kick": "Kick channel",
+  "Lendo": "Reading",
+  "Ligar": "Connect",
+  "Desligar": "Disconnect",
+  "Nome (opcional)": "Name (optional)",
+  "Cole uma mensagem do chat": "Paste a chat message",
+  "Pôr na fila": "Add to queue",
+  "Nenhuma mensagem na fila.": "No messages in the queue.",
+  "Responder": "Reply",
+  "Tirar da fila": "Remove from queue",
+  "Falar exatamente": "Say exactly",
+  "Ex.: abertura, chamada para seguir, anúncio de um produto…":
+    "E.g.: opening, a call to follow, a product announcement…",
+  "Falar": "Say it",
+  "Já respondidas": "Answered",
+  "Preparando": "Preparing",
+  "Pronta": "Ready",
+  "No ar": "On air",
+  "Encerrada": "Ended",
+  "Erro": "Error",
+  "Ao vivo com avatar em tempo real: ele responde o chat com a voz escolhida e o NIDO transmite direto para as redes (ou pelo OBS).":
+    "Go live with a real-time avatar: it answers the chat in the chosen voice and NIDO streams straight to your platforms (or through OBS).",
+  "Você ainda não tem personagens. Use uma foto avulsa ou crie um personagem.":
+    "You don't have characters yet. Use a standalone photo or create a character.",
+  "Foto avulsa":
+    "Standalone photo",
+  "Este personagem ainda não tem voz: escolha uma pronta.":
+    "This character has no voice yet: pick a ready-made one.",
+  "Escolher voz pronta":
+    "Pick a ready-made voice",
+  "A voz escolhida fica salva como voz deste personagem.":
+    "The voice you pick is saved as this character's voice.",
+  "Foto do avatar":
+    "Avatar photo",
+  "Trocar foto":
+    "Change photo",
+  "Enviar foto":
+    "Upload photo",
+  "Um retrato de frente, do peito para cima, funciona melhor. Use só fotos que você tem direito de usar.":
+    "A front-facing portrait, chest up, works best. Only use photos you have the right to use.",
+  "Como ele(a) se chama na live":
+    "What they're called on the live",
+  "Quem é e como fala":
+    "Who they are and how they talk",
+  "Ex.: Barista de 30 anos, apaixonado por café especial. Fala de um jeito descontraído, com humor, e sempre puxa conversa sobre viagens.":
+    "E.g.: 30-year-old barista who loves specialty coffee. Talks in a relaxed, funny way and always brings up travel.",
+  "1. Marque as redes em “Transmitir para” e cole a chave de cada uma (ou use o link do palco no OBS).":
+    "1. Check the platforms under “Stream to” and paste each stream key (or use the stage link in OBS).",
+  "2. Entre no ar: o avatar entra na sala e a transmissão começa sozinha.":
+    "2. Go on air: the avatar joins the room and the stream starts on its own.",
+  "Transmitir para":
+    "Stream to",
+  "Parar a transmissão":
+    "Stop streaming",
+  "Recomeçar":
+    "Restart",
+  "(vídeo em pé)":
+    "(vertical video)",
+  "Servidor (rtmp://… ou rtmps://…)":
+    "Server (rtmp://… or rtmps://…)",
+  "Chave de transmissão":
+    "Stream key",
+  "Lembrar as chaves neste navegador":
+    "Remember the keys in this browser",
+  "Comece quando o avatar estiver no ar. Deixe a live aberta em cada rede antes (no YouTube, crie a transmissão; nas outras, basta a chave).":
+    "Start once the avatar is on air. Set up the live on each platform first (on YouTube, create the stream; on the others, the key is enough).",
+  "Com as redes prontas, a transmissão começa sozinha quando o avatar entrar no ar.":
+    "With the platforms set, streaming starts on its own when the avatar goes on air.",
+  "redes":
+    "platforms",
+  "Começar a transmitir":
+    "Start streaming",
+  "Conectando":
+    "Connecting",
+  "Parou":
+    "Stopped",
+  "YouTube Studio → Criar → Transmitir ao vivo → Chave de transmissão":
+    "YouTube Studio → Create → Go live → Stream key",
+  "Painel do criador → Configurações → Transmissão → Chave de transmissão primária":
+    "Creator dashboard → Settings → Stream → Primary stream key",
+  "Painel do criador → Configurações → Stream URL & Key (copie a URL e a chave)":
+    "Creator dashboard → Settings → Stream URL & Key (copy the URL and the key)",
+  "LIVE Center (ou Ao vivo → Transmitir pelo PC) → URL do servidor e chave de transmissão":
+    "LIVE Center (or LIVE → Stream from PC) → Server URL and stream key",
+  "Duração em minutos":
+    "Length in minutes",
+  "Use de 1 a 120 minutos, sem fração.":
+    "Use 1 to 120 whole minutes.",
+  "Voz da live anterior":
+    "Voice from the previous live",
+  "Salvas":
+    "Saved",
+  "Tirar da lista":
+    "Remove from list",
+  "Escolha uma para repetir a foto, a descrição e a voz. Toda live com foto avulsa fica salva aqui.":
+    "Pick one to reuse the photo, description and voice. Every standalone-photo live is saved here.",
+  "Outra":
+    "Other",
+  "Cobrados ao entrar no ar; os minutos que você não usar voltam quando a live encerra. Preparar o avatar não custa nada.":
+    "Charged when you go on air; the minutes you don't use come back when the live ends. Preparing the avatar is free.",
+  "JPG, PNG ou WebP":
+    "JPG, PNG or WebP",
+  "do cenário":
+    "for the scene",
+  "Cenário":
+    "Scene",
+  "Imagem do lugar":
+    "Image of the place",
+  "A pessoa é colocada no cenário antes de virar o avatar:":
+    "The person is placed in the scene before becoming the avatar:",
+  "créditos ao preparar (de graça se repetir a mesma foto e o mesmo cenário).":
+    "credits when preparing (free if you reuse the same photo and scene).",
+  "Fundo da foto":
+    "Photo background",
+  "Descrever":
+    "Describe",
+  "Enviar imagem":
+    "Upload image",
+  "numa praia ao pôr do sol":
+    "on a beach at sunset",
+  "num estúdio de podcast com luz neon":
+    "in a podcast studio with neon lights",
+  "numa cafeteria aconchegante":
+    "in a cozy coffee shop",
+  "num quarto gamer com luzes RGB":
+    "in a gaming room with RGB lights",
+  "numa cidade à noite, com luzes desfocadas":
+    "in a city at night, with blurred lights",
+  "Discord: chamada ou palco":
+    "Discord: call or stage",
+  "O avatar entra com vídeo e voz pela sua conta do Discord, usando o OBS como câmera.":
+    "The avatar joins with video and voice through your Discord account, using OBS as the camera.",
+  "Instale (uma vez só)":
+    "Install (once)",
+  "Depois de instalar o VB-Cable, reinicie o computador.":
+    "After installing VB-Cable, restart your computer.",
+  "Ponha o palco no OBS":
+    "Add the stage to OBS",
+  "No OBS: Fontes → + → Navegador → cole o link. Largura 1280 e altura 720, e marque “Controlar áudio pelo OBS”.":
+    "In OBS: Sources → + → Browser → paste the link. Width 1280 and height 720, and check “Control audio via OBS”.",
+  "Mande o som do palco para o cabo":
+    "Send the stage audio to the cable",
+  "OBS → Configurações → Áudio → Avançado → Dispositivo de monitoramento: “CABLE Input (VB-Audio Virtual Cable)”.":
+    "OBS → Settings → Audio → Advanced → Monitoring Device: “CABLE Input (VB-Audio Virtual Cable)”.",
+  "No Mixer de áudio, na engrenagem da fonte do navegador → Propriedades avançadas de áudio → Monitoramento: “Apenas monitorar (silenciar saída)”.":
+    "In the Audio Mixer, on the browser source's gear → Advanced Audio Properties → Audio Monitoring: “Monitor Only (mute output)”.",
+  "Ligue a câmera virtual":
+    "Turn on the virtual camera",
+  "No OBS, clique em “Iniciar câmera virtual” (no painel Controles).":
+    "In OBS, click “Start Virtual Camera” (in the Controls panel).",
+  "Configure o Discord":
+    "Set up Discord",
+  "Configurações do usuário → Voz e vídeo: Dispositivo de entrada “CABLE Output (VB-Audio Virtual Cable)” e Câmera “OBS Virtual Camera”.":
+    "User Settings → Voice & Video: Input Device “CABLE Output (VB-Audio Virtual Cable)” and Camera “OBS Virtual Camera”.",
+  "Desligue a supressão de ruído, o cancelamento de eco e o controle automático de ganho, e use a sensibilidade de entrada manual: senão o Discord corta a voz do avatar.":
+    "Turn off noise suppression, echo cancellation and automatic gain control, and set input sensitivity manually: otherwise Discord cuts the avatar's voice.",
+  "Entre na chamada ou no palco":
+    "Join the call or the stage",
+  "Chamada: entre no canal de voz e ligue a câmera.":
+    "Call: join the voice channel and turn on your camera.",
+  "Palco: entre, peça para falar (ou um moderador te convida) e ligue o vídeo.":
+    "Stage: join, request to speak (or a moderator invites you) and turn on video.",
+  "Entre no ar aqui no NIDO: o que o avatar falar sai no Discord. As mensagens do chat do canal você cola na fila.":
+    "Go on air here in NIDO: whatever the avatar says comes out on Discord. Paste the channel's chat messages into the queue.",
+  "Fechar vozes prontas":
+    "Close ready-made voices",
+  "Escolher outra voz pronta":
+    "Pick another ready-made voice",
+  "palco":
+    "stage",
+  "canal":
+    "channel",
+  "Link do canal de voz ou palco":
+    "Voice or stage channel link",
+  "Primeiro, convide o bot para o servidor:":
+    "First, invite the bot to the server:",
+  "Convidar o bot do NIDO":
+    "Invite the NIDO bot",
+  "Só voz: o Discord não deixa bots mandarem vídeo.":
+    "Voice only: Discord doesn't let bots send video.",
+  "esperando o bot entrar":
+    "waiting for the bot to join",
+  "o bot está entrando no canal":
+    "the bot is joining the channel",
+  "no canal, falando com a voz do avatar":
+    "in the channel, speaking with the avatar's voice",
+  "pediu para falar: aceite o bot como orador no palco":
+    "requested to speak: accept the bot as a speaker on the stage",
+  "Sem vídeo, pelo bot do NIDO":
+    "Without video, with the NIDO bot",
+  "No painel do chat (com a live no ar), ligue o Discord com o link do canal: o bot entra no canal ou palco, fala com a voz do avatar e manda o chat do canal para a fila.":
+    "In the chat panel (with the live on air), connect Discord with the channel link: the bot joins the channel or stage, speaks with the avatar's voice and sends the channel chat to the queue.",
 };

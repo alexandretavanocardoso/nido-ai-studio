@@ -288,6 +288,22 @@ export function creditosVideoFalado(
   return segundos * FALADO_POR_SEGUNDO_MODELO[modelo];
 }
 
+/**
+ * Live (lib/live), por minuto no ar: avatar em tempo real do Runway
+ * (gwm1_avatars, 2 créditos a cada 6s = ~US$ 0,20/min) + LiveKit (~US$ 0,03/min)
+ * + as falas na ElevenLabs Flash e as respostas da IA (~US$ 0,05/min). A live
+ * cobra a duração escolhida ao entrar no ar; os minutos não usados voltam.
+ */
+export const CREDITOS_LIVE_POR_MINUTO = 35;
+/** Atalhos de duração da live, em minutos (dá para digitar outra, entre os limites). */
+export const DURACOES_LIVE = [5, 15, 30, 60] as const;
+export const LIVE_MIN_MINUTOS = 1;
+export const LIVE_MAX_MINUTOS = 120;
+export const duracaoLiveValida = (minutos: number): boolean =>
+  Number.isInteger(minutos) && minutos >= LIVE_MIN_MINUTOS && minutos <= LIVE_MAX_MINUTOS;
+export const creditosLive = (minutos: number): number =>
+  minutos * CREDITOS_LIVE_POR_MINUTO;
+
 /** Figurinha de WhatsApp: uma imagem (Nano Banana) + a remoção do fundo. */
 export const CREDITOS_FIGURINHA = 6;
 

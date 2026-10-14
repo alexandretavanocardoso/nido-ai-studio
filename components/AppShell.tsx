@@ -33,6 +33,7 @@ import {
   PanelLeft,
   PenLine,
   Plus,
+  Radio,
   Search,
   Send,
   ShieldCheck,
@@ -421,6 +422,18 @@ function MenuLateral({
           href: "/app/sombra",
           ativo: pathname === "/app/sombra",
         },
+        // Em teste: fechada, só as contas admin veem (lib/em-teste.ts).
+        ...(liberadoNaTela("live", conta)
+          ? [
+              {
+                rotulo: tx("Live"),
+                curto: tx("Live"),
+                icon: Radio,
+                href: "/app/live",
+                ativo: pathname === "/app/live",
+              },
+            ]
+          : []),
         ...FERRAMENTAS.map((f) => ({
           rotulo: tx(f.rotulo),
           curto: tx(f.curto),
