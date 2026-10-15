@@ -31,11 +31,14 @@ export function QuemEntra({
   valor,
   onChange,
   numero,
+  textos,
 }: {
   valor: ImagemEnviada | null;
   onChange: (v: ImagemEnviada) => void;
   /** Número da pessoa marcada (pinta a borda com a cor da marca). */
   numero?: number;
+  /** Outros textos (o cartão também serve para a foto de um produto). */
+  textos?: { enviada: string; enviar: string; dica: string };
 }) {
   const [enviando, setEnviando] = useState<number | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -88,14 +91,15 @@ export function QuemEntra({
             {enviando !== null
               ? `${tx("Enviando…")} ${Math.round(enviando * 100)}%`
               : valor
-                ? tx("Imagem de quem entra")
-                : tx("Enviar a imagem de quem entra")}
+                ? tx(textos?.enviada ?? "Imagem de quem entra")
+                : tx(textos?.enviar ?? "Enviar a imagem de quem entra")}
           </span>
           <span className="block text-[11.5px] text-ink-dim">
             {valor
               ? tx("Clique para trocar a imagem.")
               : tx(
-                  "Rosto nítido, de frente. De corpo inteiro funciona melhor.",
+                  textos?.dica ??
+                    "Rosto nítido, de frente. De corpo inteiro funciona melhor.",
                 )}
           </span>
         </span>

@@ -137,7 +137,7 @@ Página `/app/radar` (atalho na barra do topo): um radar por dia para cada nicho
 Programa de indicação em Conta → Indique e ganhe (`/app/indicacoes`): link com código (`/?ref=codigo`), 10% em dinheiro sobre cada assinatura de plano do indicado, por até 12 meses, saque pelo Stripe Connect. Regras em [lib/indicacao/regras.ts](lib/indicacao/regras.ts).
 
 - [x] Migration `db/migrations/0016_indicacoes.sql` aplicada no Neon em 07/10. O SQL do programa foi validado no banco (as instruções que escrevem, só analisadas, sem gravar nada).
-- [ ] **Ligar o Stripe Connect** (contas Express, com transferências) no Dashboard do Stripe. Sem isso "Conectar Stripe" falha. Passos no [DEPLOY.md](DEPLOY.md), seção 5, item 4.
+- [ ] **Ligar o Stripe Connect** (contas Express, com transferências) no Dashboard do Stripe. Sem isso "Conectar Stripe" falha. Passos no [DEPLOY.md](DEPLOY.md), seção 5, item 5.
 - [ ] **Nunca testado de verdade:** vínculo pelo link, comissão gerada por um pagamento, cadastro no Stripe e saque. Só as regras (código, cálculo dos 10%) têm teste, e a tela foi vista com dados simulados.
 - [ ] **Comissão recorrente (07/10):** passou a ser 10% de cada pagamento de plano do indicado (primeira assinatura e renovações), por até 12 meses a partir da primeira comissão. Migration `db/migrations/0018_indicacao_recorrente.sql` aplicada no Neon em 07/10. Nunca testado com uma renovação de verdade.
 - [ ] **Decidir:** carência de 7 dias; saque mínimo de R$ 20 / US$ 5.
@@ -148,7 +148,7 @@ Programa de indicação em Conta → Indique e ganhe (`/app/indicacoes`): link c
   - Teto por saque: `USDC_SAQUE_TETO` (padrão 200 USDC).
   - Só a parte de leitura foi conferida nas redes reais (saldo, endereço, situação de uma transação). **Assinar e transmitir nunca rodou**: fazer um saque pequeno de teste antes de divulgar.
   - Dois saques EVM no mesmo instante podem disputar a mesma vez na fila da carteira; o segundo fica "processando" e o admin resolve com "Conferir".
-- [ ] **Estorno desfaz a comissão (feito em 07/10), mas falta ligar no Stripe:** adicionar os eventos `charge.refunded` e `charge.dispute.created` ao webhook no Dashboard. Sem eles o estorno não chega ao app. Vale só para estorno total; estorno parcial não mexe na comissão. Se a comissão já tinha sido sacada, vira dívida descontada do próximo saque. Nunca testado com um estorno de verdade.
+- [x] **Estorno desfaz a comissão (feito em 07/10):** os eventos `charge.refunded` e `charge.dispute.created` estão no webhook da conta nova (15/10). Vale só para estorno total; estorno parcial não mexe na comissão. Se a comissão já tinha sido sacada, vira dívida descontada do próximo saque. Nunca testado com um estorno de verdade.
 - [ ] **Aba Indicações no admin (feita em 07/10), nunca vista no navegador:** totais por moeda, quem indica, comissões (com "Estornar" à mão, para USDC devolvido) e saques (com "Conferir" para saque parado em "processando").
 - [x] Tela de indicações em inglês (07/10), junto com o menu lateral, a Home e o diálogo de criar. A aba do admin segue só em português, como o resto do admin.
 
@@ -171,7 +171,7 @@ Corrigido no código em 07/10 (testes e typecheck passam; nada disso rodou em pr
 Ainda em aberto:
 
 - [ ] **Conferir no navegador:** exportar a ficha em PDF (o `jspdf` mudou de versão) e pagar em USDC numa rede EVM (o valor agora pode vir com centavos a mais).
-- [ ] **Estorno:** depende dos eventos `charge.refunded` e `charge.dispute.created` no webhook do Stripe. Nunca testado com um estorno de verdade. Pagamento em USDC não tem estorno automático (só o botão "Estornar" da comissão, no admin).
+- [ ] **Estorno:** os eventos `charge.refunded` e `charge.dispute.created` já estão no webhook (15/10). Nunca testado com um estorno de verdade. Pagamento em USDC não tem estorno automático (só o botão "Estornar" da comissão, no admin).
 - [ ] **Regra do mesmo IP nas indicações** também barra duas pessoas da mesma casa ou escritório. Para desligar, é o trecho comentado em `vincularIndicacao` ([lib/indicacao/server.ts](lib/indicacao/server.ts)).
 - [ ] **Bônus de 50 créditos por conta Google** continua podendo ser repetido com várias contas. Não mexi: fechar isso pede uma decisão (ex.: verificar telefone, ou dar o bônus só uma vez por IP).
 - [ ] **4 falhas moderadas** vêm do cliente de rede do `@solana/web3.js` (versão 1, a última da linha). Só saem migrando para a biblioteca nova da Solana.
@@ -185,13 +185,13 @@ Ainda em aberto:
 - [x] USDC nas redes EVM: o hash de outra pessoa não serve mais (valor único por cobrança, 07/10).
 - [x] USDC na Solana: transferência manual passou a ser reconhecida (12/10). O modal mostra valor e endereço e aceita o link/hash colado, como nas EVM; o QR continua confirmando sozinho. Por isso a cobrança na Solana também tem valor único (preço + 0 a 99 centavos). Reabrir o modal devolve a cobrança em aberto da mesma compra e rede (até 12h) em vez de criar outra, e a criação roda com trava: dois pedidos no mesmo instante não pegam mais o mesmo valor (era o erro "Valor da cobrança em disputa").
 - [ ] **Título da aba do navegador.** Troquei para "NIDO AI Studio — Crie seu Influenciador Sintético" sem você pedir. Confirmar ou voltar.
-- [ ] **Assinante em real que muda para inglês.** O Stripe não mistura moedas no mesmo cliente; a nova assinatura em dólar pode ser recusada. Decidir se bloqueia a troca de moeda para quem já assina.
+- [x] **Assinante em real que muda para inglês.** Resolvido em 15/10: o Stripe cobra só em dólar, então não há mais troca de moeda no mesmo cliente.
 
 ## 3. Configurar (fora do código)
 
 - [ ] **Ankr:** os 4 RPCs do `.env` respondem "Origin not allowed" (o projeto na Ankr tem allowlist). Hoje o app usa RPCs públicos de reserva, que têm limite de uso. Desligar a allowlist ou trocar de provedor antes de ter volume. O `SOLANA_RPC_URL` também é da Ankr e também é recusado: o pagamento em USDC na Solana passou a cair no RPC público (12/10; antes nem o QR confirmava), mas o **saque em USDC na Solana** ([lib/indicacao/onchain.ts](lib/indicacao/onchain.ts)) ainda usa só o do `.env` e falha enquanto a allowlist estiver ligada.
 - [ ] **Carteiras de recebimento exclusivas.** `EVM_MERCHANT_WALLET` e `SOLANA_MERCHANT_WALLET` devem ser usadas só para receber pagamentos do app (o hash colado vale pelo valor recebido na carteira).
-- [ ] **Stripe:** webhook e produtos criados, mas a conta de produção ainda não está ativada — sem isso não há pagamento no cartão (o Stripe cobra só em dólar e só no cartão). Falta ativar a conta, as formas de pagamento, o portal do cliente e o Connect, e pôr as chaves na Vercel. Passo a passo no [DEPLOY.md](DEPLOY.md), seção 5.
+- [ ] **Stripe:** conta nova (Pessoa Jurídica) ativada, com webhook e preços em US$; checkout testado. Falta salvar o portal do cliente, pôr as chaves da conta nova na Vercel, fazer o deploy, liberar no admin (Em teste) e uma compra real. Passo a passo no [DEPLOY.md](DEPLOY.md), seção 5.
 - [ ] **Deploy na Vercel** seguindo o [DEPLOY.md](DEPLOY.md).
 - [x] `public/video_teste/` movido para `video_teste/` em 07/10 (fora de `public/`).
 - [ ] **Encerrar as ~30 cobranças USDC pendentes** de teste (Admin → Pagamentos). Nenhuma foi paga.

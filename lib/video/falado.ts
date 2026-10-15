@@ -259,8 +259,12 @@ export async function enviarCorpoInteiro(
   const t = await rw.imageToVideo.create({
     model: MODELO_CORPO,
     promptImage: [{ uri: await presignGet(s3, cena.imagemKey, 86_400) }],
-    promptText:
-      "The person from the reference image, in the same outfit and in the same place as the reference image, stands with the full body in frame and talks directly to the camera, saying exactly the words of the reference audio with precise lip sync. Natural small hand gestures and expression that fit the speech. Static camera. The scene fills the whole frame edge to edge: no borders, no letterbox bars, no coloured bands. No text or captions on screen.",
+    promptText: cena.acao
+      ? promptComAcao(
+          { imagem: "the reference image", audio: "the reference audio" },
+          cena.acao,
+        ).slice(0, 1000)
+      : "The person from the reference image, in the same outfit and in the same place as the reference image, stands with the full body in frame and talks directly to the camera, saying exactly the words of the reference audio with precise lip sync. Natural small hand gestures and expression that fit the speech. Static camera. The scene fills the whole frame edge to edge: no borders, no letterbox bars, no coloured bands. No text or captions on screen.",
     duration: cena.duracao ?? 5,
     ratio: vertical ? "9:16" : "16:9",
     resolution: "768p",
@@ -288,6 +292,27 @@ export interface CenaFalada {
   base?: boolean;
   /** Corpo inteiro: segundos que o modelo gera para esta cena. */
   duracao?: number;
+  /**
+   * O que a pessoa faz na cena (vídeo de produto: como usa e mostra o
+   * produto). Sem ele, o pedido padrão: em pé, falando para a câmera.
+   */
+  acao?: string;
+}
+
+/**
+ * Pedido de uma cena falada com ação (vídeo de produto), nas referências de
+ * cada serviço ("@Image1"/"@Audio1" no Sapiens, "Image 1"/"Audio 1" no fal).
+ */
+export function promptComAcao(
+  ref: { imagem: string; audio: string },
+  acao: string,
+): string {
+  return [
+    `The person from ${ref.imagem}, with the same face, hair and outfit, holding or using the same product and in the same place as ${ref.imagem}.`,
+    acao,
+    `While doing this they talk to the camera, saying exactly the words of ${ref.audio} with precise lip sync. ${ref.audio} is the only voice: no other speech, no music.`,
+    "The product keeps exactly the shape, colours, label and logo it has in the reference image. Hands look natural. The scene fills the whole frame edge to edge: no borders, no letterbox bars. No text or captions on screen.",
+  ].join(" ");
 }
 
 export interface Falado {

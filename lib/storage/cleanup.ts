@@ -59,6 +59,9 @@ export async function limparUsuario(
        -- A foto da live (avulsa ou da Sombra ao vivo) e o cenário: as personas salvas reusam.
        select concat_ws(' ', image_key, cena::text) from lives where user_id = $1
        union all
+       -- Motion (worker/motion): o HTML, o vídeo e as imagens de cada pedido.
+       select concat_ws(' ', html_key, video_key, input::text) from motions where user_id = $1
+       union all
        -- A foto de perfil enviada no Perfil (/api/storage/file/users/…).
        select coalesce("image", '') from "user" where "id" = $1`,
     [userId],

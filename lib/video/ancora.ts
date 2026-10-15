@@ -2,7 +2,7 @@ import { pedidoDoEstilo, type EstiloTroca } from "./estilos";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import sharp from "sharp";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel, type ContentListUnion } from "@google/genai";
 import {
   generateImage,
   proporcaoMaisProxima,
@@ -44,6 +44,17 @@ const LIMITE_MAX_MS = 180_000;
 const LIMITE_TOMADAS_MS = 150_000;
 const MODELO_VISAO =
   process.env.GEMINI_TEXT_MODEL?.trim() || "gemini-flash-latest";
+/**
+ * Decisões que, erradas, estragam o vídeo inteiro (qual quadro vira âncora, se
+ * a passada trocou a pessoa certa) vão a um modelo mais forte. Igual ao
+ * MODELO_VISAO desliga: tudo vai ao de visão, como era antes.
+ */
+const MODELO_JUIZ =
+  process.env.GEMINI_TEXT_MODEL_PRO?.trim() || "gemini-4-argon";
+/** Quanto esperar o modelo forte antes de fazer a mesma pergunta ao de visão. */
+const LIMITE_JUIZ_MS = 30_000;
+/** Com menos tempo que isso até o prazo, pergunta direto ao de visão. */
+const MINIMO_JUIZ_MS = 8_000;
 /** O que cada quadro marcado mostra: quem (ou o que) o usuário mandou trocar. */
 const UM_ALVO = "one TARGET of a video (a person, an animal or an object)";
 
@@ -54,6 +65,41 @@ async function reduzido(quadro: Buffer): Promise<string> {
       .jpeg({ quality: 80 })
       .toBuffer()
   ).toString("base64");
+}
+
+/**
+ * Pergunta ao MODELO_JUIZ. Se ele falhar, responder vazio, demorar mais que
+ * LIMITE_JUIZ_MS ou o `prazo` estiver perto, a mesma pergunta vai ao
+ * MODELO_VISAO — a âncora nunca fica pior do que era só com ele.
+ */
+export async function perguntarAoJuiz(
+  ai: GoogleGenAI,
+  { contents, prazo = Infinity }: { contents: ContentListUnion; prazo?: number },
+): Promise<string> {
+  const limite = Math.min(LIMITE_JUIZ_MS, prazo - Date.now());
+  if (MODELO_JUIZ !== MODELO_VISAO && limite >= MINIMO_JUIZ_MS) {
+    const inicio = Date.now();
+    try {
+      const res = await ai.models.generateContent({
+        model: MODELO_JUIZ,
+        contents,
+        config: {
+          abortSignal: AbortSignal.timeout(limite),
+          // Pensar pouco: a âncora tem prazo e a conferência pode se repetir.
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        },
+      });
+      if (res.text?.trim()) return res.text;
+      console.warn(`[ancora] ${MODELO_JUIZ} respondeu vazio, perguntando ao ${MODELO_VISAO}`);
+    } catch (e) {
+      console.warn(
+        `[ancora] ${MODELO_JUIZ} falhou em ${((Date.now() - inicio) / 1000).toFixed(1)}s, perguntando ao ${MODELO_VISAO}:`,
+        (e as Error).message,
+      );
+    }
+  }
+  const res = await ai.models.generateContent({ model: MODELO_VISAO, contents });
+  return res.text ?? "";
 }
 
 /**
@@ -68,8 +114,7 @@ export async function escolherQuadroPrincipal(
   if (!apiKey || !quadros.length) return { indice: 0, descricao: null };
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const res = await ai.models.generateContent({
-      model: MODELO_VISAO,
+    const texto = await perguntarAoJuiz(ai, {
       contents: [
         {
           role: "user",
@@ -92,7 +137,7 @@ export async function escolherQuadroPrincipal(
         },
       ],
     });
-    const json = (res.text ?? "").match(/\{[\s\S]*\}/)?.[0];
+    const json = texto.match(/\{[\s\S]*\}/)?.[0];
     const r = json
       ? (JSON.parse(json) as { frame?: number; person?: string })
       : {};
@@ -131,8 +176,7 @@ export async function escolherQuadroDosAlvos(
   if (!apiKey || !quadros.length || !alvos.length) return null;
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const res = await ai.models.generateContent({
-      model: MODELO_VISAO,
+    const texto = await perguntarAoJuiz(ai, {
       contents: [
         {
           role: "user",
@@ -155,7 +199,7 @@ export async function escolherQuadroDosAlvos(
         },
       ],
     });
-    const json = (res.text ?? "").match(/\{[\s\S]*\}/)?.[0];
+    const json = texto.match(/\{[\s\S]*\}/)?.[0];
     const r = json
       ? (JSON.parse(json) as { frame?: number; targets?: unknown })
       : {};
@@ -751,6 +795,8 @@ export async function passadaConfere(o: {
    * trocado numa passada anterior.
    */
   esperados?: number;
+  /** Instante (ms) em que a âncora tem que ter acabado: perto dele, vai direto ao modelo de visão. */
+  prazo?: number;
 }): Promise<boolean> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) return true;
@@ -758,8 +804,8 @@ export async function passadaConfere(o: {
     'Answer with JSON only: {"target_replaced": true|false, "others_changed": true|false, "character_count": <number>}. ';
   const nome = nomeDoTipo(o.tipo);
   try {
-    const res = await new GoogleGenAI({ apiKey }).models.generateContent({
-      model: MODELO_VISAO,
+    const texto = await perguntarAoJuiz(new GoogleGenAI({ apiKey }), {
+      prazo: o.prazo,
       contents: [
         {
           role: "user",
@@ -803,7 +849,7 @@ export async function passadaConfere(o: {
         },
       ],
     });
-    const json = (res.text ?? "").match(/\{[\s\S]*\}/)?.[0];
+    const json = texto.match(/\{[\s\S]*\}/)?.[0];
     if (!json) return true;
     const r = JSON.parse(json) as {
       target_replaced?: unknown;
@@ -1032,6 +1078,7 @@ export async function trocarNoQuadro(o: {
           descricao,
           roupa: o.roupa,
           tipo: o.tipos?.[n],
+          prazo,
           // O mesmo personagem para dois alvos: o que já foi trocado também conta.
           esperados:
             1 +

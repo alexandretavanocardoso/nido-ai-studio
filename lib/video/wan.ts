@@ -1,7 +1,7 @@
 import type { FalClient } from "@fal-ai/client";
 import type { S3Client } from "@aws-sdk/client-s3";
 import { presignGet } from "@/lib/storage/s3";
-import type { CenaFalada } from "./falado";
+import { promptComAcao, type CenaFalada } from "./falado";
 import { webhookUrl } from "./webhook";
 
 /**
@@ -59,8 +59,9 @@ export async function enviarFaladoWan(
 ): Promise<string> {
   const { request_id } = await fal.queue.submit(WAN_REFERENCIA, {
     input: {
-      prompt:
-        "The person from Image 1, with the same face, hair and outfit and in the same place as Image 1, stands with the full body in frame and talks directly to the camera, saying exactly the words of Audio 1 with precise lip sync. Audio 1 is the only voice: no other speech, no music. Natural small hand gestures and expression that fit the speech. Static camera. The scene fills the whole frame edge to edge: no borders, no letterbox bars, no coloured bands. No text or captions on screen.",
+      prompt: o.cena.acao
+        ? promptComAcao({ imagem: "Image 1", audio: "Audio 1" }, o.cena.acao).slice(0, 1000)
+        : "The person from Image 1, with the same face, hair and outfit and in the same place as Image 1, stands with the full body in frame and talks directly to the camera, saying exactly the words of Audio 1 with precise lip sync. Audio 1 is the only voice: no other speech, no music. Natural small hand gestures and expression that fit the speech. Static camera. The scene fills the whole frame edge to edge: no borders, no letterbox bars, no coloured bands. No text or captions on screen.",
       reference_image_urls: [await presignGet(s3, o.cena.imagemKey, 86_400)],
       reference_audio_urls: [await presignGet(s3, o.cena.audioKey, 86_400)],
       resolution: "720p",

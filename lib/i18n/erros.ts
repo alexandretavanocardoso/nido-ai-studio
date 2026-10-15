@@ -257,6 +257,10 @@ const PADROES: Padrao[] = [
     /^A fala ficou com (\d+)s e passa dos (\d+)s escolhidos\. Encurte o texto ou escolha uma duração maior\.$/,
     "The speech came out at $1s, over the $2s you chose. Shorten the text or pick a longer duration.",
   ],
+  [
+    /^A fala da cena (\d+) passa de (\d+)s\. Encurte essa fala\.$/,
+    "The speech in scene $1 is over $2s. Shorten it.",
+  ],
   [/^O Runway não aceitou a entrada: (.+)$/, "Runway didn't accept the input: $1"],
   [/^O Runway falhou: (.+)$/, "Runway failed: $1"],
   [
@@ -903,4 +907,17 @@ const ERROS_EN: Record<string, string> = {
     "Database not set up.",
   "A troca falhou.":
     "The swap failed.",
+  // Vídeo de produto (app/api/produto)
+  "Diga qual é o produto.": "Say what the product is.",
+  "Modelo ou duração inválidos.": "Invalid model or duration.",
+  "Falha ao montar as cenas.": "Couldn't put the scenes together.",
+  "As cenas não batem com a duração escolhida. Monte as cenas de novo.":
+    "The scenes don't match the chosen duration. Put the scenes together again.",
+  "Escreva a fala de cada cena.": "Write the speech for each scene.",
+  "Escolha a voz.": "Choose the voice.",
+  "Descreva cada cena.": "Describe each scene.",
+  "Escolha quem aparece no vídeo.": "Choose who appears in the video.",
+  "Envie a foto do produto.": "Upload the product photo.",
+  "A IA de imagem recusou uma das cenas. Mude a descrição dela e tente de novo.":
+    "The image AI refused one of the scenes. Change its description and try again.",
 };

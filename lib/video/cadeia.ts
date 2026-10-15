@@ -42,6 +42,14 @@ export interface Cadeia {
   cenas: number[];
   /** Cenas prontas (keys no S3), na ordem. */
   partes: string[];
+  /**
+   * Primeiro quadro de cada cena (keys no S3, já no formato do vídeo), quando
+   * cada cena tem a sua (vídeo de produto). Sem ele, a cena parte do último
+   * quadro da anterior.
+   */
+  imagens?: string[];
+  /** Pedido de cada cena. Sem ele, todas usam o `promptText` do job. */
+  prompts?: string[];
 }
 
 /** Erro que encerra o job (créditos devolvidos), em vez de tentar de novo. */
@@ -52,7 +60,13 @@ export function cadeiaDoJob(input: Record<string, unknown>): Cadeia | null {
   if (!c || !Array.isArray(c.cenas) || !Array.isArray(c.partes)) return null;
   // Uma cena só, do tamanho pedido, não precisa de emenda nem de corte.
   if (c.cenas.length === 1 && c.cenas[0] === c.alvo) return null;
-  return { alvo: Number(c.alvo), cenas: c.cenas, partes: c.partes };
+  return {
+    alvo: Number(c.alvo),
+    cenas: c.cenas,
+    partes: c.partes,
+    ...(Array.isArray(c.imagens) ? { imagens: c.imagens } : {}),
+    ...(Array.isArray(c.prompts) ? { prompts: c.prompts } : {}),
+  };
 }
 
 async function baixar(url: string, arquivo: string): Promise<void> {
@@ -95,22 +109,27 @@ export async function proximaCena(o: {
     );
   return comPastaTemporaria(async (dir) => {
     const cena = path.join(dir, "cena.mp4");
-    const quadro = path.join(dir, "quadro.jpg");
     await baixar(o.videoUrl, cena);
-    await extrairUltimoQuadro(cena, quadro);
-
     const parteKey = newKey(o.userId, "videos", "video/mp4");
-    const quadroKey = newKey(o.userId, "refs", "image/jpeg");
     await uploadFromFile(o.s3, parteKey, cena, "video/mp4");
-    await uploadFromFile(o.s3, quadroKey, quadro, "image/jpeg");
-
     const partes = [...o.cadeia.partes, parteKey];
+
+    // A próxima cena parte da imagem dela, quando tem; senão, do último quadro desta.
+    let quadroKey = o.cadeia.imagens?.[partes.length];
+    if (!quadroKey) {
+      const quadro = path.join(dir, "quadro.jpg");
+      await extrairUltimoQuadro(cena, quadro);
+      quadroKey = newKey(o.userId, "refs", "image/jpeg");
+      await uploadFromFile(o.s3, quadroKey, quadro, "image/jpeg");
+    }
+
     let idExterno: string;
     const pedido = {
       modelo: o.modelo as ModeloCriar,
-      // O último quadro já está no formato do vídeo.
+      // O quadro (último ou o da cena) já está no formato do vídeo.
       imageUrl: await presignGet(o.s3, quadroKey, 86_400),
-      promptText: String(o.input.promptText ?? ""),
+      promptText:
+        o.cadeia.prompts?.[partes.length] ?? String(o.input.promptText ?? ""),
       vertical: o.input.vertical !== false,
       duracao: o.cadeia.cenas[partes.length],
       audio: o.input.audio === true,

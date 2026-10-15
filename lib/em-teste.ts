@@ -21,6 +21,8 @@ export const SO_ADMIN = {
   pontos: true,
   /** Live: o personagem ao vivo, respondendo o chat com avatar em tempo real (lib/live). */
   live: true,
+  /** Vídeo de produto: o influencer mostrando e usando um produto, até 60s (lib/produto.ts). */
+  video_produto: true,
   /**
    * Entrar no app. Aberto por padrão; fechado, só as contas admin conseguem
    * entrar (ver o hook de sessão em lib/auth/server.ts).
@@ -74,6 +76,11 @@ export const SOBRE_O_RECURSO: Record<
     titulo: "Live do personagem",
     descricao:
       "A página Estúdio → Live: o personagem entra ao vivo com o avatar em tempo real (Runway + LiveKit), responde o chat com a voz dele e vira uma fonte para o OBS. Fechado, só as contas admin veem e entram no ar.",
+  },
+  video_produto: {
+    titulo: "Vídeo de produto",
+    descricao:
+      "A página Estúdio → Produto: o influencer (um personagem ou uma foto) mostrando e usando um produto, com ou sem fala, em vídeos de até 60s. Cobra créditos como os outros vídeos. Fechado, só as contas admin veem e geram.",
   },
   login: {
     titulo: "Login de usuários",

@@ -9,6 +9,7 @@ import { getFal } from "@/lib/fal";
 import { estornarSeHouver, type Cobranca } from "@/lib/creditos";
 import { somarArmazenamento } from "@/lib/limites";
 import { getS3, newKey, putObject } from "@/lib/storage/s3";
+import { PRODUTO_SEM_PERSONAGEM } from "@/lib/produto";
 import { SOMBRA_SEM_PERSONAGEM } from "@/lib/sombra";
 import type { Character, VideoArquivo } from "@/lib/types";
 import { consultarJob, keyDoNido, type Provedor } from "./jobs";
@@ -536,6 +537,9 @@ async function atualizarPersonagem(
   // Sombra sem personagem: não há ficha a atualizar; o aviso leva à tela dela.
   if (job.character_id === SOMBRA_SEM_PERSONAGEM)
     return { nome: "Vídeo da Sombra", href: "/app/sombra" };
+  // Vídeo de produto com foto avulsa: o aviso leva à tela dele.
+  if (job.character_id === PRODUTO_SEM_PERSONAGEM)
+    return { nome: "Vídeo de produto", href: "/app/produto" };
   const pool = getPool()!;
   const { rows } = await pool.query<{ id: string; data: Character }>(
     `select id, data from characters

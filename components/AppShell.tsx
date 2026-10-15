@@ -37,6 +37,8 @@ import {
   Search,
   Send,
   ShieldCheck,
+  ShoppingBag,
+  Sparkles,
   Users,
   Sticker,
   Terminal,
@@ -430,6 +432,30 @@ function MenuLateral({
                 icon: Radio,
                 href: "/app/live",
                 ativo: pathname === "/app/live",
+              },
+            ]
+          : []),
+        // Em teste: fechado, só as contas admin veem (lib/em-teste.ts).
+        ...(liberadoNaTela("video_produto", conta)
+          ? [
+              {
+                rotulo: tx("Produto"),
+                curto: tx("Produto"),
+                icon: ShoppingBag,
+                href: "/app/produto",
+                ativo: pathname === "/app/produto",
+              },
+            ]
+          : []),
+        // Só admin (sem cobrança de créditos ainda): ver app/app/motion.
+        ...(conta?.admin
+          ? [
+              {
+                rotulo: tx("Motion"),
+                curto: tx("Motion"),
+                icon: Sparkles,
+                href: "/app/motion",
+                ativo: pathname === "/app/motion",
               },
             ]
           : []),

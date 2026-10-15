@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import type { S3Client } from "@aws-sdk/client-s3";
 import { presignGet } from "@/lib/storage/s3";
-import type { CenaFalada } from "./falado";
+import { promptComAcao, type CenaFalada } from "./falado";
 import type { EstadoVideo } from "./jobs";
 import type { ModeloCriar, ModeloFalado } from "./precos";
 
@@ -139,8 +139,9 @@ export async function enviarFaladoSapiens(
   if (!model) throw new Error("Este modelo não está disponível no Sapiens.");
   const { video, cobrado } = await chamar(chave, "/videos", {
     model,
-    prompt:
-      "The person from @Image1, with the same face, hair and outfit and in the same place as @Image1, stands with the full body in frame and talks directly to the camera, saying exactly the words of @Audio1 with precise lip sync. @Audio1 is the only voice: no other speech, no music. Natural small hand gestures and expression that fit the speech. Static camera. The scene fills the whole frame edge to edge: no borders, no letterbox bars. No text or captions on screen.",
+    prompt: o.cena.acao
+      ? promptComAcao({ imagem: "@Image1", audio: "@Audio1" }, o.cena.acao).slice(0, 1000)
+      : "The person from @Image1, with the same face, hair and outfit and in the same place as @Image1, stands with the full body in frame and talks directly to the camera, saying exactly the words of @Audio1 with precise lip sync. @Audio1 is the only voice: no other speech, no music. Natural small hand gestures and expression that fit the speech. Static camera. The scene fills the whole frame edge to edge: no borders, no letterbox bars. No text or captions on screen.",
     reference_image_urls: [await presignGet(s3, o.cena.imagemKey, 86_400)],
     reference_audio_urls: [await presignGet(s3, o.cena.audioKey, 86_400)],
     seconds: o.cena.duracao ?? 5,

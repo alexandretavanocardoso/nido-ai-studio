@@ -33,7 +33,7 @@ O `.env` local continua com `http://localhost:3000` para desenvolver; os valores
 | `SOLANA_MERCHANT_WALLET`, `SOLANA_RPC_URL` | do `.env` (RPC sem restrição de origem) |
 | `EVM_MERCHANT_WALLET`, `BASE_RPC_URL`, `ARBITRUM_RPC_URL`, `BSC_RPC_URL`, `ETHEREUM_RPC_URL` | do `.env` — USDC nas redes EVM; cada rede só aparece com o RPC preenchido (RPC sem allowlist de origem) |
 
-Opcionais (têm padrão): `ANTHROPIC_MODEL`, `GEMINI_IMAGE_MODEL`, `GEMINI_IMAGE_MODEL_PRO`, `GEMINI_TEXT_MODEL`, `ELEVENLABS_MODEL`, `APIFY_ACTOR_*`, `VIDEO_MAX_SECONDS`, `VIDEO_DAILY_SECONDS`, `RATE_LIMIT_PER_MINUTE`, `IMAGE_RATE_LIMIT_PER_MINUTE`, `IMAGE_DAILY_LIMIT`, `SOLANA_USDC_MINT`.
+Opcionais (têm padrão): `ANTHROPIC_MODEL`, `GEMINI_IMAGE_MODEL`, `GEMINI_IMAGE_MODEL_PRO`, `GEMINI_TEXT_MODEL`, `GEMINI_TEXT_MODEL_PRO`, `ELEVENLABS_MODEL`, `APIFY_ACTOR_*`, `VIDEO_MAX_SECONDS`, `VIDEO_DAILY_SECONDS`, `RATE_LIMIT_PER_MINUTE`, `IMAGE_RATE_LIMIT_PER_MINUTE`, `IMAGE_DAILY_LIMIT`, `SOLANA_USDC_MINT`.
 
 4. **Deploy**. As migrations já estão aplicadas no Neon (0001 a 0013).
 
@@ -100,35 +100,32 @@ Plano: o Free permite 20 posts/mês e 3 contas conectadas; para clientes, o Pro 
 
 O app cobra pelo Stripe **sempre em dólar (USD) e só no cartão** (inclui Apple Pay e Google Pay). Pix e boleto ficam de fora pelo código, mesmo que estejam ligados no Dashboard.
 
-Situação em **07/10/2026**: webhook e produtos já criados na conta de produção; a conta ainda **não está ativada** (o Stripe recusa qualquer checkout com "No valid payment method types"). Tudo abaixo é feito no Dashboard, em modo produção.
+Situação em **15/10/2026**: conta nova **NIDO AI Studio** (`acct_1UQnzw2crtPOJaWX`, Pessoa Jurídica), **ativada** — a conta antiga (`acct_1UNaOfGspXNxJxVy`, pessoa física, nunca ativada) não é mais usada. Checkout em US$ só com cartão testado nessa conta para os cinco casos (plano mensal, plano anual, pacote, créditos por quantidade): abre com o valor certo. Tudo abaixo é no Dashboard, em modo produção, na conta nova.
 
 **Já feito**
 
-- [x] Destino de webhook `https://aistudio.nido.global/api/pagamentos/stripe/webhook`, escopo "Sua conta", payload "Instantâneo", com os eventos `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `invoice.paid`, `customer.subscription.deleted`.
-- [x] Catálogo: 7 produtos e 10 preços (BRL e USD no mesmo preço), achados pelo app pela lookup key — `plano_{starter|creator|studio}_{mensal|anual}`, `pacote_{p500|p1500|p5000}`, `creditos_avulso`. Os valores de [lib/planos.ts](lib/planos.ts) mandam: se um preço mudar lá, crie um preço novo no Stripe com a mesma lookup key (marcando "transferir lookup key") e arquive o antigo; enquanto estiverem diferentes, o app monta o preço na hora.
+- [x] Conta ativada (dados da empresa, banco, extrato `NIDO AI STUDIO`); cartão ativo.
+- [x] Destino de webhook `https://aistudio.nido.global/api/pagamentos/stripe/webhook`, escopo "Sua conta", payload "Instantâneo", versão `2026-09-30.endive` (a do SDK), com os 8 eventos: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `invoice.paid`, `customer.subscription.deleted`, `charge.refunded`, `charge.dispute.created`.
+- [x] Catálogo em USD: 7 produtos e 10 preços, achados pelo app pela lookup key — `plano_{starter|creator|studio}_{mensal|anual}`, `pacote_{p500|p1500|p5000}`, `creditos_avulso` (por crédito; a quantidade vai no checkout). Os valores de [lib/planos.ts](lib/planos.ts) mandam: se um preço mudar lá, crie um preço novo no Stripe com a mesma lookup key (marcando "transferir lookup key") e arquive o antigo; enquanto estiverem diferentes, o app monta o preço na hora.
+- [x] `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET` da conta nova no `.env` local.
 
 **Falta fazer, nesta ordem**
 
-1. [ ] **Ativar a conta.** Clicar em **Ativar pagamentos** e preencher até o fim: dados da empresa (CNPJ ou CPF, endereço, ramo, site `https://aistudio.nido.global`), representante legal (nome, CPF, nascimento, documento), conta bancária para os repasses (mesmo CNPJ/CPF) e o nome que sai na fatura do cartão (ex.: `NIDO STUDIO`). Pronto quando o painel mostrar pagamentos e repasses ativos; a análise pode levar de minutos a alguns dias.
-2. [ ] **Formas de pagamento** (Configurações → Pagamentos → Formas de pagamento): conferir se **cartões** estão ativos. Não precisa ativar Pix nem boleto. O plano mensal é assinatura no cartão; plano anual, pacotes e créditos por quantidade são pagamento único no cartão.
-3. [ ] **Portal do cliente** (Configurações → Faturamento → Portal do cliente): abrir e salvar a configuração, permitindo cancelar a assinatura e trocar o cartão. Sem salvar, o botão de gerenciar assinatura dá erro.
-4. [ ] **Stripe Connect** (necessário para o saque das indicações — sem ele "Conectar Stripe" falha):
+1. [ ] **Portal do cliente** (Configurações → Faturamento → Portal do cliente): abrir e salvar a configuração, permitindo cancelar a assinatura e trocar o cartão. Hoje não há nenhuma salva: o botão de gerenciar assinatura dá erro.
+2. [ ] **Chaves na Vercel** (Settings → Environment Variables, ambiente Production): `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET` **da conta nova** (os mesmos do `.env`). Depois, **deploy** do código atual (a cobrança só em US$ e no cartão ainda não foi publicada).
+3. [ ] **Liberar no app:** o Stripe está "só admin" — Admin → aba **Em teste** → "Pagamento com cartão (Stripe)". Testar primeiro com a conta admin; liberar para todos quando o teste passar.
+4. [ ] **Testar com compras reais** pela conta admin, reembolsando depois (pelo admin ou pelo painel do Stripe — o app desfaz a compra no reembolso):
+   - créditos por quantidade, 100 créditos = US$ 3 → o saldo sobe na hora;
+   - pacote de 500 créditos = US$ 15 → o saldo sobe na hora;
+   - plano Starter mensal = US$ 18 → o plano ativa; cancelar pelo portal.
+
+   Se o saldo não subir, ver as entregas do destino de webhook: **400** = `whsec_` errado; **500 "Stripe não configurado."** = falta variável na Vercel ou o redeploy.
+5. [ ] **Stripe Connect** (só para o saque das indicações — sem ele "Conectar Stripe" falha), na conta nova:
    - No menu **Connect**, clicar em começar e concluir o perfil da plataforma (o Stripe pergunta o modelo de negócio e quem responde por perdas).
    - Escolher contas **Express** e ligar a função **Transferências** (*transfers*). O app cria a conta Express de cada indicador pedindo só essa função e paga com uma transferência do saldo da plataforma.
    - Em Connect → Configurações → Marca, pôr nome, logo e cor — aparecem na tela de cadastro que o indicador vê.
    - Não precisa de outro webhook: o app consulta a conta do indicador na hora do saque.
    - O saque sai do **saldo disponível** da plataforma na moeda da comissão. Com o saldo ainda pendente (vendas recentes) ou sem saldo em dólar, a transferência falha e a comissão volta para "disponível".
-   - Antes, rodar a migration `db/migrations/0016_indicacoes.sql` no Neon.
-5. [ ] **Chaves na Vercel** (Settings → Environment Variables, ambiente Production): `STRIPE_SECRET_KEY` (`sk_live_...`) e `STRIPE_WEBHOOK_SECRET` (o `whsec_...` do destino acima). Depois, **redeploy**.
-6. [ ] **Testar com compras reais** do menor pacote (500 créditos), reembolsando depois pelo painel:
-   - cartão → o checkout abre em US$, só com cartão, e o saldo sobe na hora;
-   - plano mensal no cartão → o plano ativa; cancelar pelo portal;
-   - conferir que a conta brasileira aceita cobrar em US$ (não confirmado: se o Stripe recusar a moeda, nenhum checkout abre);
-   - indicação → conectar o Stripe em `/app/indicacoes`, gerar uma comissão e sacar.
-
-   Se o saldo não subir, ver as entregas do destino de webhook: **400** = `whsec_` errado; **500 "Stripe não configurado."** = falta variável na Vercel ou o redeploy.
-
-Reembolso feito pelo painel devolve o dinheiro, mas não tira os créditos do cliente nem desfaz a comissão do indicador.
 
 ---
 
@@ -179,6 +176,19 @@ Authorization: Bearer <CRON_SECRET>
   2. Na Vercel: `DISCORD_BOT_TOKEN` (e `DISCORD_BOT_CLIENT_ID` = Application ID, se o app não for o do login). Redeploy.
   3. Publique o processo do bot, que precisa ficar sempre ligado (a Vercel não serve): no **Railway**, novo serviço a partir deste repositório com **Root Directory** `worker/discord`, comando de início `npm start`, e as variáveis `DATABASE_URL`, `DISCORD_BOT_TOKEN`, `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` (as mesmas do app). Custa uns US$ 5/mês. Para testar no computador: `cd worker/discord && npm install && node --env-file=../../.env node_modules/tsx/dist/cli.mjs bot.ts`.
 - Detalhes no [TECNICO.md](TECNICO.md), seção "Live do personagem".
+
+## Vídeo de produto e Motion (só admin)
+
+- [ ] Rodar a migration `db/migrations/0041_motion.sql` no Neon **antes** do deploy (a limpeza diária de arquivos lê a tabela `motions`).
+- [ ] Vídeo de produto (Estúdio → Produto): não precisa de nada novo — usa as chaves de vídeo (`SAPIENS_KEY`, `FAL_KEY`, `RUNWAYML_API_SECRET`), `ELEVENLABS_API_KEY`, `GEMINI_API_KEY` e `ANTHROPIC_API_KEY` que já estão na Vercel. Testar um com fala e um sem fala; para liberar a todos: área admin → Em teste → Vídeo de produto.
+- [ ] **Processo do Motion no Railway** (gera a animação e grava o MP4; sem ele, os pedidos ficam na fila):
+  1. No projeto do Railway: **New → GitHub Repo** → este repositório. Não precisa ser público: se ele não aparecer na lista, clique em **Configure GitHub App**, instale o app do Railway na conta dona do repositório (`alexandretavanocardoso`), libere o `nido-ai-studio` e volte em **Refresh**.
+  2. No serviço criado → **Settings → Source → Root Directory**: `worker/motion`. O Railway acha o `Dockerfile` sozinho (imagem do Playwright, já com o Chrome). Não precisa de domínio público.
+  3. **Variables**: `DATABASE_URL`, `S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `ANTHROPIC_API_KEY` (e `ANTHROPIC_WORKSPACE_ID`, se o app usa) — as mesmas da Vercel —, `GEMINI_API_KEY` (para o Gemini 4 Argon, chave paga) e `OPENAI_API_KEY` (para o GPT-6.1 Sol).
+  4. Deploy. Nos logs aparece `[motion] ligado:`; na tela do Motion some o aviso "o worker não está ligado".
+  5. Memória: o Chrome gravando em 1080p usa ~1 GB; o plano do Railway dá conta. Uns US$ 5–10/mês.
+- [ ] Motion de verdade: um de produto (Opus 5.5, esforço alto, 15 s), um de site (Sonnet 5.5) e exportar o MP4 de um deles.
+- Detalhes no [TECNICO.md](TECNICO.md), seções "Vídeo de produto" e "Motion".
 
 ## Landing page
 
