@@ -18,7 +18,7 @@ const SUGESTOES = [
   "numa praia ao pôr do sol",
   "num estúdio de podcast com luz neon",
   "numa cafeteria aconchegante",
-  "num quarto gamer com luzes RGB",
+  "num quarto gamer com luzes RGB, usando fone de ouvido",
   "numa cidade à noite, com luzes desfocadas",
 ];
 
@@ -52,13 +52,15 @@ export function EscolherCena({
     setModo(m);
     setErro(null);
     if (m === "fundo") onChange(null);
-    if (m === "texto") onChange(texto.trim().length >= 3 ? { prompt: texto.trim() } : null);
+    if (m === "texto") onChange(texto.trim().length >= 3 ? { prompt: texto } : null);
     if (m === "imagem") onChange(imagem ? { imageKey: imagem } : null);
   }
 
+  // O texto sobe como está (com espaços): limpar aqui apagava o espaço que a
+  // pessoa acabou de digitar, porque o valor volta para o campo. O servidor limpa.
   function escrever(t: string) {
     setTexto(t);
-    onChange(t.trim().length >= 3 ? { prompt: t.trim() } : null);
+    onChange(t.trim().length >= 3 ? { prompt: t } : null);
   }
 
   async function enviar(arquivo: File | undefined) {
@@ -107,7 +109,7 @@ export function EscolherCena({
             value={texto}
             onChange={(e) => escrever(e.target.value)}
             maxLength={400}
-            placeholder={tx("Ex.: numa praia ao pôr do sol")}
+            placeholder={tx("Ex.: quarto gamer ao fundo, usando fone de ouvido")}
           />
           <div className="flex flex-wrap gap-1.5">
             {SUGESTOES.map((s) => (
@@ -158,6 +160,9 @@ export function EscolherCena({
 
       {modo !== "fundo" ? (
         <span className="text-[12px] text-ink-dim">
+          {modo === "texto"
+            ? `${tx("Descreva o lugar e, se quiser, detalhes na pessoa (fone, microfone…). A IA transforma num pedido detalhado antes de gerar.")} `
+            : ""}
           {tx("A pessoa é colocada no cenário antes de virar o avatar:")} {CREDITOS_CENARIO} {tx("créditos ao preparar (de graça se repetir a mesma foto e o mesmo cenário).")}
         </span>
       ) : null}

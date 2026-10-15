@@ -10,6 +10,7 @@ import {
   Mic,
   Radio,
   Send,
+  Sparkles,
   Square,
   Trash2,
   Upload,
@@ -692,6 +693,11 @@ interface ItemFila extends MensagemChat {
 
 const MAX_FILA = 50;
 
+/** Modo apresentador: quanto silêncio esperar antes de falar por conta própria. */
+type Ritmo = "calmo" | "normal" | "agitado";
+const SILENCIO_MS: Record<Ritmo, number> = { calmo: 15_000, normal: 7_000, agitado: 2_500 };
+const NOME_RITMO: Record<Ritmo, string> = { calmo: "Calmo", normal: "Normal", agitado: "Agitado" };
+
 function PainelLive({ id }: { id: string }) {
   const personagens = useCharacters((s) => s.characters);
   const [live, setLive] = useState<LiveResumo | null>(null);
@@ -1117,6 +1123,10 @@ function Conducao({
   const [pensando, setPensando] = useState(false);
   useEffect(() => onFalando?.(falando), [falando, onFalando]);
   const [auto, setAuto] = useState(false);
+  /** Modo apresentador: fala por conta própria quando o chat para. */
+  const [apresentador, setApresentador] = useState(false);
+  const [tema, setTema] = useState("");
+  const [ritmo, setRitmo] = useState<Ritmo>("normal");
   const [autor, setAutor] = useState("");
   const [mensagem, setMensagem] = useState("");
   const [roteiro, setRoteiro] = useState("");
@@ -1131,7 +1141,7 @@ function Conducao({
   }, []);
 
   const dizer = useCallback(
-    async (modo: "responder" | "falar", texto: string, quem?: string) => {
+    async (modo: "responder" | "falar" | "espontanea", texto: string, quem?: string) => {
       const s = sala.current;
       if (!s || ocupado.current) return false;
       ocupado.current = true;
@@ -1145,7 +1155,8 @@ function Conducao({
             modo,
             texto,
             autor: quem || undefined,
-            anteriores: modo === "responder" ? historico.slice(-6) : [],
+            tema: modo === "espontanea" ? tema.trim() || undefined : undefined,
+            anteriores: modo === "falar" ? [] : historico.slice(-8),
           }),
         });
         if (!res.ok || !res.body) {
@@ -1154,11 +1165,19 @@ function Conducao({
           return false;
         }
         const falado = decodeURIComponent(res.headers.get("x-live-texto") ?? "");
+        const tipo = (res.headers.get("x-live-tipo") ?? undefined) as TrocaLive["tipo"];
         setPensando(false);
         setFalando(falado);
         await s.falar(res.body);
-        if (modo === "responder")
-          setHistorico((h) => [...h, { autor: quem, texto, resposta: falado }].slice(-20));
+        // Tudo o que foi falado entra na memória da live (para não se repetir).
+        setHistorico((h) =>
+          [
+            ...h,
+            modo === "responder"
+              ? { autor: quem, texto, resposta: falado }
+              : { texto: "", resposta: falado, espontanea: true, ...(tipo ? { tipo } : {}) },
+          ].slice(-20),
+        );
         return true;
       } catch (e) {
         setErro((e as Error).message);
@@ -1169,7 +1188,7 @@ function Conducao({
         setFalando(null);
       }
     },
-    [historico, id, sala],
+    [historico, id, sala, tema],
   );
 
   // Resposta automática: com o avatar livre, responde a mensagem mais antiga.
@@ -1182,6 +1201,21 @@ function Conducao({
     }, 1500);
     return () => clearTimeout(t);
   }, [auto, avatarNoAr, pensando, falando, fila, dizer]);
+
+  // Modo apresentador: com o avatar livre e o chat parado (ou só na mão),
+  // espera o silêncio do ritmo escolhido e fala por conta própria.
+  useEffect(() => {
+    if (!apresentador || !avatarNoAr || ocupado.current || pensando || falando) return;
+    if (auto && fila.length) return; // a fila tem prioridade
+    const t = setTimeout(async () => {
+      // Outra fala começou nesse meio-tempo: espera a próxima vez.
+      if (ocupado.current) return;
+      const ok = await dizer("espontanea", "");
+      // Falhou: desliga para não ficar tentando (e gastando) sem parar.
+      if (!ok) setApresentador(false);
+    }, SILENCIO_MS[ritmo]);
+    return () => clearTimeout(t);
+  }, [apresentador, avatarNoAr, pensando, falando, auto, fila.length, ritmo, dizer]);
 
   function adicionar() {
     enfileirar({ autor: autor.trim(), texto: mensagem });
@@ -1228,12 +1262,62 @@ function Conducao({
 
       <div className="card p-4 grid gap-3">
         <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-accent" />
+          <h2 className="label-cap">{tx("Piloto automático")}</h2>
+        </div>
+        <label className="flex items-start gap-2 text-[13px] text-ink cursor-pointer">
+          <input type="checkbox" className="mt-0.5" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
+          <span>
+            <b>{tx("Responder o chat sozinho")}</b>
+            <span className="block text-[12px] text-ink-dim">{tx("Responde a fila, uma mensagem por vez.")}</span>
+          </span>
+        </label>
+        <label className="flex items-start gap-2 text-[13px] text-ink cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={apresentador}
+            onChange={(e) => setApresentador(e.target.checked)}
+          />
+          <span>
+            <b>{tx("Falar sozinho quando o chat parar")}</b>
+            <span className="block text-[12px] text-ink-dim">
+              {tx("Puxa assunto, faz perguntas, conta piadas e retoma o que o chat disse.")}
+            </span>
+          </span>
+        </label>
+        {apresentador ? (
+          <div className="grid gap-2 pl-6">
+            <Input
+              value={tema}
+              onChange={(e) => setTema(e.target.value)}
+              maxLength={300}
+              placeholder={tx("Assunto da live (opcional) — ex.: games e café")}
+            />
+            <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-ink-mute">
+              {tx("Ritmo:")}
+              {(Object.keys(SILENCIO_MS) as Ritmo[]).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRitmo(r)}
+                  className={cn(
+                    "h-7 rounded-full border px-3 font-semibold transition cursor-pointer",
+                    r === ritmo ? "border-accent bg-accent/15 text-ink" : "border-line text-ink-mute hover:text-ink",
+                  )}
+                >
+                  {tx(NOME_RITMO[r])}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="card p-4 grid gap-3">
+        <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-accent" />
           <h2 className="label-cap">{tx("Chat")}</h2>
-          <label className="ml-auto flex items-center gap-2 text-[13px] font-semibold text-ink cursor-pointer">
-            <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
-            {tx("Responder sozinho")}
-          </label>
         </div>
         <ConexoesChat id={id} enfileirar={enfileirar} />
         <div className="grid gap-2 sm:grid-cols-[160px_minmax(0,1fr)_auto]">
@@ -1297,13 +1381,19 @@ function Conducao({
 
       {historico.length > 0 && (
         <div className="card p-4 grid gap-2">
-          <h2 className="label-cap">{tx("Já respondidas")}</h2>
+          <h2 className="label-cap">{tx("Já falou")}</h2>
           <ul className="grid gap-2 text-[13px]">
             {[...historico].reverse().map((h, i) => (
               <li key={i} className="grid gap-0.5">
                 <span className="text-ink-mute">
-                  {h.autor ? <b>{h.autor}: </b> : null}
-                  {h.texto}
+                  {h.espontanea ? (
+                    <i>{tx("Por conta própria")}</i>
+                  ) : (
+                    <>
+                      {h.autor ? <b>{h.autor}: </b> : null}
+                      {h.texto}
+                    </>
+                  )}
                 </span>
                 <span className="text-ink">{h.resposta}</span>
               </li>

@@ -806,6 +806,7 @@ const ERROS_EN: Record<string, string> = {
   "Não consegui conferir a transmissão agora.": "Couldn't check the stream right now.",
   "Rede de transmissão inválida.": "Invalid streaming platform.",
   "Persona não encontrada.": "Persona not found.",
+  "Escreva o que falar.": "Type what to say.",
   "Bot do Discord não configurado no servidor (DISCORD_BOT_TOKEN).":
     "Discord bot is not set up on the server (DISCORD_BOT_TOKEN).",
   "Cole o link do canal de voz ou palco (no Discord: botão direito no canal → Copiar link).":

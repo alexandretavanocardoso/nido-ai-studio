@@ -929,7 +929,6 @@ export const TEXTOS_EN: Record<string, string> = {
   "As pessoas ficam; o fundo muda": "People stay; the background changes",
   "Muda só o que você pedir": "Changes only what you ask for",
   "Ex.: ele segura uma xícara branca": "E.g. he holds a white cup",
-  "Ex.: numa praia ao pôr do sol": "E.g. on a beach at sunset",
   "Ex.: num escritório moderno com janelas grandes": "E.g. in a modern office with large windows",
   "Ex.: troque o boné por um chapéu de palha": "E.g. swap the cap for a straw hat",
   Pedido: "Request",
@@ -3371,7 +3370,6 @@ export const TEXTOS_EN: Record<string, string> = {
   "Falando": "Speaking",
   "Livre": "Idle",
   "Parar": "Stop",
-  "Responder sozinho": "Auto-reply",
   "Canal da Twitch": "Twitch channel",
   "Link da live do YouTube": "YouTube live link",
   "Canal do Kick": "Kick channel",
@@ -3388,7 +3386,6 @@ export const TEXTOS_EN: Record<string, string> = {
   "Ex.: abertura, chamada para seguir, anúncio de um produto…":
     "E.g.: opening, a call to follow, a product announcement…",
   "Falar": "Say it",
-  "Já respondidas": "Answered",
   "Preparando": "Preparing",
   "Pronta": "Ready",
   "No ar": "On air",
@@ -3494,8 +3491,6 @@ export const TEXTOS_EN: Record<string, string> = {
     "in a podcast studio with neon lights",
   "numa cafeteria aconchegante":
     "in a cozy coffee shop",
-  "num quarto gamer com luzes RGB":
-    "in a gaming room with RGB lights",
   "numa cidade à noite, com luzes desfocadas":
     "in a city at night, with blurred lights",
   "Discord: chamada ou palco":
@@ -3580,4 +3575,34 @@ export const TEXTOS_EN: Record<string, string> = {
     "Stream",
   "OBS e Discord":
     "OBS & Discord",
+  "Ex.: quarto gamer ao fundo, usando fone de ouvido":
+    "E.g.: gaming room in the background, wearing headphones",
+  "Descreva o lugar e, se quiser, detalhes na pessoa (fone, microfone…). A IA transforma num pedido detalhado antes de gerar.":
+    "Describe the place and, if you like, details on the person (headphones, microphone…). AI turns it into a detailed request before generating.",
+  "num quarto gamer com luzes RGB, usando fone de ouvido":
+    "in a gaming room with RGB lights, wearing headphones",
+  "Piloto automático":
+    "Autopilot",
+  "Responder o chat sozinho":
+    "Reply to the chat on its own",
+  "Responde a fila, uma mensagem por vez.":
+    "Answers the queue, one message at a time.",
+  "Falar sozinho quando o chat parar":
+    "Talk on its own when the chat goes quiet",
+  "Puxa assunto, faz perguntas, conta piadas e retoma o que o chat disse.":
+    "Brings up topics, asks questions, tells jokes and picks up on what the chat said.",
+  "Assunto da live (opcional) — ex.: games e café":
+    "Live topic (optional) — e.g.: games and coffee",
+  "Ritmo:":
+    "Pace:",
+  "Calmo":
+    "Calm",
+  "Normal":
+    "Normal",
+  "Agitado":
+    "Lively",
+  "Já falou":
+    "Already said",
+  "Por conta própria":
+    "On its own",
 };

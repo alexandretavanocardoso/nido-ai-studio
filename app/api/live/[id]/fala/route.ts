@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { askClaude, AIConfigError } from "@/lib/ai/anthropic";
+import { MODELO_LIVE, SEM_RACIOCINIO } from "@/lib/live/modelo";
 import { carregarLive } from "@/lib/live/server";
 import { contextoLive, liveNaoEncontrada } from "@/lib/live/rota";
 import { carregarPersonagem } from "@/lib/personagens";
-import { INSTRUCAO_LIVE, pedidoLive, promptPersonaAvulsa } from "@/lib/prompts/live";
+import {
+  INSTRUCAO_LIVE,
+  pedidoEspontaneo,
+  pedidoLive,
+  promptPersonaAvulsa,
+  proximoTipo,
+  TIPOS_FALA,
+} from "@/lib/prompts/live";
 import { promptSistema } from "@/lib/prompts/sistema";
 import { mensagemDeErroVoz } from "@/lib/voz/elevenlabs";
 
@@ -12,40 +20,37 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Modelo das respostas ao vivo: rápido, para a fala sair logo. */
-const MODELO_LIVE = process.env.LIVE_MODEL?.trim() || "claude-haiku-5-5";
-/**
- * Resposta direta, sem raciocínio: na live o que pesa é a fala sair rápido.
- * Cada modelo desliga de um jeito (o Sonnet 5.5 recusa "disabled"; o Opus 5.5
- * não desliga e fica no esforço mínimo).
- */
-const SEM_RACIOCINIO: Pick<Parameters<typeof askClaude>[0], "thinking" | "effort"> =
-  /sonnet-5-5/.test(MODELO_LIVE)
-    ? { thinking: { type: "between_tools" }, effort: "low" }
-    : /opus-5-5|fable|mythos/.test(MODELO_LIVE)
-      ? { effort: "low" }
-      : { thinking: { type: "disabled" }, effort: "low" };
 /** Voz ao vivo: o modelo de menor latência da ElevenLabs. */
 const VOZ_LIVE = process.env.LIVE_VOICE_MODEL?.trim() || "eleven_flash_v2_5";
 
-const Texto = z.string().trim().min(1).max(600);
-const BodySchema = z.object({
-  /** responder: a IA responde a mensagem como o personagem · falar: fala o texto como está. */
-  modo: z.enum(["responder", "falar"]),
-  texto: Texto,
-  autor: z.string().trim().max(60).optional(),
-  /** Últimas trocas da live, para a resposta ter contexto. */
-  anteriores: z
-    .array(
-      z.object({
-        autor: z.string().trim().max(60).optional(),
-        texto: Texto,
-        resposta: z.string().trim().max(600),
-      }),
-    )
-    .max(6)
-    .default([]),
-});
+const BodySchema = z
+  .object({
+    /**
+     * responder: a IA responde a mensagem como o personagem · falar: fala o
+     * texto como está · espontanea: a IA fala por conta própria (chat parado).
+     */
+    modo: z.enum(["responder", "falar", "espontanea"]),
+    texto: z.string().trim().max(600).default(""),
+    autor: z.string().trim().max(60).optional(),
+    /** Assunto da live (modo espontâneo). */
+    tema: z.string().trim().max(300).optional(),
+    /** Últimas trocas e falas da live, para ter contexto e não se repetir. */
+    anteriores: z
+      .array(
+        z.object({
+          autor: z.string().trim().max(60).optional(),
+          texto: z.string().trim().max(600),
+          resposta: z.string().trim().max(600),
+          espontanea: z.boolean().optional(),
+          tipo: z.enum(TIPOS_FALA).optional(),
+        }),
+      )
+      .max(8)
+      .default([]),
+  })
+  .refine((b) => b.modo === "espontanea" || b.texto.length > 0, {
+    message: "Escreva o que falar.",
+  });
 
 /**
  * POST — a próxima fala da live, já em áudio: PCM 16 bits, mono, 16 kHz, em
@@ -75,7 +80,9 @@ export async function POST(
   const body = parsed.data;
 
   let texto = body.texto;
-  if (body.modo === "responder") {
+  // Fala espontânea: o tipo (assunto, piada, pergunta…) é sorteado aqui, sem repetir o último.
+  const tipo = body.modo === "espontanea" ? proximoTipo(body.anteriores, Math.random()) : null;
+  if (body.modo !== "falar") {
     // Com personagem: a ficha dele. Sem personagem: o que a pessoa escreveu.
     const personagem = live.character_id
       ? await carregarPersonagem(userId, live.character_id)
@@ -95,10 +102,10 @@ export async function POST(
         await askClaude({
           model: MODELO_LIVE,
           system: `${quem}\n\n${INSTRUCAO_LIVE}`,
-          user: pedidoLive(
-            { autor: body.autor, texto: body.texto },
-            body.anteriores,
-          ),
+          user:
+            body.modo === "espontanea"
+              ? pedidoEspontaneo({ tipo: tipo!, tema: body.tema, anteriores: body.anteriores })
+              : pedidoLive({ autor: body.autor, texto: body.texto }, body.anteriores),
           // Folga para modelos que ainda raciocinam um pouco; a instrução já pede no máximo ~40 palavras.
           maxTokens: 1024,
           ...SEM_RACIOCINIO,
@@ -137,6 +144,7 @@ export async function POST(
         "Content-Type": "application/octet-stream",
         "Cache-Control": "no-store",
         "x-live-texto": encodeURIComponent(texto),
+        ...(tipo ? { "x-live-tipo": tipo } : {}),
       },
     });
   } catch (e) {
