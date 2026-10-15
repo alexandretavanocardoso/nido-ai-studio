@@ -68,7 +68,7 @@ export async function POST(req: Request) {
   if (cobrado instanceof NextResponse) return cobrado;
 
   try {
-    const video = await resolverLink(url);
+    const video = await resolverLink(url, { soAudio: true });
     if (video.duracao && video.duracao > MAX_SEGUNDOS_DO_LINK)
       throw new LinkError(`Vídeo com ${Math.round(video.duracao / 60)} min — o máximo é 15 min.`);
 

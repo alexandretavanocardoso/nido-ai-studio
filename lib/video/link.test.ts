@@ -1,5 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { detectarPlataforma, lerItem } from "./link";
+import { detectarPlataforma, lerItem, linkLimpoDoYouTube } from "./link";
+
+describe("linkLimpoDoYouTube", () => {
+  it("tira playlist, Mix, tempo e rastreio, e mantém o vídeo", () => {
+    expect(
+      linkLimpoDoYouTube(
+        "https://www.youtube.com/watch?v=pz6caqaqbfE&list=RDpz6caqaqbfE&start_radio=1",
+      ),
+    ).toBe("https://www.youtube.com/watch?v=pz6caqaqbfE");
+    expect(linkLimpoDoYouTube("https://youtu.be/pz6caqaqbfE?si=abc&t=42")).toBe(
+      "https://www.youtube.com/watch?v=pz6caqaqbfE",
+    );
+    expect(
+      linkLimpoDoYouTube("https://music.youtube.com/watch?v=pz6caqaqbfE&feature=share"),
+    ).toBe("https://www.youtube.com/watch?v=pz6caqaqbfE");
+    expect(linkLimpoDoYouTube("https://m.youtube.com/shorts/-DuWGX8xbmQ?si=x")).toBe(
+      "https://www.youtube.com/shorts/-DuWGX8xbmQ",
+    );
+  });
+  it("sem id de vídeo, devolve como veio", () => {
+    expect(linkLimpoDoYouTube("https://www.youtube.com/watch?list=RDx")).toBe(
+      "https://www.youtube.com/watch?list=RDx",
+    );
+  });
+});
 
 describe("detectarPlataforma", () => {
   it("reconhece redes e arquivo direto", () => {

@@ -66,6 +66,33 @@ export function detectarPlataforma(url: string): Plataforma | null {
   return null;
 }
 
+/**
+ * Link do YouTube só com o vídeo: tira playlist e "Mix" (list, start_radio,
+ * index), tempo e rastreio. Com a playlist no link, o actor fica tentando
+ * abrir a página até estourar o tempo (visto em 15/10 com um link de "Mix").
+ * Sem achar o id do vídeo, devolve o link como veio.
+ */
+export function linkLimpoDoYouTube(url: string): string {
+  let u: URL;
+  try {
+    u = new URL(url.trim());
+  } catch {
+    return url.trim();
+  }
+  const host = u.hostname.replace(/^www\.|^m\./, "");
+  const shorts = /^\/shorts\//.test(u.pathname);
+  const id =
+    host === "youtu.be"
+      ? u.pathname.split("/")[1]
+      : shorts
+        ? u.pathname.split("/")[2]
+        : u.searchParams.get("v");
+  if (!id || !/^[\w-]{6,20}$/.test(id)) return url.trim();
+  return shorts
+    ? `https://www.youtube.com/shorts/${id}`
+    : `https://www.youtube.com/watch?v=${id}`;
+}
+
 function ator(p: PlataformaApify): string {
   const padrao = {
     tiktok: "clockworks/tiktok-scraper",
@@ -83,6 +110,7 @@ function ator(p: PlataformaApify): string {
 function entradaAtor(
   p: PlataformaApify,
   url: string,
+  soAudio: boolean,
 ): Record<string, unknown> {
   if (p === "tiktok")
     return { postURLs: [url], shouldDownloadVideos: true, resultsPerPage: 1 };
@@ -94,9 +122,12 @@ function entradaAtor(
     storeInKVStore: true,
     // O actor limita pela ALTURA: num Short (vertical) "1440p" dá 720×1280 e
     // "1080p" cairia para 480×854. Vídeo deitado fica em 1280×720. Cobra por MB.
-    preferredQuality:
-      process.env.APIFY_YOUTUBE_QUALIDADE?.trim() ||
-      (/\/shorts\//.test(url) ? "1440p" : "720p"),
+    // Só o áudio interessa (música): a menor imagem, porque o actor cobra por
+    // MB baixado e ainda não baixa só o áudio.
+    preferredQuality: soAudio
+      ? "144p"
+      : process.env.APIFY_YOUTUBE_QUALIDADE?.trim() ||
+        (/\/shorts\//.test(url) ? "1440p" : "720p"),
     preferredFormat: "mp4",
   };
 }
@@ -266,9 +297,17 @@ async function resolverPostDoX(url: string): Promise<VideoDoLink> {
   return video;
 }
 
-/** Acha o arquivo de vídeo do link (Apify ou twitterapi.io para redes sociais; direto para .mp4/.mov/.webm). */
-export async function resolverLink(url: string): Promise<VideoDoLink> {
-  const p = detectarPlataforma(url);
+/**
+ * Acha o arquivo de vídeo do link (Apify ou twitterapi.io para redes sociais;
+ * direto para .mp4/.mov/.webm). `soAudio`: quem chama só vai usar o som (música
+ * de fundo), então o vídeo pode vir na menor qualidade.
+ */
+export async function resolverLink(
+  bruto: string,
+  opcoes: { soAudio?: boolean } = {},
+): Promise<VideoDoLink> {
+  const p = detectarPlataforma(bruto);
+  const url = p === "youtube" ? linkLimpoDoYouTube(bruto) : bruto.trim();
   if (!p)
     throw new LinkError(
       "Link não suportado. Use TikTok, Instagram (reel/post), YouTube Shorts, X (post com vídeo) ou um link direto de .mp4.",
@@ -295,7 +334,7 @@ export async function resolverLink(url: string): Promise<VideoDoLink> {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(entradaAtor(p, url.trim())),
+      body: JSON.stringify(entradaAtor(p, url, !!opcoes.soAudio)),
     },
   );
   if (!res.ok) {
@@ -331,7 +370,7 @@ export async function resolverLink(url: string): Promise<VideoDoLink> {
   }
   // O actor do YouTube não devolve título nem canal: pega do próprio YouTube.
   if (p === "youtube" && !video.titulo) {
-    const dados = await dadosDoYouTube(url.trim());
+    const dados = await dadosDoYouTube(url);
     video.titulo = dados.titulo?.slice(0, 140) ?? null;
     video.autor ??= dados.autor;
   }
