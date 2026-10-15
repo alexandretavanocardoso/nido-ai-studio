@@ -57,11 +57,19 @@ export function destinosValidos(destinos: DestinoTransmissao[]): string | null {
   return null;
 }
 
-/** Começa a transmitir para as redes. Devolve os envios abertos no LiveKit. */
+/**
+ * Começa a transmitir para as redes. Devolve os envios abertos no LiveKit.
+ * Com `paginaDoPalco`, o LiveKit grava a própria página do palco (o layout
+ * troca sozinho: só o avatar, ou jogo em tela cheia com o avatar no canto);
+ * sem ela (app fora de um endereço público), grava só o avatar da sala.
+ */
 export async function iniciarTransmissao(
   cfg: ConfigLiveKit,
   sala: string,
   destinos: DestinoTransmissao[],
+  paginaDoPalco?: (vertical: boolean) => string,
+  /** Quem publica o vídeo na sala (o avatar; na sombra, quem opera). */
+  identidadeVideo: string = IDENTIDADE_AVATAR,
 ): Promise<Transmissao> {
   const grupos = [false, true]
     .map((vertical) => ({
@@ -77,11 +85,15 @@ export async function iniciarTransmissao(
         "Egress",
         "StartEgress",
         {
-          room_name: sala,
-          media: {
-            participant_video: { identity: IDENTIDADE_AVATAR },
-            audio: { capture_all: true },
-          },
+          ...(paginaDoPalco
+            ? { web: { url: paginaDoPalco(g.vertical) } }
+            : {
+                room_name: sala,
+                media: {
+                  participant_video: { identity: identidadeVideo },
+                  audio: { capture_all: true },
+                },
+              }),
           preset: g.vertical ? "PORTRAIT_H264_720P_30" : "H264_720P_30",
           outputs: [{ stream: { protocol: "RTMP", urls: g.destinos.map(urlDoDestino) } }],
         },
@@ -127,16 +139,16 @@ const ESTADO: Record<string, EstadoEnvio> = {
  */
 export async function estadoDaTransmissao(
   cfg: ConfigLiveKit,
-  sala: string,
   t: Transmissao,
 ): Promise<EstadoTransmissao[]> {
-  const { items = [] } = await chamarLiveKit<{ items?: EgressInfo[] }>(
-    cfg,
-    "Egress",
-    "ListEgress",
-    { room_name: sala },
-    GRAVAR,
-  );
+  // Por id de cada envio: o envio da página do palco não fica ligado a uma sala.
+  const items = (
+    await Promise.all(
+      t.envios.map((e) =>
+        chamarLiveKit<{ items?: EgressInfo[] }>(cfg, "Egress", "ListEgress", { egress_id: e.id }, GRAVAR),
+      ),
+    )
+  ).flatMap((r) => r.items ?? []);
   return t.envios.flatMap((envio) => {
     const info = items.find((i) => idDoEnvio(i) === envio.id);
     const geral: EstadoEnvio = info ? (ESTADO[info.status ?? ""] ?? "iniciando") : "terminou";

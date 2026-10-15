@@ -74,6 +74,30 @@ describe("transmissão pelo LiveKit", () => {
     ]);
   });
 
+  it("com a página do palco, o LiveKit grava a página (layout com o jogo), uma por formato", async () => {
+    const corpos: Array<Record<string, unknown>> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        corpos.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify({ egress_id: `EG_${corpos.length}` }));
+      }),
+    );
+    await iniciarTransmissao(
+      cfg,
+      "live-1",
+      [
+        { rede: "youtube", servidor: "rtmp://yt/live2", chave: "y" },
+        { rede: "tiktok", servidor: "rtmp://tt/game", chave: "t" },
+      ],
+      (vertical) => `https://app/live/palco#formato=${vertical ? "pe" : "deitado"}`,
+    );
+    expect(corpos[0]).toMatchObject({ web: { url: "https://app/live/palco#formato=deitado" }, preset: "H264_720P_30" });
+    expect(corpos[1]).toMatchObject({ web: { url: "https://app/live/palco#formato=pe" }, preset: "PORTRAIT_H264_720P_30" });
+    expect(corpos[0]).not.toHaveProperty("media");
+    expect(corpos[0]).not.toHaveProperty("room_name");
+  });
+
   it("se o segundo envio falha, para o primeiro", async () => {
     const metodos: string[] = [];
     vi.stubGlobal(
@@ -112,7 +136,7 @@ describe("transmissão pelo LiveKit", () => {
         ),
       ),
     );
-    const estados = await estadoDaTransmissao(cfg, "live-1", {
+    const estados = await estadoDaTransmissao(cfg, {
       inicio: 0,
       envios: [
         { id: "EG_1", redes: ["youtube", "kick"], vertical: false },

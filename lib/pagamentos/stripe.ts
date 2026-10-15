@@ -22,11 +22,10 @@ import {
 } from "./aplicar";
 
 /**
- * Stripe: cobra em BRL (cartão, Pix e boleto), com o preço em dólar da tela
- * convertido pelo câmbio (CAMBIO_USD_BRL). Em USD, só cartão.
+ * Stripe: cobra sempre em dólar (USD), o preço da tela, e só no cartão — sem
+ * Pix e sem boleto, mesmo que estejam ligados no Dashboard.
  *  - Plano mensal → assinatura no cartão (renova sozinha; ativada a cada `invoice.paid`).
- *  - Plano anual e pacotes → pagamento único (cartão, Pix ou boleto — os métodos
- *    que estiverem ligados no Dashboard do Stripe).
+ *  - Plano anual e pacotes → pagamento único no cartão.
  * O checkout usa os preços do catálogo do Stripe (achados pela lookup key, ex.:
  * `plano_creator_mensal`, `pacote_p500`, `creditos_avulso`). Os valores de
  * lib/planos.ts mandam: sem preço no catálogo, ou com valor diferente, o preço
@@ -137,14 +136,13 @@ export async function criarCheckout(
     email: string | null;
     compra: Compra;
     origem: string;
-    moeda?: MoedaStripe;
     /** Idioma da página do Stripe e do nome do produto (o da interface). */
     idioma?: "pt" | "en";
   },
 ): Promise<string> {
   const conta = await carregarConta(o.userId);
-  const moeda = o.moeda ?? "BRL";
-  const idioma = o.idioma ?? (moeda === "USD" ? "en" : "pt");
+  const moeda: MoedaStripe = "USD";
+  const idioma = o.idioma ?? "en";
   const { nome, valor } = descricao(o.compra, moeda, idioma);
   const metadata = {
     userId: o.userId,
@@ -162,21 +160,21 @@ export async function criarCheckout(
       ? { customer_email: o.email }
       : {};
 
-  // Créditos por quantidade: o preço do catálogo é por crédito. Em BRL o valor
-  // vem do câmbio do dia, que o catálogo não acompanha: o preço é montado na hora.
+  // Créditos por quantidade: o preço do catálogo é por crédito.
   const quantidade = o.compra.tipo === "avulso" ? o.compra.creditos : 1;
   const unitario =
     o.compra.tipo === "avulso"
       ? centavos(PRECO_CREDITO[moeda])
       : centavos(valor);
-  const price =
-    moeda === "USD"
-      ? await precoCatalogo(stripe, o.compra, moeda, unitario)
-      : null;
+  const price = await precoCatalogo(stripe, o.compra, moeda, unitario);
 
   const session = await stripe.checkout.sessions.create({
     mode: assinatura ? "subscription" : "payment",
     client_reference_id: o.userId,
+    // Só cartão (inclui Apple Pay e Google Pay): Pix e boleto ficam de fora
+    // mesmo ligados no Dashboard. A API desta versão não aceita mais
+    // `payment_method_types`; os outros métodos seguem o Dashboard.
+    excluded_payment_method_types: ["pix", "boleto"],
     metadata,
     ...cliente,
     ...(assinatura
@@ -267,7 +265,8 @@ export async function processarEvento(
   switch (evento.type) {
     case "checkout.session.completed": {
       const s = evento.data.object;
-      // Pagamento único já confirmado (cartão/Pix). Boleto chega depois (async_payment_succeeded).
+      // Pagamento único já confirmado (cartão). Métodos assíncronos chegariam
+      // depois (async_payment_succeeded) — hoje o checkout só aceita cartão.
       if (s.mode === "payment" && s.payment_status === "paid")
         await concluir(s);
       break;

@@ -17,7 +17,7 @@ export async function personasSalvas(pool: Pool, userId: string): Promise<Person
     `select * from (
        select distinct on (image_key, persona->>'nome') persona, image_key, voice_id, cena, created_at
          from lives
-        where user_id = $1 and persona is not null
+        where user_id = $1 and persona is not null and tipo = 'avatar'
         order by image_key, persona->>'nome', created_at desc
      ) p
      where not coalesce((persona->>'oculta')::boolean, false)

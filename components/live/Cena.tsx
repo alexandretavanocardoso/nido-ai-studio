@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Upload } from "lucide-react";
-import { Input } from "@/components/ui/Input";
+import { Textarea } from "@/components/ui/Input";
 import { cn } from "@/lib/cn";
 import { tx } from "@/lib/i18n/tx";
 import type { CenaLive } from "@/lib/live/tipos";
@@ -25,14 +25,18 @@ const SUGESTOES = [
 /**
  * Onde a live acontece: o fundo da própria foto, um lugar descrito em texto ou
  * uma imagem do lugar. Devolve `null` enquanto não há cenário válido (fica o
- * fundo da foto).
+ * fundo da foto). Na Shadow (`sombra`), só por texto: o Lucy troca o fundo da
+ * câmera ou do vídeo, sem imagem a gerar (e sem custo).
  */
 export function EscolherCena({
   valor,
   onChange,
+  sombra,
 }: {
   valor: CenaLive | null;
   onChange: (c: CenaLive | null) => void;
+  /** Shadow: o fundo de quê ("camera" ao vivo, "video" gravado). Só por texto. */
+  sombra?: "camera" | "video";
 }) {
   const [modo, setModo] = useState<Modo>(modoDe(valor));
   const [texto, setTexto] = useState(valor && "prompt" in valor ? valor.prompt : "");
@@ -81,12 +85,12 @@ export function EscolherCena({
   return (
     <div className="grid gap-2">
       <span className="label-cap">{tx("Cenário")}</span>
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className={cn("grid gap-1.5", sombra ? "grid-cols-2" : "grid-cols-3")}>
         {(
           [
-            ["fundo", "Fundo da foto"],
+            ["fundo", sombra === "camera" ? "Fundo da câmera" : sombra ? "Fundo do vídeo" : "Fundo da foto"],
             ["texto", "Descrever"],
-            ["imagem", "Enviar imagem"],
+            ...(sombra ? [] : [["imagem", "Enviar imagem"] as const]),
           ] as const
         ).map(([m, rotulo]) => (
           <button
@@ -105,9 +109,10 @@ export function EscolherCena({
 
       {modo === "texto" ? (
         <>
-          <Input
+          <Textarea
             value={texto}
             onChange={(e) => escrever(e.target.value)}
+            rows={3}
             maxLength={400}
             placeholder={tx("Ex.: quarto gamer ao fundo, usando fone de ouvido")}
           />
@@ -158,7 +163,13 @@ export function EscolherCena({
         </label>
       ) : null}
 
-      {modo !== "fundo" ? (
+      {modo !== "fundo" && sombra ? (
+        <span className="text-[12px] text-ink-dim">
+          {sombra === "camera"
+            ? tx("O fundo da sua câmera vira este lugar, ao vivo. A IA transforma o texto num pedido detalhado. Sem custo extra.")
+            : tx("O fundo do vídeo vira este lugar. A IA transforma o texto num pedido detalhado. Sem custo extra.")}
+        </span>
+      ) : modo !== "fundo" ? (
         <span className="text-[12px] text-ink-dim">
           {modo === "texto"
             ? `${tx("Descreva o lugar e, se quiser, detalhes na pessoa (fone, microfone…). A IA transforma num pedido detalhado antes de gerar.")} `

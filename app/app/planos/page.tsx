@@ -102,8 +102,8 @@ const num = (v: number, casas = 0) =>
   });
 const data = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString(localeAtual()) : "—";
-/** O Stripe cobra em reais (o servidor converte o preço em dólar): dá cartão, Pix e boleto. */
-const rotuloCartao = () => tx("Cartão, Pix ou boleto");
+/** O Stripe cobra em dólar e só no cartão. */
+const rotuloCartao = () => tx("Cartão");
 const precoPacote = (id: PacoteId) =>
   naMoeda({ BRL: PACOTES[id].precoBRL, USD: PACOTES[id].precoUSD });
 
@@ -135,7 +135,7 @@ function Conteudo() {
   useEffect(() => {
     if (retorno === "sucesso") {
       recarregar();
-      // Pix/cartão confirmam em segundos; o webhook pode chegar um pouco depois.
+      // O cartão confirma em segundos; o webhook pode chegar um pouco depois.
       const t = setTimeout(recarregar, 4000);
       return () => clearTimeout(t);
     }
@@ -169,7 +169,7 @@ function Conteudo() {
       const res = await fetch("/api/pagamentos/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...compra, moeda: "BRL" }),
+        body: JSON.stringify(compra),
       });
       const body = (await res.json().catch(() => ({}))) as {
         url?: string;
@@ -224,9 +224,7 @@ function Conteudo() {
 
       {retorno === "sucesso" && (
         <Banner tom="ok">
-          {tx(
-            "Pagamento recebido. Seus créditos aparecem em instantes — no boleto, depois da compensação (1 a 3 dias úteis).",
-          )}
+          {tx("Pagamento recebido. Seus créditos aparecem em instantes.")}
         </Banner>
       )}
       {retorno === "cancelado" && (

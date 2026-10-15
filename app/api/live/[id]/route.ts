@@ -9,7 +9,7 @@ import {
   type LiveRow,
 } from "@/lib/live/server";
 import { contextoLive, liveNaoEncontrada } from "@/lib/live/rota";
-import { segundosNoAr } from "@/lib/live/tipos";
+import { ehSessaoSombra, segundosNoAr } from "@/lib/live/tipos";
 import { estadoAvatar } from "@/lib/video/falado";
 
 export const runtime = "nodejs";
@@ -51,7 +51,10 @@ export async function GET(
   if (live.status === "no_ar") {
     const teto = live.duracao_min * 60;
     const ultima = live.sessoes.at(-1);
-    if (ultima && ultima.fim === undefined) {
+    if (ultima && ehSessaoSombra(ultima.id)) {
+      // Sombra: a webcam está no navegador; não há sessão no Runway a conferir.
+      sessao = { estado: ultima.fim === undefined ? "ativa" : "terminou" };
+    } else if (ultima && ultima.fim === undefined) {
       try {
         const e = await estadoSessao(rw, ultima.id);
         sessao = { estado: e.estado, falha: e.falha };

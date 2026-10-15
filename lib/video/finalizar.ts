@@ -11,7 +11,7 @@ import { somarArmazenamento } from "@/lib/limites";
 import { getS3, newKey, putObject } from "@/lib/storage/s3";
 import { SOMBRA_SEM_PERSONAGEM } from "@/lib/sombra";
 import type { Character, VideoArquivo } from "@/lib/types";
-import { consultarJob, type Provedor } from "./jobs";
+import { consultarJob, keyDoNido, type Provedor } from "./jobs";
 import {
   comporLegendaIA,
   estadoLegendaIA,
@@ -30,6 +30,7 @@ import { pipeline } from "node:stream/promises";
 import type { S3Client } from "@aws-sdk/client-s3";
 import { uploadFromFile } from "@/lib/storage/s3";
 import { estadoTreino } from "@/lib/persona/server";
+import { comporSombraVideo, ehSombraVideo } from "@/lib/live/sombra-video";
 import { comPastaTemporaria } from "./server";
 import {
   criarAvatarDaCena,
@@ -429,6 +430,18 @@ export async function finalizarJob(
         cadeia: cadeiaDoJob(job.input)!,
         ultimaUrl: concluido.url!,
       }));
+    } else if (concluido.url && keyDoNido(concluido.url)) {
+      // Sombra de vídeo longo: o processo da Sombra (worker/sombra) já deixou o vídeo no S3.
+      key = keyDoNido(concluido.url)!;
+      size = Number((job.input as { trabalho?: { size?: number } }).trabalho?.size ?? 0);
+    } else if (ehSombraVideo(job.input) && concluido.url) {
+      // Shadow de vídeo gravado (Decart): o áudio do original volta, com a voz trocada se pedida.
+      ({ key, size } = await comporSombraVideo({
+        s3,
+        userId: job.user_id,
+        resultado: concluido.url,
+        input: job.input,
+      }));
     } else {
       const res = await fetch(concluido.url!);
       if (!res.ok)
@@ -601,7 +614,9 @@ export async function jobsPendentes(limite = 25): Promise<string[]> {
     `select id from video_jobs
      where status in ('na_fila', 'processando')
         or (status = 'finalizando' and updated_at < now() - interval '5 minutes')
-     order by created_at limit $1`,
+     -- Primeiro os da Sombra que o processo (worker/sombra) já terminou: ele chama o cron ao acabar.
+     order by coalesce(provedor = 'nido' and input->'trabalho'->>'estado' in ('concluido', 'erro'), false) desc, created_at
+     limit $1`,
     [limite],
   );
   return rows.map((r) => r.id);

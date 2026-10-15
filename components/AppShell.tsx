@@ -40,7 +40,6 @@ import {
   Users,
   Sticker,
   Terminal,
-  Wallet,
   X,
   Zap,
   type LucideIcon,
@@ -448,9 +447,9 @@ function MenuLateral({
       rotulo: tx("Conta"),
       itens: [
         {
-          rotulo: tx("Carteira"),
-          curto: tx("Carteira"),
-          icon: Wallet,
+          rotulo: tx("Créditos"),
+          curto: tx("Créditos"),
+          icon: Coins,
           href: "/app/planos",
           ativo: pathname === "/app/planos",
         },

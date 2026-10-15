@@ -320,7 +320,7 @@ function IndicacoesPageLiberada() {
       tx("O que gera comissão?"),
       comStripe
         ? tx(
-            "Assinaturas de qualquer plano, mensais ou anuais, e as renovações, no cartão, Pix, boleto ou USDC. Compra de créditos avulsos e o plano gratuito não geram comissão.",
+            "Assinaturas de qualquer plano, mensais ou anuais, e as renovações, no cartão ou em USDC. Compra de créditos avulsos e o plano gratuito não geram comissão.",
           )
         : tx(
             "Assinaturas de qualquer plano, mensais ou anuais, e as renovações. Compra de créditos avulsos e o plano gratuito não geram comissão.",

@@ -34,6 +34,12 @@ const BodySchema = z
     autor: z.string().trim().max(60).optional(),
     /** Assunto da live (modo espontâneo). */
     tema: z.string().trim().max(300).optional(),
+    /** Imagem da tela agora (o jogo), JPEG em base64: a IA comenta o que vê. */
+    tela: z
+      .string()
+      .max(700_000)
+      .regex(/^[A-Za-z0-9+/=]+$/)
+      .optional(),
     /** Últimas trocas e falas da live, para ter contexto e não se repetir. */
     anteriores: z
       .array(
@@ -66,7 +72,9 @@ export async function POST(
   const { pool, el, userId } = ctx;
   const live = await carregarLive(pool, userId, (await params).id);
   if (!live) return liveNaoEncontrada();
-  if (live.status !== "no_ar")
+  // Só a live com avatar fala pela IA (na sombra, quem fala é a pessoa).
+  const voz = live.voice_id;
+  if (live.status !== "no_ar" || !voz)
     return NextResponse.json(
       { error: "A live não está no ar.", code: "STATUS" },
       { status: 409 },
@@ -81,7 +89,9 @@ export async function POST(
 
   let texto = body.texto;
   // Fala espontânea: o tipo (assunto, piada, pergunta…) é sorteado aqui, sem repetir o último.
-  const tipo = body.modo === "espontanea" ? proximoTipo(body.anteriores, Math.random()) : null;
+  const comTela = !!body.tela;
+  const tipo =
+    body.modo === "espontanea" ? proximoTipo(body.anteriores, Math.random(), comTela) : null;
   if (body.modo !== "falar") {
     // Com personagem: a ficha dele. Sem personagem: o que a pessoa escreveu.
     const personagem = live.character_id
@@ -104,8 +114,9 @@ export async function POST(
           system: `${quem}\n\n${INSTRUCAO_LIVE}`,
           user:
             body.modo === "espontanea"
-              ? pedidoEspontaneo({ tipo: tipo!, tema: body.tema, anteriores: body.anteriores })
-              : pedidoLive({ autor: body.autor, texto: body.texto }, body.anteriores),
+              ? pedidoEspontaneo({ tipo: tipo!, tema: body.tema, anteriores: body.anteriores, comTela })
+              : pedidoLive({ autor: body.autor, texto: body.texto }, body.anteriores, comTela),
+          imagens: body.tela ? [{ mediaType: "image/jpeg", data: body.tela }] : undefined,
           // Folga para modelos que ainda raciocinam um pouco; a instrução já pede no máximo ~40 palavras.
           maxTokens: 1024,
           ...SEM_RACIOCINIO,
@@ -134,7 +145,7 @@ export async function POST(
   }
 
   try {
-    const audio = await el.textToSpeech.stream(live.voice_id, {
+    const audio = await el.textToSpeech.stream(voz, {
       text: texto,
       modelId: VOZ_LIVE,
       outputFormat: "pcm_16000",

@@ -1,0 +1,22 @@
+{
+  "name": "nido-sombra",
+  "private": true,
+  "description": "Processo da Sombra de vídeo longo do NIDO: troca a pessoa de uma live gravada inteira (Twitch, Kick ou arquivo) pelo influencer, em partes, com o Lucy 2.5 da Decart.",
+  "type": "module",
+  "scripts": {
+    "start": "tsx index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1146.0",
+    "@aws-sdk/s3-request-presigner": "3.1146.0",
+    "@decartai/sdk": "0.2.3",
+    "@neondatabase/serverless": "1.2.0",
+    "ffmpeg-static": "5.3.0",
+    "tsx": "4.23.15"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}

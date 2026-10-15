@@ -136,9 +136,93 @@ export class SalaLive {
       .catch(() => {});
   }
 
+  /* ---------------------------------------------------------------- */
+  /* Jogo na tela: vai para a sala como "tela" (o palco monta o layout) */
+  /* ---------------------------------------------------------------- */
+
+  private jogo: "tela" | "video" | null = null;
+  private trilhasDoVideo: MediaStreamTrack[] = [];
+  private audioDoVideo: {
+    ctx: AudioContext;
+    /** Volume aqui na página. */
+    monitor: GainNode;
+    /** O som que vai para a sala. */
+    saida: MediaStreamAudioDestinationNode;
+  } | null = null;
+
+  /**
+   * Compartilha uma tela ou janela (com o som, quando o navegador deixa).
+   * Devolve a trilha de vídeo, para a prévia e para a IA ver o jogo; `aoParar`
+   * é chamado se a pessoa parar pelo próprio navegador.
+   */
+  async compartilharTela(aoParar: () => void): Promise<MediaStreamTrack | null> {
+    await this.pararJogo();
+    const pub = await this.room.localParticipant.setScreenShareEnabled(
+      true,
+      { audio: true, resolution: { width: 1920, height: 1080, frameRate: 30 } },
+      { name: "jogo" },
+    );
+    const trilha = pub?.videoTrack?.mediaStreamTrack ?? null;
+    if (!trilha) return null;
+    this.jogo = "tela";
+    trilha.addEventListener("ended", () => {
+      this.jogo = null;
+      aoParar();
+    });
+    return trilha;
+  }
+
+  /**
+   * Publica um vídeo gravado que está tocando em `el` (em repetição). O som
+   * passa por um mixer: vai para a sala e, aqui, só no volume de `ouvir`.
+   */
+  async publicarVideo(el: HTMLVideoElement, ouvir: boolean): Promise<void> {
+    await this.pararJogo();
+    const imagem = (el as HTMLVideoElement & { captureStream(): MediaStream }).captureStream();
+    const [video] = imagem.getVideoTracks();
+    if (!video) throw new Error("Não consegui ler a imagem do vídeo.");
+    // O mixer só pode ser criado uma vez por elemento: reaproveita.
+    if (!this.audioDoVideo || this.audioDoVideo.ctx.state === "closed") {
+      const ctx = new AudioContext();
+      const origem = ctx.createMediaElementSource(el);
+      const monitor = ctx.createGain();
+      origem.connect(monitor).connect(ctx.destination);
+      const saida = ctx.createMediaStreamDestination();
+      origem.connect(saida);
+      this.audioDoVideo = { ctx, monitor, saida };
+    }
+    await this.audioDoVideo.ctx.resume();
+    this.ouvirJogo(ouvir);
+    const audio = this.audioDoVideo.saida.stream.getAudioTracks()[0];
+    const lp = this.room.localParticipant;
+    await lp.publishTrack(video, { source: Track.Source.ScreenShare, name: "jogo" });
+    this.trilhasDoVideo = [video];
+    if (audio) {
+      await lp.publishTrack(audio, { source: Track.Source.ScreenShareAudio, name: "jogo-audio" });
+      this.trilhasDoVideo.push(audio);
+    }
+    this.jogo = "video";
+  }
+
+  /** Volume do jogo aqui na página (na sala, o som vai sempre). */
+  ouvirJogo(ouvir: boolean) {
+    if (this.audioDoVideo) this.audioDoVideo.monitor.gain.value = ouvir ? 0.6 : 0;
+  }
+
+  async pararJogo() {
+    const lp = this.room.localParticipant;
+    if (this.jogo === "tela") await lp.setScreenShareEnabled(false).catch(() => {});
+    if (this.jogo === "video")
+      for (const t of this.trilhasDoVideo) await lp.unpublishTrack(t, false).catch(() => {});
+    this.trilhasDoVideo = [];
+    this.jogo = null;
+  }
+
   /** Avisa o avatar que a conversa acabou (ele sai da sala) e sai também. */
   async sair() {
     this.cancelada = true;
+    await this.pararJogo();
+    void this.audioDoVideo?.ctx.close().catch(() => {});
     if (this.room.remoteParticipants.has(IDENTIDADE_AVATAR))
       await this.room.localParticipant
         .publishData(new TextEncoder().encode(JSON.stringify({ type: "END_CALL" })), {

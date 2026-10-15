@@ -1,4 +1,4 @@
-import { CREDITOS_LIVE_POR_MINUTO } from "@/lib/planos";
+import { CREDITOS_LIVE_POR_MINUTO, CREDITOS_SOMBRA_POR_MINUTO } from "@/lib/planos";
 
 /**
  * Live do personagem — o que o servidor e a tela compartilham.
@@ -103,8 +103,21 @@ export interface EstadoTransmissao {
   erro?: string;
 }
 
+/** avatar: o avatar do Runway fala com a IA · sombra: a webcam vira o influencer (Decart). */
+export type TipoLive = "avatar" | "sombra";
+
+/** Créditos por minuto no ar de cada tipo de live. */
+export const CREDITOS_POR_MINUTO: Record<TipoLive, number> = {
+  avatar: CREDITOS_LIVE_POR_MINUTO,
+  sombra: CREDITOS_SOMBRA_POR_MINUTO,
+};
+
+/** Sessão da sombra: não é do Runway (a webcam fica no navegador). */
+export const ehSessaoSombra = (id: string) => id.startsWith("sombra-");
+
 export interface LiveResumo {
   id: string;
+  tipo: TipoLive;
   /** Vazio na live sem personagem (ver `persona`). */
   characterId: string | null;
   persona: PersonaAvulsa | null;
@@ -113,7 +126,8 @@ export interface LiveResumo {
   status: StatusLive;
   duracaoMin: number;
   imageKey: string;
-  voiceId: string;
+  /** Vazio na sombra com a voz da própria pessoa. */
+  voiceId: string | null;
   createdAt: string;
   iniciadaEm: string | null;
   encerradaEm: string | null;
@@ -154,5 +168,5 @@ export function segundosNoAr(
 }
 
 /** Créditos dos segundos no ar: minuto começado conta inteiro. */
-export const creditosDoTempo = (segundos: number): number =>
-  Math.ceil(segundos / 60) * CREDITOS_LIVE_POR_MINUTO;
+export const creditosDoTempo = (segundos: number, porMinuto = CREDITOS_LIVE_POR_MINUTO): number =>
+  Math.ceil(segundos / 60) * porMinuto;

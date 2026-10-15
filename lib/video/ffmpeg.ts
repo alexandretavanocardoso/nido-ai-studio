@@ -927,3 +927,8 @@ export async function videoParaWebpAnimado(
     saida,
   ]);
 }
+
+/** Áudio do vídeo em PCM 16 bits, mono, 16 kHz (para a troca de voz). */
+export async function extrairPcm16k(entrada: string, saida: string): Promise<void> {
+  await run(["-y", "-i", entrada, "-vn", "-ac", "1", "-ar", "16000", "-f", "s16le", saida]);
+}

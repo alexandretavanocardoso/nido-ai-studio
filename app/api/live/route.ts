@@ -8,6 +8,7 @@ import {
   resumoDaLive,
   type LiveRow,
 } from "@/lib/live/server";
+import { getDecart } from "@/lib/live/decart";
 import { contextoLive } from "@/lib/live/rota";
 import { carregarPersonagem } from "@/lib/personagens";
 import {
@@ -40,6 +41,10 @@ export async function GET() {
 
 const BodySchema = z
   .object({
+    /** avatar: avatar do Runway falando pela IA · sombra: a webcam vira o influencer. */
+    tipo: z.enum(["avatar", "sombra"]).default("avatar"),
+    /** Sombra sem personagem: só o nome de quem aparece. */
+    nomeSombra: z.string().trim().max(60).optional(),
     /** Live com personagem: a ficha dele vira a personalidade. */
     characterId: z.string().min(1).optional(),
     /** Live sem personagem: quem é e como fala, escrito na hora. */
@@ -55,7 +60,8 @@ const BodySchema = z
       })
       .optional(),
     imageKey: z.string().min(1, "Escolha a imagem do personagem."),
-    voiceId: z.string().min(1, "Escolha a voz do personagem."),
+    /** Na sombra, vazio = a voz da própria pessoa. */
+    voiceId: z.string().min(1).nullable().optional(),
     duracaoMin: z.number().int(),
     /** Cenário (lib/live/cena.ts): descrito ou por imagem. Sem ele, o fundo da foto. */
     cena: z
@@ -71,8 +77,18 @@ const BodySchema = z
       ])
       .optional(),
   })
-  .refine((b) => !!b.characterId !== !!b.persona, {
-    message: "Escolha um personagem ou envie uma foto.",
+  .refine(
+    (b) =>
+      b.tipo === "sombra"
+        ? !!b.characterId || !!b.nomeSombra
+        : !!b.characterId !== !!b.persona,
+    { message: "Escolha um personagem ou envie uma foto." },
+  )
+  .refine((b) => b.tipo === "sombra" || !!b.voiceId, {
+    message: "Escolha a voz do personagem.",
+  })
+  .refine((b) => b.tipo !== "sombra" || !b.cena || "prompt" in b.cena, {
+    message: "Na Sombra ao vivo, o cenário é só por texto.",
   });
 
 /**
@@ -108,7 +124,7 @@ export async function POST(req: Request) {
       { error: "Imagem do cenário não encontrada." },
       { status: 404 },
     );
-  if (!(await vozPermitida(pool, el, userId, body.voiceId)))
+  if (body.voiceId && !(await vozPermitida(pool, el, userId, body.voiceId)))
     return NextResponse.json({ error: "Voz não encontrada." }, { status: 404 });
   let nome = body.persona?.nome ?? "";
   if (body.characterId) {
@@ -119,6 +135,33 @@ export async function POST(req: Request) {
         { status: 404 },
       );
     nome = personagem.identidade.nome;
+  }
+
+  // Shadow ao vivo: não há avatar a montar — a foto vai direto para a Decart
+  // quando a live entrar no ar. Já fica pronta.
+  if (body.tipo === "sombra") {
+    if (!getDecart())
+      return NextResponse.json(
+        { error: "Sombra não configurada no servidor (DECART_API_KEY).", code: "CONFIG_MISSING" },
+        { status: 500 },
+      );
+    const id = nanoid(12);
+    const { rows } = await pool.query<LiveRow>(
+      `insert into lives (id, user_id, tipo, character_id, persona, cena, status, image_key, voice_id, duracao_min, sala)
+       values ($1, $2, 'sombra', $3, $4, $5, 'pronta', $6, $7, $8, $9) returning *`,
+      [
+        id,
+        userId,
+        body.characterId ?? null,
+        body.nomeSombra ? JSON.stringify({ nome: body.nomeSombra, descricao: "" }) : null,
+        cena ? JSON.stringify(cena) : null,
+        body.imageKey,
+        body.voiceId ?? null,
+        body.duracaoMin,
+        `live-${id}`,
+      ],
+    );
+    return NextResponse.json({ live: resumoDaLive(rows[0]) });
   }
 
   let avatarId: string;
@@ -160,7 +203,7 @@ export async function POST(req: Request) {
       body.characterId ?? null,
       pronto ? "pronta" : "preparando",
       body.imageKey,
-      body.voiceId,
+      body.voiceId!,
       avatarId,
       body.duracaoMin,
       `live-${id}`,

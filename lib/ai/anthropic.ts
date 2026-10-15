@@ -49,6 +49,8 @@ interface AskOptions {
   effort?: Anthropic.OutputConfig["effort"];
   /** Guarda o system prompt em cache (vale quando ele se repete em várias chamadas seguidas). */
   cacheSystem?: boolean;
+  /** Imagens que vão junto com o pedido (JPEG/PNG em base64, sem o prefixo data:). */
+  imagens?: Array<{ mediaType: "image/jpeg" | "image/png"; data: string }>;
 }
 
 /** Mensagem em português para erros de configuração da Anthropic (o resto vira "tente de novo"). */
@@ -106,6 +108,7 @@ export async function askClaude({
   thinking,
   effort,
   cacheSystem,
+  imagens,
 }: AskOptions): Promise<string> {
   const client = getClient();
   const t0 = Date.now();
@@ -123,7 +126,20 @@ export async function askClaude({
             },
           ]
         : system + instrucaoIdioma(idioma),
-      messages: [{ role: "user", content: user }],
+      messages: [
+        {
+          role: "user",
+          content: imagens?.length
+            ? [
+                ...imagens.map((i) => ({
+                  type: "image" as const,
+                  source: { type: "base64" as const, media_type: i.mediaType, data: i.data },
+                })),
+                { type: "text" as const, text: user },
+              ]
+            : user,
+        },
+      ],
       ...(thinking ? { thinking } : {}),
       ...(effort ? { output_config: { effort } } : {}),
     });

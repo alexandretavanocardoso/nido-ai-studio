@@ -1,7 +1,7 @@
 import type { Pool } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { carregarLive } from "@/lib/live/server";
+import { carregarLive, tokenDoPalco } from "@/lib/live/server";
 import { contextoLive, liveNaoEncontrada } from "@/lib/live/rota";
 import {
   destinosValidos,
@@ -10,7 +10,12 @@ import {
   pararTransmissao,
   type Transmissao,
 } from "@/lib/live/transmissao";
-import { REDES_TRANSMISSAO, type RedeTransmissao } from "@/lib/live/tipos";
+import {
+  IDENTIDADE_AVATAR,
+  identidadeOperador,
+  REDES_TRANSMISSAO,
+  type RedeTransmissao,
+} from "@/lib/live/tipos";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,7 +39,7 @@ export async function GET(
   if (!live.transmissao) return NextResponse.json({ redes: [] });
   try {
     return NextResponse.json({
-      redes: await estadoDaTransmissao(ctx.lk, live.sala, live.transmissao),
+      redes: await estadoDaTransmissao(ctx.lk, live.transmissao),
     });
   } catch (e) {
     console.warn("[live] estado da transmissão", (e as Error).message);
@@ -85,7 +90,24 @@ export async function POST(
 
   if (live.transmissao) await pararTransmissao(ctx.lk, live.transmissao.envios);
   try {
-    const t = await iniciarTransmissao(ctx.lk, live.sala, destinos);
+    // Endereço público do app: o LiveKit grava a página do palco (layout com o
+    // jogo, quando houver). Fora dele (localhost), só o avatar da sala.
+    const base = process.env.BETTER_AUTH_URL?.trim().replace(/\/+$/, "");
+    const pagina = base?.startsWith("https://")
+      ? (vertical: boolean) =>
+          `${base}/live/palco#${new URLSearchParams({
+            u: ctx.lk.url,
+            t: tokenDoPalco(ctx.lk, live, live.duracao_min * 60, vertical ? "envio-v" : "envio-h"),
+            limpo: "1",
+          })}`
+      : undefined;
+    const t = await iniciarTransmissao(
+      ctx.lk,
+      live.sala,
+      destinos,
+      pagina,
+      live.tipo === "sombra" ? identidadeOperador(live.id) : IDENTIDADE_AVATAR,
+    );
     await salvar(ctx.pool, live.id, t);
     return NextResponse.json({ redes: destinos.map((d) => d.rede) });
   } catch (e) {

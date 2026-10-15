@@ -46,7 +46,7 @@ export async function limparUsuario(
   const prefix = `users/${userId}/`;
   const stats = { arquivos: 0, apagados: 0, bytes: 0 };
 
-  // Personagens + jobs de vídeo (resultado pronto que o navegador ainda não registrou na ficha).
+  // Personagens + jobs de vídeo (resultado pronto que o navegador ainda não registrou na ficha) + lives.
   const { rows } = await pool.query<{ json: string }>(
     `select data::text as json from characters where user_id = $1
        union all
@@ -55,6 +55,9 @@ export async function limparUsuario(
        select concat_ws(' ', key, key_alta) from personas_treino where user_id = $1
        union all
        select amostra_key from vozes where user_id = $1 and amostra_key is not null
+       union all
+       -- A foto da live (avulsa ou da Sombra ao vivo) e o cenário: as personas salvas reusam.
+       select concat_ws(' ', image_key, cena::text) from lives where user_id = $1
        union all
        -- A foto de perfil enviada no Perfil (/api/storage/file/users/…).
        select coalesce("image", '') from "user" where "id" = $1`,

@@ -295,6 +295,28 @@ export function creditosVideoFalado(
  * cobra a duração escolhida ao entrar no ar; os minutos não usados voltam.
  */
 export const CREDITOS_LIVE_POR_MINUTO = 35;
+/**
+ * Shadow ao vivo, por minuto no ar: a webcam vira o influencer em tempo real
+ * (Decart Lucy 2.5, US$ 0,02/s = US$ 1,20/min) + LiveKit + a voz trocada na
+ * ElevenLabs, quando escolhida. Cobrado como a live: a duração ao entrar no
+ * ar, e o que não usar volta.
+ */
+export const CREDITOS_SOMBRA_POR_MINUTO = 150;
+export const creditosSombraAoVivo = (minutos: number): number =>
+  minutos * CREDITOS_SOMBRA_POR_MINUTO;
+
+/**
+ * Sombra de vídeo gravado, por segundo do trecho escolhido: Decart Lucy 2.5 em
+ * lote (US$ 0,04/s) + a voz trocada (opcional). Uma live inteira (até 12 h) ou
+ * só um trecho dela. Até 3 min, o app processa sozinho; mais que isso (ou
+ * Twitch/Kick), o processo da Sombra (worker/sombra) processa em partes.
+ */
+export const CREDITOS_SOMBRA_VIDEO_POR_SEGUNDO = 5;
+export const SOMBRA_VIDEO_MAX_SEGUNDOS = 12 * 3600;
+export const SOMBRA_VIDEO_DIRETO_MAX_SEGUNDOS = 180;
+export const creditosSombraVideo = (segundos: number): number =>
+  Math.ceil(segundos) * CREDITOS_SOMBRA_VIDEO_POR_SEGUNDO;
+
 /** Atalhos de duração da live, em minutos (dá para digitar outra, entre os limites). */
 export const DURACOES_LIVE = [5, 15, 30, 60] as const;
 export const LIVE_MIN_MINUTOS = 1;

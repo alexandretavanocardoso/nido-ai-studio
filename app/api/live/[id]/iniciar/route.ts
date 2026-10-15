@@ -1,3 +1,4 @@
+import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 import { cobrarOuResponder, estornarSeHouver } from "@/lib/creditos";
 import {
@@ -10,7 +11,7 @@ import {
 } from "@/lib/live/server";
 import { contextoLive, liveNaoEncontrada } from "@/lib/live/rota";
 import { IDENTIDADE_AVATAR, segundosNoAr } from "@/lib/live/tipos";
-import { creditosLive } from "@/lib/planos";
+import { creditosLive, creditosSombraAoVivo } from "@/lib/planos";
 import { mensagemDeErroRunway } from "@/lib/video/runway";
 
 export const runtime = "nodejs";
@@ -46,6 +47,33 @@ export async function POST(
       restante,
     };
   };
+
+  // Shadow ao vivo: a webcam vira o influencer no navegador (Decart); aqui só
+  // cobra a duração, marca o início e devolve o acesso à sala.
+  if (live.tipo === "sombra" && live.status === "pronta") {
+    const cobrado = await cobrarOuResponder(
+      userId,
+      creditosSombraAoVivo(live.duracao_min),
+      "live_sombra",
+      live.id,
+    );
+    if (cobrado instanceof NextResponse) return cobrado;
+    const sessao = { id: `sombra-${nanoid(8)}`, inicio: Date.now() };
+    const { rows } = await pool.query<LiveRow>(
+      `update lives set status = 'no_ar', iniciada_em = now(), sessoes = $2, cobranca = $3
+        where id = $1 and status = 'pronta' returning *`,
+      [live.id, JSON.stringify([sessao]), JSON.stringify(cobrado.cobranca)],
+    );
+    if (!rows[0]) {
+      await estornarSeHouver(cobrado.cobranca);
+      return NextResponse.json(
+        { error: "Esta live já entrou no ar em outra aba.", code: "CONFLITO" },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json(acesso(rows[0]));
+  }
+  if (live.tipo === "sombra" && live.status === "no_ar") return NextResponse.json(acesso(live));
 
   if (live.status === "pronta") {
     const cobrado = await cobrarOuResponder(

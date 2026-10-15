@@ -8,6 +8,9 @@ import {
   Loader2,
   MessageSquare,
   Mic,
+  MicOff,
+  Minus,
+  Plus,
   Radio,
   Send,
   Sparkles,
@@ -37,14 +40,7 @@ import {
   type LiveResumo,
   type PersonaSalva,
 } from "@/lib/live/tipos";
-import {
-  CREDITOS_CENARIO,
-  creditosLive,
-  DURACOES_LIVE,
-  duracaoLiveValida,
-  LIVE_MAX_MINUTOS,
-  LIVE_MIN_MINUTOS,
-} from "@/lib/planos";
+import { creditosLive, creditosSombraAoVivo } from "@/lib/planos";
 import type { TrocaLive } from "@/lib/prompts/live";
 import { fileUrl, uploadFile } from "@/lib/storage/client";
 import { useCharacters } from "@/lib/store";
@@ -52,9 +48,20 @@ import type { Character } from "@/lib/types";
 import type { MensagemChat } from "./chat-twitch";
 import { EscolherCena } from "./Cena";
 import { GuiaDiscord } from "./GuiaDiscord";
+import { ControlesDoJogo, type JogoNaTela } from "./Jogo";
 import { LinkDoPalco } from "./LinkDoPalco";
+import { FormSombraAoVivo } from "./NovaSombra";
+import { FormSombraVideo } from "./SombraDeVideo";
+import { Colunas, PrepararLive } from "./Preparar";
 import { ConexoesChat, NOME_ORIGEM } from "./Chats";
 import { SalaLive, type EstadoSala } from "./sala";
+import {
+  podeAtrasarVideo,
+  SINCRONIA_MAX_MS,
+  SINCRONIA_PADRAO_MS,
+  SombraAoVivo,
+  type EstadoSombra,
+} from "./sombra";
 import { PainelTransmissao } from "./Transmissao";
 import { VozBiblioteca, type VozEscolhida } from "./VozBiblioteca";
 
@@ -107,7 +114,7 @@ interface Voz {
   nome: string;
 }
 
-type ModoNova = "personagem" | "foto";
+type ModoNova = "personagem" | "foto" | "sombra" | "sombra_video";
 
 function NovaLive() {
   const router = useRouter();
@@ -147,11 +154,13 @@ function NovaLive() {
       {erro ? <p className="text-[13px] text-pink">{erro}</p> : null}
 
       <section className="card p-4 sm:p-6 grid gap-5">
-        <div role="tablist" className="flex gap-1 border-b border-line">
+        <div role="tablist" className="-mx-4 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line px-4 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
           {(
             [
               ["personagem", "Personagem"],
               ["foto", "Foto avulsa"],
+              ["sombra", "Sombra ao vivo"],
+              ["sombra_video", "Sombra de vídeo"],
             ] as const
           ).map(([m, rotulo]) => (
             <button
@@ -161,19 +170,23 @@ function NovaLive() {
               aria-selected={m === modoAtual}
               onClick={() => setModo(m)}
               className={cn(
-                "relative px-4 h-10 text-[14px] font-semibold cursor-pointer",
+                "relative h-10 shrink-0 whitespace-nowrap px-4 text-[14px] font-semibold cursor-pointer",
                 m === modoAtual ? "text-ink" : "text-ink-mute hover:text-ink",
               )}
             >
               {tx(rotulo)}
               {m === modoAtual && (
-                <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-accent" />
+                <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-accent" />
               )}
             </button>
           ))}
         </div>
 
-        {modoAtual === "foto" ? (
+        {modoAtual === "sombra" ? (
+          <FormSombraAoVivo personagens={ordenados} onCriada={aoCriar} />
+        ) : modoAtual === "sombra_video" ? (
+          <FormSombraVideo personagens={ordenados} />
+        ) : modoAtual === "foto" ? (
           <FormFotoAvulsa onCriada={aoCriar} />
         ) : !character ? (
           <p className="text-[14px] text-ink-mute">
@@ -209,6 +222,11 @@ function NovaLive() {
                     <span className="font-semibold text-ink truncate">
                       {c?.identidade.nome || l.persona?.nome || tx("Personagem")}
                     </span>
+                    {l.tipo === "sombra" ? (
+                      <span className="shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-bold text-accent">
+                        {tx("Sombra")}
+                      </span>
+                    ) : null}
                     <span className="text-ink-mute">
                       {new Date(l.createdAt).toLocaleString()} · {l.duracaoMin} min
                     </span>
@@ -232,131 +250,6 @@ function NovaLive() {
         )}
       </section>
     </main>
-  );
-}
-
-/** Duas colunas no desktop (imagem | quem é e voz); empilhado no celular. */
-function Colunas({ imagem, resto }: { imagem: React.ReactNode; resto: React.ReactNode }) {
-  return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] lg:gap-8">
-      <div className="grid content-start gap-5">{imagem}</div>
-      <div className="grid content-start gap-5">{resto}</div>
-    </div>
-  );
-}
-
-/**
- * Duração (atalhos ou minutos digitados) e o rodapé com o total e o botão de
- * preparar, iguais nos dois modos. Cria a live no servidor.
- */
-function PrepararLive({
-  pronto,
-  comCena,
-  corpo,
-  onCriada,
-}: {
-  /** Tudo escolhido para preparar. */
-  pronto: boolean;
-  /** Com cenário: a imagem no cenário é cobrada ao preparar. */
-  comCena: boolean;
-  /** O que vai para POST /api/live, menos a duração. */
-  corpo: () => Record<string, unknown>;
-  onCriada: (l: LiveResumo) => void;
-}) {
-  /** Minutos digitados (os atalhos preenchem o mesmo campo). */
-  const [minutos, setMinutos] = useState("15");
-  const duracao = Number(minutos);
-  const duracaoOk = duracaoLiveValida(duracao);
-  const atalho = (DURACOES_LIVE as readonly number[]).includes(duracao);
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-
-  async function preparar() {
-    setErro(null);
-    setEnviando(true);
-    try {
-      const res = await fetch("/api/live", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...corpo(), duracaoMin: duracao }),
-      });
-      const b = (await res.json().catch(() => ({}))) as { live?: LiveResumo; error?: string };
-      if (!res.ok || !b.live) return setErro(txErro(b.error ?? `Falha (HTTP ${res.status}).`));
-      onCriada(b.live);
-    } catch (e) {
-      setErro((e as Error).message);
-    } finally {
-      setEnviando(false);
-    }
-  }
-
-  const pilula = (ativo: boolean) =>
-    cn(
-      "inline-flex h-9 items-center rounded-full border px-4 text-[13px] font-semibold transition",
-      ativo ? "border-accent bg-accent/15 text-ink" : "border-line text-ink-mute hover:text-ink",
-    );
-
-  return (
-    <>
-      <div className="grid gap-2">
-        <span className="label-cap">{tx("Duração máxima")}</span>
-        <div className="flex flex-wrap items-center gap-2">
-          {DURACOES_LIVE.map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => setMinutos(String(d))}
-              className={cn(pilula(d === duracao), "cursor-pointer")}
-            >
-              {d} min
-            </button>
-          ))}
-          <label className={cn(pilula(!atalho), "gap-2 cursor-text focus-within:border-accent")}>
-            {tx("Outra")}
-            <input
-              type="number"
-              inputMode="numeric"
-              min={LIVE_MIN_MINUTOS}
-              max={LIVE_MAX_MINUTOS}
-              step={1}
-              value={atalho ? "" : minutos}
-              placeholder="—"
-              onChange={(e) => setMinutos(e.target.value)}
-              onFocus={(e) => atalho && e.currentTarget.select()}
-              aria-label={tx("Duração em minutos")}
-              className="w-9 bg-transparent text-center text-ink outline-none focus-visible:outline-none [appearance:textfield] placeholder:text-ink-dim [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
-            min
-          </label>
-        </div>
-        {!duracaoOk && minutos ? (
-          <span className="text-[12px] text-pink">{tx("Use de 1 a 120 minutos, sem fração.")}</span>
-        ) : null}
-      </div>
-
-      <div className="-mx-4 -mb-4 mt-1 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-line px-4 py-4 sm:-mx-6 sm:-mb-6 sm:px-6">
-        <div className="mr-auto grid gap-0.5">
-          <span className="text-[15px] font-bold text-ink">
-            {duracaoOk ? `${duracao} min · ${creditosLive(duracao)} ${tx("créditos")}` : "—"}
-            {comCena ? (
-              <span className="font-semibold text-ink-mute">
-                {" "}+ {CREDITOS_CENARIO} {tx("do cenário")}
-              </span>
-            ) : null}
-          </span>
-          <span className="max-w-xl text-[12px] text-ink-dim">
-            {tx(
-              "Cobrados ao entrar no ar; os minutos que você não usar voltam quando a live encerra. Preparar o avatar não custa nada.",
-            )}
-          </span>
-        </div>
-        <Button variant="accent" onClick={preparar} disabled={enviando || !pronto || !duracaoOk}>
-          {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radio className="w-4 h-4" />}
-          {tx("Preparar a live")}
-        </Button>
-        {erro ? <p className="basis-full text-[13px] text-pink">{erro}</p> : null}
-      </div>
-    </>
   );
 }
 
@@ -485,7 +378,13 @@ function FormPersonagem({
       />
 
       <PrepararLive
-        pronto={!!imagem && !!voz}
+        falta={
+          !imagem
+            ? tx("Falta escolher a imagem do avatar.")
+            : !voz
+              ? tx("Falta escolher a voz.")
+              : null
+        }
         comCena={!!cena}
         corpo={() => ({ characterId: character.id, imageKey: imagem, voiceId: voz, cena: cena ?? undefined })}
         onCriada={onCriada}
@@ -669,7 +568,17 @@ function FormFotoAvulsa({ onCriada }: { onCriada: (l: LiveResumo) => void }) {
       />
 
       <PrepararLive
-        pronto={!!imagem && !!voz && !!nome.trim() && descricao.trim().length >= 10}
+        falta={
+          !imagem
+            ? tx("Falta enviar a foto do avatar.")
+            : !nome.trim()
+              ? tx("Falta o nome.")
+              : descricao.trim().length < 10
+                ? tx("Falta descrever quem é e como fala (pelo menos uma frase).")
+                : !voz
+                  ? tx("Falta escolher a voz.")
+                  : null
+        }
         comCena={!!cena}
         corpo={() => ({
           persona: { nome, descricao, vozNome: voz?.nome },
@@ -716,11 +625,25 @@ function PainelLive({ id }: { id: string }) {
   const [previa, setPrevia] = useState<string | null>(null);
   /** O que o avatar está falando agora (legenda no palco). */
   const [falando, setFalando] = useState<string | null>(null);
-  const [aba, setAba] = useState<"chat" | "transmitir" | "obs">("transmitir");
+  const [aba, setAba] = useState<"chat" | "jogo" | "transmitir" | "obs">("transmitir");
+  /** Jogo na tela (tela compartilhada ou vídeo gravado): o avatar vai para o canto. */
+  const [jogo, setJogo] = useState<JogoNaTela | null>(null);
+  const jogoRef = useRef<HTMLVideoElement>(null);
+  const urlDoVideo = useRef<string | null>(null);
+  /** Sombra ao vivo: a webcam virando o influencer (components/live/sombra.ts). */
+  const sombraRef = useRef<SombraAoVivo | null>(null);
+  const [videoSombra, setVideoSombra] = useState<MediaStream | null>(null);
+  const [estadoSombra, setEstadoSombra] = useState<EstadoSombra | null>(null);
+  const [filaSombra, setFilaSombra] = useState<number | null>(null);
+  const [sincronia, setSincronia] = useState(SINCRONIA_PADRAO_MS);
+  const [mudo, setMudo] = useState(false);
 
   const character = personagens.find((c) => c.id === live?.characterId);
   const noAr = live?.status === "no_ar";
   const conectado = !!estado && estado !== "desconectada";
+  const ehSombra = live?.tipo === "sombra";
+  /** Tem vídeo no palco: o avatar do Runway ou a webcam transformada. */
+  const temVideo = !!trilhaVideo || !!videoSombra;
 
   // Entrou no ar: o chat passa a ser a aba principal.
   useEffect(() => {
@@ -742,6 +665,7 @@ function PainelLive({ id }: { id: string }) {
     setLive(b.live);
     if (b.restante !== undefined) setRestante(b.restante);
     if (b.previa) setPrevia(b.previa);
+    else if (b.live.tipo === "sombra") setPrevia(fileUrl(b.live.imageKey));
     if (b.live.status === "encerrada") avisarCreditos();
   }, [id]);
 
@@ -770,6 +694,12 @@ function PainelLive({ id }: { id: string }) {
     return () => void trilhaVideo.detach(el);
   }, [trilhaVideo]);
   useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !ehSombra) return;
+    el.srcObject = videoSombra;
+    if (videoSombra) void el.play().catch(() => {});
+  }, [videoSombra, ehSombra]);
+  useEffect(() => {
     const el = audioRef.current;
     if (!el || !trilhaAudio) return;
     trilhaAudio.attach(el);
@@ -791,6 +721,8 @@ function PainelLive({ id }: { id: string }) {
   // Sair da página pelo menu também encerra.
   useEffect(
     () => () => {
+      void sombraRef.current?.parar();
+      sombraRef.current = null;
       const sala = salaRef.current;
       if (!sala) return;
       salaRef.current = null;
@@ -801,6 +733,7 @@ function PainelLive({ id }: { id: string }) {
   );
 
   async function entrar() {
+    if (live?.tipo === "sombra") return entrarSombra(live);
     if (live?.status === "pronta") {
       const ok = await confirmar({
         titulo: tx("Entrar no ar?"),
@@ -836,6 +769,127 @@ function PainelLive({ id }: { id: string }) {
     }
   }
 
+  /**
+   * Sombra ao vivo: liga a câmera (antes de cobrar: se o navegador não deixar,
+   * nada é cobrado), entra na sala e abre o Lucy. Se só o Lucy caiu, reabre.
+   */
+  async function entrarSombra(l: LiveResumo) {
+    if (l.status === "pronta") {
+      const ok = await confirmar({
+        titulo: tx("Entrar no ar?"),
+        mensagem: `${tx("Serão cobrados")} ${creditosSombraAoVivo(l.duracaoMin)} ${tx("créditos")} (${l.duracaoMin} min). ${tx("O que você não usar volta ao encerrar.")}`,
+        confirmar: tx("Entrar no ar"),
+      });
+      if (!ok) return;
+    }
+    setErro(null);
+    setEntrando(true);
+    try {
+      if (sombraRef.current && salaRef.current && conectado) return await sombraRef.current.conectar();
+      await sombraRef.current?.parar();
+      const sala = new SalaLive({ estado: setEstado, video: setTrilhaVideo, audio: setTrilhaAudio });
+      const sombra = new SombraAoVivo({
+        room: sala.room,
+        liveId: id,
+        imagem: fileUrl(l.imageKey),
+        vozTrocada: !!l.voiceId,
+        ao: {
+          estado: (e, posicao) => {
+            setEstadoSombra(e);
+            setFilaSombra(posicao ?? null);
+          },
+          video: setVideoSombra,
+          erro: (m) => setErro(txErro(m)),
+        },
+      });
+      sombra.ajustarSincronia(sincronia);
+      try {
+        await sombra.abrirCamera();
+      } catch (e) {
+        setEstadoSombra(null);
+        return setErro(erroDaCamera(e));
+      }
+      const res = await fetch(`/api/live/${id}/iniciar`, { method: "POST" });
+      const b = (await res.json().catch(() => ({}))) as { url?: string; token?: string; restante?: number; error?: string };
+      avisarCreditos();
+      if (!res.ok || !b.url || !b.token) {
+        await sombra.parar();
+        setEstadoSombra(null);
+        return setErro(txErro(b.error ?? `Falha (HTTP ${res.status}).`));
+      }
+      setRestante(b.restante ?? null);
+      salaRef.current = sala;
+      sombraRef.current = sombra;
+      await sala.conectar(b.url, b.token);
+      await atualizar();
+      await sombra.conectar();
+    } catch (e) {
+      setErro(txErro((e as Error).message));
+    } finally {
+      setEntrando(false);
+    }
+  }
+
+  /** Tira o jogo da tela (para de publicar e limpa o vídeo). */
+  const pararJogo = useCallback(async () => {
+    await salaRef.current?.pararJogo();
+    const el = jogoRef.current;
+    if (el) {
+      el.pause();
+      el.removeAttribute("src");
+      el.srcObject = null;
+    }
+    if (urlDoVideo.current) URL.revokeObjectURL(urlDoVideo.current);
+    urlDoVideo.current = null;
+    setJogo(null);
+  }, []);
+
+  async function compartilharTela() {
+    const sala = salaRef.current;
+    const el = jogoRef.current;
+    if (!sala || !el) return;
+    const trilha = await sala.compartilharTela(() => void pararJogo());
+    if (!trilha) return;
+    el.srcObject = new MediaStream([trilha]);
+    el.muted = true;
+    await el.play().catch(() => {});
+    setJogo({ tipo: "tela" });
+  }
+
+  async function usarVideo(arquivo: File) {
+    const sala = salaRef.current;
+    const el = jogoRef.current;
+    if (!sala || !el) return;
+    await pararJogo();
+    const url = URL.createObjectURL(arquivo);
+    urlDoVideo.current = url;
+    el.srcObject = null;
+    el.src = url;
+    el.loop = true;
+    el.muted = false;
+    await el.play();
+    await sala.publicarVideo(el, ouvir);
+    setJogo({ tipo: "video", nome: arquivo.name });
+  }
+
+  /** Imagem do jogo agora (JPEG em base64), para a IA comentar. */
+  const pegarTela = useCallback((): string | null => {
+    const el = jogoRef.current;
+    if (!jogo || !el || !el.videoWidth) return null;
+    const largura = Math.min(768, el.videoWidth);
+    const canvas = document.createElement("canvas");
+    canvas.width = largura;
+    canvas.height = Math.round((el.videoHeight / el.videoWidth) * largura);
+    canvas.getContext("2d")?.drawImage(el, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.6).split(",")[1] ?? null;
+  }, [jogo]);
+
+  function mudarSincronia(passo: number) {
+    const novo = Math.min(SINCRONIA_MAX_MS, Math.max(0, sincronia + passo));
+    setSincronia(novo);
+    sombraRef.current?.ajustarSincronia(novo);
+  }
+
   async function encerrar() {
     const ok = await confirmar({
       titulo: tx("Encerrar a live?"),
@@ -844,6 +898,10 @@ function PainelLive({ id }: { id: string }) {
       tom: "perigo",
     });
     if (!ok) return;
+    await pararJogo();
+    await sombraRef.current?.parar();
+    sombraRef.current = null;
+    setEstadoSombra(null);
     const sala = salaRef.current;
     salaRef.current = null;
     await sala?.sair();
@@ -867,7 +925,19 @@ function PainelLive({ id }: { id: string }) {
 
   const nome = character?.identidade.nome || live.persona?.nome || tx("Personagem");
   const palcoAtivo = live.status === "pronta" || noAr;
-  const podeEntrar = !conectado || estado === "avatar_saiu";
+  const podeEntrar = !conectado || (ehSombra ? estadoSombra === "caiu" : estado === "avatar_saiu");
+  const precoNoAr = ehSombra ? creditosSombraAoVivo(live.duracaoMin) : creditosLive(live.duracaoMin);
+  /** O que mostrar no palco enquanto não há vídeo (ou a sombra caiu/reconecta). */
+  const avisoSombra =
+    estadoSombra === "camera" || (entrando && !estadoSombra)
+      ? tx("Ligando a câmera…")
+      : estadoSombra === "conectando"
+        ? tx("Transformando a sua câmera no influencer…")
+        : estadoSombra === "na_fila"
+          ? `${tx("Na fila da Decart")}${filaSombra ? ` (${tx("posição")} ${filaSombra})` : ""}…`
+          : estadoSombra === "caiu"
+            ? tx("A Sombra caiu. Clique em Reconectar a Sombra.")
+            : null;
 
   return (
     <main className="mx-auto max-w-[1440px] px-4 sm:px-6 py-6 sm:py-8 grid grid-cols-[minmax(0,1fr)] gap-5">
@@ -896,7 +966,12 @@ function PainelLive({ id }: { id: string }) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setOuvir((o) => !o)}
+                onClick={() =>
+                  setOuvir((o) => {
+                    salaRef.current?.ouvirJogo(!o);
+                    return !o;
+                  })
+                }
                 title={tx("Ouvir o avatar nesta página")}
               >
                 {ouvir ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
@@ -911,10 +986,12 @@ function PainelLive({ id }: { id: string }) {
               <Button variant="accent" onClick={entrar} disabled={entrando}>
                 {entrando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radio className="w-4 h-4" />}
                 {live.status === "pronta"
-                  ? `${tx("Entrar no ar")} · ${creditosLive(live.duracaoMin)} ${tx("créditos")}`
-                  : estado === "avatar_saiu"
-                    ? tx("Trazer o avatar de volta")
-                    : tx("Voltar para a sala")}
+                  ? `${tx("Entrar no ar")} · ${precoNoAr} ${tx("créditos")}`
+                  : ehSombra && estadoSombra === "caiu"
+                    ? tx("Reconectar a Sombra")
+                    : estado === "avatar_saiu"
+                      ? tx("Trazer o avatar de volta")
+                      : tx("Voltar para a sala")}
               </Button>
             ) : null}
           </div>
@@ -956,33 +1033,36 @@ function PainelLive({ id }: { id: string }) {
           <section className="grid gap-2">
             {/* Palco: o mesmo que as redes recebem (16:9). */}
             <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-line bg-black">
-              {previa ? (
-                // Fundo: a imagem do avatar desfocada, preenchendo as laterais.
+              {!temVideo && previa ? (
+                // Antes do vídeo chegar: a imagem que virou o avatar (já no cenário),
+                // ocupando o palco inteiro — o corte guarda o rosto, no alto.
                 // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={previa}
-                  alt=""
-                  aria-hidden
-                  className="absolute inset-0 h-full w-full scale-110 object-cover opacity-40 blur-2xl"
-                />
+                <img src={previa} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_25%]" />
               ) : null}
-              {!trilhaVideo && previa ? (
-                // Antes do vídeo chegar: a imagem que virou o avatar (já no cenário).
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={previa} alt="" className="absolute inset-0 h-full w-full object-contain" />
-              ) : null}
+              {/* Jogo: sempre montado (o navegador precisa dele para tocar e capturar). */}
+              <video
+                ref={jogoRef}
+                playsInline
+                className={cn("absolute inset-0 h-full w-full bg-black object-contain", !jogo && "invisible")}
+              />
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
-                className={cn("absolute inset-0 h-full w-full object-contain", !trilhaVideo && "invisible")}
+                className={cn(
+                  "absolute",
+                  jogo
+                    ? "bottom-[3%] right-[2%] aspect-square w-[24%] rounded-2xl border-4 border-white/90 bg-black object-cover shadow-2xl"
+                    : "inset-0 h-full w-full object-cover",
+                  !temVideo && "invisible",
+                )}
               />
               <audio ref={audioRef} autoPlay muted={!ouvir} />
 
               {/* Selos no alto: ao vivo, tempo e redes recebendo. */}
               <div className="absolute inset-x-3 top-3 flex flex-wrap items-center gap-2">
-                {trilhaVideo ? (
+                {temVideo ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-pink px-2.5 py-1 text-[11px] font-bold text-white">
                     <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
                     {tx("AO VIVO")}
@@ -1004,7 +1084,7 @@ function PainelLive({ id }: { id: string }) {
               </div>
 
               {/* Legenda: o que o avatar está falando agora. */}
-              {trilhaVideo && falando ? (
+              {temVideo && falando ? (
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-5 pb-4 pt-10">
                   <p className="mx-auto max-w-3xl text-center text-[15px] font-medium leading-snug text-white">
                     {falando}
@@ -1013,7 +1093,21 @@ function PainelLive({ id }: { id: string }) {
               ) : null}
 
               {/* Enquanto o avatar não está no vídeo: o que está acontecendo. */}
-              {!trilhaVideo && (
+              {ehSombra && (avisoSombra || !temVideo) ? (
+                <div className="absolute inset-x-0 bottom-0 grid justify-items-center bg-gradient-to-t from-black/85 to-transparent px-5 pb-5 pt-12 text-center text-[13px] text-white">
+                  {avisoSombra ? (
+                    <span className="inline-flex items-center gap-2">
+                      {estadoSombra !== "caiu" ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                      {avisoSombra}
+                    </span>
+                  ) : noAr ? (
+                    tx("Volte para a sala para continuar a live.")
+                  ) : (
+                    tx("Esta foto vai aparecer no lugar da sua webcam, com os seus movimentos. Entre no ar quando quiser.")
+                  )}
+                </div>
+              ) : null}
+              {!ehSombra && !trilhaVideo && (
                 <div className="absolute inset-x-0 bottom-0 grid justify-items-center bg-gradient-to-t from-black/85 to-transparent px-5 pb-5 pt-12 text-center text-[13px] text-white">
                   {estado === "conectando" || estado === "esperando_avatar" || entrando ? (
                     <span className="inline-flex items-center gap-2">
@@ -1030,17 +1124,60 @@ function PainelLive({ id }: { id: string }) {
                 </div>
               )}
             </div>
+            {ehSombra && conectado ? (
+              <div className="flex flex-wrap items-center gap-2 text-[12px] text-ink-mute">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setMudo((m) => {
+                      sombraRef.current?.mutar(!m);
+                      return !m;
+                    })
+                  }
+                >
+                  {mudo ? <MicOff className="w-4 h-4 text-pink" /> : <Mic className="w-4 h-4" />}
+                  {mudo ? tx("Microfone desligado") : tx("Microfone ligado")}
+                </Button>
+                <span className="ml-1">{tx("Sincronia da voz")}</span>
+                <button
+                  type="button"
+                  aria-label={tx("Voz mais cedo")}
+                  onClick={() => mudarSincronia(-50)}
+                  className="grid h-7 w-7 place-items-center rounded-full border border-line text-ink-mute hover:text-ink cursor-pointer"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <span className="mono w-14 text-center text-ink">{sincronia} ms</span>
+                <button
+                  type="button"
+                  aria-label={tx("Voz mais tarde")}
+                  onClick={() => mudarSincronia(50)}
+                  className="grid h-7 w-7 place-items-center rounded-full border border-line text-ink-mute hover:text-ink cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+                {live.voiceId && !podeAtrasarVideo() ? (
+                  <span className="basis-full text-ink-dim">
+                    {tx("Neste navegador a voz trocada sai alguns segundos depois da boca. Use o Chrome ou o Edge para sincronizar.")}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
             <p className="text-[12px] text-ink-dim">
-              {tx("O palco mostra o mesmo que as redes recebem. Marque a live como conteúdo feito com IA na plataforma.")}
+              {ehSombra
+                ? tx("O palco mostra o mesmo que as redes recebem. Se a boca e a voz não casarem, ajuste a sincronia. Marque a live como conteúdo feito com IA na plataforma.")
+                : tx("O palco mostra o mesmo que as redes recebem. Marque a live como conteúdo feito com IA na plataforma.")}
             </p>
           </section>
 
           <aside className="grid content-start gap-3">
-            <div role="tablist" className="grid grid-cols-3 gap-1 rounded-full border border-line p-1">
+            <div role="tablist" className="grid grid-cols-4 gap-1 rounded-full border border-line p-1">
               {(
                 [
                   ["chat", "Chat"],
                   ["transmitir", "Transmitir"],
+                  ["jogo", "Jogo"],
                   ["obs", "OBS e Discord"],
                 ] as const
               ).map(([a, rotulo]) => (
@@ -1063,13 +1200,23 @@ function PainelLive({ id }: { id: string }) {
 
             {/* As abas ficam montadas: o chat (fila e conexões) e a transmissão não podem se perder ao trocar. */}
             <div className={cn(aba !== "chat" && "hidden")}>
-              {noAr && conectado ? (
-                <Conducao sala={salaRef} id={id} avatarNoAr={!!trilhaVideo} onFalando={setFalando} />
+              {noAr && conectado && ehSombra ? (
+                <ChatDaSombra id={id} />
+              ) : noAr && conectado ? (
+                <Conducao
+                  sala={salaRef}
+                  id={id}
+                  avatarNoAr={!!trilhaVideo}
+                  onFalando={setFalando}
+                  pegarTela={pegarTela}
+                />
               ) : (
                 <div className="card grid gap-2 p-5 text-[13px] text-ink-mute">
                   <p className="font-semibold text-ink">{tx("O chat abre quando a live entrar no ar.")}</p>
                   <p>
-                    {tx("Aqui você liga o chat da Twitch, do YouTube, do Kick e do Discord (ou cola as mensagens) e responde uma a uma ou deixa o avatar responder sozinho.")}
+                    {ehSombra
+                      ? tx("Aqui você liga o chat da Twitch, do YouTube, do Kick e do Discord para ler as mensagens num lugar só enquanto fala.")
+                      : tx("Aqui você liga o chat da Twitch, do YouTube, do Kick e do Discord (ou cola as mensagens) e responde uma a uma ou deixa o avatar responder sozinho.")}
                   </p>
                 </div>
               )}
@@ -1078,8 +1225,19 @@ function PainelLive({ id }: { id: string }) {
               <PainelTransmissao
                 id={id}
                 noAr={noAr && conectado}
-                avatarNoAr={!!trilhaVideo}
+                avatarNoAr={temVideo}
                 transmitindo={live.transmitindo}
+              />
+            </div>
+            <div className={cn(aba !== "jogo" && "hidden")}>
+              <ControlesDoJogo
+                id={id}
+                conectado={noAr && conectado}
+                jogo={jogo}
+                onTela={compartilharTela}
+                onVideo={usarVideo}
+                onParar={pararJogo}
+                sombra={ehSombra}
               />
             </div>
             <div className={cn("grid gap-3", aba !== "obs" && "hidden")}>
@@ -1099,6 +1257,56 @@ function PainelLive({ id }: { id: string }) {
   );
 }
 
+/** Por que a câmera não abriu, em palavras de gente. */
+function erroDaCamera(e: unknown): string {
+  const nome = (e as { name?: string } | null)?.name;
+  if (nome === "NotAllowedError" || nome === "SecurityError")
+    return tx("O navegador não deixou usar a câmera e o microfone. Libere os dois para este site (no cadeado da barra de endereço) e tente de novo.");
+  if (nome === "NotFoundError" || nome === "OverconstrainedError")
+    return tx("Nenhuma câmera ou microfone encontrado neste computador.");
+  if (nome === "NotReadableError")
+    return tx("A câmera está em uso por outro programa (OBS, Zoom, Meet…). Feche-o e tente de novo.");
+  return (e as Error)?.message || tx("Não consegui abrir a câmera.");
+}
+
+/** Chat na Sombra ao vivo: quem fala é a pessoa; aqui ela lê os chats ligados. */
+function ChatDaSombra({ id }: { id: string }) {
+  const [mensagens, setMensagens] = useState<ItemFila[]>([]);
+  const proximoId = useRef(1);
+  const receber = useCallback((m: MensagemChat) => {
+    const texto = m.texto.trim().slice(0, 600);
+    if (!texto) return;
+    setMensagens((f) => [...f, { ...m, texto, id: proximoId.current++ }].slice(-MAX_FILA));
+  }, []);
+
+  return (
+    <section className="card p-4 grid gap-3">
+      <div className="flex items-center gap-2">
+        <MessageSquare className="w-4 h-4 text-accent" />
+        <h2 className="label-cap">{tx("Chat")}</h2>
+      </div>
+      <ConexoesChat id={id} enfileirar={receber} />
+      {mensagens.length === 0 ? (
+        <p className="text-[13px] text-ink-dim">{tx("As mensagens dos chats ligados aparecem aqui, as mais novas em cima.")}</p>
+      ) : (
+        <ul className="grid gap-1.5 max-h-[520px] overflow-y-auto">
+          {[...mensagens].reverse().map((m) => (
+            <li key={m.id} className="rounded-xl border border-line px-3 py-2 text-[13px]">
+              {m.origem ? (
+                <span className="mr-1.5 rounded bg-panel px-1.5 py-0.5 text-[10px] font-bold text-ink-mute">
+                  {NOME_ORIGEM[m.origem]}
+                </span>
+              ) : null}
+              {m.autor ? <b className="text-ink">{m.autor}: </b> : null}
+              <span className="text-ink-mute break-words">{m.texto}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function relogio(segundos: number): string {
   const s = Math.max(0, Math.round(segundos));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -1110,12 +1318,15 @@ function Conducao({
   id,
   avatarNoAr,
   onFalando,
+  pegarTela,
 }: {
   sala: React.RefObject<SalaLive | null>;
   id: string;
   avatarNoAr: boolean;
   /** Avisa o que está sendo falado (legenda no palco). */
   onFalando?: (texto: string | null) => void;
+  /** Imagem do jogo na tela agora (base64), quando houver: a IA comenta. */
+  pegarTela?: () => string | null;
 }) {
   const [fila, setFila] = useState<ItemFila[]>([]);
   const [historico, setHistorico] = useState<TrocaLive[]>([]);
@@ -1156,6 +1367,7 @@ function Conducao({
             texto,
             autor: quem || undefined,
             tema: modo === "espontanea" ? tema.trim() || undefined : undefined,
+            tela: modo === "falar" ? undefined : (pegarTela?.() ?? undefined),
             anteriores: modo === "falar" ? [] : historico.slice(-8),
           }),
         });
@@ -1188,7 +1400,7 @@ function Conducao({
         setFalando(null);
       }
     },
-    [historico, id, sala, tema],
+    [historico, id, sala, tema, pegarTela],
   );
 
   // Resposta automática: com o avatar livre, responde a mensagem mais antiga.

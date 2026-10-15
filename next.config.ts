@@ -14,9 +14,12 @@ const CABECALHOS_DE_SEGURANCA = [
     key: "Strict-Transport-Security",
     value: "max-age=63072000; includeSubDomains",
   },
+  // Câmera só do próprio site: a Shadow ao vivo (/app/live) liga a webcam. Vale
+  // para o app todo porque a política é do documento, e a navegação entre as
+  // telas não recarrega a página.
   {
     key: "Permissions-Policy",
-    value: "camera=(), geolocation=(), payment=(), usb=()",
+    value: "camera=(self), geolocation=(), payment=(), usb=()",
   },
 ];
 
@@ -30,6 +33,8 @@ const nextConfig: NextConfig = {
   // Garante que o binário e a fonte das legendas vão junto nas funções de vídeo.
   outputFileTracingIncludes: {
     "/api/videos/**": ["./node_modules/ffmpeg-static/ffmpeg*", "./assets/fonts/**"],
+    // Shadow de vídeo gravado: mede a duração do vídeo enviado (lib/live).
+    "/api/live/sombra-video": ["./node_modules/ffmpeg-static/ffmpeg*"],
     // A logo do pingente do PFP (lib/pfp-server.ts), lida do disco.
     "/api/conta/pfp": ["./public/logo/NIDO AI STUDIO SEM FUNDO.png"],
   },

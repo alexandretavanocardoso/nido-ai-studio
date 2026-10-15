@@ -191,7 +191,7 @@ Ainda em aberto:
 
 - [ ] **Ankr:** os 4 RPCs do `.env` respondem "Origin not allowed" (o projeto na Ankr tem allowlist). Hoje o app usa RPCs públicos de reserva, que têm limite de uso. Desligar a allowlist ou trocar de provedor antes de ter volume. O `SOLANA_RPC_URL` também é da Ankr e também é recusado: o pagamento em USDC na Solana passou a cair no RPC público (12/10; antes nem o QR confirmava), mas o **saque em USDC na Solana** ([lib/indicacao/onchain.ts](lib/indicacao/onchain.ts)) ainda usa só o do `.env` e falha enquanto a allowlist estiver ligada.
 - [ ] **Carteiras de recebimento exclusivas.** `EVM_MERCHANT_WALLET` e `SOLANA_MERCHANT_WALLET` devem ser usadas só para receber pagamentos do app (o hash colado vale pelo valor recebido na carteira).
-- [ ] **Stripe:** webhook e produtos criados, mas a conta de produção ainda não está ativada — sem isso não há cartão, Pix nem boleto. Falta ativar a conta, as formas de pagamento, o portal do cliente e o Connect, e pôr as chaves na Vercel. Passo a passo no [DEPLOY.md](DEPLOY.md), seção 5.
+- [ ] **Stripe:** webhook e produtos criados, mas a conta de produção ainda não está ativada — sem isso não há pagamento no cartão (o Stripe cobra só em dólar e só no cartão). Falta ativar a conta, as formas de pagamento, o portal do cliente e o Connect, e pôr as chaves na Vercel. Passo a passo no [DEPLOY.md](DEPLOY.md), seção 5.
 - [ ] **Deploy na Vercel** seguindo o [DEPLOY.md](DEPLOY.md).
 - [x] `public/video_teste/` movido para `video_teste/` em 07/10 (fora de `public/`).
 - [ ] **Encerrar as ~30 cobranças USDC pendentes** de teste (Admin → Pagamentos). Nenhuma foi paga.

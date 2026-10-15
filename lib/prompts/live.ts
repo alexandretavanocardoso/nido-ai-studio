@@ -52,7 +52,7 @@ export interface TrocaLive {
  * Tipos de fala do modo apresentador. O tipo é sorteado antes (e não deixado
  * para a IA): sozinha, ela terminava toda fala com uma pergunta para o chat.
  */
-export const TIPOS_FALA = ["assunto", "piada", "pergunta", "chat", "chamada"] as const;
+export const TIPOS_FALA = ["assunto", "piada", "pergunta", "chat", "chamada", "jogo"] as const;
 export type TipoFala = (typeof TIPOS_FALA)[number];
 
 /** Peso de cada tipo no sorteio. */
@@ -62,6 +62,8 @@ const PESO_TIPO: Record<TipoFala, number> = {
   pergunta: 20,
   chat: 15,
   chamada: 10,
+  /** Com jogo na tela, comentar o jogo é o mais comum. */
+  jogo: 60,
 };
 
 /**
@@ -75,18 +77,22 @@ const INTERVALO_TIPO: Record<TipoFala, number> = {
   pergunta: 2,
   chat: 1,
   chamada: 4,
+  jogo: 0,
 };
 
 /**
  * Sorteia o tipo da próxima fala espontânea, respeitando o intervalo de cada
- * tipo; "retomar o chat" só quando alguém já escreveu algo. `sorte` é um
- * número de 0 a 1.
+ * tipo; "retomar o chat" só quando alguém já escreveu algo, e "comentar o
+ * jogo" só com jogo na tela. `sorte` é um número de 0 a 1.
  */
-export function proximoTipo(anteriores: TrocaLive[], sorte: number): TipoFala {
+export function proximoTipo(anteriores: TrocaLive[], sorte: number, comTela = false): TipoFala {
   const recentes = anteriores.filter((t) => t.espontanea).map((t) => t.tipo);
   const temChat = anteriores.some((t) => !t.espontanea && t.autor);
   const livres = TIPOS_FALA.filter(
-    (t) => !recentes.slice(-INTERVALO_TIPO[t]).includes(t) && (t !== "chat" || temChat),
+    (t) =>
+      (INTERVALO_TIPO[t] === 0 || !recentes.slice(-INTERVALO_TIPO[t]).includes(t)) &&
+      (t !== "chat" || temChat) &&
+      (t !== "jogo" || comTela),
   );
   const opcoes = livres.length ? livres : (["assunto"] as TipoFala[]);
   const total = opcoes.reduce((s, t) => s + PESO_TIPO[t], 0);
@@ -109,7 +115,13 @@ const INSTRUCAO_TIPO: Record<TipoFala, string> = {
     "Desta vez: retome algo que alguém disse no chat (acima), chamando a pessoa pelo nome — concorde, discorde com bom humor ou conte algo relacionado. Não termine com pergunta.",
   chamada:
     "Desta vez: dê boas-vindas a quem está chegando agora e convide, de um jeito natural, a seguir e comentar, ligando com o assunto da live.",
+  jogo:
+    "Desta vez: reaja ao que está acontecendo no jogo agora (veja a imagem da tela) como quem está jogando ao vivo — narre o lance, comemore, reclame com bom humor ou comente a estratégia. Fale só do que dá para ver na imagem; não invente placar, nomes ou eventos.",
 };
+
+/** Aviso que vai no pedido quando a imagem da tela vai junto. */
+const COM_TELA =
+  "Junto vai uma imagem da sua tela agora: é o jogo que você está jogando na live. Pode comentar o que aparece nela quando fizer sentido, sem inventar o que não dá para ver.";
 
 /** O que já rolou na live, para não se repetir e poder retomar o que o chat disse. */
 function linhaDoTempo(anteriores: TrocaLive[]): string[] {
@@ -126,8 +138,13 @@ function linhaDoTempo(anteriores: TrocaLive[]): string[] {
 }
 
 /** O pedido para responder uma mensagem do chat, com as últimas trocas da live. */
-export function pedidoLive(m: MensagemLive, anteriores: TrocaLive[] = []): string {
+export function pedidoLive(
+  m: MensagemLive,
+  anteriores: TrocaLive[] = [],
+  comTela = false,
+): string {
   const linhas = linhaDoTempo(anteriores);
+  if (comTela) linhas.push(COM_TELA, "");
   linhas.push(
     m.autor
       ? `Nova mensagem no chat, de ${m.autor}:`
@@ -148,8 +165,10 @@ export function pedidoEspontaneo(o: {
   tipo: TipoFala;
   tema?: string;
   anteriores?: TrocaLive[];
+  comTela?: boolean;
 }): string {
   const linhas = linhaDoTempo(o.anteriores ?? []);
+  if (o.comTela) linhas.push(COM_TELA, "");
   linhas.push("Agora é você quem puxa a conversa: fale algo por conta própria para manter a live viva.");
   linhas.push(
     o.tema

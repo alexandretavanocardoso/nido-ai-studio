@@ -37,7 +37,7 @@ export interface Recursos {
   voz: boolean;
   /** Radar: incluir o que está em alta no X (Grok, xAI). O radar de notícias só precisa da IA de texto. */
   radarX: boolean;
-  /** Pagamento pelo Stripe (cartão, Pix, boleto). */
+  /** Pagamento pelo Stripe (cartão, em dólar). */
   stripe: boolean;
   /** Pagamento em USDC (pelo menos uma rede configurada). */
   usdc: boolean;

@@ -68,6 +68,13 @@ const FINAIS: Array<[string, string]> = [
 type Padrao = [RegExp, string | ((m: RegExpMatchArray) => string)];
 
 const PADROES: Padrao[] = [
+  // Sombra de vídeo: links da Twitch e do Kick (worker/sombra/vod.ts)
+  [/^A Twitch não respondeu \((.+)\)\.$/, "Twitch didn't respond ($1)."],
+  [
+    /^O Kick recusou a busca do vídeo \(HTTP (\d+)\)\. Baixe e envie o arquivo\.$/,
+    "Kick refused to fetch the video (HTTP $1). Download it and upload the file.",
+  ],
+  [/^Não consegui abrir o vídeo \(HTTP (\d+)\)\.$/, "Couldn't open the video (HTTP $1)."],
   // Limites de uso
   [
     /^Muit[ao]s (\S+) seguid[ao]s\. Tente (?:de novo )?em (\d+)s\.$/,
@@ -806,6 +813,7 @@ const ERROS_EN: Record<string, string> = {
   "Não consegui conferir a transmissão agora.": "Couldn't check the stream right now.",
   "Rede de transmissão inválida.": "Invalid streaming platform.",
   "Persona não encontrada.": "Persona not found.",
+  "Marque a declaração para usar um vídeo gravado.": "Check the declaration to use a recorded video.",
   "Escreva o que falar.": "Type what to say.",
   "Bot do Discord não configurado no servidor (DISCORD_BOT_TOKEN).":
     "Discord bot is not set up on the server (DISCORD_BOT_TOKEN).",
@@ -825,4 +833,74 @@ const ERROS_EN: Record<string, string> = {
   "Descreva quem é e como fala (pelo menos uma frase).":
     "Describe who they are and how they talk (at least one sentence).",
   "Escolha um personagem ou envie uma foto.": "Pick a character or upload a photo.",
+  "Na Sombra ao vivo, o cenário é só por texto.":
+    "In Live Shadow, the scene can only be described in text.",
+  "Sombra não configurada no servidor (DECART_API_KEY).":
+    "Shadow is not set up on the server (DECART_API_KEY).",
+  "Marque a declaração de que pode usar este vídeo.":
+    "Check the declaration that you may use this video.",
+  "Envie um vídeo ou cole um link.":
+    "Upload a video or paste a link.",
+  "Link não encontrado. Cole de novo.":
+    "Link not found. Paste it again.",
+  "Não consegui ler esse vídeo. Envie um MP4, MOV ou WebM.":
+    "Couldn't read that video. Upload an MP4, MOV or WebM.",
+  "O vídeo pode ter até 10 minutos. Corte um trecho e envie de novo.":
+    "The video can be up to 10 minutes. Trim it and upload again.",
+  "A Decart recusou a chave. Confira DECART_API_KEY.":
+    "Decart rejected the key. Check DECART_API_KEY.",
+  "A Decart recusou o vídeo. Os créditos foram devolvidos.":
+    "Decart rejected the video. Your credits were refunded.",
+  "Pedaço de áudio inválido.":
+    "Invalid audio chunk.",
+  "Não consegui ler a foto do influencer.":
+    "Couldn't read the influencer's photo.",
+  "A Decart não conseguiu trocar a pessoa neste vídeo.":
+    "Decart couldn't swap the person in this video.",
+  "Cole o link de um vídeo (VOD) ou clipe da Twitch ou do Kick.":
+    "Paste the link to a Twitch or Kick video (VOD) or clip.",
+  "Não consegui abrir esse link agora. Tente de novo.":
+    "Couldn't open that link right now. Try again.",
+  "Não consegui ler a duração desse vídeo.":
+    "Couldn't read that video's length.",
+  "Escolha um trecho de pelo menos 1 segundo.":
+    "Pick a section of at least 1 second.",
+  "O trecho pode ter até 12 horas.":
+    "The section can be up to 12 hours.",
+  "A conta da Decart está sem créditos.":
+    "The Decart account is out of credits.",
+  "A conta da Decart está sem créditos. Recarregue em platform.decart.ai e gere de novo.":
+    "The Decart account is out of credits. Top it up at platform.decart.ai and generate again.",
+  "Vídeo do Kick não encontrado (apagado ou privado).":
+    "Kick video not found (deleted or private).",
+  "VOD da Twitch não encontrado (apagado ou privado).":
+    "Twitch VOD not found (deleted or private).",
+  "Clipe da Twitch não encontrado.":
+    "Twitch clip not found.",
+  "Esse vídeo do Kick ainda não está disponível.":
+    "That Kick video isn't available yet.",
+  "Clipe do Kick não encontrado.":
+    "Kick clip not found.",
+  "A Twitch não liberou esse VOD.":
+    "Twitch didn't release that VOD.",
+  "O vídeo é só para inscritos ou foi bloqueado. Baixe e envie o arquivo.":
+    "The video is subscribers-only or blocked. Download it and upload the file.",
+  "O vídeo não tem uma versão que dê para ler.":
+    "The video has no version that can be read.",
+  "O vídeo veio vazio.":
+    "The video came back empty.",
+  "O processo da Sombra não está ligado (worker/sombra).":
+    "The Shadow process isn't running (worker/sombra).",
+  "O Lucy não conseguiu processar uma parte do vídeo.":
+    "Lucy couldn't process part of the video.",
+  "O Lucy demorou demais numa parte do vídeo.":
+    "Lucy took too long on part of the video.",
+  "Não consegui ler o vídeo de origem (o link pode ter expirado ou o arquivo está corrompido).":
+    "Couldn't read the source video (the link may have expired or the file is corrupted).",
+  "A ElevenLabs não conseguiu trocar a voz.":
+    "ElevenLabs couldn't swap the voice.",
+  "Banco de dados não configurado.":
+    "Database not set up.",
+  "A troca falhou.":
+    "The swap failed.",
 };

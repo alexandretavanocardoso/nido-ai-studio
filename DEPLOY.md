@@ -96,7 +96,9 @@ Plano: o Free permite 20 posts/mês e 3 contas conectadas; para clientes, o Pro 
 
 ---
 
-## 5. Stripe (cartão, Pix e boleto)
+## 5. Stripe (cartão, em dólar)
+
+O app cobra pelo Stripe **sempre em dólar (USD) e só no cartão** (inclui Apple Pay e Google Pay). Pix e boleto ficam de fora pelo código, mesmo que estejam ligados no Dashboard.
 
 Situação em **07/10/2026**: webhook e produtos já criados na conta de produção; a conta ainda **não está ativada** (o Stripe recusa qualquer checkout com "No valid payment method types"). Tudo abaixo é feito no Dashboard, em modo produção.
 
@@ -108,7 +110,7 @@ Situação em **07/10/2026**: webhook e produtos já criados na conta de produç
 **Falta fazer, nesta ordem**
 
 1. [ ] **Ativar a conta.** Clicar em **Ativar pagamentos** e preencher até o fim: dados da empresa (CNPJ ou CPF, endereço, ramo, site `https://aistudio.nido.global`), representante legal (nome, CPF, nascimento, documento), conta bancária para os repasses (mesmo CNPJ/CPF) e o nome que sai na fatura do cartão (ex.: `NIDO STUDIO`). Pronto quando o painel mostrar pagamentos e repasses ativos; a análise pode levar de minutos a alguns dias.
-2. [ ] **Formas de pagamento** (Configurações → Pagamentos → Formas de pagamento): conferir **cartões** e ativar **boleto** e **Pix**. Se o Pix aparecer como "solicitar acesso", pedir e aguardar. O app não fixa as formas no código: o checkout mostra o que estiver ligado aqui. Pix e boleto só aparecem em compras em real e em pagamento único (plano anual, pacotes, créditos por quantidade); o plano mensal é assinatura no cartão.
+2. [ ] **Formas de pagamento** (Configurações → Pagamentos → Formas de pagamento): conferir se **cartões** estão ativos. Não precisa ativar Pix nem boleto. O plano mensal é assinatura no cartão; plano anual, pacotes e créditos por quantidade são pagamento único no cartão.
 3. [ ] **Portal do cliente** (Configurações → Faturamento → Portal do cliente): abrir e salvar a configuração, permitindo cancelar a assinatura e trocar o cartão. Sem salvar, o botão de gerenciar assinatura dá erro.
 4. [ ] **Stripe Connect** (necessário para o saque das indicações — sem ele "Conectar Stripe" falha):
    - No menu **Connect**, clicar em começar e concluir o perfil da plataforma (o Stripe pergunta o modelo de negócio e quem responde por perdas).
@@ -119,11 +121,9 @@ Situação em **07/10/2026**: webhook e produtos já criados na conta de produç
    - Antes, rodar a migration `db/migrations/0016_indicacoes.sql` no Neon.
 5. [ ] **Chaves na Vercel** (Settings → Environment Variables, ambiente Production): `STRIPE_SECRET_KEY` (`sk_live_...`) e `STRIPE_WEBHOOK_SECRET` (o `whsec_...` do destino acima). Depois, **redeploy**.
 6. [ ] **Testar com compras reais** do menor pacote (500 créditos), reembolsando depois pelo painel:
-   - cartão → o saldo sobe na hora;
-   - Pix → sobe logo após pagar o QR code;
-   - boleto → sobe só quando compensar (1 a 2 dias úteis);
+   - cartão → o checkout abre em US$, só com cartão, e o saldo sobe na hora;
    - plano mensal no cartão → o plano ativa; cancelar pelo portal;
-   - site em inglês → conferir se o checkout abre em US$ (não confirmado para conta brasileira);
+   - conferir que a conta brasileira aceita cobrar em US$ (não confirmado: se o Stripe recusar a moeda, nenhum checkout abre);
    - indicação → conectar o Stripe em `/app/indicacoes`, gerar uma comissão e sacar.
 
    Se o saldo não subir, ver as entregas do destino de webhook: **400** = `whsec_` errado; **500 "Stripe não configurado."** = falta variável na Vercel ou o redeploy.
@@ -165,6 +165,12 @@ Authorization: Bearer <CRON_SECRET>
 - [x] A migration `db/migrations/0037_lives.sql` já está aplicada no Neon (14/10).
 - [x] A migration `db/migrations/0038_lives_avulsa_transmissao.sql` já está aplicada no Neon (14/10).
 - [x] A migration `db/migrations/0039_lives_cena.sql` já está aplicada no Neon (14/10).
+- [x] A migration `db/migrations/0040_lives_sombra.sql` já está aplicada no Neon (14/10).
+- [ ] Sombra (ao vivo e de vídeo gravado): `DECART_API_KEY` (platform.decart.ai) na Vercel.
+- [ ] Sombra ao vivo, de verdade: entrar no ar com a webcam (Chrome ou Edge), conferir o influencer no palco, a voz própria e a trocada (boca e voz casando; ajustar "Sincronia da voz" se precisar) e a transmissão para uma rede.
+- [ ] Sombra de vídeo gravado (lives longas, trechos, Twitch e Kick): publicar o **processo da Sombra** no **Railway** — novo serviço a partir deste repositório com **Root Directory** `worker/sombra`, comando de início `npm start`, e as variáveis `DATABASE_URL`, `S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `DECART_API_KEY`, `ELEVENLABS_API_KEY`, `CRON_SECRET` (as mesmas do app) e `APP_URL=https://aistudio.nido.global`. Opcional: `SOMBRA_PARALELAS` (partes ao mesmo tempo, padrão 3). Uns US$ 5/mês. Para testar no computador: `cd worker/sombra && npm install && npx tsx --env-file=../../.env index.ts`.
+- [ ] Decart com saldo: o Lucy em lote custa ~US$ 0,04 por segundo de vídeo (1 h ≈ US$ 144; 30 min ≈ US$ 72). Recarregar em platform.decart.ai antes de lives longas — sem saldo, o vídeo falha e os créditos do app voltam.
+- [ ] Sombra de vídeo gravado, de verdade: colar o link de um VOD da Twitch e de um do Kick, escolher um trecho curto (ex.: 2 min) e conferir o resultado na Sombra; depois um MP4 enviado, com e sem troca de voz.
 - [ ] Criar um projeto no LiveKit Cloud e pôr `LIVEKIT_URL` (wss://…), `LIVEKIT_API_KEY` e `LIVEKIT_API_SECRET` na Vercel. Depois, **redeploy**.
 - [ ] Chat do YouTube: no Google Cloud, ativar a "YouTube Data API v3" e criar uma chave de API; pôr em `YOUTUBE_API_KEY`.
 - [ ] Chat do Kick: criar um app em kick.com → Settings → Developer, com o escopo `events:subscribe`, webhooks ligados e a URL `https://aistudio.nido.global/api/live/kick/webhook`; pôr `KICK_CLIENT_ID` e `KICK_CLIENT_SECRET`. O webhook só chega no domínio público (não funciona no localhost).

@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const BodySchema = z.object({
-  kind: z.enum(["refs", "videos", "audios"]),
+  kind: z.enum(["refs", "videos", "audios", "lives"]),
   contentType: z.string(),
   size: z.number().int().positive(),
 });

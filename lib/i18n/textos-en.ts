@@ -129,7 +129,7 @@ export const TEXTOS_EN: Record<string, string> = {
   "Card de referência e retratos ficam no Estúdio → Imagens. Use “Usar como referência” na galeria para a imagem aparecer aqui.":
     "Reference sheets and portraits live in Studio → Images. Use “Use as reference” in the gallery to show the image here.",
   "Carregando…": "Loading…",
-  "Cartão, Pix ou boleto": "Card, Pix or boleto",
+  "Cartão": "Card",
   Cena: "Scene",
   Cenários: "Settings",
   "Cenários recorrentes": "Recurring settings",
@@ -643,8 +643,8 @@ export const TEXTOS_EN: Record<string, string> = {
   "Pagamento cancelado. Nada foi cobrado.":
     "Payment canceled. Nothing was charged.",
   "Pagamento confirmado": "Payment confirmed",
-  "Pagamento recebido. Seus créditos aparecem em instantes — no boleto, depois da compensação (1 a 3 dias úteis).":
-    "Payment received. Your credits appear in a moment — for boleto, after clearing (1 to 3 business days).",
+  "Pagamento recebido. Seus créditos aparecem em instantes.":
+    "Payment received. Your credits appear in a moment.",
   "Pagar com USDC": "Pay with USDC",
   "Pagar com USDC · +": "Pay with USDC · +",
   "Palavras proibidas": "Forbidden words",
@@ -1561,8 +1561,8 @@ export const TEXTOS_EN: Record<string, string> = {
     "months of recurring commission per referral",
   "de cada assinatura de plano paga por quem criou a conta pelo seu link, incluindo as renovações.":
     "of every plan subscription paid by people who signed up through your link, renewals included.",
-  "Assinaturas de qualquer plano, mensais ou anuais, e as renovações, no cartão, Pix, boleto ou USDC. Compra de créditos avulsos e o plano gratuito não geram comissão.":
-    "Subscriptions to any plan, monthly or yearly, and their renewals, by card, Pix, boleto or USDC. Credit purchases and the free plan do not earn commission.",
+  "Assinaturas de qualquer plano, mensais ou anuais, e as renovações, no cartão ou em USDC. Compra de créditos avulsos e o plano gratuito não geram comissão.":
+    "Subscriptions to any plan, monthly or yearly, and their renewals, by card or USDC. Credit purchases and the free plan do not earn commission.",
   "Por quanto tempo uma indicação me paga?":
     "How long does a referral keep paying me?",
   "Por até":
@@ -3605,4 +3605,220 @@ export const TEXTOS_EN: Record<string, string> = {
     "Already said",
   "Por conta própria":
     "On its own",
+  "Jogo":
+    "Game",
+  "Entre no ar para pôr um jogo na tela.":
+    "Go on air to put a game on screen.",
+  "O jogo ocupa a tela e o avatar fica no canto, como a câmera de um streamer. A IA vê o jogo e comenta o que está acontecendo.":
+    "The game fills the screen and the avatar sits in the corner, like a streamer's camera. The AI sees the game and comments on what's happening.",
+  "Na tela agora":
+    "On screen now",
+  "Tela compartilhada":
+    "Shared screen",
+  "Vídeo gravado":
+    "Recorded video",
+  "O avatar está no canto e a IA vê o jogo a cada fala. No modo apresentador, ele comenta o jogo sozinho.":
+    "The avatar is in the corner and the AI sees the game on every line. In presenter mode it comments on the game on its own.",
+  "Tirar o jogo da tela":
+    "Take the game off screen",
+  "Compartilhar tela":
+    "Share screen",
+  "Alguém joga de verdade e o avatar é a cara e a voz do canal. Escolha a janela do jogo e marque “Compartilhar áudio”.":
+    "Someone really plays and the avatar is the channel's face and voice. Pick the game window and check “Share audio”.",
+  "Escolher tela ou janela":
+    "Pick screen or window",
+  "Um vídeo de gameplay do seu computador, tocando em repetição. Atenção: as plataformas punem gravação apresentada como ao vivo (o TikTok derruba a live), e gameplay de outra pessoa tem direito autoral.":
+    "A gameplay video from your computer, playing on loop. Note: platforms penalize recordings presented as live (TikTok takes the live down), and someone else's gameplay is copyrighted.",
+  "Escolher vídeo":
+    "Pick video",
+  "Declaro que tenho direito de usar este vídeo na live (gravei eu mesmo ou tenho autorização) e que sei que transmitir gravação como se fosse ao vivo pode violar as regras das plataformas.":
+    "I declare that I have the right to use this video in the live (I recorded it myself or have permission) and that I know streaming a recording as if it were live may break the platforms' rules.",
+  "Falta escolher a imagem do avatar.":
+    "Pick the avatar image first.",
+  "Falta escolher a voz.":
+    "Pick the voice first.",
+  "Falta enviar a foto do avatar.":
+    "Upload the avatar photo first.",
+  "Falta o nome.":
+    "Type the name first.",
+  "Falta descrever quem é e como fala (pelo menos uma frase).":
+    "Describe who they are and how they talk first (at least one sentence).",
+  "Ligando a câmera…":
+    "Turning on the camera…",
+  "Transformando a sua câmera no influencer…":
+    "Turning your camera into the influencer…",
+  "Na fila da Decart":
+    "In the Decart queue",
+  "posição":
+    "position",
+  "A Sombra caiu. Clique em Reconectar a Sombra.":
+    "Shadow dropped. Click Reconnect Shadow.",
+  "Reconectar a Sombra":
+    "Reconnect Shadow",
+  "Esta foto vai aparecer no lugar da sua webcam, com os seus movimentos. Entre no ar quando quiser.":
+    "This photo will replace you on your webcam, following your movements. Go on air whenever you want.",
+  "Microfone desligado":
+    "Microphone off",
+  "Microfone ligado":
+    "Microphone on",
+  "Sincronia da voz":
+    "Voice sync",
+  "Voz mais cedo":
+    "Voice earlier",
+  "Voz mais tarde":
+    "Voice later",
+  "Neste navegador a voz trocada sai alguns segundos depois da boca. Use o Chrome ou o Edge para sincronizar.":
+    "In this browser the swapped voice comes a few seconds after the mouth moves. Use Chrome or Edge to keep them in sync.",
+  "O palco mostra o mesmo que as redes recebem. Se a boca e a voz não casarem, ajuste a sincronia. Marque a live como conteúdo feito com IA na plataforma.":
+    "The stage shows exactly what the platforms receive. If the mouth and voice don't match, adjust the sync. Label the live as AI-generated content on the platform.",
+  "Aqui você liga o chat da Twitch, do YouTube, do Kick e do Discord para ler as mensagens num lugar só enquanto fala.":
+    "Here you connect the Twitch, YouTube, Kick and Discord chat to read every message in one place while you talk.",
+  "O navegador não deixou usar a câmera e o microfone. Libere os dois para este site (no cadeado da barra de endereço) e tente de novo.":
+    "The browser blocked the camera and microphone. Allow both for this site (in the padlock in the address bar) and try again.",
+  "Nenhuma câmera ou microfone encontrado neste computador.":
+    "No camera or microphone found on this computer.",
+  "A câmera está em uso por outro programa (OBS, Zoom, Meet…). Feche-o e tente de novo.":
+    "The camera is being used by another app (OBS, Zoom, Meet…). Close it and try again.",
+  "Não consegui abrir a câmera.":
+    "Couldn't open the camera.",
+  "As mensagens dos chats ligados aparecem aqui, as mais novas em cima.":
+    "Messages from the connected chats show up here, newest on top.",
+  "Um retrato de frente, com o rosto nítido, funciona melhor.":
+    "A front-facing portrait with a sharp face works best.",
+  "Trocar por outra voz":
+    "Swap for another voice",
+  "Escolha uma voz":
+    "Pick a voice",
+  "Escolher uma voz pronta":
+    "Pick a ready-made voice",
+  "Quem aparece no lugar da sua webcam":
+    "Who appears in place of your webcam",
+  "Para ficar bom: rosto de frente e bem iluminado, a câmera na altura dos olhos e sem nada cobrindo o rosto.":
+    "For best results: face the camera in good light, camera at eye level, nothing covering your face.",
+  "Falta escolher quem aparece.":
+    "Pick who appears first.",
+  "Falta escolher quem entra no lugar.":
+    "Pick who takes their place first.",
+  "Lendo o vídeo…":
+    "Reading the video…",
+  "O vídeo pode ter até 10 minutos. Corte um trecho e envie de novo.":
+    "The video can be up to 10 minutes. Trim it and upload again.",
+  "Falta marcar a declaração.":
+    "Check the declaration first.",
+  "Pronto! O vídeo também está na Sombra.":
+    "Done! The video is also in Shadow.",
+  "A troca falhou. Os créditos foram devolvidos.":
+    "The swap failed. Your credits were refunded.",
+  "Pondo o áudio de volta no vídeo…":
+    "Putting the audio back into the video…",
+  "A IA está trocando a pessoa no vídeo…":
+    "AI is swapping the person in the video…",
+  "Leva alguns minutos (mais nos vídeos longos). Pode sair desta página: o vídeo aparece na Sombra quando ficar pronto.":
+    "It takes a few minutes (longer for long videos). You can leave this page: the video shows up in Shadow when it's ready.",
+  "Abrir a Sombra":
+    "Open Shadow",
+  "Fazer outro":
+    "Make another",
+  "Envie a live gravada":
+    "Upload the recorded live",
+  "Clique ou arraste o vídeo (MP4, MOV ou WebM, até 10 minutos). A pessoa vira o influencer com os mesmos movimentos, expressões e boca; o áudio continua o do vídeo, ou com a voz trocada.":
+    "Click or drag the video (MP4, MOV or WebM, up to 10 minutes). The person becomes the influencer with the same movements, expressions and mouth; the audio stays the video's own, or with the voice swapped.",
+  "Por link: YouTube, TikTok, Instagram e X, até 3 minutos. Lives da Twitch ou do Kick e vídeos mais longos: baixe e envie o arquivo.":
+    "By link: YouTube, TikTok, Instagram and X, up to 3 minutes. Twitch or Kick lives and longer videos: download and upload the file.",
+  "Não consegui ler a duração deste vídeo. Converta para MP4 e envie de novo.":
+    "Couldn't read this video's length. Convert it to MP4 and upload again.",
+  "Trocar vídeo":
+    "Change video",
+  "Cobrado pela duração do vídeo; se a troca falhar, os créditos voltam.":
+    "Charged by the video's length; if the swap fails, the credits come back.",
+  "Gerar o vídeo":
+    "Generate the video",
+  "O jogo ocupa a tela e o influencer fica no canto, como a câmera de um streamer.":
+    "The game fills the screen and the influencer sits in the corner, like a streamer's camera.",
+  "O influencer está no canto, com a sua câmera e a sua fala.":
+    "The influencer is in the corner, with your camera and your voice.",
+  "O fundo da sua câmera vira este lugar, ao vivo. A IA transforma o texto num pedido detalhado. Sem custo extra.":
+    "Your camera's background becomes this place, live. AI turns the text into a detailed request. No extra cost.",
+  "O fundo do vídeo vira este lugar. A IA transforma o texto num pedido detalhado. Sem custo extra.":
+    "The video's background becomes this place. AI turns the text into a detailed request. No extra cost.",
+  "Minha voz":
+    "My voice",
+  "Voz original":
+    "Original voice",
+  "Você fala e sai a voz escolhida. A troca leva uns segundos, então a live vai com 4 s de atraso para a boca casar com a voz (use o Chrome ou o Edge). Use fone de ouvido.":
+    "You talk and the chosen voice comes out. The swap takes a few seconds, so the live runs 4 s behind to keep the mouth in sync with the voice (use Chrome or Edge). Wear headphones.",
+  "Sua voz vai como está, sincronizada com a boca do influencer. Use fone de ouvido.":
+    "Your voice goes out as it is, in sync with the influencer's mouth. Wear headphones.",
+  "A fala do vídeo inteiro é trocada pela voz escolhida, com o mesmo ritmo e emoção.":
+    "The speech in the whole video is swapped for the chosen voice, with the same pace and emotion.",
+  "O áudio do vídeo continua como está.":
+    "The video's audio stays as it is.",
+  "Cobrados ao entrar no ar; os minutos que você não usar voltam quando a live encerra.":
+    "Charged when you go on air; the minutes you don't use come back when the live ends.",
+  "Fundo da câmera":
+    "Camera background",
+  "Fundo do vídeo":
+    "Video background",
+  "Sombra ao vivo":
+    "Live Shadow",
+  "Sombra de vídeo":
+    "Video Shadow",
+  "O vídeo passa de 5 GB. Use o link da Twitch ou do Kick, ou envie um trecho.":
+    "The video is over 5 GB. Use the Twitch or Kick link, or upload a part of it.",
+  "Confira o trecho: o começo tem que estar dentro do vídeo.":
+    "Check the section: the start has to be inside the video.",
+  "O trecho pode ter até 12 horas.":
+    "The section can be up to 12 hours.",
+  "Gerar o vídeo?":
+    "Generate the video?",
+  "O vídeo é feito em partes de 5 minutos: lives longas levam horas. Se a troca falhar, os créditos voltam.":
+    "The video is made in 5-minute parts: long lives take hours. If the swap fails, the credits come back.",
+  "Na fila do processo da Sombra…":
+    "In the Shadow processing queue…",
+  "O vídeo é feito em partes de 5 minutos. Pode fechar esta página: ele aparece na Sombra quando ficar pronto.":
+    "The video is made in 5-minute parts. You can close this page: it shows up in Shadow when it's ready.",
+  "Ou cole o link":
+    "Or paste the link",
+  "Link da live na Twitch ou no Kick (ou de um vídeo do YouTube, TikTok…)":
+    "Link to the live on Twitch or Kick (or to a YouTube, TikTok… video)",
+  "Buscar":
+    "Fetch",
+  "Twitch e Kick: a live gravada inteira (VOD) ou um clipe, sem custo para buscar.":
+    "Twitch and Kick: the whole recorded live (VOD) or a clip, free to fetch.",
+  "YouTube, TikTok, Instagram e X: vídeos de até 3 min,":
+    "YouTube, TikTok, Instagram and X: videos up to 3 min,",
+  "créditos para buscar.":
+    "credits to fetch.",
+  "Live gravada":
+    "Recorded live",
+  "Clipe":
+    "Clip",
+  "Quanto usar":
+    "How much to use",
+  "Vídeo inteiro":
+    "Whole video",
+  "Só um trecho":
+    "Just a section",
+  "Começar no minuto":
+    "Start at minute",
+  "tudo":
+    "all",
+  "Minutos a usar":
+    "Minutes to use",
+  "Do":
+    "From",
+  "ao":
+    "to",
+  "Ex.: numa live de 120 min, começar no minuto 45 e usar 30. Vazio: até o fim.":
+    "E.g.: in a 120-min live, start at minute 45 and use 30. Empty: until the end.",
+  "Cobrado pelo trecho escolhido. Lives longas são feitas em partes e levam horas; se a troca falhar, os créditos voltam.":
+    "Charged for the chosen section. Long lives are made in parts and take hours; if the swap fails, the credits come back.",
+  "A fala é trocada pela voz escolhida, com o mesmo ritmo e emoção. O som de fundo (jogo, música) sai do vídeo: fica só a voz.":
+    "The speech is swapped for the chosen voice, with the same pace and emotion. The background sound (game, music) is removed: only the voice stays.",
+  "Clique ou arraste o vídeo (MP4, MOV ou WebM, até 5 GB). A pessoa vira o influencer com os mesmos movimentos, expressões e boca; o áudio continua o do vídeo, ou com a voz trocada.":
+    "Click or drag the video (MP4, MOV or WebM, up to 5 GB). The person becomes the influencer with the same movements, expressions and mouth; the audio stays the video's own, or with the voice swapped.",
+  "Foto":
+    "Photo",
+  "Declaro que tenho direito de usar este vídeo (sou o autor ou tenho autorização) e que vou sinalizar que o personagem é sintético.":
+    "I declare that I have the right to use this video (I am the author or have permission) and that I will disclose that the character is synthetic.",
 };

@@ -22,6 +22,9 @@ import {
   type LiveResumo,
   type PersonaAvulsa,
   type SessaoLive,
+  type TipoLive,
+  CREDITOS_POR_MINUTO,
+  ehSessaoSombra,
   type StatusLive,
 } from "./tipos";
 
@@ -36,11 +39,12 @@ export interface LiveRow {
   user_id: string;
   /** Vazio na live sem personagem (ver `persona`). */
   character_id: string | null;
+  tipo: TipoLive;
   persona: PersonaAvulsa | null;
   cena: CenaLive | null;
   status: StatusLive;
   image_key: string;
-  voice_id: string;
+  voice_id: string | null;
   avatar_id: string | null;
   duracao_min: number;
   sala: string;
@@ -74,6 +78,7 @@ export function resumoDaLive(r: LiveRow): LiveResumo {
   return {
     id: r.id,
     characterId: r.character_id,
+    tipo: r.tipo ?? "avatar",
     persona: r.persona,
     transmitindo: (r.transmissao?.envios ?? []).flatMap((e) => e.redes),
     status: r.status,
@@ -259,6 +264,8 @@ export async function fecharSessoes(
   return Promise.all(
     sessoes.map(async (s) => {
       if (s.fim !== undefined) return s;
+      // Sombra: não há sessão no Runway, só o tempo no ar.
+      if (ehSessaoSombra(s.id)) return { ...s, fim: agora };
       try {
         const e = await estadoSessao(rw, s.id);
         if (e.estado === "ativa") {
@@ -301,7 +308,10 @@ export async function encerrarLive(
   const teto = live.duracao_min * 60;
   const segundos = segundosNoAr(sessoes, Date.now(), teto);
   const cobrado = live.cobranca?.total ?? 0;
-  const creditos = Math.min(cobrado, creditosDoTempo(segundos));
+  const creditos = Math.min(
+    cobrado,
+    creditosDoTempo(segundos, CREDITOS_POR_MINUTO[live.tipo ?? "avatar"]),
+  );
   const { rows } = await pool.query<LiveRow>(
     `update lives set status = 'encerrada', encerrada_em = now(), sessoes = $2,
             segundos = $3, creditos = $4, transmissao = null

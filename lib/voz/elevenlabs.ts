@@ -191,3 +191,49 @@ export function mensagemDeErroVoz(e: unknown): string {
   if (status === 422 || status === 400) return `A ElevenLabs recusou a entrada: ${(e as Error).message}`;
   return (e as Error)?.message || "Falha na ElevenLabs.";
 }
+
+/** Modelo da troca de voz (fala de uma pessoa → mesma fala com outra voz). */
+const MODELO_TROCA_VOZ = process.env.ELEVENLABS_STS_MODEL ?? "eleven_multilingual_sts_v2";
+
+/**
+ * Troca a voz de uma fala mantendo o ritmo e a emoção (voice changer da
+ * ElevenLabs). Entrada em PCM 16 bits, mono, 16 kHz; saída no mesmo formato,
+ * na taxa pedida: 16 kHz (menor atraso) na Shadow ao vivo, em pedaços de ~2 s,
+ * e 24 kHz (som melhor) na Shadow de vídeo gravado, em pedaços de até 1 min.
+ */
+export async function trocarVoz(
+  el: ElevenLabsClient,
+  voiceId: string,
+  pcm: Buffer,
+  taxaSaida: 16_000 | 24_000 = 16_000,
+  /** Tira o som de fundo (jogo, música) antes de trocar: a voz sai limpa, sem o fundo. */
+  limparFundo = false,
+): Promise<Buffer> {
+  const stream = await el.speechToSpeech.convert(voiceId, {
+    audio: new File([new Uint8Array(pcm)], "fala.pcm", { type: "application/octet-stream" }),
+    fileFormat: "pcm_s16le_16",
+    outputFormat: taxaSaida === 24_000 ? "pcm_24000" : "pcm_16000",
+    modelId: MODELO_TROCA_VOZ,
+    ...(limparFundo ? { removeBackgroundNoise: true } : {}),
+  });
+  return paraBuffer(stream);
+}
+
+/** Embrulha PCM 16 bits mono num arquivo WAV (para o ffmpeg ler). */
+export function pcmParaWav(pcm: Buffer, taxa = 16_000): Buffer {
+  const cab = Buffer.alloc(44);
+  cab.write("RIFF", 0);
+  cab.writeUInt32LE(36 + pcm.length, 4);
+  cab.write("WAVE", 8);
+  cab.write("fmt ", 12);
+  cab.writeUInt32LE(16, 16);
+  cab.writeUInt16LE(1, 20); // PCM
+  cab.writeUInt16LE(1, 22); // mono
+  cab.writeUInt32LE(taxa, 24);
+  cab.writeUInt32LE(taxa * 2, 28);
+  cab.writeUInt16LE(2, 32);
+  cab.writeUInt16LE(16, 34);
+  cab.write("data", 36);
+  cab.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([cab, pcm]);
+}

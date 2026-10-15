@@ -33,6 +33,16 @@ describe("modo apresentador: tipo da próxima fala", () => {
     expect(possiveis([fala("pergunta"), chat]).has("pergunta")).toBe(false);
   });
 
+  it("com jogo na tela, comentar o jogo entra no sorteio, é o mais provável e pode repetir", () => {
+    expect(possiveis([]).has("jogo")).toBe(false);
+    const comTela = (anteriores: TrocaLive[]) =>
+      Array.from({ length: 1000 }, (_, i) => proximoTipo(anteriores, i / 1000, true));
+    const n = comTela([fala("jogo")]);
+    const conta = (t: string) => n.filter((x) => x === t).length;
+    expect(conta("jogo")).toBeGreaterThan(conta("assunto"));
+    expect(conta("jogo")).toBeGreaterThan(400);
+  });
+
   it("assunto é o tipo mais provável (maior peso)", () => {
     const n = Array.from({ length: 1000 }, (_, i) => proximoTipo([], i / 1000));
     const conta = (t: string) => n.filter((x) => x === t).length;
@@ -49,6 +59,13 @@ describe("pedidos da live", () => {
     expect(p).toMatch(/Não reclame que o chat está parado/);
     expect(p).toContain("lucas: qual teu anime favorito?");
     expect(p).toContain("Você falou por conta própria: …");
+  });
+
+  it("com a tela, o pedido avisa que a imagem é o jogo e proíbe inventar", () => {
+    expect(pedidoEspontaneo({ tipo: "jogo", comTela: true })).toMatch(/imagem da sua tela agora/);
+    expect(pedidoEspontaneo({ tipo: "jogo", comTela: true })).toMatch(/não invente placar/);
+    expect(pedidoLive({ autor: "ana", texto: "oi" }, [], true)).toMatch(/imagem da sua tela agora/);
+    expect(pedidoLive({ autor: "ana", texto: "oi" })).not.toMatch(/imagem da sua tela/);
   });
 
   it("sem assunto, usa o nicho e a personalidade", () => {

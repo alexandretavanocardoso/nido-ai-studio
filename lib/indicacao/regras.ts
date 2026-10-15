@@ -2,7 +2,7 @@
  * Regras do programa de indicação. Compartilhado entre cliente e servidor.
  *
  * Quem indica ganha COMISSAO (10%) de cada pagamento de plano do indicado —
- * a primeira assinatura e as renovações, no cartão, Pix, boleto ou USDC — por
+ * a primeira assinatura e as renovações, no cartão ou em USDC — por
  * até MESES_COMISSAO (12) meses contados da primeira comissão. Compra de
  * créditos avulsos não gera comissão.
  *

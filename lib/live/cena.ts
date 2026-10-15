@@ -52,6 +52,46 @@ export async function melhorarCena(texto: string): Promise<string> {
   }
 }
 
+const SISTEMA_CENA_LUCY = [
+  "You turn a livestream setting, described by the user in any language, into short English for a realtime video model that keeps the person and only changes what is behind them.",
+  "Line 1: the background only, as a concrete noun phrase of at most 30 words (place, main objects, colours, lighting), with no verbs about the person.",
+  "Line 2: only if the user asked for something on the person (an accessory, a prop, clothing), a short noun phrase for it, like 'over-ear gaming headphones'. Otherwise leave line 2 out.",
+  "Output only those lines, with no labels, quotes or preamble.",
+].join("\n");
+
+/** Cenário da Sombra (Lucy 2.5): o fundo e, se pedido, um item na pessoa — curtos, em inglês. */
+export interface CenaLucy {
+  fundo: string;
+  item: string | null;
+}
+
+/**
+ * Reescreve o cenário para o Lucy: ele acerta melhor uma frase curta de fundo
+ * (o guia da Decart pede uma edição focada por vez). Se a IA falhar, segue com
+ * o texto como veio.
+ */
+export async function cenaParaLucy(texto: string): Promise<CenaLucy> {
+  try {
+    const r = await askClaude({
+      model: MODELO_LIVE,
+      system: SISTEMA_CENA_LUCY,
+      user: texto,
+      maxTokens: 200,
+      ...SEM_RACIOCINIO,
+    });
+    const [fundo, item] = r
+      .split("\n")
+      .map((l) => l.trim().replace(/^[\d.)\s-]+/, "").replace(/[.\s]+$/, ""))
+      .filter(Boolean);
+    // Entra no meio da frase ("Change the background to a cozy…"): "A cozy" vira "a cozy".
+    const meio = (t: string) => (/^[A-Z][a-z\s]/.test(t) ? t[0].toLowerCase() + t.slice(1) : t);
+    return { fundo: meio(fundo || texto).slice(0, 300), item: item ? meio(item).slice(0, 120) : null };
+  } catch (e) {
+    console.warn("[live] cenário do Lucy:", (e as Error).message);
+    return { fundo: texto.slice(0, 300), item: null };
+  }
+}
+
 /** O pedido de imagem do cenário por texto (já melhorado). */
 export const pedidoCenaTexto = (instrucao: string) =>
   [
