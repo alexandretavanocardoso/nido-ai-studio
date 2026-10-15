@@ -3891,7 +3891,6 @@ export const TEXTOS_EN: Record<string, string> = {
   "9:16 · Reels, TikTok": "9:16 · Reels, TikTok",
   "16:9 · YouTube": "16:9 · YouTube",
   "1:1 · Feed": "1:1 · Feed",
-  "por milhão de tokens": "per million tokens",
   Esforço: "Effort",
   Baixo: "Low",
   Médio: "Medium",
@@ -3905,7 +3904,7 @@ export const TEXTOS_EN: Record<string, string> = {
   "Mais esforço: o modelo pensa mais antes de escrever — animação mais caprichada, mais cara e mais demorada.":
     "More effort: the model thinks longer before writing — a more polished animation, more expensive and slower.",
   Estimativa: "Estimate",
-  "o custo real aparece quando ficar pronto": "the real cost shows up when it's ready",
+  "Estimativa: o custo real aparece quando ficar pronto": "Estimate: the real cost shows up when it's ready",
   "Gerar motion": "Generate motion",
   "Nenhum motion ainda.": "No motion yet.",
   "Gere um motion ou escolha um no histórico para ver aqui.": "Generate a motion or pick one from the history to see it here.",

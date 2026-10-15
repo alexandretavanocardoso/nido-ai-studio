@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  creditosMotion,
   custoMotion,
+  esforcoDoModelo,
   estimativaMotion,
   MODELOS_MOTION,
   precoMotion,
@@ -61,6 +63,17 @@ describe("preço do motion", () => {
     expect(custoMotion("claude-haiku-5-5", 10_000, 20_000)).toBe(0.011);
     expect(custoMotion("gpt-6.1-sol", 1_000_000, 1_000_000)).toBe(12);
     expect(custoMotion("modelo-desconhecido", 1000, 1000)).toBe(0);
+  });
+
+  it("em créditos: 1 crédito = US$ 0,01, arredondado para cima", () => {
+    expect(creditosMotion(0.53)).toBe(53);
+    expect(creditosMotion(0.531)).toBe(54);
+    expect(creditosMotion(0.0004)).toBe(1);
+  });
+
+  it("o esforço que o modelo não aceita vira o padrão dele", () => {
+    expect(esforcoDoModelo("gemini-4-argon", "max")).toBe("high");
+    expect(esforcoDoModelo("claude-opus-5-5", "max")).toBe("max");
   });
 
   it("o Argon sai do preço de lançamento em dezembro", () => {

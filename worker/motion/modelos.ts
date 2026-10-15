@@ -140,6 +140,18 @@ export function estimativaMotion(
   return custoMotion(modelo, 7_000 + imagens * 1_600, SAIDA_POR_ESFORCO[esforco]);
 }
 
+/**
+ * Em créditos, como o resto do app (lib/planos.ts): 1 crédito = US$ 0,01 de
+ * custo, arredondado para cima.
+ */
+export const creditosMotion = (custo: number) => Math.max(1, Math.ceil(Number((custo * 100).toFixed(6))));
+
+/** Esforço que vale para o modelo: o escolhido, se ele aceitar, senão o padrão dele. */
+export function esforcoDoModelo(modelo: ModeloMotion, esforco: EsforcoMotion): EsforcoMotion {
+  const aceitos: readonly EsforcoMotion[] = MODELOS_MOTION[modelo].esforcos;
+  return aceitos.includes(esforco) ? esforco : MODELOS_MOTION[modelo].padrao;
+}
+
 /** Teto de tokens de saída do pedido (o HTML e o pensamento). */
 export const maxTokensMotion = (esforco: EsforcoMotion) =>
   esforco === "max" || esforco === "xhigh" ? 128_000 : 64_000;

@@ -7,7 +7,13 @@ import { Textarea } from "@/components/ui/Input";
 import { tx } from "@/lib/i18n/tx";
 import type { ItemMotion } from "@/lib/motion";
 import { downloadUrl } from "@/lib/storage/client";
-import { ehModeloMotion, MODELOS_MOTION, ROTULO_ESFORCO, type EsforcoMotion } from "@/worker/motion/modelos";
+import {
+  creditosMotion,
+  ehModeloMotion,
+  MODELOS_MOTION,
+  ROTULO_ESFORCO,
+  type EsforcoMotion,
+} from "@/worker/motion/modelos";
 import { FORMATOS_MOTION, type ProgressoMotion } from "@/worker/motion/tipos";
 import { PlayerMotion } from "./PlayerMotion";
 
@@ -111,7 +117,10 @@ export function PainelMotion({
       {m.uso ? (
         <div className="text-[12px] text-ink-dim">
           {nomeDoModelo(m.uso.modelo)} · {(m.uso.entrada + m.uso.saida).toLocaleString("pt-BR")} tokens ·{" "}
-          <b className="font-semibold text-ink">US$ {m.uso.custo.toFixed(2).replace(".", ",")}</b> ·{" "}
+          <b className="font-semibold text-ink">
+            {creditosMotion(m.uso.custo)} {tx("créditos")}
+          </b>{" "}
+          ·{" "}
           {duracaoTexto(m.uso.segundos)}
           {m.uso.correcoes ? ` · ${tx("1 correção automática")}` : ""}
         </div>

@@ -165,13 +165,14 @@ Authorization: Bearer <CRON_SECRET>
 - [x] A migration `db/migrations/0040_lives_sombra.sql` já está aplicada no Neon (14/10).
 - [ ] Sombra (ao vivo e de vídeo gravado): `DECART_API_KEY` (platform.decart.ai) na Vercel.
 - [ ] Sombra ao vivo, de verdade: entrar no ar com a webcam (Chrome ou Edge), conferir o influencer no palco, a voz própria e a trocada (boca e voz casando; ajustar "Sincronia da voz" se precisar) e a transmissão para uma rede.
-- [ ] Sombra de vídeo gravado (lives longas, trechos, Twitch e Kick): publicar o **processo da Sombra** no **Railway** — novo serviço a partir deste repositório com **Root Directory** `worker/sombra`, comando de início `npm start`, e as variáveis `DATABASE_URL`, `S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `DECART_API_KEY`, `ELEVENLABS_API_KEY`, `CRON_SECRET` (as mesmas do app) e `APP_URL=https://aistudio.nido.global`. Opcional: `SOMBRA_PARALELAS` (partes ao mesmo tempo, padrão 3). Uns US$ 5/mês. Para testar no computador: `cd worker/sombra && npm install && npx tsx --env-file=../../.env index.ts`.
+- [x] Sombra de vídeo gravado (lives longas, trechos, Twitch e Kick): **processo da Sombra** no ar no **Railway** (serviço `sombra`, 15/10) — — novo serviço a partir deste repositório com **Root Directory** `worker/sombra`, comando de início `npm start`, e as variáveis `DATABASE_URL`, `S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `DECART_API_KEY`, `ELEVENLABS_API_KEY`, `CRON_SECRET` (as mesmas do app) e `APP_URL=https://aistudio.nido.global`. Opcional: `SOMBRA_PARALELAS` (partes ao mesmo tempo, padrão 3). Uns US$ 5/mês. Para testar no computador: `cd worker/sombra && npm install && npx tsx --env-file=../../.env index.ts`.
 - [ ] Decart com saldo: o Lucy em lote custa ~US$ 0,04 por segundo de vídeo (1 h ≈ US$ 144; 30 min ≈ US$ 72). Recarregar em platform.decart.ai antes de lives longas — sem saldo, o vídeo falha e os créditos do app voltam.
 - [ ] Sombra de vídeo gravado, de verdade: colar o link de um VOD da Twitch e de um do Kick, escolher um trecho curto (ex.: 2 min) e conferir o resultado na Sombra; depois um MP4 enviado, com e sem troca de voz.
 - [ ] Criar um projeto no LiveKit Cloud e pôr `LIVEKIT_URL` (wss://…), `LIVEKIT_API_KEY` e `LIVEKIT_API_SECRET` na Vercel. Depois, **redeploy**.
 - [ ] Chat do YouTube: no Google Cloud, ativar a "YouTube Data API v3" e criar uma chave de API; pôr em `YOUTUBE_API_KEY`.
 - [ ] Chat do Kick: criar um app em kick.com → Settings → Developer, com o escopo `events:subscribe`, webhooks ligados e a URL `https://aistudio.nido.global/api/live/kick/webhook`; pôr `KICK_CLIENT_ID` e `KICK_CLIENT_SECRET`. O webhook só chega no domínio público (não funciona no localhost).
-- [ ] Bot do Discord (só voz, opcional):
+- [x] Bot do Discord (só voz): app **NIDO SINTÉTICO** (separado do app do login) e processo no ar no **Railway** (serviço `discord`, 15/10).
+- [ ] Bot do Discord na Vercel: `DISCORD_BOT_TOKEN` e `DISCORD_BOT_CLIENT_ID` (o Application ID do app NIDO SINTÉTICO) + redeploy. Sem eles, a tela da Live não mostra o link para convidar o bot. Passos originais:
   1. Em discord.com/developers → Applications: crie um app (ou use o do login com Discord) → **Bot** → gere o token e ligue **Message Content Intent**.
   2. Na Vercel: `DISCORD_BOT_TOKEN` (e `DISCORD_BOT_CLIENT_ID` = Application ID, se o app não for o do login). Redeploy.
   3. Publique o processo do bot, que precisa ficar sempre ligado (a Vercel não serve): no **Railway**, novo serviço a partir deste repositório com **Root Directory** `worker/discord`, comando de início `npm start`, e as variáveis `DATABASE_URL`, `DISCORD_BOT_TOKEN`, `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` (as mesmas do app). Custa uns US$ 5/mês. Para testar no computador: `cd worker/discord && npm install && node --env-file=../../.env node_modules/tsx/dist/cli.mjs bot.ts`.
@@ -179,9 +180,9 @@ Authorization: Bearer <CRON_SECRET>
 
 ## Vídeo de produto e Motion (só admin)
 
-- [ ] Rodar a migration `db/migrations/0041_motion.sql` no Neon **antes** do deploy (a limpeza diária de arquivos lê a tabela `motions`).
+- [x] A migration `db/migrations/0041_motion.sql` já está aplicada no Neon (15/10).
 - [ ] Vídeo de produto (Estúdio → Produto): não precisa de nada novo — usa as chaves de vídeo (`SAPIENS_KEY`, `FAL_KEY`, `RUNWAYML_API_SECRET`), `ELEVENLABS_API_KEY`, `GEMINI_API_KEY` e `ANTHROPIC_API_KEY` que já estão na Vercel. Testar um com fala e um sem fala; para liberar a todos: área admin → Em teste → Vídeo de produto.
-- [ ] **Processo do Motion no Railway** (gera a animação e grava o MP4; sem ele, os pedidos ficam na fila):
+- [x] **Processo do Motion no Railway** (serviço `motion`, no ar em 15/10; gera a animação e grava o MP4; sem ele, os pedidos ficam na fila):
   1. No projeto do Railway: **New → GitHub Repo** → este repositório. Não precisa ser público: se ele não aparecer na lista, clique em **Configure GitHub App**, instale o app do Railway na conta dona do repositório (`alexandretavanocardoso`), libere o `nido-ai-studio` e volte em **Refresh**.
   2. No serviço criado → **Settings → Source → Root Directory**: `worker/motion`. O Railway acha o `Dockerfile` sozinho (imagem do Playwright, já com o Chrome). Não precisa de domínio público.
   3. **Variables**: `DATABASE_URL`, `S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `ANTHROPIC_API_KEY` (e `ANTHROPIC_WORKSPACE_ID`, se o app usa) — as mesmas da Vercel —, `GEMINI_API_KEY` (para o Gemini 4 Argon, chave paga) e `OPENAI_API_KEY` (para o GPT-6.1 Sol).
@@ -192,5 +193,5 @@ Authorization: Bearer <CRON_SECRET>
 
 ## Landing page
 
-- [ ] Rodar a migration `db/migrations/0022_leads.sql` no Neon. Sem ela, os formulários da landing (whitelist e plano Agência) respondem "Não foi possível registrar agora".
+- [x] A migration `db/migrations/0022_leads.sql` já está aplicada no Neon (conferido em 15/10).
 - Os vídeos da landing ficam no S3 em `site/lp/` e são lidos por `/midia-lp/<nome>.mp4`. Para trocar um vídeo: pôr o original em `public/video_lp/` (pasta fora do git) e rodar `node --env-file=.env scripts/lp-midia.mjs`, que comprime, gera a capa em `public/lp/capas/` e envia.

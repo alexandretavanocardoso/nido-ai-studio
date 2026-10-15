@@ -7,12 +7,14 @@ import { QuemAparece, type Quem } from "@/components/live/NovaSombra";
 import { QuemEntra, type ImagemEnviada } from "@/components/sombra/comum";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
+import { SeletorModelo } from "@/components/ui/SeletorModelo";
 import { cn } from "@/lib/cn";
 import { tx } from "@/lib/i18n/tx";
 import type { ItemMotion } from "@/lib/motion";
 import type { Character } from "@/lib/types";
 import {
+  creditosMotion,
+  esforcoDoModelo,
   estimativaMotion,
   MODELO_MOTION_PADRAO,
   MODELOS_MOTION,
@@ -36,7 +38,6 @@ const FORMATOS: Array<[FormatoMotion, string]> = [
   ["1:1", "1:1 · Feed"],
 ];
 
-const usd = (v: number) => `US$ ${v < 0.1 ? v.toFixed(3) : v.toFixed(2)}`.replace(".", ",");
 
 /** O pedido de um motion novo. Cria o pedido na fila do worker e avisa a tela. */
 export function FormMotion({
@@ -234,17 +235,8 @@ export function FormMotion({
       </div>
 
       <div className="grid gap-2">
-        <span className="label-cap">{tx("Modelo")}</span>
-        <Select value={modelo} onChange={(e) => escolherModelo(e.target.value as ModeloMotion)} aria-label={tx("Modelo")}>
-          {MODELOS_MOTION_IDS.map((m) => (
-            <option key={m} value={m}>
-              {MODELOS_MOTION[m].rotulo} — {tx(MODELOS_MOTION[m].nota)} · US$ {MODELOS_MOTION[m].entrada} / {MODELOS_MOTION[m].saida}{" "}
-              {tx("por milhão de tokens")}
-            </option>
-          ))}
-        </Select>
+        <span className="label-cap">{tx("Esforço")}</span>
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-[12px] text-ink-dim">{tx("Esforço")}</span>
           {esforcos.map((e) => (
             <button key={e} type="button" onClick={() => setEsforco(e)} className={cn(pilula(esforco === e), "h-8 px-3 cursor-pointer")}>
               {tx(ROTULO_ESFORCO[e])}
@@ -259,9 +251,22 @@ export function FormMotion({
       {erro ? <p className="text-[13px] text-pink">{erro}</p> : null}
 
       <div className="-mx-4 -mb-4 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-line px-4 py-4 sm:-mx-6 sm:-mb-6 sm:px-6">
-        <span className="mr-auto text-[12.5px] text-ink-dim">
-          {tx("Estimativa")}: ~{usd(estimativa)} · {tx("o custo real aparece quando ficar pronto")}
-        </span>
+        <div className="mr-auto flex flex-wrap items-center gap-3">
+          <SeletorModelo
+            opcoes={MODELOS_MOTION_IDS.map((m) => ({
+              id: m,
+              label: MODELOS_MOTION[m].rotulo,
+              nota: tx(MODELOS_MOTION[m].nota),
+              preco: `~${creditosMotion(estimativaMotion(m, esforcoDoModelo(m, esforco), imagens))} ${tx("créditos")}`,
+            }))}
+            valor={modelo}
+            onChange={escolherModelo}
+            rotulo={tx("Modelo")}
+          />
+          <span className="text-[12px] text-ink-dim" title={tx("Estimativa: o custo real aparece quando ficar pronto")}>
+            ~{creditosMotion(estimativa)} {tx("créditos")}
+          </span>
+        </div>
         <Button onClick={() => void gerar()} disabled={!pronto || enviando}>
           {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {tx("Gerar motion")}

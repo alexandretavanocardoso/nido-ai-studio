@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { tx } from "@/lib/i18n/tx";
 import type { ItemMotion } from "@/lib/motion";
 import { useCharacters } from "@/lib/store";
+import { creditosMotion } from "@/worker/motion/modelos";
 import { FormMotion } from "./FormMotion";
 import { nomeDoEsforco, nomeDoModelo, PainelMotion } from "./PainelMotion";
 
@@ -125,7 +126,7 @@ export function Motion() {
                       </span>
                       <span className="text-[11.5px] text-ink-dim">
                         {nomeDoModelo(m.modelo)} · {nomeDoEsforco(m.esforco)} · {m.formato} · {m.duracao}s
-                        {m.uso ? ` · US$ ${m.uso.custo.toFixed(2).replace(".", ",")}` : ""} ·{" "}
+                        {m.uso ? ` · ${creditosMotion(m.uso.custo)} ${tx("créditos")}` : ""} ·{" "}
                         {new Date(m.criadoEm).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
                       </span>
                     </button>
