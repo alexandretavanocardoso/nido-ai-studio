@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import sharp from "sharp";
-import { adminOuResponder } from "@/lib/admin/acesso";
+import { liberadoOuResponder } from "@/lib/admin/acesso";
+import { getUserId } from "@/lib/auth/server";
 import { getPool } from "@/lib/db";
 import { getObjectBuffer, getS3, presignGet } from "@/lib/storage/s3";
 import { montarHtml } from "@/worker/motion/runtime";
@@ -18,15 +19,18 @@ export const maxDuration = 60;
  *    (reduzidas) — abre em qualquer navegador, sem depender do NIDO.
  */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await adminOuResponder();
-  if (admin instanceof NextResponse) return admin;
+  const bloqueio = await liberadoOuResponder("motion");
+  if (bloqueio) return bloqueio;
+  const userId = await getUserId();
+  if (!userId)
+    return NextResponse.json({ error: "Entre na sua conta.", code: "UNAUTHORIZED" }, { status: 401 });
   const pool = getPool();
   const s3 = getS3();
   if (!pool || !s3) return NextResponse.json({ error: "Armazenamento não configurado." }, { status: 500 });
   const { id } = await params;
   const { rows } = await pool.query<{ input: InputMotion; html_key: string | null }>(
     "select input, html_key from motions where id = $1 and user_id = $2",
-    [id, admin.userId],
+    [id, userId],
   );
   const m = rows[0];
   if (!m?.html_key) return NextResponse.json({ error: "Motion sem HTML." }, { status: 404 });

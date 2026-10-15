@@ -277,6 +277,39 @@ const PADROES: Padrao[] = [
 
 /** Mensagens fixas do servidor, indexadas pelo texto em português. */
 const ERROS_EN: Record<string, string> = {
+  // Motion (/api/motion)
+  "Banco ou armazenamento não configurados.":
+    "Database or storage not configured.",
+  "Este modelo não aceita esse esforço.":
+    "This model doesn't accept that effort level.",
+  "Motion não encontrado.":
+    "Motion not found.",
+  "Áudio não encontrado.":
+    "Audio not found.",
+  "Espere a gravação do MP4 terminar.":
+    "Wait for the MP4 recording to finish.",
+  "Este motion não está pronto para gravar.":
+    "This motion isn't ready to record.",
+  "Só dá para ajustar um motion pronto.":
+    "Only a finished motion can be adjusted.",
+  "Motion sem HTML.":
+    "Motion has no HTML.",
+  "Não consegui criar o motion. Os créditos foram devolvidos.":
+    "Couldn't create the motion. Your credits were refunded.",
+  "Informe o endereço do site.":
+    "Enter the website address.",
+  "Escolha o influencer.":
+    "Choose the influencer.",
+  "Duração inválida.":
+    "Invalid duration.",
+  "Modelo inválido.":
+    "Invalid model.",
+  "Diga o que mudar.":
+    "Say what to change.",
+  "Envie ao menos uma foto do produto.":
+    "Upload at least one product photo.",
+  "No misto, escolha o influencer e envie o produto ou o site.":
+    "In mixed mode, choose the influencer and add the product or the website.",
   // Formulários da landing page (app/api/leads)
   "Muitas tentativas seguidas. Tente de novo em alguns minutos.":
     "Too many attempts in a row. Try again in a few minutes.",

@@ -179,9 +179,10 @@ Authorization: Bearer <CRON_SECRET>
   3. Publique o processo do bot, que precisa ficar sempre ligado (a Vercel não serve): no **Railway**, novo serviço a partir deste repositório com **Root Directory** `worker/discord`, comando de início `npm start`, e as variáveis `DATABASE_URL`, `DISCORD_BOT_TOKEN`, `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` (as mesmas do app). Custa uns US$ 5/mês. Para testar no computador: `cd worker/discord && npm install && node --env-file=../../.env node_modules/tsx/dist/cli.mjs bot.ts`.
 - Detalhes no [TECNICO.md](TECNICO.md), seção "Live do personagem".
 
-## Vídeo de produto e Motion (só admin)
+## Vídeo de produto e Motion (em teste)
 
-- [x] A migration `db/migrations/0041_motion.sql` já está aplicada no Neon (15/10).
+- [x] As migrations `db/migrations/0041_motion.sql` e `0043_motion_creditos.sql` (créditos do Motion) já estão aplicadas no Neon (15/10).
+- [ ] Motion: cobra créditos (estimativa ao pedir, acerto pelo custo real quando fica pronto) e dá pontos. Testar uma geração e um ajuste conferindo o saldo; para liberar a todos: área admin → Em teste → Motion.
 - [ ] Vídeo de produto (Estúdio → Produto): não precisa de nada novo — usa as chaves de vídeo (`SAPIENS_KEY`, `FAL_KEY`, `RUNWAYML_API_SECRET`), `ELEVENLABS_API_KEY`, `GEMINI_API_KEY` e `ANTHROPIC_API_KEY` que já estão na Vercel. Testar um com fala e um sem fala; para liberar a todos: área admin → Em teste → Vídeo de produto.
 - [x] **Processo do Motion no Railway** (serviço `motion`, no ar em 15/10; gera a animação e grava o MP4; sem ele, os pedidos ficam na fila):
   1. No projeto do Railway: **New → GitHub Repo** → este repositório. Não precisa ser público: se ele não aparecer na lista, clique em **Configure GitHub App**, instale o app do Railway na conta dona do repositório (`alexandretavanocardoso`), libere o `nido-ai-studio` e volte em **Refresh**.

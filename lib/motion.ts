@@ -10,9 +10,10 @@ import type {
 } from "@/worker/motion/tipos";
 
 /**
- * Motion no app (tela /app/motion, só admin): os pedidos ficam na tabela
- * `motions` e o processo worker/motion faz o trabalho (ver worker/motion).
- * Aqui, o que a tela lista de cada pedido.
+ * Motion no app (tela /app/motion, em teste: lib/em-teste.ts): os pedidos
+ * ficam na tabela `motions` e o processo worker/motion faz o trabalho (ver
+ * worker/motion). Aqui, o que a tela lista de cada pedido. Os créditos ficam em
+ * lib/motion-creditos.ts.
  */
 
 export interface ItemMotion {

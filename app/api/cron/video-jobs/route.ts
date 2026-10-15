@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import { acertarLivesAbertas } from "@/lib/live/server";
+import { acertarMotions } from "@/lib/motion-creditos";
 import { finalizarJob, jobsPendentes } from "@/lib/video/finalizar";
 import { getRunway } from "@/lib/video/runway";
 
@@ -41,6 +42,8 @@ export async function GET(req: Request) {
           return 0;
         })
       : 0;
-  console.log("[cron] video-jobs", { verificados: ids.length, resultado, lives });
-  return NextResponse.json({ ok: true, verificados: ids.length, resultado, lives });
+  // Motions que terminaram com a tela fechada: acerta os créditos pelo custo real.
+  const motions = pool ? await acertarMotions(pool) : 0;
+  console.log("[cron] video-jobs", { verificados: ids.length, resultado, lives, motions });
+  return NextResponse.json({ ok: true, verificados: ids.length, resultado, lives, motions });
 }

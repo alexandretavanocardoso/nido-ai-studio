@@ -23,6 +23,8 @@ export const SO_ADMIN = {
   live: true,
   /** Vídeo de produto: o influencer mostrando e usando um produto, até 60s (lib/produto.ts). */
   video_produto: true,
+  /** Motion: a IA escreve uma animação do site, produto ou influencer (lib/motion.ts, worker/motion). */
+  motion: true,
   /**
    * Entrar no app. Aberto por padrão; fechado, só as contas admin conseguem
    * entrar (ver o hook de sessão em lib/auth/server.ts).
@@ -81,6 +83,11 @@ export const SOBRE_O_RECURSO: Record<
     titulo: "Vídeo de produto",
     descricao:
       "A página Estúdio → Produto: o influencer (um personagem ou uma foto) mostrando e usando um produto, com ou sem fala, em vídeos de até 60s. Cobra créditos como os outros vídeos. Fechado, só as contas admin veem e geram.",
+  },
+  motion: {
+    titulo: "Motion",
+    descricao:
+      "A página Estúdio → Motion: a IA escreve uma animação (motion graphics) do site, do produto ou do influencer, com ajustes, música e MP4. Cobra a estimativa em créditos ao pedir e acerta pelo custo real quando fica pronto (devolve tudo se falhar). Precisa do worker/motion ligado no Railway. Fechado, só as contas admin veem e geram.",
   },
   login: {
     titulo: "Login de usuários",

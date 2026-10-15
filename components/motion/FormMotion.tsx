@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
+import { avisarCreditos } from "@/components/creditos/CreditosProvider";
 import { pilula } from "@/components/live/Preparar";
 import { QuemAparece, type Quem } from "@/components/live/NovaSombra";
 import { QuemEntra, type ImagemEnviada } from "@/components/sombra/comum";
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
 import { SeletorModelo } from "@/components/ui/SeletorModelo";
 import { cn } from "@/lib/cn";
+import { txErro } from "@/lib/i18n/erros";
 import { tx } from "@/lib/i18n/tx";
 import type { ItemMotion } from "@/lib/motion";
 import type { Character } from "@/lib/types";
@@ -97,7 +99,7 @@ export function FormMotion({
     setErro(null);
     setEnviando(true);
     try {
-      const r = await fetch("/api/admin/motion", {
+      const r = await fetch("/api/motion", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -116,7 +118,8 @@ export function FormMotion({
         }),
       });
       const b = await r.json().catch(() => ({}));
-      if (!r.ok) return setErro(b.error ?? `Falha (HTTP ${r.status}).`);
+      avisarCreditos();
+      if (!r.ok) return setErro(txErro(b.error ?? `Falha (HTTP ${r.status}).`));
       onCriado(b.motion);
     } catch {
       setErro(tx("Sem conexão. Tente de novo."));
@@ -263,7 +266,7 @@ export function FormMotion({
             onChange={escolherModelo}
             rotulo={tx("Modelo")}
           />
-          <span className="text-[12px] text-ink-dim" title={tx("Estimativa: o custo real aparece quando ficar pronto")}>
+          <span className="text-[12px] text-ink-dim" title={tx("Estimativa, reservada ao gerar. Quando ficar pronto, vale o custo real: a sobra volta e, se passar, cobra a diferença.")}>
             ~{creditosMotion(estimativa)} {tx("créditos")}
           </span>
         </div>

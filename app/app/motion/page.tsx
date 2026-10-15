@@ -1,16 +1,13 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+"use client";
+
+import { EmTeste } from "@/components/EmTeste";
 import { Motion } from "@/components/motion/Motion";
-import { adminAtual } from "@/lib/admin/acesso";
 
-export const dynamic = "force-dynamic";
-export const metadata: Metadata = {
-  title: "Motion",
-  robots: { index: false, follow: false },
-};
-
-/** Motion (só admin: ainda não cobra créditos). */
-export default async function MotionPage() {
-  if (!(await adminAtual())) notFound();
-  return <Motion />;
+/** Motion (em teste: só admin até ser liberado na área admin, aba "Em teste"). */
+export default function MotionPage() {
+  return (
+    <EmTeste recurso="motion">
+      <Motion />
+    </EmTeste>
+  );
 }

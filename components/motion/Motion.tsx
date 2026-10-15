@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Film, Loader2 } from "lucide-react";
+import { avisarCreditos, useCreditos } from "@/components/creditos/CreditosProvider";
 import { cn } from "@/lib/cn";
 import { tx } from "@/lib/i18n/tx";
 import type { ItemMotion } from "@/lib/motion";
@@ -16,19 +17,21 @@ const emAndamento = (m: ItemMotion) =>
   m.status === "na_fila" || m.status === "gerando" || m.render === "na_fila" || m.render === "renderizando";
 
 /**
- * /app/motion (só admin) — um modelo de IA escreve uma animação (motion
- * graphics) do site, do produto ou do influencer. O pedido vai para a fila do
- * worker/motion; a tela mostra o andamento, a prévia, o custo e grava o MP4.
+ * /app/motion (em teste: lib/em-teste.ts) — um modelo de IA escreve uma
+ * animação (motion graphics) do site, do produto ou do influencer. O pedido vai
+ * para a fila do worker/motion; a tela mostra o andamento, a prévia, o custo e
+ * grava o MP4. Cobra créditos (lib/motion-creditos.ts).
  */
 export function Motion() {
   const personagens = useCharacters((s) => s.characters);
+  const { conta } = useCreditos();
   const [aba, setAba] = useState<Aba>("novo");
   const [motions, setMotions] = useState<ItemMotion[]>([]);
   const [worker, setWorker] = useState<boolean | null>(null);
   const [escolhido, setEscolhido] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
-    const r = await fetch("/api/admin/motion", { cache: "no-store" }).catch(() => null);
+    const r = await fetch("/api/motion", { cache: "no-store" }).catch(() => null);
     const b = await r?.json().catch(() => null);
     if (!r?.ok || !b) return;
     setMotions(b.motions ?? []);
@@ -45,6 +48,12 @@ export function Motion() {
     const t = setInterval(() => void carregar(), 4000);
     return () => clearInterval(t);
   }, [andando, carregar]);
+  // Terminou: o servidor acertou os créditos pelo custo real; atualiza o saldo da barra.
+  const andava = useRef(false);
+  useEffect(() => {
+    if (andava.current && !andando) avisarCreditos();
+    andava.current = andando;
+  }, [andando]);
 
   const novo = (m: ItemMotion) => {
     setMotions((l) => [m, ...l.filter((x) => x.id !== m.id)]);
@@ -64,7 +73,9 @@ export function Motion() {
       {worker === false ? (
         <p className="flex items-start gap-2 rounded-xl border border-pink/40 bg-pink/5 px-4 py-3 text-[13px] text-ink">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-pink" />
-          {tx("O worker do Motion (worker/motion) não está ligado: os pedidos ficam na fila até ele ligar no Railway.")}
+          {conta?.admin
+            ? tx("O worker do Motion (worker/motion) não está ligado: os pedidos ficam na fila até ele ligar no Railway.")
+            : tx("O Motion está fora do ar no momento. Os pedidos ficam na fila e começam assim que ele voltar.")}
         </p>
       ) : null}
 

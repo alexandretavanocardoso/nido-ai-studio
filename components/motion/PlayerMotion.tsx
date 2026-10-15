@@ -40,7 +40,7 @@ export function PlayerMotion({
     setErro(null);
     setTempo(0);
     setTocando(true);
-    fetch(`/api/admin/motion/${encodeURIComponent(id)}/html`, { cache: "no-store" })
+    fetch(`/api/motion/${encodeURIComponent(id)}/html`, { cache: "no-store" })
       .then(async (r) => {
         const b = await r.json().catch(() => ({}));
         if (!vivo) return;

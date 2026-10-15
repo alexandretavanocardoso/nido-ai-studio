@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { AlertTriangle, Download, FileCode, Film, Loader2, Wand2, X } from "lucide-react";
+import { avisarCreditos } from "@/components/creditos/CreditosProvider";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
+import { txErro } from "@/lib/i18n/erros";
 import { tx } from "@/lib/i18n/tx";
 import type { ItemMotion } from "@/lib/motion";
 import { downloadUrl } from "@/lib/storage/client";
@@ -60,13 +62,13 @@ export function PainelMotion({
   /** Põe, troca ou tira a música do MP4 (o MP4 gravado antes deixa de valer). */
   async function trocarMusica(nova: MusicaEscolhida | null) {
     setErro(null);
-    const r = await fetch(`/api/admin/motion/${encodeURIComponent(m.id)}`, {
+    const r = await fetch(`/api/motion/${encodeURIComponent(m.id)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ acao: "musica", musica: nova }),
     }).catch(() => null);
     const b = await r?.json().catch(() => ({}));
-    if (!r?.ok) return setErro(b?.error ?? tx("Sem conexão. Tente de novo."));
+    if (!r?.ok) return setErro(b?.error ? txErro(b.error) : tx("Sem conexão. Tente de novo."));
     onMudou(b.motion);
   }
 
@@ -74,13 +76,14 @@ export function PainelMotion({
     setErro(null);
     setEnviando(acao);
     try {
-      const r = await fetch(`/api/admin/motion/${encodeURIComponent(m.id)}`, {
+      const r = await fetch(`/api/motion/${encodeURIComponent(m.id)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(acao === "ajustar" ? { acao, pedido } : { acao }),
       });
       const b = await r.json().catch(() => ({}));
-      if (!r.ok) return setErro(b.error ?? `Falha (HTTP ${r.status}).`);
+      if (acao === "ajustar") avisarCreditos();
+      if (!r.ok) return setErro(txErro(b.error ?? `Falha (HTTP ${r.status}).`));
       if (acao === "ajustar") {
         setPedido("");
         onNovo(b.motion);
@@ -177,6 +180,9 @@ export function PainelMotion({
               {enviando === "ajustar" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
               {tx("Ajustar (cria uma versão nova)")}
             </Button>
+            <span className="text-[12px] text-ink-dim">
+              {tx("Cobra créditos como um motion novo: a estimativa na hora e o acerto pelo custo real quando ficar pronto.")}
+            </span>
           </div>
 
           <div className="grid gap-2 border-t border-line pt-4">
@@ -215,7 +221,7 @@ export function PainelMotion({
               </Button>
             )}
             <a
-              href={`/api/admin/motion/${encodeURIComponent(m.id)}/html?modo=arquivo`}
+              href={`/api/motion/${encodeURIComponent(m.id)}/html?modo=arquivo`}
               className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line px-4 text-[13px] font-semibold text-ink hover:border-line-strong"
             >
               <FileCode className="h-4 w-4" />

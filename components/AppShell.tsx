@@ -447,8 +447,8 @@ function MenuLateral({
               },
             ]
           : []),
-        // Só admin (sem cobrança de créditos ainda): ver app/app/motion.
-        ...(conta?.admin
+        // Em teste: fechado, só as contas admin veem (lib/em-teste.ts).
+        ...(liberadoNaTela("motion", conta)
           ? [
               {
                 rotulo: tx("Motion"),

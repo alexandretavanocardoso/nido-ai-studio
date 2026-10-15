@@ -1189,6 +1189,12 @@ export const TEXTOS_EN: Record<string, string> = {
     "Continue setup",
   "Conectar Stripe":
     "Connect Stripe",
+  "O Motion está fora do ar no momento. Os pedidos ficam na fila e começam assim que ele voltar.":
+    "Motion is unavailable right now. Requests stay in the queue and start as soon as it's back.",
+  "Cobra créditos como um motion novo: a estimativa na hora e o acerto pelo custo real quando ficar pronto.":
+    "Charges credits like a new motion: the estimate now, settled at the real cost when it's ready.",
+  "Estimativa, reservada ao gerar. Quando ficar pronto, vale o custo real: a sobra volta e, se passar, cobra a diferença.":
+    "Estimate, reserved when you generate. When it's ready, the real cost applies: any leftover is refunded, and if it's over, the difference is charged.",
   "dias depois do pagamento no cartão para a comissão liberar para saque (em USDC,":
     "days after a card payment for the commission to become withdrawable (in USDC,",
   "A comissão de pagamento no cartão fica em carência por":
