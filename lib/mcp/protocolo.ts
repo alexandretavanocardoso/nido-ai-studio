@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { ErroDaFerramenta } from "./ferramentas";
+import { usuarioLiberado } from "@/lib/admin/acesso";
+import { ErroDaFerramenta, type Ferramenta } from "./ferramentas";
 import { ferramentaPorNome, TODAS } from "./todas";
 
 /**
@@ -43,8 +44,8 @@ const erro = (
 ): Resposta => ({ jsonrpc: "2.0", id: id ?? null, error: { code, message } });
 
 /** Lista de ferramentas no formato do protocolo (o esquema de entrada sai do zod). */
-export function listaDeFerramentas() {
-  return TODAS.map((f) => ({
+export function listaDeFerramentas(ferramentas: Ferramenta[] = TODAS) {
+  return ferramentas.map((f) => ({
     name: f.name,
     description: f.description,
     inputSchema: z.toJSONSchema(f.entrada, { io: "input" }),
@@ -78,11 +79,17 @@ export async function tratarMensagem(
     }
     case "ping":
       return ok({});
-    case "tools/list":
-      return ok({ tools: listaDeFerramentas() });
+    case "tools/list": {
+      // As de recurso em teste só aparecem para quem pode usar (hoje, o admin).
+      const liberadas = await Promise.all(
+        TODAS.map((f) => !f.recurso || usuarioLiberado(f.recurso, ctx.userId)),
+      );
+      return ok({ tools: listaDeFerramentas(TODAS.filter((_, i) => liberadas[i])) });
+    }
     case "tools/call": {
       const f = ferramentaPorNome(String(m.params?.name ?? ""));
-      if (!f) return erro(m.id, -32602, "Ferramenta desconhecida.");
+      if (!f || (f.recurso && !(await usuarioLiberado(f.recurso, ctx.userId))))
+        return erro(m.id, -32602, "Ferramenta desconhecida.");
       const args = f.entrada.safeParse(m.params?.arguments ?? {});
       // Erro de uso da ferramenta volta como resultado (isError): assim o
       // Claude lê a mensagem e pode corrigir a chamada.

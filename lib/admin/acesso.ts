@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { usuarioDoContexto } from "@/lib/auth/contexto";
 import { getAuth } from "@/lib/auth/server";
 import { getPool } from "@/lib/db";
 import type { RecursoEmTeste } from "@/lib/em-teste";
@@ -55,12 +56,15 @@ export async function adminOuResponder(): Promise<Admin | NextResponse> {
 /**
  * Recurso em teste (lib/em-teste.ts): enquanto estiver fechado, só admin usa
  * (o admin abre e fecha na aba "Em teste"). Devolve a recusa pronta, ou null se
- * a sessão atual pode usar. 404 para não revelar que existe.
+ * a sessão atual pode usar. 404 para não revelar que existe. Pelo MCP não há
+ * sessão: vale o dono do token (lib/auth/contexto).
  */
 export async function liberadoOuResponder(
   recurso: RecursoEmTeste,
 ): Promise<NextResponse | null> {
-  if (!(await soAdminAgora(recurso)) || (await adminAtual())) return null;
+  if (!(await soAdminAgora(recurso))) return null;
+  const doToken = usuarioDoContexto();
+  if (doToken ? await usuarioLiberado(recurso, doToken) : await adminAtual()) return null;
   return NextResponse.json({ error: "Não encontrado." }, { status: 404 });
 }
 

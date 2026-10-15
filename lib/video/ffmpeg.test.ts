@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { ajustarCorte, caixaEmPixels } from "./ffmpeg";
+import {
+  ajustarCorte,
+  caixaEmPixels,
+  emendaDireta,
+  type VideoInfo,
+} from "./ffmpeg";
 import { centroDaLegenda, quebrarLinhas } from "./legenda-texto";
 
 describe("centroDaLegenda", () => {
@@ -31,6 +36,37 @@ describe("ajustarCorte", () => {
   it("recusa o trecho que fica menor que o mínimo", () => {
     expect(ajustarCorte(14.8, 16, 15, 0.5)).toBeNull();
     expect(ajustarCorte(20, 25, 15, 0.5)).toBeNull();
+  });
+});
+
+describe("emendaDireta", () => {
+  const k4 = "h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 2160x3840";
+  const trecho = (duracao: number, formato = k4, fps = 24): VideoInfo => ({
+    largura: 2160,
+    altura: 3840,
+    duracao,
+    fps,
+    formato,
+  });
+
+  it("emenda os trechos do Kling, que saem arredondados para o quadro", () => {
+    // O caso real: 52,1s em 4 trechos de 13,025s; o Kling devolve 13,04s.
+    expect(emendaDireta(Array(4).fill(trecho(13.04)), Array(4).fill(13.025))).toBe(true);
+  });
+
+  it("recodifica quando a diferença acumulada passa de 0,1s", () => {
+    expect(emendaDireta(Array(4).fill(trecho(13.06)), Array(4).fill(13.025))).toBe(false);
+  });
+
+  it("recodifica a tomada curta gerada em câmera lenta", () => {
+    expect(emendaDireta([trecho(6), trecho(3)], [6, 1.5])).toBe(false);
+  });
+
+  it("recodifica quando formato ou fps mudam entre trechos", () => {
+    const hd = k4.replace("2160x3840", "1080x1920");
+    expect(emendaDireta([trecho(5), trecho(5, hd)], [5, 5])).toBe(false);
+    expect(emendaDireta([trecho(5), trecho(5, k4, 30)], [5, 5])).toBe(false);
+    expect(emendaDireta([trecho(5, "")], [5])).toBe(false);
   });
 });
 

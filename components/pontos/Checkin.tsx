@@ -112,7 +112,7 @@ export function Checkin({ pontos }: { pontos: ResumoPontos }) {
         {pontos.checkinHoje ? (
           <ProximoCheckin ate={pontos.proximoEm} />
         ) : (
-          `${tx("Fazer check-in")} · +${CHECKIN_CICLO[pontos.dia]} ${tx("pontos")}`
+          `${tx("Fazer check-in")} · +${CHECKIN_CICLO[pontos.dia]} ${tx("XP")}`
         )}
       </Button>
     </div>

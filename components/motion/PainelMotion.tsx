@@ -22,6 +22,7 @@ import { PlayerMotion } from "./PlayerMotion";
 
 const ETAPA: Record<ProgressoMotion["etapa"], string> = {
   site: "Lendo o site…",
+  assistindo: "Assistindo ao vídeo de referência…",
   pensando: "Pensando na animação…",
   escrevendo: "Escrevendo a animação…",
   conferindo: "Conferindo se a animação carrega…",

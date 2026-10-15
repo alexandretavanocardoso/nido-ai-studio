@@ -136,6 +136,10 @@ const PADROES: Padrao[] = [
     "This video is $1s long — the maximum is $2s.",
   ],
   [
+    /^O vídeo de referência tem (\d+)s — o máximo é (\d+)s\.$/,
+    "The reference video is $1s long — the maximum is $2s.",
+  ],
+  [
     /^O vídeo precisa ter pelo menos (\d+)s\.$/,
     "The video must be at least $1s long.",
   ],
@@ -573,6 +577,7 @@ const ERROS_EN: Record<string, string> = {
     "Describe the sticker or upload the original sticker.",
   "Não consegui montar a figurinha. Tente de novo.":
     "I couldn't build the sticker. Try again.",
+  "Não consegui montar o vídeo final.": "I couldn't put the final video together.",
   "Não consegui iniciar a troca da figurinha.":
     "I couldn't start the sticker swap.",
   "Não consegui preparar a figurinha animada.":
@@ -957,6 +962,12 @@ const ERROS_EN: Record<string, string> = {
     "The scenes don't match the chosen duration. Put the scenes together again.",
   "Escreva a fala de cada cena.": "Write the speech for each scene.",
   "Escolha a voz.": "Choose the voice.",
+  // Motion a partir de um vídeo
+  "Confirme que tem direito de usar o vídeo de referência.": "Confirm that you have the right to use the reference video.",
+  "Vídeo de referência não encontrado.": "Reference video not found.",
+  "Não consegui ler o vídeo de referência. Envie outro.": "Couldn't read the reference video. Upload another one.",
+  "Envie o vídeo de referência (arquivo ou link).": "Send the reference video (file or link).",
+  "Não consegui abrir o vídeo de referência. Envie de novo.": "Couldn't open the reference video. Send it again.",
   // Criar produto (app/api/produto/criar)
   "Dê um nome ao produto.": "Give the product a name.",
   "Envie a logo da empresa.": "Upload the company logo.",

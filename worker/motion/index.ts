@@ -39,6 +39,7 @@ import {
   type EsforcoMotion,
 } from "./modelos";
 import { pedidoCorrecao, pedidoMotion, pedidoRevisao, sistemaMotion, type ParteMotion } from "./prompt";
+import { prepararReferencia, type QuadroReferencia } from "./referencia";
 import { colocarMusica, fotografar, gravar, testarHtml } from "./renderizar";
 import { extrairHtml, montarHtml } from "./runtime";
 import { armazenamento, type ArmazenamentoMotion } from "./s3";
@@ -108,12 +109,35 @@ async function gerar(s: Servicos, job: TrabalhoMotion): Promise<void> {
       await salvarInput(pool, job.id, input);
     }
 
+    // 1b. O vídeo de referência: assiste uma vez (cortes, batidas, roteiro e o
+    // áudio como música) e tira os quadros que o modelo vê. O ajuste já tem o HTML.
+    let quadrosReferencia: QuadroReferencia[] = [];
+    if (input.referencia && !input.ajuste) {
+      await andamento(pool, job.id, { etapa: "assistindo" });
+      const vivo = setInterval(() => void sinal(pool, job.id).catch(() => {}), 60_000);
+      try {
+        const r = await prepararReferencia({ ffmpeg: ffmpegStatic as unknown as string, s3, userId: job.userId, input, log });
+        quadrosReferencia = r.quadros;
+        if (r.uso) {
+          uso.entrada += r.uso.entrada;
+          uso.saida += r.uso.saida;
+          uso.custo += r.uso.custo;
+        }
+      } catch (e) {
+        log("referência:", job.id, e);
+        throw new ErroIA("Não consegui abrir o vídeo de referência. Envie de novo.");
+      } finally {
+        clearInterval(vivo);
+      }
+      await salvarInput(pool, job.id, input);
+    }
+
     // 2. O pedido: o texto e as imagens (e o HTML de base, num ajuste).
     await andamento(pool, job.id, { etapa: "pensando" });
     const imagens = await Promise.all(input.assets.map(async (a) => paraModelo(await s3.baixar(a.key), a)));
     const base = input.ajuste ? (await s3.baixar(input.ajuste.baseHtmlKey)).toString("utf8") : undefined;
     const sistema = sistemaMotion({ largura, altura, duracao: input.duracao, idioma: input.idioma });
-    let partes: ParteMotion[] = pedidoMotion(input, job.tipo, imagens, base);
+    let partes: ParteMotion[] = pedidoMotion(input, job.tipo, imagens, base, quadrosReferencia);
     const mapa = await enderecos(s3, input.assets);
 
     // 3. Escreve, confere se carrega e, se quebrar, pede uma correção.
@@ -126,6 +150,7 @@ async function gerar(s: Servicos, job: TrabalhoMotion): Promise<void> {
         esforco,
         sistema,
         partes,
+        longo: !!input.referencia,
         aoEscrever: (caracteres) => {
           if (Date.now() - aviso < 2500) return;
           aviso = Date.now();
@@ -184,6 +209,7 @@ async function gerar(s: Servicos, job: TrabalhoMotion): Promise<void> {
         esforco,
         sistema,
         partes: pedidoRevisao(html, quadros),
+        longo: !!input.referencia,
         aoEscrever: (caracteres) => {
           if (Date.now() - aviso < 2500) return;
           aviso = Date.now();

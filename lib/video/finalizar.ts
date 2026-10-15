@@ -96,6 +96,9 @@ interface Job {
 /** Jobs pendentes há mais que isso viram erro (créditos devolvidos). */
 const LIMITE_HORAS = 48;
 
+/** Tentativas de montar o resultado (baixar, juntar, salvar) antes de virar erro com estorno. */
+const MAX_FINALIZACOES = 4;
+
 export async function finalizarJob(
   id: string,
   userId?: string,
@@ -359,15 +362,23 @@ export async function finalizarJob(
     concluido = { url: e.videoUrl };
   }
 
-  // Pronto no serviço: só uma chamada "pega" a finalização.
-  const claim = await pool.query(
-    `update video_jobs set status = 'finalizando', updated_at = now()
-     where id = $1 and (status in ('na_fila', 'processando')
+  // Pronto no serviço: só uma chamada "pega" a finalização. Cada tentativa conta
+  // (`input.finalizacoes`, inclusive a que morreu no meio e foi retomada depois
+  // de 5 min); depois de uma falha, a próxima espera 2 min × tentativas.
+  const claim = await pool.query<{ finalizacoes: number }>(
+    `update video_jobs set status = 'finalizando', updated_at = now(),
+            input = jsonb_set(input, '{finalizacoes}', to_jsonb(coalesce((input->>'finalizacoes')::int, 0) + 1))
+     where id = $1 and ((status in ('na_fila', 'processando')
+                         and (coalesce((input->>'finalizacoes')::int, 0) = 0
+                              or updated_at < now() - make_interval(mins => 2 * (input->>'finalizacoes')::int)))
                         or (status = 'finalizando' and updated_at < now() - interval '5 minutes'))
-     returning id`,
+     returning (input->>'finalizacoes')::int as finalizacoes`,
     [job.id],
   );
   if (!claim.rowCount) return publico({ status: "finalizando" });
+  // Pronto no serviço, mas a montagem não sai: desiste e devolve os créditos.
+  if (claim.rows[0].finalizacoes > MAX_FINALIZACOES)
+    return falhar(job, "Não consegui montar o vídeo final.");
 
   try {
     let key: string;

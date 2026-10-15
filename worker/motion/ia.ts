@@ -33,6 +33,8 @@ export async function escrever(o: {
   sistema: string;
   partes: ParteMotion[];
   aoEscrever: (caracteres: number) => void;
+  /** Pedido com vídeo de referência: mais folga de tamanho de resposta. */
+  longo?: boolean;
 }): Promise<RespostaIA> {
   const provedor = MODELOS_MOTION[o.modelo].provedor;
   return provedor === "google" ? escreverGemini(o) : provedor === "openai" ? escreverOpenAI(o) : escreverClaude(o);
@@ -51,7 +53,7 @@ async function escreverClaude(o: Parameters<typeof escrever>[0]): Promise<Respos
   try {
     const stream = client.beta.messages.stream({
       model: o.modelo,
-      max_tokens: maxTokensMotion(o.esforco),
+      max_tokens: maxTokensMotion(o.esforco, o.longo),
       thinking: { type: "adaptive" },
       output_config: { effort: o.esforco },
       system: o.sistema,
@@ -119,7 +121,7 @@ async function escreverOpenAI(o: Parameters<typeof escrever>[0]): Promise<Respos
         },
       ],
       reasoning: { effort: o.esforco },
-      max_output_tokens: maxTokensMotion(o.esforco),
+      max_output_tokens: maxTokensMotion(o.esforco, o.longo),
       stream: true,
     });
     let texto = "";

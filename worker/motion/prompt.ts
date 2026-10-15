@@ -80,6 +80,7 @@ const TIPO: Record<TipoMotion, string> = {
   produto: "Promote a product",
   influencer: "Present an AI influencer",
   misto: "The AI influencer presenting a product and/or website",
+  video: "Recreate the edit of the reference video below as a motion-graphics piece",
 };
 
 /**
@@ -92,6 +93,8 @@ export function pedidoMotion(
   tipo: TipoMotion,
   imagens: Array<{ asset: AssetMotion; mime: "image/jpeg" | "image/png"; base64: string }>,
   htmlBase?: string,
+  /** Quadros do vídeo de referência (só na primeira geração; o ajuste já tem o HTML). */
+  quadrosReferencia: Array<{ t: number; base64: string }> = [],
 ): ParteMotion[] {
   const { largura, altura } = FORMATOS_MOTION[input.formato];
   const linhas: string[] = [];
@@ -148,7 +151,76 @@ export function pedidoMotion(
     });
     partes.push({ tipo: "imagem", mime: img.mime, base64: img.base64 });
   }
+  if (input.referencia) partes.push(...partesDaReferencia(input, imagens.length > 0, quadrosReferencia));
   return partes;
+}
+
+/** Tempos em segundos, com uma casa (no máximo `max`). */
+const listaDeTempos = (tempos: number[] | undefined, max: number) =>
+  tempos?.length ? tempos.slice(0, max).map((t) => t.toFixed(1)).join(", ") + (tempos.length > max ? " …" : "") : "";
+
+/**
+ * A seção do vídeo de referência (estilo Katana): recriar a edição — cenas,
+ * tempos, layout, tipografia, transições e batidas — com o material de quem
+ * pediu. Os quadros da referência são só para olhar (não são assets).
+ */
+function partesDaReferencia(
+  input: InputMotion,
+  temImagens: boolean,
+  quadros: Array<{ t: number; base64: string }>,
+): ParteMotion[] {
+  const ref = input.referencia!;
+  const temMaterial = !!(input.brief.trim() || input.produto || input.influencer || input.site || temImagens);
+  const filmado = ref.estilo === "filmado";
+  const linhas = [
+    "",
+    "REFERENCE VIDEO — RECREATE THIS EDIT",
+    filmado
+      ? "- The reference is LIVE FOOTAGE: there is no designed graphics to copy. Turn its story into a motion-graphics piece: keep its timeline — the same moments at the same times (the key actions, the big hit, the reactions, the pauses) — and narrate them with bold kinetic typography (short punchy words that say what happens, in the target language), simple graphic shapes and icons, counters, flashes, and camera-like moves (zoom punches, shakes, whip transitions), in the footage's palette. Do NOT draw the people, bodies, faces, the set or the objects: no illustrated characters and no detailed SVG scenes. The details of positions and bodies in the breakdown are only there so you understand the story."
+      : "",
+    `The client sent a reference video (${ref.duracao.toFixed(1)}s, ${ref.largura}×${ref.altura}). Recreate it as motion graphics: the same structure and pacing — the same shots in the same order with the same start and end times, the same kind of layouts, typography style, colour feel, graphic devices, transitions and easing character, with the motion hitting the same beats. Your piece lasts exactly ${input.duracao}s, like the reference.`,
+    temMaterial
+      ? "- Content: replace the reference's subject, texts and footage with the client's — their brief, product, person or website and their images (asset://…). Keep the reference's rhythm and look; change what it says."
+      : "- Content: the client gave no brief and no material, so recreate the reference as faithfully as you can, including its on-screen texts (written in the target language). Live footage and photos become graphic equivalents built with typography, shapes and SVG.",
+    "- Where the reference shows live footage or photos, put the client's images in the same framing and motion; when no image fits, build a graphic equivalent.",
+    "- The reference frames below are only for you to look at. They are NOT assets: never use them as images or try to load them.",
+    "- When the reference conflicts with the general craft guidance above (number of beats, hook, final frame), follow the reference.",
+    "- Keep the document compact: reuse classes, build repeated elements with loops, and avoid long hand-written SVG paths — the response has a size limit.",
+    ref.usarAudio
+      ? "- The reference's own soundtrack will play under your video from 0s: land the cuts and the key moves exactly on its beats."
+      : "",
+    ref.cortes?.length ? `Scene changes measured in the reference (s): ${listaDeTempos(ref.cortes, 80)}` : "",
+    ref.batidas?.length ? `Strong beats measured in its audio (s): ${listaDeTempos(ref.batidas, 120)}` : "",
+    ref.analise ? `Breakdown written by a designer who watched the reference (picture and sound):\n${ref.analise}` : "",
+    quadros.length ? "Reference frames (look only — not assets), each after its time:" : "",
+  ];
+  return [
+    { tipo: "texto", texto: linhas.filter((x) => x !== "").join("\n") },
+    ...quadros.flatMap((q) => [
+      { tipo: "texto" as const, texto: `Reference at ${q.t.toFixed(1)}s:` },
+      { tipo: "imagem" as const, mime: "image/jpeg" as const, base64: q.base64 },
+    ]),
+  ];
+}
+
+/**
+ * O pedido ao Gemini que assiste ao vídeo de referência (imagem e som): o
+ * roteiro cena a cena que o modelo que escreve o motion vai seguir.
+ */
+export function pedidoAnaliseReferencia(o: { duracao: number; cortes: number[]; batidas: number[]; temAudio: boolean }): string {
+  return [
+    "You are a senior motion designer studying a reference video so that another designer can rebuild its edit as an HTML/GSAP motion-graphics piece without seeing it. Watch the whole video, picture and sound.",
+    `Measured for you: duration ${o.duracao.toFixed(1)}s.${o.cortes.length ? ` Scene changes detected at (s): ${listaDeTempos(o.cortes, 80)}.` : ""}${o.batidas.length ? ` Strong audio hits at (s): ${listaDeTempos(o.batidas, 120)}.` : ""} Use these; correct them if you see otherwise.`,
+    "",
+    "Write, in English. The very first line must be exactly one of: KIND: motion graphics | KIND: live footage | KIND: mixed (live footage means filmed people or places with no designed graphics; mixed means footage with designed graphics on top).",
+    "1. OVERALL — orientation, visual style (flat, 3D, photographic, typographic, collage…), background treatment, colour palette with hex codes, typography (style of family: grotesk, serif, display, script; weight, case, tracking; size relative to the frame), recurring graphic devices (shapes, lines, grids, stickers, grain, masks), energy and pacing.",
+    "2. SHOT BY SHOT — for each shot, start–end time (seconds, one decimal): layout and position of every element (in % of the frame), every on-screen text verbatim in its original language, how each element enters and leaves (direction, distance, speed, easing feel: snappy, elastic, smooth, overshoot), camera moves (zoom, pan, rotation), and the transition into the next shot. Say which moments land on the music beats.",
+    o.temAudio
+      ? "3. SOUND — music genre and mood, approximate BPM, drops and hits (times), voice-over transcribed, notable sound effects."
+      : "3. SOUND — the video has NO audio track: write only \"No audio.\" here, and do not mention music, beats or BPM anywhere.",
+    "4. FOOTAGE — where there is live footage or photos, what they show and how they are framed and moved (they will be replaced by the client's images).",
+    "Be concrete and measurable. No introduction, no conclusion, at most about 1,200 words.",
+  ].join("\n");
 }
 
 /** Pedido de correção quando o HTML gerado quebra ao carregar. */

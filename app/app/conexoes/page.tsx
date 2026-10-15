@@ -16,10 +16,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useCreditos } from "@/components/creditos/CreditosProvider";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { confirmar } from "@/components/ui/Confirmacao";
 import { cn } from "@/lib/cn";
+import { liberadoNaTela, type RecursoEmTeste } from "@/lib/em-teste";
 import { copyToClipboard } from "@/lib/export";
 import { txErro } from "@/lib/i18n/erros";
 import { tx } from "@/lib/i18n/tx";
@@ -45,6 +47,13 @@ const PODE = [
   "Trocar várias pessoas de um vídeo",
 ];
 
+/** Ferramentas de recursos em teste: só aparecem para quem pode usar a tela. */
+const PODE_EM_TESTE: Array<[RecursoEmTeste, string]> = [
+  ["video_produto", "Criar produto em 3D com a logo da empresa"],
+  ["video_produto", "Criar vídeo de produto (com fala e música de fundo)"],
+  ["motion", "Criar, ajustar e exportar motions em MP4"],
+];
+
 type Aba = "claude" | "chatgpt";
 
 /** Cada assistente tem o seu passo a passo. */
@@ -67,6 +76,8 @@ export default function Conexoes() {
 
 function ConexoesLiberada() {
   const { user } = useAuth();
+  const { conta } = useCreditos();
+  const pode = [...PODE, ...PODE_EM_TESTE.filter(([r]) => liberadoNaTela(r, conta)).map(([, p]) => p)];
   const [tokens, setTokens] = useState<TokenApi[] | null>(null);
   const [nome, setNome] = useState("Claude Code");
   const [novo, setNovo] = useState<string | null>(null);
@@ -558,7 +569,7 @@ function ConexoesLiberada() {
           {tx("O que dá para fazer")}
         </div>
         <ul className="grid gap-1.5 text-[13px] text-ink-mute sm:grid-cols-2">
-          {PODE.map((p) => (
+          {pode.map((p) => (
             <li key={p} className="flex gap-2">
               <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" />
               {tx(p)}

@@ -55,6 +55,8 @@ export interface VideoInfo {
   duracao: number;
   /** Quadros por segundo (30 se não der pra ler). */
   fps: number;
+  /** Codec, perfil, pixels e resolução como o ffmpeg descreve (ex.: "h264 (Main) …, 2160x3840"). */
+  formato?: string;
 }
 
 /** Lê duração e dimensões do vídeo (sem ffprobe: ffmpeg decodifica 0 frames). */
@@ -81,6 +83,7 @@ export async function probe(arquivo: string): Promise<VideoInfo> {
     largura: rot ? h : w,
     altura: rot ? w : h,
     fps: fps > 0 && fps <= 120 ? fps : 30,
+    formato: v[0].slice("Video: ".length) + (rot ? " (girado)" : ""),
   };
 }
 
@@ -832,6 +835,68 @@ export async function juntarTrechos(o: {
     "+faststart",
     o.saida,
   ]);
+}
+
+/**
+ * Trechos que dá para emendar sem recodificar: mesmo formato (codec, perfil,
+ * resolução, fps) e nenhum precisa ser esticado — a diferença acumulada para
+ * o original fica em até 0,1s (~2 quadros) em toda emenda.
+ */
+export function emendaDireta(infos: VideoInfo[], duracoes: number[]): boolean {
+  let deriva = 0;
+  return infos.every(
+    (info, i) =>
+      !!info.formato &&
+      info.formato === infos[0].formato &&
+      info.fps === infos[0].fps &&
+      Math.abs((deriva += info.duracao - duracoes[i])) <= 0.1,
+  );
+}
+
+/**
+ * Junta os trechos SEM recodificar, lendo direto das URLs: no disco fica só o
+ * resultado. É o que faz o 4K caber na Vercel — recodificar 60s em 4K passa do
+ * tempo da função, e baixar os trechos e gerar a saída passa do /tmp (512 MB).
+ * Devolve false (sem fazer nada) quando os trechos precisam de `juntarTrechos`.
+ */
+export async function emendarTrechos(o: {
+  urls: string[];
+  /** Duração de cada trecho no vídeo original (mesma ordem). */
+  duracoes: number[];
+  audio?: string | null;
+  saida: string;
+}): Promise<boolean> {
+  const infos = await Promise.all(o.urls.map((u) => probe(u)));
+  if (!emendaDireta(infos, o.duracoes)) return false;
+  const lista = path.join(path.dirname(o.saida), "trechos.txt");
+  await writeFile(
+    lista,
+    o.urls.map((u) => `file '${u.replace(/'/g, "'\\''")}'`).join("\n"),
+  );
+  const total = o.duracoes.reduce((a, b) => a + b, 0);
+  await run([
+    "-y",
+    "-f",
+    "concat",
+    "-safe",
+    "0",
+    "-protocol_whitelist",
+    "file,http,https,tcp,tls,crypto",
+    "-i",
+    lista,
+    ...(o.audio ? ["-i", o.audio] : []),
+    "-map",
+    "0:v",
+    ...(o.audio ? ["-map", "1:a", "-c:a", "aac", "-b:a", "192k"] : []),
+    "-t",
+    total.toFixed(3),
+    "-c:v",
+    "copy",
+    "-movflags",
+    "+faststart",
+    o.saida,
+  ]);
+  return true;
 }
 
 /** Extrai um quadro do vídeo em JPEG (para marcar quem trocar). */

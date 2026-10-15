@@ -6,11 +6,13 @@ import { avisarCreditos } from "@/components/creditos/CreditosProvider";
 import { pilula } from "@/components/live/Preparar";
 import { QuemAparece, type Quem } from "@/components/live/NovaSombra";
 import { CriarProduto } from "@/components/produto/CriarProduto";
+import { VideoReferencia, type ReferenciaEscolhida } from "./VideoReferencia";
 import { QuemEntra, type ImagemEnviada } from "@/components/sombra/comum";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
 import { SeletorModelo } from "@/components/ui/SeletorModelo";
 import { cn } from "@/lib/cn";
+import { DECLARACAO_REFERENCIA_MOTION } from "@/lib/declaracoes";
 import { txErro } from "@/lib/i18n/erros";
 import { tx } from "@/lib/i18n/tx";
 import type { ItemMotion } from "@/lib/motion";
@@ -27,13 +29,27 @@ import {
   type EsforcoMotion,
   type ModeloMotion,
 } from "@/worker/motion/modelos";
-import { DURACOES_MOTION, type FormatoMotion, type TipoMotion } from "@/worker/motion/tipos";
+import {
+  DURACOES_MOTION,
+  duracaoDaReferencia,
+  formatoMaisProximo,
+  type FormatoMotion,
+  type TipoMotion,
+} from "@/worker/motion/tipos";
 
 const TIPOS: Array<[TipoMotion, string]> = [
   ["site", "Site"],
   ["produto", "Produto"],
   ["influencer", "Influencer"],
   ["misto", "Influencer + produto ou site"],
+  ["video", "A partir de um vídeo"],
+];
+
+/** No "a partir de um vídeo", o que mais entra no motion (opcional). */
+const EXTRAS: Array<["produto" | "influencer" | "site", string]> = [
+  ["produto", "Produto"],
+  ["influencer", "Influencer"],
+  ["site", "Site"],
 ];
 
 const FORMATOS: Array<[FormatoMotion, string]> = [
@@ -71,10 +87,17 @@ export function FormMotion({
   const [esforco, setEsforco] = useState<EsforcoMotion>(MODELOS_MOTION[MODELO_MOTION_PADRAO].padrao);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  /** "A partir de um vídeo": o vídeo de referência, o áudio dele como música e o material que entra junto. */
+  const [referencia, setReferencia] = useState<ReferenciaEscolhida | null>(null);
+  const [usarAudio, setUsarAudio] = useState(true);
+  const [extras, setExtras] = useState({ produto: false, influencer: false, site: false });
 
-  const usaSite = tipo === "site" || tipo === "misto";
-  const usaProduto = tipo === "produto" || tipo === "misto";
-  const usaInfluencer = tipo === "influencer" || tipo === "misto";
+  const ehVideo = tipo === "video";
+  const usaSite = tipo === "site" || tipo === "misto" || (ehVideo && extras.site);
+  const usaProduto = tipo === "produto" || tipo === "misto" || (ehVideo && extras.produto);
+  const usaInfluencer = tipo === "influencer" || tipo === "misto" || (ehVideo && extras.influencer);
+  /** Com vídeo de referência, o motion dura o mesmo que ele. */
+  const segundosReferencia = ehVideo && referencia ? referencia.duracao : 0;
   const keysProduto =
     origem === "criar"
       ? criado
@@ -88,7 +111,7 @@ export function FormMotion({
     (usaProduto ? keysProduto.length : 0) * (recortar ? 2 : 1) +
     (usaInfluencer && quem.imageKey ? (recortar ? 2 : 1) : 0) +
     (usaSite && url.trim() ? 3 : 0);
-  const estimativa = estimativaMotion(modelo, esforco, imagens);
+  const estimativa = estimativaMotion(modelo, esforco, imagens, segundosReferencia);
 
   const temProduto = produto.trim().length >= 2 && keysProduto.length > 0;
   const temSite = url.trim().length >= 4;
@@ -99,7 +122,12 @@ export function FormMotion({
         ? temProduto
         : tipo === "influencer"
           ? !!quem.imageKey
-          : !!quem.imageKey && (temProduto || temSite);
+          : tipo === "video"
+            ? !!referencia &&
+              (!extras.produto || temProduto) &&
+              (!extras.influencer || !!quem.imageKey) &&
+              (!extras.site || temSite)
+            : !!quem.imageKey && (temProduto || temSite);
 
   function escolherModelo(m: ModeloMotion) {
     setModelo(m);
@@ -118,10 +146,22 @@ export function FormMotion({
           tipo,
           brief,
           formato,
-          duracao,
+          duracao: ehVideo && referencia ? duracaoDaReferencia(referencia.duracao) : duracao,
           modelo,
           esforco,
           recortar,
+          ...(ehVideo && referencia
+            ? {
+                referencia: {
+                  key: referencia.key,
+                  origem: referencia.origem,
+                  url: referencia.url,
+                  titulo: referencia.titulo,
+                  usarAudio,
+                  declaracao: DECLARACAO_REFERENCIA_MOTION,
+                },
+              }
+            : {}),
           ...(usaSite && temSite ? { site: { url: url.trim() } } : {}),
           ...(usaProduto && temProduto ? { produto: { nome: produto, descricao, keys: keysProduto } } : {}),
           ...(usaInfluencer && quem.imageKey
@@ -152,6 +192,45 @@ export function FormMotion({
           ))}
         </div>
       </div>
+
+      {ehVideo ? (
+        <>
+          <div className="grid gap-2">
+            <span className="label-cap">{tx("Vídeo de referência")}</span>
+            <VideoReferencia
+              valor={referencia}
+              onChange={(r) => {
+                setReferencia(r);
+                // O formato acompanha o do vídeo (dá para trocar embaixo).
+                if (r) setFormato(formatoMaisProximo(r.largura, r.altura));
+              }}
+              usarAudio={usarAudio}
+              onUsarAudio={setUsarAudio}
+            />
+          </div>
+          <div className="grid gap-2">
+            <span className="label-cap">
+              {tx("Colocar no motion")} <span className="font-normal normal-case tracking-normal text-ink-dim">· {tx("opcional")}</span>
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {EXTRAS.map(([e, rotulo]) => (
+                <button
+                  key={e}
+                  type="button"
+                  aria-pressed={extras[e]}
+                  onClick={() => setExtras((x) => ({ ...x, [e]: !x[e] }))}
+                  className={cn(pilula(extras[e]), "h-8 px-3 cursor-pointer")}
+                >
+                  {tx(rotulo)}
+                </button>
+              ))}
+            </div>
+            <span className="text-[12px] text-ink-dim">
+              {tx("O que você escolher entra no lugar do conteúdo do vídeo. Sem nada, o motion recria o vídeo.")}
+            </span>
+          </div>
+        </>
+      ) : null}
 
       {usaInfluencer ? (
         <div className="grid gap-2">
@@ -244,13 +323,20 @@ export function FormMotion({
       ) : null}
 
       <label className="grid gap-1.5">
-        <span className="label-cap">{tx("O que o motion deve dizer")}</span>
+        <span className="label-cap">
+          {tx("O que o motion deve dizer")}
+          {ehVideo ? <span className="font-normal normal-case tracking-normal text-ink-dim"> · {tx("opcional")}</span> : null}
+        </span>
         <Textarea
           value={brief}
           onChange={(e) => setBrief(e.target.value)}
           rows={4}
           maxLength={3000}
-          placeholder={tx("Mensagem, textos na tela, chamada final, estilo, cores… Ex.: lançamento do tênis Aurora, leve e confortável, frete grátis, termina com “Compre agora”.")}
+          placeholder={
+            ehVideo
+              ? tx("O que mudar em relação ao vídeo: textos, marca, cores, chamada final… Vazio: recria o vídeo com o seu material.")
+              : tx("Mensagem, textos na tela, chamada final, estilo, cores… Ex.: lançamento do tênis Aurora, leve e confortável, frete grátis, termina com “Compre agora”.")
+          }
         />
       </label>
 
@@ -267,13 +353,19 @@ export function FormMotion({
         </div>
         <div className="grid gap-2">
           <span className="label-cap">{tx("Duração")}</span>
-          <div className="flex flex-wrap gap-1.5">
-            {DURACOES_MOTION.map((d) => (
-              <button key={d} type="button" onClick={() => setDuracao(d)} className={cn(pilula(duracao === d), "h-8 px-3 cursor-pointer")}>
-                {d}s
-              </button>
-            ))}
-          </div>
+          {ehVideo ? (
+            <span className="flex h-8 items-center text-[13px] text-ink-mute">
+              {referencia ? `${tx("Igual ao vídeo")} · ${duracaoDaReferencia(referencia.duracao)}s` : tx("Igual ao vídeo")}
+            </span>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {DURACOES_MOTION.map((d) => (
+                <button key={d} type="button" onClick={() => setDuracao(d)} className={cn(pilula(duracao === d), "h-8 px-3 cursor-pointer")}>
+                  {d}s
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -300,7 +392,7 @@ export function FormMotion({
               id: m,
               label: MODELOS_MOTION[m].rotulo,
               nota: tx(MODELOS_MOTION[m].nota),
-              preco: `~${creditosMotion(estimativaMotion(m, esforcoDoModelo(m, esforco), imagens))} ${tx("créditos")}`,
+              preco: `~${creditosMotion(estimativaMotion(m, esforcoDoModelo(m, esforco), imagens, segundosReferencia))} ${tx("créditos")}`,
             }))}
             valor={modelo}
             onChange={escolherModelo}

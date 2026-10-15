@@ -4,16 +4,18 @@ import sharp from "sharp";
 import { z } from "zod";
 import { liberadoOuResponder } from "@/lib/admin/acesso";
 import { idiomaDoPedido } from "@/lib/ai/idioma";
-import { allow } from "@/lib/ai/rate-limit";
+import { allow, readIp } from "@/lib/ai/rate-limit";
 import { getUserId } from "@/lib/auth/server";
 import { cobrarOuResponder, estornarSeHouver } from "@/lib/creditos";
 import { getPool } from "@/lib/db";
+import { DECLARACAO_REFERENCIA_MOTION } from "@/lib/declaracoes";
 import { getFal } from "@/lib/fal";
 import { recortarFigura } from "@/lib/figurinha";
 import { listarMotions, workerLigado } from "@/lib/motion";
 import { acertarMotions } from "@/lib/motion-creditos";
 import { carregarPersonagem } from "@/lib/personagens";
-import { getObjectBuffer, getS3, ownsKey, putObject } from "@/lib/storage/s3";
+import { getObjectBuffer, getS3, ownsKey, presignGet, putObject } from "@/lib/storage/s3";
+import { probe } from "@/lib/video/ffmpeg";
 import {
   creditosMotion,
   ehModeloMotion,
@@ -24,10 +26,13 @@ import {
 } from "@/worker/motion/modelos";
 import {
   DURACOES_MOTION,
+  duracaoDaReferencia,
+  REFERENCIA_MAX_SEGUNDOS,
   TIPOS_MOTION,
   type AssetMotion,
   type InputMotion,
   type PapelAsset,
+  type ReferenciaMotion,
 } from "@/worker/motion/tipos";
 
 export const runtime = "nodejs";
@@ -38,7 +43,8 @@ const BodySchema = z.object({
   tipo: z.enum(TIPOS_MOTION as [string, ...string[]]),
   brief: z.string().trim().max(3000).default(""),
   formato: z.enum(["9:16", "16:9", "1:1"]),
-  duracao: z.number().int().refine((d) => (DURACOES_MOTION as readonly number[]).includes(d), "Duração inválida."),
+  // Sem vídeo de referência, uma das durações da tela; com ele, a do vídeo (o servidor mede).
+  duracao: z.number().int().min(3, "Duração inválida.").max(REFERENCIA_MAX_SEGUNDOS, "Duração inválida."),
   modelo: z.string().refine(ehModeloMotion, "Modelo inválido."),
   esforco: z.enum(["low", "medium", "high", "xhigh", "max"]),
   site: z.object({ url: z.string().trim().min(4, "Informe o endereço do site.").max(500) }).optional(),
@@ -58,6 +64,19 @@ const BodySchema = z.object({
     .optional(),
   /** Também manda as fotos sem o fundo (recorte por IA), para flutuarem na animação. */
   recortar: z.boolean().default(true),
+  /** Vídeo de referência (estilo Katana): enviado (pasta videos) ou buscado por link em /api/motion/referencia. */
+  referencia: z
+    .object({
+      key: z.string().min(1),
+      origem: z.enum(["upload", "link"]).default("upload"),
+      url: z.string().max(2000).optional(),
+      titulo: z.string().trim().max(200).optional(),
+      usarAudio: z.boolean().default(true),
+      declaracao: z.literal(DECLARACAO_REFERENCIA_MOTION, {
+        message: "Confirme que tem direito de usar o vídeo de referência.",
+      }),
+    })
+    .optional(),
 });
 
 /** GET — os motions da conta e se o worker está ligado. */
@@ -100,7 +119,11 @@ export async function POST(req: Request) {
 
   const comProduto = !!body.produto?.keys.length;
   const faltando =
-    body.tipo === "site" && !body.site
+    body.tipo === "video" && !body.referencia
+      ? "Envie o vídeo de referência (arquivo ou link)."
+      : !body.referencia && !(DURACOES_MOTION as readonly number[]).includes(body.duracao)
+        ? "Duração inválida."
+        : body.tipo === "site" && !body.site
       ? "Informe o endereço do site."
       : body.tipo === "produto" && !comProduto
         ? "Envie ao menos uma foto do produto."
@@ -116,6 +139,32 @@ export async function POST(req: Request) {
   const keys = [...(body.produto?.keys ?? []), ...(body.influencer ? [body.influencer.imageKey] : [])];
   if (keys.some((k) => !ownsKey(userId, k)))
     return NextResponse.json({ error: "Imagem não encontrada." }, { status: 404 });
+
+  // O vídeo de referência: a duração e o tamanho medidos aqui (até 1 minuto); o motion dura o mesmo.
+  let referencia: ReferenciaMotion | undefined;
+  if (body.referencia) {
+    if (!ownsKey(userId, body.referencia.key))
+      return NextResponse.json({ error: "Vídeo de referência não encontrado." }, { status: 404 });
+    const info = await probe(await presignGet(s3, body.referencia.key, 600)).catch(() => null);
+    if (!info)
+      return NextResponse.json({ error: "Não consegui ler o vídeo de referência. Envie outro.", code: "BAD_INPUT" }, { status: 400 });
+    if (info.duracao > REFERENCIA_MAX_SEGUNDOS + 1)
+      return NextResponse.json(
+        { error: `O vídeo de referência tem ${Math.round(info.duracao)}s — o máximo é ${REFERENCIA_MAX_SEGUNDOS}s.`, code: "BAD_INPUT" },
+        { status: 400 },
+      );
+    referencia = {
+      key: body.referencia.key,
+      duracao: Number(info.duracao.toFixed(2)),
+      largura: info.largura,
+      altura: info.altura,
+      origem: body.referencia.origem,
+      ...(body.referencia.url ? { url: body.referencia.url } : {}),
+      ...(body.referencia.titulo ? { titulo: body.referencia.titulo } : {}),
+      usarAudio: body.referencia.usarAudio,
+    };
+  }
+  const duracao = referencia ? duracaoDaReferencia(referencia.duracao) : body.duracao;
 
   const gate = await allow(`motion:${userId}`, 6);
   if (!gate.ok)
@@ -135,7 +184,7 @@ export async function POST(req: Request) {
   // recortes e ~3 do site). O custo real é acertado quando ficar pronto.
   const imagens = fotos.length * (fal ? 2 : 1) + (body.site ? 3 : 0);
   const reserva = creditosMotion(
-    estimativaMotion(body.modelo as ModeloMotion, body.esforco as EsforcoMotion, imagens),
+    estimativaMotion(body.modelo as ModeloMotion, body.esforco as EsforcoMotion, imagens, referencia?.duracao ?? 0),
   );
   const cobrado = await cobrarOuResponder(userId, reserva, "motion");
   if (cobrado instanceof NextResponse) return cobrado;
@@ -187,11 +236,12 @@ export async function POST(req: Request) {
       // Os textos na tela saem no idioma da conta, mesmo com o pedido vazio ou em outra língua.
       idioma: idiomaDoPedido(req),
       formato: body.formato,
-      duracao: body.duracao,
+      duracao,
       assets,
       ...(body.site ? { site: { url: body.site.url } } : {}),
       ...(body.produto ? { produto: { nome: body.produto.nome, descricao: body.produto.descricao || undefined } } : {}),
       ...(influencer ? { influencer } : {}),
+      ...(referencia ? { referencia } : {}),
     };
 
     const id = nanoid(12);
@@ -207,6 +257,13 @@ export async function POST(req: Request) {
         cobrado.cobranca ? JSON.stringify(cobrado.cobranca) : null,
       ],
     );
+    if (body.referencia)
+      await pool
+        .query(
+          "insert into consentimentos (id, user_id, character_id, tipo, texto, ip) values ($1, $2, $3, 'uso_referencia_motion', $4, $5)",
+          [nanoid(14), userId, "motion", `${body.referencia.declaracao} [${body.referencia.key}]`, readIp(req)],
+        )
+        .catch((e) => console.warn("[motion] declaração da referência:", (e as Error).message));
     const [item] = await listarMotions(pool, userId, id);
     return NextResponse.json({ motion: item });
   } catch (e) {

@@ -132,15 +132,44 @@ const SAIDA_POR_ESFORCO: Record<EsforcoMotion, number> = {
   max: 48_000,
 };
 
+/**
+ * Quadros por segundo que o Gemini olha no vídeo de referência: vídeos curtos
+ * com mais detalhe (cortes rápidos), até 5 por segundo; um minuto, 2.
+ */
+export const fpsDaAnalise = (duracao: number): number => Math.min(5, Math.max(2, Math.round(60 / Math.max(1, duracao))));
+
+/** Quadros do vídeo de referência que vão como imagem para o modelo que escreve. */
+export const QUADROS_DA_REFERENCIA = 10;
+
+/** Modelo que assiste ao vídeo de referência (imagem e som). */
+export const MODELO_ANALISE_VIDEO: ModeloMotion = "gemini-4-argon";
+
+/**
+ * Custo estimado de assistir ao vídeo de referência: ~258 tokens por quadro
+ * olhado + 32 por segundo de áudio, e ~4 mil de resposta.
+ */
+export function custoAnaliseVideo(duracao: number): number {
+  const entrada = duracao * (fpsDaAnalise(duracao) * 258 + 32) + 1_500;
+  return custoMotion(MODELO_ANALISE_VIDEO, entrada, 4_000);
+}
+
 export function estimativaMotion(
   modelo: ModeloMotion,
   esforco: EsforcoMotion,
   imagens: number,
+  /** Com vídeo de referência: a duração dele (a análise e os quadros entram na conta). */
+  referenciaSegundos = 0,
 ): number {
-  const escrita = { entrada: 7_000 + imagens * 1_600, saida: SAIDA_POR_ESFORCO[esforco] };
+  if (referenciaSegundos > 0) imagens += QUADROS_DA_REFERENCIA;
+  // Seguir um vídeo dá mais o que pensar: ~40% mais de saída.
+  const saida = Math.round(SAIDA_POR_ESFORCO[esforco] * (referenciaSegundos > 0 ? 1.4 : 1));
+  const escrita = { entrada: 7_000 + imagens * 1_600, saida };
   // A revisão visual lê o HTML e 8 quadros; quase sempre responde "OK" (às vezes reescreve).
   const revisao = { entrada: 9_000 + 8 * 450, saida: Math.round(SAIDA_POR_ESFORCO[esforco] * 0.35) };
-  return custoMotion(modelo, escrita.entrada + revisao.entrada, escrita.saida + revisao.saida);
+  return (
+    custoMotion(modelo, escrita.entrada + revisao.entrada, escrita.saida + revisao.saida) +
+    (referenciaSegundos > 0 ? custoAnaliseVideo(referenciaSegundos) : 0)
+  );
 }
 
 /**
@@ -156,5 +185,5 @@ export function esforcoDoModelo(modelo: ModeloMotion, esforco: EsforcoMotion): E
 }
 
 /** Teto de tokens de saída do pedido (o HTML e o pensamento). */
-export const maxTokensMotion = (esforco: EsforcoMotion) =>
-  esforco === "max" || esforco === "xhigh" ? 128_000 : 64_000;
+export const maxTokensMotion = (esforco: EsforcoMotion, comReferencia = false) =>
+  comReferencia || esforco === "max" || esforco === "xhigh" ? 128_000 : 64_000;

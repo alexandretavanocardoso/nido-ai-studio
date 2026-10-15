@@ -48,10 +48,10 @@ function Pontos() {
     <main className="mx-auto grid w-full max-w-3xl gap-6 px-4 pb-16 pt-2 sm:px-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="display text-2xl uppercase text-ink">{tx("Pontos")}</h1>
+          <h1 className="display text-2xl uppercase text-ink">{tx("XP")}</h1>
           <p className="mt-1 text-[13px] text-ink-mute">
             {tx(
-              "Você ganha pontos usando o app: check-in diário, créditos gastos, primeiros passos, posts e indicações.",
+              "Você ganha XP usando o app: check-in diário, créditos gastos, primeiros passos, posts e indicações.",
             )}
           </p>
         </div>
@@ -60,7 +60,7 @@ function Pontos() {
           <span className="text-lg font-bold tabular-nums text-ink">
             {pontos.saldo.toLocaleString("pt-BR")}
           </span>
-          <span className="text-[12px] text-ink-dim">{tx("pontos")}</span>
+          <span className="text-[12px] text-ink-dim">{tx("XP")}</span>
         </div>
       </header>
 
@@ -146,7 +146,7 @@ function Ganhar({ pontos }: { pontos: ResumoPontos }) {
         <ul className="card overflow-hidden">
           <Linha
             titulo={tx("Créditos gastos em qualquer geração")}
-            detalhe={tx("Se a geração falhar e o crédito voltar, os pontos saem.")}
+            detalhe={tx("Se a geração falhar e o crédito voltar, o XP sai.")}
             valor={`+${PONTOS_POR_CREDITO} ${tx("por crédito")}`}
           />
           <Linha
@@ -184,7 +184,7 @@ function Historico({ pontos }: { pontos: ResumoPontos }) {
   if (!pontos.historico.length)
     return (
       <p className="card px-4 py-8 text-center text-[13px] text-ink-mute">
-        {tx("Nenhum ponto ainda. Faça o check-in de hoje para começar.")}
+        {tx("Nenhum XP ainda. Faça o check-in de hoje para começar.")}
       </p>
     );
   return (

@@ -15,6 +15,7 @@ import {
 import { POST as falarPost } from "@/app/api/voz/falar/route";
 import { carregarConta } from "@/lib/creditos";
 import { getPool } from "@/lib/db";
+import type { RecursoEmTeste } from "@/lib/em-teste";
 import { carregarPersonagem } from "@/lib/personagens";
 import {
   CREDITOS_CENARIO,
@@ -59,6 +60,11 @@ export interface Ferramenta {
   name: string;
   description: string;
   entrada: z.ZodType;
+  /**
+   * Recurso em teste (lib/em-teste.ts) de que a ferramenta depende: enquanto
+   * ele estiver só para admin, ela some da lista e recusa a chamada para os outros.
+   */
+  recurso?: RecursoEmTeste;
   executar: (o: {
     userId: string;
     args: unknown;
@@ -74,8 +80,9 @@ export async function chamarRota(
   rota: (req: Request) => Promise<Response> | Response,
   corpo: unknown,
   req: Request,
-  /** Para rotas GET: a query string (sem o "?"). */
+  /** Para rotas GET (ou DELETE): a query string (sem o "?"). */
   query?: string,
+  metodo: "GET" | "DELETE" = "GET",
 ): Promise<Record<string, unknown>> {
   const headers = new Headers({ "Content-Type": "application/json" });
   for (const h of ["x-forwarded-for", "x-real-ip", "accept-language"]) {
@@ -89,7 +96,7 @@ export async function chamarRota(
           headers,
           body: JSON.stringify(corpo),
         })
-      : new Request(`${new URL(req.url).origin}/mcp?${query}`, { headers }),
+      : new Request(`${new URL(req.url).origin}/mcp?${query}`, { method: metodo, headers }),
   );
   const dados = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok)
@@ -120,7 +127,7 @@ export function imagemPadrao(c: Character): string | null {
   );
 }
 
-async function vozesDoPersonagem(userId: string, c: Character) {
+export async function vozesDoPersonagem(userId: string, c: Character) {
   const { rows } = await getPool()!.query<{
     voice_id: string;
     nome: string;

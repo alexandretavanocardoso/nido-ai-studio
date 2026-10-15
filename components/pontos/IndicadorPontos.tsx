@@ -37,7 +37,7 @@ export function IndicadorPontos() {
         type="button"
         onClick={() => setAberto((a) => !a)}
         aria-expanded={aberto}
-        aria-label={`${tx("Pontos")}: ${pontos.saldo}`}
+        aria-label={`${tx("XP")}: ${pontos.saldo}`}
         className="relative inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-panel px-3 text-[12px] font-bold text-ink transition hover:border-line-strong"
       >
         <Star className="h-3.5 w-3.5 text-accent" strokeWidth={2.5} />
@@ -60,7 +60,7 @@ export function IndicadorPontos() {
             onClick={() => setAberto(false)}
             className="mt-3 block border-t border-line pt-3 text-center text-[12.5px] font-semibold text-accent hover:underline"
           >
-            {tx("Ver como ganhar pontos")}
+            {tx("Ver como ganhar XP")}
           </Link>
         </div>
       ) : null}

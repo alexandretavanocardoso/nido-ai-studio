@@ -13,6 +13,7 @@ import type { FalClient } from "@fal-ai/client";
 import type { S3Client } from "@aws-sdk/client-s3";
 import { newKey, uploadFromFile } from "@/lib/storage/s3";
 import {
+  emendarTrechos,
   extrairAudio,
   juntarTrechos,
   prepararTrechoTroca,
@@ -1061,7 +1062,6 @@ export async function comporTroca(o: {
   urls: string[];
 }): Promise<{ key: string; size: number }> {
   return comPastaTemporaria(async (dir) => {
-    const trechos = await baixarTrechos(o.urls, dir, "troca");
     let audio: string | null = null;
     if (o.input.audioUrl) {
       const res = await fetch(o.input.audioUrl);
@@ -1078,12 +1078,19 @@ export async function comporTroca(o: {
         );
     }
     const saida = path.join(dir, "final.mp4");
-    await juntarTrechos({
-      trechos,
-      duracoes: o.input.segmentos.map((g) => g.duracao),
-      audio,
-      saida,
-    });
+    const duracoes = o.input.segmentos.map((g) => g.duracao);
+    // Todos os trechos saíram do motor: tenta emendar sem recodificar (o 4K só
+    // cabe assim). Com trechos do original no meio (`urlPronta`) o formato muda.
+    const emendou =
+      !o.input.segmentos.some((g) => g.urlPronta) &&
+      (await emendarTrechos({ urls: o.urls, duracoes, audio, saida }));
+    if (!emendou)
+      await juntarTrechos({
+        trechos: await baixarTrechos(o.urls, dir, "troca"),
+        duracoes,
+        audio,
+        saida,
+      });
     const key = newKey(o.userId, "videos", "video/mp4");
     const size = await uploadFromFile(o.s3, key, saida, "video/mp4");
     return { key, size };
