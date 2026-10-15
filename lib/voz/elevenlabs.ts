@@ -1,4 +1,4 @@
-import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import { type ElevenLabs, ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import type { Pool } from "@neondatabase/serverless";
 import type { Character } from "@/lib/types";
 
@@ -108,24 +108,40 @@ export interface VozDaBiblioteca {
   previewUrl: string | null;
 }
 
-/** Vozes da biblioteca em português do Brasil, as mais usadas primeiro. */
+const VOZES_POR_PAGINA = 6;
+
+/**
+ * Vozes naturais da biblioteca em português do Brasil, as mais usadas
+ * primeiro. Só as "professional" (clone profissional: horas de gravação de
+ * uma pessoa, que compartilha a própria voz). As "high_quality" soam
+ * robóticas — a maioria em pt-BR sai de uma única conta, vozes criadas por
+ * IA — e o filtro `category` da API não as tira, então a filtragem é aqui e
+ * a paginação também.
+ */
 export async function listarBiblioteca(
   el: ElevenLabsClient,
   o: { genero?: "female" | "male"; busca?: string; pagina?: number },
 ): Promise<{ vozes: VozDaBiblioteca[]; temMais: boolean }> {
-  const r = await el.voices.getShared({
-    pageSize: 6,
-    page: o.pagina ?? 0,
-    language: "pt",
-    locale: "pt-BR",
-    gender: o.genero,
-    search: o.busca,
-    // Vozes com tarifa própria custariam mais que o previsto nos créditos.
-    includeCustomRates: false,
-  });
+  const inicio = (o.pagina ?? 0) * VOZES_POR_PAGINA;
+  const naturais: ElevenLabs.LibraryVoiceResponse[] = [];
+  // Uma a mais que a página pedida diz se tem mais.
+  for (let p = 0; p < 8 && naturais.length <= inicio + VOZES_POR_PAGINA; p++) {
+    const r = await el.voices.getShared({
+      pageSize: 100,
+      page: p,
+      language: "pt",
+      locale: "pt-BR",
+      gender: o.genero,
+      search: o.busca,
+      // Vozes com tarifa própria custariam mais que o previsto nos créditos.
+      includeCustomRates: false,
+    });
+    naturais.push(...r.voices.filter((v) => v.category === "professional"));
+    if (!r.hasMore) break;
+  }
   return {
-    temMais: r.hasMore,
-    vozes: r.voices.map((v) => ({
+    temMais: naturais.length > inicio + VOZES_POR_PAGINA,
+    vozes: naturais.slice(inicio, inicio + VOZES_POR_PAGINA).map((v) => ({
       voiceId: v.voiceId,
       publicOwnerId: v.publicOwnerId,
       nome: v.name,
