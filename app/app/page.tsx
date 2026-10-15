@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCreditos } from "@/components/creditos/CreditosProvider";
 import { useRecursos } from "@/components/RecursosProvider";
 import { linkEstudio, useCriar, useMaisRecente } from "@/components/AppShell";
 import { cn } from "@/lib/cn";
-import { liberadoNaTela } from "@/lib/em-teste";
+import { liberadoNaTela, SO_ADMIN } from "@/lib/em-teste";
 import { useT } from "@/lib/i18n";
 import { tx } from "@/lib/i18n/tx";
 import { PLANOS } from "@/lib/planos";
@@ -142,14 +141,24 @@ interface Funcionalidade {
   video: string;
   /** Sem destino (a ferramenta precisa de um personagem e não há nenhum): abre o criar. */
   href?: string;
+  /** Ainda não abre: o cartão aparece com o selo "Coming soon" e sem clique. */
+  emBreve?: boolean;
 }
 
 /** Espaço entre os cartões do carrossel (px). */
 const VAO = 18;
+/** O carrossel anda um cartão sozinho a cada tanto (ms). */
+const INTERVALO_CARROSSEL = 2000;
+/** Depois de a pessoa arrastar ou deslizar, espera isso antes de voltar a andar sozinho (ms). */
+const PAUSA_DEPOIS_DE_MEXER = 4000;
 
 /**
- * Carrossel das funcionalidades: rola com as setas, arrastando com o mouse ou
- * deslizando no celular, e sempre para no começo de um cartão.
+ * Carrossel das funcionalidades: anda sozinho um cartão a cada 2 s, em loop
+ * contínuo (a lista vai duas vezes e, passando da primeira, a rolagem volta
+ * uma volta inteira sem animação — a tela é a mesma). Dá para arrastar com o
+ * mouse ou deslizar no celular (sempre para no começo de um cartão); depois
+ * disso, espera um pouco antes de voltar a andar. Para com a aba escondida e
+ * para quem pede menos movimento no sistema.
  */
 function Funcionalidades() {
   const recursos = useRecursos();
@@ -163,13 +172,13 @@ function Funcionalidades() {
   );
   const soltouArrastando = useRef(false);
   const [arrastando, setArrastando] = useState(false);
-  const [setas, setSetas] = useState<{
-    anterior: boolean;
-    proximo: boolean;
-    topo: number;
-  } | null>(null);
+  /** Quando a pessoa arrastou ou deslizou por último. */
+  const mexeuEm = useRef(0);
 
-  // NFT e MCP ainda em teste: só aparecem para quem tem acesso (lib/em-teste.ts).
+  // MCP ainda em teste: só aparece para quem tem acesso (lib/em-teste.ts). O
+  // NFT aparece para todos: enquanto estiver em teste (área admin → Em teste),
+  // com o selo "Coming soon" e sem clique; liberado, abre a aba NFT.
+  const nftEmBreve = (conta?.emTeste?.nft ?? SO_ADMIN.nft) || !recursos.nft;
   const itens: Funcionalidade[] = [
     {
       titulo: "Shadow",
@@ -183,16 +192,13 @@ function Funcionalidades() {
       video: "VIDEO",
       href: recente ? linkEstudio(recente.id, "videos") : undefined,
     },
-    ...(recursos.nft && liberadoNaTela("nft", conta)
-      ? [
-          {
-            titulo: "Traga seu NFT",
-            descricao: "Seu NFT ganha rosto, voz e personalidade e vira creator",
-            video: "NFT",
-            href: recente ? `/app/personagem/${recente.id}?aba=nft` : undefined,
-          },
-        ]
-      : []),
+    {
+      titulo: "Traga seu NFT",
+      descricao: "Seu NFT ganha rosto, voz e personalidade e vira creator",
+      video: "NFT",
+      emBreve: nftEmBreve,
+      href: recente ? `/app/personagem/${recente.id}?aba=nft` : undefined,
+    },
     {
       titulo: "Agenda",
       descricao: "Peça em uma frase: o agente gera, legenda e agenda",
@@ -225,22 +231,44 @@ function Funcionalidades() {
     [],
   );
 
-  // Setas: somem nas pontas e ficam na altura do meio do vídeo.
-  const medir = useCallback(() => {
+  /** Largura de uma volta: a lista inteira (a segunda cópia começa aqui). */
+  const volta = useCallback(() => passo() * itens.length, [passo, itens.length]);
+
+  /** Passou da primeira lista: volta uma volta inteira, sem animação (a tela não muda). */
+  const normalizar = useCallback(() => {
+    const el = fila.current;
+    const v = volta();
+    if (el && v > 0 && el.scrollLeft >= v - 1) el.scrollLeft -= v;
+  }, [volta]);
+
+  const avancar = useCallback(() => {
     const el = fila.current;
     if (!el) return;
-    const midia = el.querySelector<HTMLElement>("[data-midia]");
-    setSetas({
-      anterior: el.scrollLeft >= 8,
-      proximo: el.scrollLeft + el.clientWidth < el.scrollWidth - 8,
-      topo: (midia?.offsetHeight ?? 0) / 2 - 22,
-    });
-  }, []);
+    normalizar();
+    el.scrollBy({ left: passo(), behavior: "smooth" });
+  }, [normalizar, passo]);
+
+  // Terminou de rolar: volta para a primeira lista (sem `scrollend`, espera a rolagem parar).
+  const parou = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const aoRolar = useCallback(() => {
+    if (parou.current) clearTimeout(parou.current);
+    parou.current = setTimeout(() => {
+      if (!arraste.current) normalizar();
+    }, 160);
+  }, [normalizar]);
+
+  // Anda sozinho (menos para quem pede menos movimento no sistema).
   useEffect(() => {
-    medir();
-    window.addEventListener("resize", medir);
-    return () => window.removeEventListener("resize", medir);
-  }, [medir, itens.length]);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const id = setInterval(() => {
+      const el = fila.current;
+      if (!el || el.scrollWidth / 2 <= el.clientWidth + 8) return;
+      if (arraste.current || document.hidden) return;
+      if (Date.now() - mexeuEm.current < PAUSA_DEPOIS_DE_MEXER) return;
+      avancar();
+    }, INTERVALO_CARROSSEL);
+    return () => clearInterval(id);
+  }, [avancar]);
 
   // Arrastar com o mouse (no toque, a rolagem nativa já faz isso).
   useEffect(() => {
@@ -251,6 +279,7 @@ function Funcionalidades() {
       const d = e.clientX - a.x;
       if (!a.moveu && Math.abs(d) > 5) {
         a.moveu = true;
+        mexeuEm.current = Date.now();
         setArrastando(true);
       }
       if (a.moveu) el.scrollLeft = a.inicio - d;
@@ -278,27 +307,15 @@ function Funcionalidades() {
     };
   }, [passo]);
 
-  const seta =
-    "absolute z-[5] grid h-11 w-11 place-items-center rounded-full bg-nido-ink text-nido-bg shadow-[0_10px_30px_-8px_rgba(0,0,0,0.8)] transition-transform duration-200 hover:scale-[1.06] max-[860px]:hidden";
-
   return (
-    <section aria-label={tx("Funcionalidades")} className="relative">
-      {setas?.anterior ? (
-        <button
-          type="button"
-          onClick={() =>
-            fila.current?.scrollBy({ left: -passo(), behavior: "smooth" })
-          }
-          aria-label={tx("Anterior")}
-          className={cn(seta, "-left-3")}
-          style={{ top: setas.topo }}
-        >
-          <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        </button>
-      ) : null}
+    <section
+      aria-label={tx("Funcionalidades")}
+      className="relative"
+      onTouchStart={() => (mexeuEm.current = Date.now())}
+    >
       <div
         ref={fila}
-        onScroll={medir}
+        onScroll={aoRolar}
         onPointerDown={(e) => {
           if (e.pointerType !== "mouse" || !fila.current) return;
           arraste.current = {
@@ -320,7 +337,9 @@ function Funcionalidades() {
             : "cursor-grab snap-x snap-mandatory [&_*]:cursor-grab",
         )}
       >
-        {itens.map((f) => {
+        {[...itens, ...itens].map((f, i) => {
+          // A segunda lista só existe para o loop: fora do leitor de tela e do Tab.
+          const copia = i >= itens.length;
           const conteudo = (
             <>
               <div
@@ -334,6 +353,14 @@ function Funcionalidades() {
                     EASE,
                   )}
                 />
+                {f.emBreve ? (
+                  <>
+                    <span className="absolute inset-0 bg-black/30" />
+                    <span className="absolute left-3 top-3 rounded-full bg-nido-yellow px-3 py-1 font-archivo text-[11px] font-black uppercase tracking-[0.06em] text-nido-bg [font-stretch:118%]">
+                      Coming soon
+                    </span>
+                  </>
+                ) : null}
               </div>
               <div>
                 <h3 className="flex items-center gap-2 font-archivo text-[16px] font-black uppercase tracking-[-0.005em] transition-colors duration-200 [font-stretch:118%] group-hover:text-nido-yellow">
@@ -345,38 +372,35 @@ function Funcionalidades() {
               </div>
             </>
           );
-          const classe =
-            "group flex min-w-[290px] flex-[0_0_calc((100%_-_54px)_/_3.6)] snap-start flex-col gap-3.5 text-left text-nido-ink max-[860px]:basis-[80%]";
+          const base =
+            "flex min-w-[290px] flex-[0_0_calc((100%_-_54px)_/_3.6)] snap-start flex-col gap-3.5 text-left text-nido-ink max-[860px]:basis-[80%]";
+          // Sem "group": o cartão em breve não reage ao mouse.
+          const classe = `group ${base}`;
+          const extra = copia ? { "aria-hidden": true, tabIndex: -1 } : {};
+          if (f.emBreve)
+            return (
+              <div key={`${f.video}-${i}`} data-cartao className={base} aria-disabled {...(copia ? { "aria-hidden": true } : {})}>
+                {conteudo}
+              </div>
+            );
           return f.href ? (
-            <Link key={f.video} href={f.href} data-cartao className={classe}>
+            <Link key={`${f.video}-${i}`} href={f.href} data-cartao className={classe} {...extra}>
               {conteudo}
             </Link>
           ) : (
             <button
-              key={f.video}
+              key={`${f.video}-${i}`}
               type="button"
               onClick={criar}
               data-cartao
               className={classe}
+              {...extra}
             >
               {conteudo}
             </button>
           );
         })}
       </div>
-      {setas?.proximo ? (
-        <button
-          type="button"
-          onClick={() =>
-            fila.current?.scrollBy({ left: passo(), behavior: "smooth" })
-          }
-          aria-label={tx("Próximo")}
-          className={cn(seta, "-right-3")}
-          style={{ top: setas.topo }}
-        >
-          <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
-        </button>
-      ) : null}
     </section>
   );
 }

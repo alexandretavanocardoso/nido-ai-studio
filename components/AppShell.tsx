@@ -348,7 +348,8 @@ export function useMaisRecente() {
   }, [montado, personagens, naRota, guardado]);
 }
 
-function definirAtivo(id: string) {
+/** Torna o personagem o ativo do app (também usado pelo seletor do cabeçalho do personagem). */
+export function definirAtivo(id: string) {
   try {
     if (localStorage.getItem(CHAVE_ATIVO) === id) return;
     localStorage.setItem(CHAVE_ATIVO, id);
@@ -1157,7 +1158,6 @@ function BarraDoApp({
         <BuscaPersonagens />
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <SeletorDePersonagem />
         <CarteiraNaBarra />
         <IndicadorPontos />
         <AvisosRadar />
@@ -1172,112 +1172,6 @@ function BarraDoApp({
         </button>
       </div>
     </header>
-  );
-}
-
-/**
- * Seletor de personagem da barra do topo, só nas telas de um personagem:
- * mostra o que está aberto e troca entre todos, mantendo a aba, a etapa e a
- * ferramenta abertas.
- */
-function SeletorDePersonagem() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const personagens = useCharacters((s) => s.characters);
-  const ativo = useMaisRecente();
-  const [aberto, setAberto] = useState(false);
-  const caixa = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!aberto) return;
-    const fora = (e: MouseEvent) => {
-      if (!caixa.current?.contains(e.target as Node)) setAberto(false);
-    };
-    document.addEventListener("mousedown", fora);
-    return () => document.removeEventListener("mousedown", fora);
-  }, [aberto]);
-
-  // Só nas telas de um personagem (ficha, Estúdio, Radar): é lá que se troca.
-  if (!ativo || personagens.length < 2 || !idNaRota(pathname)) return null;
-
-  function escolher(id: string) {
-    setAberto(false);
-    definirAtivo(id);
-    if (id !== ativo?.id)
-      router.push(`/app/personagem/${id}${window.location.search}`);
-  }
-
-  return (
-    // No celular a lista se alinha à barra (16px da borda), e não ao botão:
-    // presa ao botão, que fica no meio da barra, ela saía pela esquerda da tela.
-    <div className="sm:relative" ref={caixa}>
-      <button
-        type="button"
-        onClick={() => setAberto((v) => !v)}
-        aria-expanded={aberto}
-        aria-label={tx("Trocar de personagem")}
-        title={tx("Trocar de personagem")}
-        className="flex h-10 items-center gap-2 rounded-full border border-white/[0.08] bg-[rgba(15,13,14,0.6)] pl-1 pr-1 text-[13px] font-semibold text-nido-ink backdrop-blur-lg transition hover:border-white/[0.18] md:pr-3"
-      >
-        <RostoDoPersonagem personagem={ativo} />
-        {/* O nome só entra a partir de `md`: entre 640 e 767px ele tirava o lugar da busca. */}
-        <span className="hidden max-w-[150px] truncate md:inline">
-          {ativo.identidade.nome || tx("Sem nome")}
-        </span>
-        <ChevronUp
-          className={cn(
-            "hidden h-4 w-4 shrink-0 text-nido-mute transition md:block",
-            !aberto && "rotate-180",
-          )}
-        />
-      </button>
-      {aberto ? (
-        <div className="absolute right-4 z-40 mt-2 max-h-[60dvh] w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-white/[0.08] bg-nido-panel p-1.5 shadow-card sm:right-0">
-          <div className="px-2.5 pt-1.5 pb-2 font-geist-mono text-[10px] uppercase tracking-[0.14em] text-nido-dim">
-            {tx("Personagem")}
-          </div>
-          {personagens.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => escolher(c.id)}
-              aria-current={c.id === ativo.id ? "true" : undefined}
-              className={cn(
-                "flex w-full items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left text-[13px] font-medium transition hover:bg-white/[0.05]",
-                c.id === ativo.id ? "text-nido-yellow" : "text-nido-soft",
-              )}
-            >
-              <RostoDoPersonagem personagem={c} />
-              <span className="min-w-0 flex-1 truncate">
-                {c.identidade.nome || tx("Sem nome")}
-              </span>
-              {c.id === ativo.id ? (
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-nido-yellow shadow-[0_0_8px_#fdf327]" />
-              ) : null}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function RostoDoPersonagem({ personagem: c }: { personagem: Character }) {
-  const capa = capaSrc(c);
-  return (
-    <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-[linear-gradient(135deg,#5c2a1f,#aa7d43)] text-[11px] font-bold text-nido-ink">
-      {capa ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={capa} alt="" className="h-full w-full object-cover object-top" />
-      ) : (
-        (c.identidade.nome || "?")
-          .split(" ")
-          .map((p) => p[0])
-          .join("")
-          .slice(0, 2)
-          .toUpperCase()
-      )}
-    </span>
   );
 }
 
@@ -1462,7 +1356,7 @@ function AvisosRadar() {
     setAberto((v) => !v);
   };
   return (
-    // No celular o painel se alinha à barra, não ao sino (ver SeletorDePersonagem).
+    // No celular o painel se alinha à barra, não ao sino (preso ao sino, ele saía pela esquerda da tela).
     <div className="sm:relative" ref={caixa}>
       <button
         type="button"

@@ -154,6 +154,8 @@ export function Wizard({ id }: { id: string }) {
           character={character}
           aba={aba}
           onAba={setAba}
+          secao={secao}
+          onSecao={(s) => navegar({ aba: "estudio", secao: s })}
           comNft={comNft}
         />
         {aba === "ficha" && <SuggestionCounter character={character} />}
