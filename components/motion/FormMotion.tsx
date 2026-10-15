@@ -5,6 +5,7 @@ import { Loader2, Sparkles } from "lucide-react";
 import { avisarCreditos } from "@/components/creditos/CreditosProvider";
 import { pilula } from "@/components/live/Preparar";
 import { QuemAparece, type Quem } from "@/components/live/NovaSombra";
+import { CriarProduto } from "@/components/produto/CriarProduto";
 import { QuemEntra, type ImagemEnviada } from "@/components/sombra/comum";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
@@ -13,6 +14,7 @@ import { cn } from "@/lib/cn";
 import { txErro } from "@/lib/i18n/erros";
 import { tx } from "@/lib/i18n/tx";
 import type { ItemMotion } from "@/lib/motion";
+import type { ProdutoCriado } from "@/lib/produto-criado";
 import type { Character } from "@/lib/types";
 import {
   creditosMotion,
@@ -54,6 +56,11 @@ export function FormMotion({
   const [produto, setProduto] = useState("");
   const [descricao, setDescricao] = useState("");
   const [fotos, setFotos] = useState<Array<ImagemEnviada | null>>([null]);
+  /** De onde vem o produto: fotos enviadas ou um produto criado em 3D (o mesmo da tela de vídeo de produto). */
+  const [origem, setOrigem] = useState<"foto" | "criar">("foto");
+  const [criado, setCriado] = useState<ProdutoCriado | null>(null);
+  /** O que o produto criado escreveu nos campos (trocar de produto só sobrescreve isso). */
+  const [auto, setAuto] = useState({ nome: "", descricao: "" });
   const [quem, setQuem] = useState<Quem>({ characterId: personagens[0]?.id ?? null, imageKey: null });
   const [foto, setFoto] = useState<ImagemEnviada | null>(null);
   const [recortar, setRecortar] = useState(true);
@@ -68,7 +75,12 @@ export function FormMotion({
   const usaSite = tipo === "site" || tipo === "misto";
   const usaProduto = tipo === "produto" || tipo === "misto";
   const usaInfluencer = tipo === "influencer" || tipo === "misto";
-  const keysProduto = fotos.filter((f): f is ImagemEnviada => !!f).map((f) => f.key);
+  const keysProduto =
+    origem === "criar"
+      ? criado
+        ? [criado.imageKey]
+        : []
+      : fotos.filter((f): f is ImagemEnviada => !!f).map((f) => f.key);
   const esforcos: readonly EsforcoMotion[] = MODELOS_MOTION[modelo].esforcos;
 
   // Imagens que o modelo vai ver: as enviadas (e os recortes) e as fotos do site.
@@ -163,26 +175,54 @@ export function FormMotion({
             maxLength={400}
             placeholder={tx("O que é e o que tem de bom (opcional)")}
           />
-          <div className="grid gap-2 sm:grid-cols-2">
-            {fotos.map((f, i) => (
-              <QuemEntra
-                key={i}
-                valor={f}
-                onChange={(nova) =>
-                  setFotos((l) => {
-                    const lista = l.map((x, j) => (j === i ? nova : x));
-                    // Até 3 fotos: a próxima vaga aparece quando esta é enviada.
-                    return lista.length < 3 && lista.every(Boolean) ? [...lista, null] : lista;
-                  })
-                }
-                textos={{
-                  enviada: "Foto do produto",
-                  enviar: "Enviar uma foto do produto",
-                  dica: "Até 3 fotos. Fundo limpo, o produto inteiro.",
-                }}
-              />
+          <div className="flex flex-wrap gap-1.5">
+            {(
+              [
+                ["foto", "Foto"],
+                ["criar", "Criar produto"],
+              ] as const
+            ).map(([o, rotulo]) => (
+              <button key={o} type="button" onClick={() => setOrigem(o)} className={cn(pilula(origem === o), "h-8 px-3 cursor-pointer")}>
+                {tx(rotulo)}
+              </button>
             ))}
           </div>
+          {origem === "criar" ? (
+            <CriarProduto
+              escolhido={criado?.id ?? null}
+              onEscolher={(p) => {
+                setCriado(p);
+                if (!p) return;
+                // Preenche nome e descrição sem apagar o que a pessoa escreveu.
+                const nome = p.nome.slice(0, 120);
+                const desc = p.descricao.slice(0, 400);
+                if (!produto.trim() || produto === auto.nome) setProduto(nome);
+                if (!descricao.trim() || descricao === auto.descricao) setDescricao(desc);
+                setAuto({ nome, descricao: desc });
+              }}
+            />
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {fotos.map((f, i) => (
+                <QuemEntra
+                  key={i}
+                  valor={f}
+                  onChange={(nova) =>
+                    setFotos((l) => {
+                      const lista = l.map((x, j) => (j === i ? nova : x));
+                      // Até 3 fotos: a próxima vaga aparece quando esta é enviada.
+                      return lista.length < 3 && lista.every(Boolean) ? [...lista, null] : lista;
+                    })
+                  }
+                  textos={{
+                    enviada: "Foto do produto",
+                    enviar: "Enviar uma foto do produto",
+                    dica: "Até 3 fotos. Fundo limpo, o produto inteiro.",
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       ) : null}
 
