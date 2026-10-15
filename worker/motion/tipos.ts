@@ -63,6 +63,10 @@ export interface InputMotion {
   influencer?: { nome: string; descricao?: string };
   /** Ajuste de um motion anterior: o pedido de mudança e o HTML de base. */
   ajuste?: { pedido: string; baseId: string; baseHtmlKey: string };
+  /** Idioma dos textos na tela (o da conta de quem pediu). Sem ele, português. */
+  idioma?: "pt" | "en";
+  /** Música de fundo do MP4 (áudio no S3). Escolhida no painel, antes de exportar. */
+  musica?: { key: string; nome: string; origem: "upload" | "link" };
 }
 
 export type StatusMotion = "na_fila" | "gerando" | "pronto" | "erro";
@@ -70,7 +74,7 @@ export type RenderMotion = "na_fila" | "renderizando" | "pronto" | "erro";
 
 /** Andamento mostrado na tela. */
 export interface ProgressoMotion {
-  etapa: "site" | "pensando" | "escrevendo" | "conferindo" | "gravando" | "enviando";
+  etapa: "site" | "pensando" | "escrevendo" | "conferindo" | "revisando" | "gravando" | "enviando";
   /** Caracteres do HTML já escritos. */
   caracteres?: number;
   /** Quadros gravados e o total. */
@@ -87,6 +91,8 @@ export interface UsoMotion {
   /** O modelo que de fato respondeu (outro, se o pedido caiu na reserva). */
   modelo: string;
   correcoes?: number;
+  /** A revisão visual (quadros) mudou o HTML. */
+  revisado?: boolean;
 }
 
 /** Chave do HTML e do vídeo de um motion no S3 (a limpeza de órfãos guarda pela tabela). */

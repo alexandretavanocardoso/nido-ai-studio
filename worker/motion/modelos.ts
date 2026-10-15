@@ -137,7 +137,10 @@ export function estimativaMotion(
   esforco: EsforcoMotion,
   imagens: number,
 ): number {
-  return custoMotion(modelo, 7_000 + imagens * 1_600, SAIDA_POR_ESFORCO[esforco]);
+  const escrita = { entrada: 7_000 + imagens * 1_600, saida: SAIDA_POR_ESFORCO[esforco] };
+  // A revisão visual lê o HTML e 8 quadros; quase sempre responde "OK" (às vezes reescreve).
+  const revisao = { entrada: 9_000 + 8 * 450, saida: Math.round(SAIDA_POR_ESFORCO[esforco] * 0.35) };
+  return custoMotion(modelo, escrita.entrada + revisao.entrada, escrita.saida + revisao.saida);
 }
 
 /**

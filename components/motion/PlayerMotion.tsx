@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Loader2, Pause, Play } from "lucide-react";
+import { AlertTriangle, Loader2, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { tx } from "@/lib/i18n/tx";
+import { fileUrl } from "@/lib/storage/client";
 
 /**
  * Prévia do motion: o HTML roda num iframe isolado (sandbox, sem acesso ao
@@ -14,11 +15,14 @@ export function PlayerMotion({
   largura,
   altura,
   duracao,
+  musicaKey,
 }: {
   id: string;
   largura: number;
   altura: number;
   duracao: number;
+  /** Música de fundo: toca junto, no mesmo tempo da animação (som começa desligado). */
+  musicaKey?: string | null;
 }) {
   const [html, setHtml] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -27,6 +31,8 @@ export function PlayerMotion({
   const [escala, setEscala] = useState(0.25);
   const caixa = useRef<HTMLDivElement>(null);
   const quadro = useRef<HTMLIFrameElement>(null);
+  const musica = useRef<HTMLAudioElement>(null);
+  const [comSom, setComSom] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -66,6 +72,7 @@ export function PlayerMotion({
       if (d.tipo === "tempo") {
         setTempo(d.t ?? 0);
         if (typeof d.tocando === "boolean") setTocando(d.tocando);
+        acompanharMusica(d.t ?? 0, d.tocando !== false);
       }
       if (d.tipo === "erro") setErro(d.mensagem ?? tx("A animação deu erro."));
     };
@@ -74,6 +81,20 @@ export function PlayerMotion({
   }, []);
 
   const mandar = (m: Record<string, unknown>) => quadro.current?.contentWindow?.postMessage(m, "*");
+
+  // A música segue o relógio da animação: pula junto e para junto.
+  const somLigado = useRef(false);
+  somLigado.current = comSom;
+  function acompanharMusica(t: number, andando: boolean) {
+    const a = musica.current;
+    if (!a) return;
+    if (!somLigado.current || !andando) {
+      if (!a.paused) a.pause();
+      return;
+    }
+    if (Math.abs(a.currentTime - t) > 0.3) a.currentTime = t;
+    if (a.paused) void a.play().catch(() => {});
+  }
 
   return (
     <div className="grid gap-2">
@@ -126,6 +147,18 @@ export function PlayerMotion({
           aria-label={tx("Tempo")}
           className="min-w-0 flex-1 accent-accent"
         />
+        {musicaKey ? (
+          <button
+            type="button"
+            onClick={() => setComSom((v) => !v)}
+            aria-label={comSom ? tx("Tirar o som") : tx("Ouvir a música")}
+            title={comSom ? tx("Tirar o som") : tx("Ouvir a música")}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-line text-ink hover:border-line-strong cursor-pointer"
+          >
+            {comSom ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+          </button>
+        ) : null}
+        {musicaKey ? <audio ref={musica} src={fileUrl(musicaKey)} preload="auto" /> : null}
         <span className="w-[72px] shrink-0 text-right text-[12px] tabular-nums text-ink-dim">
           {tempo.toFixed(1)}s / {duracao}s
         </span>

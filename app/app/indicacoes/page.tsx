@@ -28,19 +28,22 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { confirmar } from "@/components/ui/Confirmacao";
 import {
+  CARENCIA_CARTAO_DIAS,
   CARENCIA_DIAS,
   COMISSAO,
   MESES_COMISSAO,
   formatoDeCarteira,
   normalizarCodigo,
   problemaDoCodigo,
+  type SaldoComissao,
 } from "@/lib/indicacao/regras";
-import type { ResumoIndicacao } from "@/lib/indicacao/server";
+import type { ResumoIndicacao, SaldoIndicacao } from "@/lib/indicacao/server";
 import { REDES_USDC, type RedeUsdc } from "@/lib/pagamentos/redes-usdc";
 import { PLANOS, type PlanoId } from "@/lib/planos";
 import { idiomaAtual, tx } from "@/lib/i18n/tx";
 import { moedaAtual, naMoeda } from "@/lib/moeda";
 import { txErro } from "@/lib/i18n/erros";
+import { cn } from "@/lib/cn";
 
 type Resumo = ResumoIndicacao & { link: string };
 
@@ -62,6 +65,7 @@ const dia = (iso: string) =>
     month: "short",
     year: "numeric",
   });
+type FormaDeSaque = "stripe" | "usdc";
 const ROTULO_SAQUE: Record<string, string> = {
   processando: "Processando",
   pago: "Enviado",
@@ -98,7 +102,11 @@ function IndicacoesPageLiberada() {
   const [simN, setSimN] = useState(10);
   const [simValor, setSimValor] = useState(precos[1]);
   const [duvida, setDuvida] = useState(0);
-  // Endereço de destino por rede: cada saldo em USDC sai pela rede em que entrou.
+  // Como sacar cada saldo (Stripe ou USDC), a rede do USDC e o endereço por rede.
+  const [formas, setFormas] = useState<
+    Partial<Record<SaldoComissao, FormaDeSaque>>
+  >({});
+  const [redeSaque, setRedeSaque] = useState<RedeUsdc | null>(null);
   const [carteiras, setCarteiras] = useState<Partial<Record<RedeUsdc, string>>>(
     {},
   );
@@ -170,8 +178,16 @@ function IndicacoesPageLiberada() {
     }
   }
 
-  async function sacar(moeda: string, valor: number, rede: RedeUsdc | null) {
-    const usdc = moeda === "USDC";
+  /** Saca todo o saldo disponível pela forma escolhida (Stripe ou USDC numa rede). */
+  async function sacar(
+    saldo: SaldoIndicacao,
+    forma: FormaDeSaque,
+    rede: RedeUsdc | null,
+  ) {
+    const usdc = forma === "usdc";
+    const moeda = usdc ? "USDC" : saldo.moeda;
+    // Em USDC só saem as comissões de quem pagou em USDC.
+    const valor = usdc ? saldo.porUsdc : saldo.disponivel;
     const redeEscolhida = rede ?? "";
     const destino = (rede ? carteiras[rede] : "")?.trim() ?? "";
     if (usdc && !formatoDeCarteira(redeEscolhida, destino))
@@ -180,15 +196,19 @@ function IndicacoesPageLiberada() {
       titulo: `${tx("Sacar")} ${dinheiro(valor, moeda)}?`,
       mensagem: usdc
         ? `${tx("O USDC é enviado agora, na rede")} ${REDES_USDC.find((r) => r.id === redeEscolhida)?.nome}, ${tx("para")} ${destino}. ${tx("Confira o endereço e a rede: transferência on-chain não pode ser desfeita.")}`
-        : tx(
-            "O valor vai para a sua conta no Stripe, que repassa para o seu banco no prazo dela.",
-          ),
+        : saldo.moeda === "USD"
+          ? tx(
+              "O valor é convertido para reais pela cotação do dia e vai para a sua conta no Stripe, que repassa para o seu banco no prazo dela.",
+            )
+          : tx(
+              "O valor vai para a sua conta no Stripe, que repassa para o seu banco no prazo dela.",
+            ),
       confirmar: tx("Sacar"),
     });
     if (!ok) return;
     setErro(null);
     setAviso(null);
-    setOcupado(`sacar-${moeda}-${redeEscolhida}`);
+    setOcupado(`sacar-${saldo.moeda}`);
     try {
       const r = await fetch("/api/indicacao/sacar", {
         method: "POST",
@@ -209,7 +229,9 @@ function IndicacoesPageLiberada() {
         );
       else
         setAviso(
-          `${dinheiro(b.valor, moeda)} ${tx("enviados para a sua conta no Stripe.")}`,
+          b.pago
+            ? `${dinheiro(b.pago.valor, b.pago.moeda)} (${dinheiro(b.valor, moeda)}) ${tx("enviados para a sua conta no Stripe.")}`
+            : `${dinheiro(b.valor, moeda)} ${tx("enviados para a sua conta no Stripe.")}`,
         );
       await carregar();
     } catch {
@@ -220,14 +242,41 @@ function IndicacoesPageLiberada() {
   }
 
   const pct = Math.round(COMISSAO * 100);
-  // Enquanto o plano só é vendido em USDC (Stripe em teste, lib/em-teste.ts), a
-  // comissão é toda em USDC: o Stripe só aparece depois de liberado para todos
-  // (admin incluído, que aqui vê o mesmo que os usuários) ou para quem já tem
-  // saldo em BRL ou USD.
-  const comStripe =
-    (recursos.stripe &&
-      liberadoNaTela("stripe", { emTeste: conta?.emTeste })) ||
-    !!resumo?.saldos.some((s) => s.moeda !== "USDC");
+  // Formas de saque. Pelo Stripe sai o saldo inteiro (o em dólar, em reais pela
+  // cotação do dia); em USDC, só a parte de quem pagou em USDC (a de cartão
+  // pode ser contestada: lib/indicacao/server.ts). O Stripe aparece quando o
+  // cartão está liberado para todos (admin incluído, que aqui vê o mesmo que os
+  // usuários: lib/em-teste.ts) ou para quem já tem saldo em reais. O USDC,
+  // quando há rede de saque ligada no servidor.
+  const stripeLiberado =
+    recursos.stripe && liberadoNaTela("stripe", { emTeste: conta?.emTeste });
+  const redesUsdc = resumo?.usdc.redes ?? [];
+  const comStripe = resumo
+    ? resumo.stripe.configurado &&
+      (stripeLiberado || resumo.saldos.some((s) => s.moeda === "BRL"))
+    : stripeLiberado;
+  const comUsdc = resumo ? redesUsdc.length > 0 : recursos.usdc;
+  const formasDoSaldo = (s: SaldoIndicacao): FormaDeSaque[] =>
+    s.moeda === "BRL"
+      ? comStripe
+        ? ["stripe"]
+        : []
+      : [
+          ...(comStripe ? (["stripe"] as const) : []),
+          ...(comUsdc && s.porUsdc > 0 ? (["usdc"] as const) : []),
+        ];
+  const nomeDaRede = (r: string) =>
+    REDES_USDC.find((x) => x.id === r)?.nome ?? r;
+  const comoReceber =
+    comStripe && comUsdc
+      ? tx(
+          "O saque é feito pelo Stripe, direto para o seu banco. A comissão de quem pagou em USDC também pode sair em USDC, para a sua carteira.",
+        )
+      : comStripe
+        ? tx("O saque é feito pelo Stripe, direto para o seu banco.")
+        : comUsdc
+          ? tx("A comissão de quem pagou em USDC sai em USDC, direto para a sua carteira.")
+          : "";
 
   async function copiarLink() {
     if (!resumo) return;
@@ -283,11 +332,13 @@ function IndicacoesPageLiberada() {
     [
       Wallet,
       tx("Saque quando quiser"),
-      comStripe
+      comStripe && comUsdc
         ? tx(
-            "Pelo Stripe, direto para o seu banco. Se o plano foi pago em USDC, a comissão vai em USDC para a sua carteira.",
+            "Pelo Stripe, direto para o seu banco. O que veio de pagamento em USDC também pode sair em USDC, na rede que você preferir.",
           )
-        : tx("Em USDC, direto para a sua carteira, na mesma rede em que o indicado pagou."),
+        : comStripe
+          ? tx("Pelo Stripe, direto para o seu banco.")
+          : tx("Em USDC, direto para a sua carteira, na rede que você preferir."),
     ],
     [
       Link2,
@@ -301,8 +352,8 @@ function IndicacoesPageLiberada() {
     [`${pct}%`, tx("de comissão em cada assinatura")],
     [String(MESES_COMISSAO), tx("meses de comissão recorrente por indicado")],
     [
-      String(CARENCIA_DIAS),
-      tx("dias depois do pagamento para a comissão liberar para saque"),
+      String(CARENCIA_CARTAO_DIAS),
+      `${tx("dias depois do pagamento no cartão para a comissão liberar para saque (em USDC,")} ${CARENCIA_DIAS})`,
     ],
   ];
   const duvidas: Array<[string, string]> = [
@@ -332,8 +383,26 @@ function IndicacoesPageLiberada() {
     ],
     [
       tx("Quando posso sacar?"),
-      `${tx("A comissão fica em carência por")} ${CARENCIA_DIAS} ${tx("dias depois do pagamento do indicado. Depois disso fica disponível, respeitando o saque mínimo.")}`,
+      `${tx("A comissão de pagamento no cartão fica em carência por")} ${CARENCIA_CARTAO_DIAS} ${tx("dias; a de pagamento em USDC, por")} ${CARENCIA_DIAS}. ${tx("A carência cobre reembolsos e contestações do pagamento. Depois disso a comissão fica disponível, respeitando o saque mínimo.")}`,
     ],
+    ...(comStripe || comUsdc
+      ? ([
+          [
+            tx("Como eu recebo?"),
+            comStripe && comUsdc
+              ? tx(
+                  "Pelo Stripe, que transfere em reais, pela cotação do dia, para a sua conta de recebimento e repassa para o seu banco. A comissão de quem pagou em USDC também pode sair em USDC, para a sua carteira, na rede que você preferir; a de quem pagou no cartão sai só pelo Stripe.",
+                )
+              : comStripe
+                ? tx(
+                    "Pelo Stripe: a comissão vai em reais, pela cotação do dia, para a sua conta de recebimento no Stripe, que repassa para o seu banco.",
+                  )
+                : tx(
+                    "A comissão de quem pagou em USDC sai em USDC, para a sua carteira, na rede que você escolher. Você informa o endereço na hora de sacar.",
+                  ),
+          ],
+        ] as Array<[string, string]>)
+      : []),
     [
       tx("E se o indicado pedir reembolso?"),
       tx(
@@ -377,13 +446,8 @@ function IndicacoesPageLiberada() {
           <p className="max-w-[560px] text-pretty text-base leading-[1.55] text-[#d9d2c6]">
             {tx("Ganhe")} {pct}%{" "}
             {tx("de comissão, em dinheiro, por até")} {MESES_COMISSAO}{" "}
-            {comStripe
-              ? tx(
-                  "meses em cada assinatura que vier do seu link. O saque é feito pelo Stripe; se o plano foi pago em USDC, a comissão sai em USDC para a sua carteira.",
-                )
-              : tx(
-                  "meses em cada assinatura que vier do seu link. A comissão sai em USDC, direto para a sua carteira.",
-                )}
+            {tx("meses em cada assinatura que vier do seu link.")}{" "}
+            {comoReceber}
           </p>
           <div className="flex flex-wrap gap-2.5 pt-1.5">
             {user === undefined ? (
@@ -561,140 +625,218 @@ function IndicacoesPageLiberada() {
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {resumo.saldos.map((s) => {
-                  const chave = `sacar-${s.moeda}-${s.rede ?? ""}`;
-                  const redeLigada =
-                    !!s.rede && resumo.usdc.redes.includes(s.rede);
+                  const chave = `sacar-${s.moeda}`;
+                  const opcoes = formasDoSaldo(s);
+                  // Sem escolha ainda: o Stripe se a conta já está pronta; senão, o
+                  // USDC (que saca sem cadastro); sem USDC, o Stripe.
+                  const escolhida = formas[s.moeda];
+                  const forma: FormaDeSaque | undefined =
+                    escolhida && opcoes.includes(escolhida)
+                      ? escolhida
+                      : opcoes.includes("stripe") && resumo.stripe.pronto
+                        ? "stripe"
+                        : opcoes.includes("usdc")
+                          ? "usdc"
+                          : opcoes[0];
+                  const rede =
+                    redeSaque && redesUsdc.includes(redeSaque)
+                      ? redeSaque
+                      : (redesUsdc[0] ?? null);
+                  const podeSacar =
+                    forma === "stripe"
+                      ? resumo.stripe.pronto
+                      : forma === "usdc" && !!rede && !!carteiras[rede]?.trim();
+                  // O que sai por este caminho: em USDC, só o que veio de USDC.
+                  const valorDoCaminho =
+                    forma === "usdc" ? s.porUsdc : s.disponivel;
                   return (
-                  <div
-                    key={chave}
-                    className="rounded-2xl border border-line bg-bg p-4 grid gap-3"
-                  >
-                    <div>
-                      <div className="text-[12px] text-ink-dim">
-                        {tx("Disponível para saque")}
-                        {s.rede
-                          ? ` · ${tx("rede")} ${REDES_USDC.find((r) => r.id === s.rede)?.nome ?? s.rede}`
-                          : ""}
+                    <div
+                      key={chave}
+                      className="rounded-2xl border border-line bg-bg p-4 grid gap-3"
+                    >
+                      <div>
+                        <div className="text-[12px] text-ink-dim">
+                          {tx("Disponível para saque")}
+                        </div>
+                        <div className="display text-3xl text-accent mt-1">
+                          {dinheiro(s.disponivel, s.moeda)}
+                        </div>
                       </div>
-                      <div className="display text-3xl text-accent mt-1">
-                        {dinheiro(s.disponivel, s.moeda)}
+                      <div className="mono text-[11.5px] text-ink-dim">
+                        {tx("Em carência")}: {dinheiro(s.pendente, s.moeda)} ·{" "}
+                        {tx("Já sacado")}: {dinheiro(s.sacado, s.moeda)}
                       </div>
-                    </div>
-                    <div className="mono text-[11.5px] text-ink-dim">
-                      {tx("Em carência")}: {dinheiro(s.pendente, s.moeda)} ·{" "}
-                      {tx("Já sacado")}: {dinheiro(s.sacado, s.moeda)}
-                    </div>
-                    {s.rede ? (
-                      !redeLigada ? (
+                      {!forma ? (
                         <div className="text-[12px] text-ink-dim">
                           {tx(
-                            "O saque em USDC nesta rede ainda não está disponível. O saldo fica guardado.",
+                            "O saque deste saldo ainda não está disponível. O saldo fica guardado.",
                           )}
                         </div>
                       ) : (
-                        <Input
-                          value={carteiras[s.rede] ?? ""}
-                          onChange={(e) =>
-                            setCarteiras((c) => ({
-                              ...c,
-                              [s.rede!]: e.target.value,
-                            }))
-                          }
-                          placeholder={
-                            s.rede === "solana"
-                              ? tx("Endereço da sua carteira Solana")
-                              : tx("Endereço da sua carteira (0x…)")
-                          }
-                          spellCheck={false}
-                          autoComplete="off"
-                          className="mono text-[13px]"
-                        />
-                      )
-                    ) : null}
-                    {(s.rede ? redeLigada : resumo.stripe.pronto) ? (
-                      <Button
-                        variant="accent"
-                        onClick={() => sacar(s.moeda, s.disponivel, s.rede)}
-                        disabled={
-                          s.disponivel < s.minimo ||
-                          (!!s.rede && !carteiras[s.rede]?.trim()) ||
-                          ocupado === chave
-                        }
-                      >
-                        {ocupado === chave ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : null}
-                        {tx("Sacar")}
-                      </Button>
-                    ) : null}
-                    {s.disponivel < 0 ? (
-                      <div className="text-[12px] text-pink">
-                        {tx(
-                          "Uma comissão já sacada foi estornada. O valor será descontado das próximas.",
-                        )}
-                      </div>
-                    ) : s.disponivel < s.minimo ? (
-                      <div className="text-[12px] text-ink-dim">
-                        {tx("Saque mínimo")}: {dinheiro(s.minimo, s.moeda)}
-                      </div>
-                    ) : null}
-                  </div>
+                        <>
+                          {opcoes.length > 1 ? (
+                            <Pilulas
+                              rotulo={tx("Como receber")}
+                              valor={forma}
+                              onChange={(f) =>
+                                setFormas((v) => ({ ...v, [s.moeda]: f }))
+                              }
+                              opcoes={[
+                                { id: "stripe", rotulo: tx("Stripe (banco)") },
+                                { id: "usdc", rotulo: tx("USDC (carteira)") },
+                              ]}
+                            />
+                          ) : null}
+                          {forma === "stripe" && !resumo.stripe.pronto ? (
+                            <div className="text-[12px] text-ink-dim">
+                              {tx(
+                                "Para sacar pelo Stripe, conecte sua conta de recebimento logo abaixo.",
+                              )}
+                            </div>
+                          ) : forma === "stripe" && s.moeda === "USD" ? (
+                            <div className="text-[12px] text-ink-dim">
+                              {tx("Sai em reais, pela cotação do dia.")}
+                            </div>
+                          ) : null}
+                          {forma === "usdc" && s.porUsdc < s.disponivel ? (
+                            <div className="text-[12px] text-ink-dim">
+                              {tx("Em USDC")}:{" "}
+                              <span className="text-ink">
+                                {dinheiro(s.porUsdc, s.moeda)}
+                              </span>
+                              .{" "}
+                              {tx(
+                                "A comissão de quem pagou no cartão sai só pelo Stripe.",
+                              )}
+                            </div>
+                          ) : null}
+                          {forma === "usdc" && rede ? (
+                            <div className="grid gap-2">
+                              {redesUsdc.length > 1 ? (
+                                <Pilulas
+                                  rotulo={tx("Rede")}
+                                  valor={rede}
+                                  onChange={setRedeSaque}
+                                  opcoes={redesUsdc.map((r) => ({
+                                    id: r,
+                                    rotulo: nomeDaRede(r),
+                                  }))}
+                                />
+                              ) : (
+                                <div className="text-[12px] text-ink-dim">
+                                  {tx("Rede")}: {nomeDaRede(rede)}
+                                </div>
+                              )}
+                              <Input
+                                value={carteiras[rede] ?? ""}
+                                onChange={(e) =>
+                                  setCarteiras((c) => ({
+                                    ...c,
+                                    [rede]: e.target.value,
+                                  }))
+                                }
+                                placeholder={
+                                  rede === "solana"
+                                    ? tx("Endereço da sua carteira Solana")
+                                    : tx("Endereço da sua carteira (0x…)")
+                                }
+                                spellCheck={false}
+                                autoComplete="off"
+                                className="mono text-[13px]"
+                              />
+                            </div>
+                          ) : null}
+                          <Button
+                            variant="accent"
+                            onClick={() => sacar(s, forma, rede)}
+                            disabled={
+                              valorDoCaminho < s.minimo ||
+                              !podeSacar ||
+                              ocupado === chave
+                            }
+                          >
+                            {ocupado === chave ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : null}
+                            {forma === "usdc"
+                              ? tx("Sacar em USDC")
+                              : tx("Sacar pelo Stripe")}
+                          </Button>
+                        </>
+                      )}
+                      {s.disponivel < 0 ? (
+                        <div className="text-[12px] text-pink">
+                          {tx(
+                            "Uma comissão já sacada foi estornada. O valor será descontado das próximas.",
+                          )}
+                        </div>
+                      ) : valorDoCaminho < s.minimo ? (
+                        <div className="text-[12px] text-ink-dim">
+                          {tx("Saque mínimo")}: {dinheiro(s.minimo, s.moeda)}
+                        </div>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>
             )}
 
             <p className="text-[12.5px] text-ink-dim leading-relaxed">
-              {tx("A comissão fica em carência por")} {CARENCIA_DIAS}{" "}
+              {tx("A comissão libera para saque")} {CARENCIA_CARTAO_DIAS}{" "}
+              {tx("dias depois do pagamento no cartão, ou")} {CARENCIA_DIAS}{" "}
               {tx(
-                "dias depois do pagamento do indicado e então libera para saque. Se o pagamento for estornado, a comissão é desfeita.",
+                "dias depois do pagamento em USDC. Se o pagamento for estornado, a comissão é desfeita.",
               )}
             </p>
 
-            {!comStripe ? (
-              resumo.saldos.length === 0 ? (
-                <div className="flex items-center gap-3 rounded-xl border border-line bg-bg px-4 py-3">
-                  <Wallet className="w-4 h-4 text-accent shrink-0" />
-                  <span className="min-w-0 text-[13px] text-ink-mute">
-                    {tx(
-                      "O saque é em USDC, direto para a sua carteira, na mesma rede em que o indicado pagou. Você informa o endereço na hora de sacar.",
-                    )}
-                  </span>
-                </div>
-              ) : null
-            ) : resumo.saldos.length > 0 &&
-              resumo.saldos.every((s) => s.moeda === "USDC") ? null : !resumo
-                .stripe.configurado ? (
-              <div className="rounded-xl border border-dashed border-line-strong px-4 py-3 text-[13px] text-ink-dim">
-                {tx("O saque pelo Stripe não está configurado neste deploy.")}
-              </div>
-            ) : !resumo.stripe.pronto ? (
+            {/* Formas de saque: a conta do Stripe se prepara antes; o endereço USDC vai na hora. */}
+            {comStripe ? (
               <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-bg px-4 py-3">
                 <Landmark className="w-4 h-4 text-accent shrink-0" />
                 <span className="flex-1 basis-[180px] min-w-0 text-[13px] text-ink-mute">
-                  {resumo.stripe.conectado
+                  {resumo.stripe.pronto
                     ? tx(
-                        "Falta terminar o cadastro da sua conta de recebimento no Stripe.",
+                        "Stripe: sua conta de recebimento está pronta. O saque vai para ela em reais, e o Stripe repassa para o seu banco.",
                       )
-                    : tx(
-                        "Para sacar, cadastre sua conta de recebimento no Stripe (dados pessoais e conta bancária).",
-                      )}
+                    : resumo.stripe.conectado
+                      ? tx(
+                          "Falta terminar o cadastro da sua conta de recebimento no Stripe.",
+                        )
+                      : tx(
+                          "Para sacar pelo Stripe, cadastre sua conta de recebimento (dados pessoais e conta bancária).",
+                        )}
                 </span>
-                <Button
-                  variant="accent"
-                  size="sm"
-                  onClick={() =>
-                    abrirNoStripe("/api/indicacao/stripe/conectar", "conectar")
-                  }
-                  disabled={ocupado === "conectar"}
-                >
-                  {ocupado === "conectar" ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : null}
-                  {resumo.stripe.conectado
-                    ? tx("Continuar cadastro")
-                    : tx("Conectar Stripe")}
-                </Button>
+                {resumo.stripe.pronto ? (
+                  <Check className="w-4 h-4 text-ok shrink-0" />
+                ) : (
+                  <Button
+                    variant="accent"
+                    size="sm"
+                    onClick={() =>
+                      abrirNoStripe("/api/indicacao/stripe/conectar", "conectar")
+                    }
+                    disabled={ocupado === "conectar"}
+                  >
+                    {ocupado === "conectar" ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : null}
+                    {resumo.stripe.conectado
+                      ? tx("Continuar cadastro")
+                      : tx("Conectar Stripe")}
+                  </Button>
+                )}
+              </div>
+            ) : null}
+            {comUsdc ? (
+              <div className="flex items-center gap-3 rounded-xl border border-line bg-bg px-4 py-3">
+                <Wallet className="w-4 h-4 text-accent shrink-0" />
+                <span className="min-w-0 text-[13px] text-ink-mute">
+                  {tx("USDC: para a sua carteira, na rede que você escolher")} (
+                  {redesUsdc.map(nomeDaRede).join(", ")}).{" "}
+                  {tx(
+                    "Vale para as comissões de quem pagou em USDC. Você informa o endereço na hora de sacar.",
+                  )}
+                </span>
               </div>
             ) : null}
           </section>
@@ -765,6 +907,9 @@ function IndicacoesPageLiberada() {
                   </span>
                   <span className="mono text-[13px] font-semibold text-ink">
                     {dinheiro(s.valor, s.moeda)}
+                    {s.pago
+                      ? ` → ${dinheiro(s.pago.valor, s.pago.moeda)}`
+                      : null}
                     {s.rede && s.txHash && EXPLORER[s.rede] ? (
                       <a
                         href={EXPLORER[s.rede] + s.txHash}
@@ -999,5 +1144,44 @@ function IndicacoesPageLiberada() {
         </div>
       </section>
     </main>
+  );
+}
+
+/** Escolha em pílulas (forma de saque, rede). */
+function Pilulas<T extends string>({
+  opcoes,
+  valor,
+  onChange,
+  rotulo,
+}: {
+  opcoes: Array<{ id: T; rotulo: string }>;
+  valor: T;
+  onChange: (v: T) => void;
+  rotulo: string;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={rotulo}
+      className="flex w-fit max-w-full flex-wrap gap-1 justify-self-start rounded-full border border-line bg-panel p-1"
+    >
+      {opcoes.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          role="radio"
+          aria-checked={valor === o.id}
+          onClick={() => onChange(o.id)}
+          className={cn(
+            "h-7 rounded-full px-3 text-[12px] font-semibold transition",
+            valor === o.id
+              ? "bg-accent/15 text-accent"
+              : "text-ink-mute hover:text-ink",
+          )}
+        >
+          {o.rotulo}
+        </button>
+      ))}
+    </div>
   );
 }

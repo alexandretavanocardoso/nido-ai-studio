@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import sharp from "sharp";
 import { z } from "zod";
 import { adminOuResponder } from "@/lib/admin/acesso";
+import { idiomaDoPedido } from "@/lib/ai/idioma";
 import { getPool } from "@/lib/db";
 import { getFal } from "@/lib/fal";
 import { recortarFigura } from "@/lib/figurinha";
@@ -146,6 +147,8 @@ export async function POST(req: Request) {
   }
   const input: InputMotion = {
     brief: body.brief,
+    // Os textos na tela saem no idioma da conta, mesmo com o pedido vazio ou em outra língua.
+    idioma: idiomaDoPedido(req),
     formato: body.formato,
     duracao: body.duracao,
     assets,

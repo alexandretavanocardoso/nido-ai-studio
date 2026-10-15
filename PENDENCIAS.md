@@ -134,15 +134,18 @@ Página `/app/radar` (atalho na barra do topo): um radar por dia para cada nicho
 
 ## Indicações (novo em 07/10)
 
-Programa de indicação em Conta → Indique e ganhe (`/app/indicacoes`): link com código (`/?ref=codigo`), 10% em dinheiro sobre cada assinatura de plano do indicado, por até 12 meses, saque pelo Stripe Connect. Regras em [lib/indicacao/regras.ts](lib/indicacao/regras.ts).
+Programa de indicação em Conta → Indique e ganhe (`/app/indicacoes`): link com código (`/?ref=codigo`), 10% em dinheiro sobre cada assinatura de plano do indicado, por até 12 meses. Saque (15/10): pelo Stripe Connect sai todo o saldo em dólar, convertido em reais pela cotação do dia (a conta do Stripe só tem saldo em reais); em USDC, na rede que o indicador escolher, só a comissão de quem pagou em USDC — a de cartão sai só pelo Stripe (cartão pode ser contestado meses depois; USDC enviado não volta). Tetos de 200 por saque e 1.000 por dia (em dólar) valem para os dois caminhos. Regras em [lib/indicacao/regras.ts](lib/indicacao/regras.ts).
 
 - [x] Migration `db/migrations/0016_indicacoes.sql` aplicada no Neon em 07/10. O SQL do programa foi validado no banco (as instruções que escrevem, só analisadas, sem gravar nada).
 - [ ] **Ligar o Stripe Connect** (contas Express, com transferências) no Dashboard do Stripe. Sem isso "Conectar Stripe" falha. Passos no [DEPLOY.md](DEPLOY.md), seção 5, item 5.
 - [ ] **Nunca testado de verdade:** vínculo pelo link, comissão gerada por um pagamento, cadastro no Stripe e saque. Só as regras (código, cálculo dos 10%) têm teste, e a tela foi vista com dados simulados.
 - [ ] **Comissão recorrente (07/10):** passou a ser 10% de cada pagamento de plano do indicado (primeira assinatura e renovações), por até 12 meses a partir da primeira comissão. Migration `db/migrations/0018_indicacao_recorrente.sql` aplicada no Neon em 07/10. Nunca testado com uma renovação de verdade.
-- [ ] **Decidir:** carência de 7 dias; saque mínimo de R$ 20 / US$ 5.
+- [ ] **Decidir:** saque mínimo de R$ 20 / US$ 5. (Carência decidida em 15/10: 60 dias para comissão de cartão, 14 para a de USDC.)
 - [ ] **Comissão em dólar no cartão** (indicado que pagou em USD pelo Stripe): o Stripe só transfere se a conta da plataforma tiver saldo em dólar e a conta do indicador aceitar. Pode falhar; o saldo volta para "disponível".
-- [ ] **Saque em USDC on-chain (feito em 07/10, envio nunca testado):** plano pago em USDC gera comissão em USDC, sacada da carteira de saques da NIDO para a carteira do usuário (Solana, Base, Arbitrum, BNB Chain ou Ethereum). Para ligar:
+- [x] **Migration `db/migrations/0042_indicacao_saques.sql` aplicada no Neon em 15/10** (auditoria dos saques).
+- [ ] **Regras de saque da auditoria (15/10), nunca testadas com dinheiro:** o SQL do saque rodou num Postgres local (PGlite) em 9 cenários e a tela foi vista com dados simulados. Falta um saque real pelo Stripe (em reais) e um em USDC. Atenção ao caixa: comissão de quem pagou em USDC, sacada pelo Stripe, sai do saldo da NIDO no Stripe; a sacada em USDC sai da carteira de saques da rede escolhida, que pode não ser a rede em que o indicado pagou.
+- [x] **Cotação do dólar no saque pelo Stripe:** usa a API de câmbio do Stripe (FX Quotes, em prévia; versão em `STRIPE_FX_VERSAO`, padrão `2026-09-30.preview`) e, se ela falhar, a PTAX do Banco Central. Só sem as duas o saque responde "Não consegui a cotação do dólar agora" (nada é reservado nem pago). Cotação a mais de 30% do `CAMBIO_USD_BRL` é descartada.
+- [ ] **Saque em USDC on-chain (feito em 07/10, envio nunca testado):** sai da carteira de saques da NIDO para a carteira do usuário, na rede que ele escolher (Solana, Base, Arbitrum, BNB Chain ou Ethereum). Para ligar:
   - Migration `db/migrations/0017_indicacao_usdc.sql` aplicada no Neon em 07/10.
   - Criar uma carteira só para saques e pôr a chave no ambiente: `USDC_SAQUE_EVM_PRIVATE_KEY` e/ou `USDC_SAQUE_SOLANA_SECRET_KEY` (ver `.env.example`). Abastecer com USDC e com a moeda da taxa em cada rede.
   - Teto por saque: `USDC_SAQUE_TETO` (padrão 200 USDC).

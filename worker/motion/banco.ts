@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import type { Pool } from "@neondatabase/serverless";
 import type { InputMotion, ProgressoMotion, TipoMotion, UsoMotion } from "./tipos";
 
@@ -108,6 +109,34 @@ export async function falharGravacao(pool: Pool, id: string, erro: string): Prom
     `update motions set render = 'erro', render_erro = $2, progresso = null, vivo_em = null, updated_at = now() where id = $1`,
     [id, erro],
   );
+}
+
+/**
+ * Aviso no sino do app (tabela avisos, a mesma de lib/avisos-server.ts): vale
+ * com o app fechado. A `chave` evita aviso repetido; a conta guarda os 30 mais novos.
+ */
+export async function avisar(
+  pool: Pool,
+  userId: string,
+  a: { rotulo: string; erro?: boolean; href: string; chave: string },
+): Promise<void> {
+  try {
+    const { rowCount } = await pool.query(
+      `insert into avisos (id, user_id, rotulo, erro, href, chave)
+       values ($1, $2, $3, $4, $5, $6)
+       on conflict (user_id, chave) do nothing`,
+      [randomBytes(9).toString("base64url"), userId, a.rotulo.slice(0, 200), !!a.erro, a.href, a.chave.slice(0, 120)],
+    );
+    if (rowCount)
+      await pool.query(
+        `delete from avisos where user_id = $1 and id not in (
+           select id from avisos where user_id = $1 order by criado_em desc limit 30
+         )`,
+        [userId],
+      );
+  } catch (e) {
+    console.warn("[motion] aviso não registrado:", (e as Error).message);
+  }
 }
 
 /** Sinal de vida do processo (também parado): a tela avisa quando ele não está ligado. */

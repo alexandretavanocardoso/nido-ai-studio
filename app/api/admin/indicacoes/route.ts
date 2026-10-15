@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Pedido inválido." }, { status: 400 });
   try {
     if (parsed.data.acao === "estornar") {
-      await estornarComissaoAdmin(parsed.data.comissaoId);
+      await estornarComissaoAdmin(getStripe(), parsed.data.comissaoId);
       return NextResponse.json({ ok: true });
     }
     return NextResponse.json({

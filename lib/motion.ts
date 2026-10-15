@@ -1,6 +1,7 @@
 import type { Pool } from "@neondatabase/serverless";
 import type {
   FormatoMotion,
+  InputMotion,
   ProgressoMotion,
   RenderMotion,
   StatusMotion,
@@ -31,6 +32,8 @@ export interface ItemMotion {
   render: RenderMotion | null;
   videoKey: string | null;
   renderErro: string | null;
+  /** Música de fundo do MP4 (escolhida no painel). */
+  musica: InputMotion["musica"] | null;
   progresso: ProgressoMotion | null;
   uso: UsoMotion | null;
   erro: string | null;
@@ -55,6 +58,7 @@ interface Linha {
   render: RenderMotion | null;
   video_key: string | null;
   render_erro: string | null;
+  musica: InputMotion["musica"] | null;
   progresso: ProgressoMotion | null;
   uso: UsoMotion | null;
   error: string | null;
@@ -68,7 +72,7 @@ export async function listarMotions(pool: Pool, userId: string, id?: string): Pr
     `select id, status, tipo, modelo, esforco, input->>'brief' as brief, input->>'formato' as formato,
             (input->>'duracao')::int as duracao, input->'produto'->>'nome' as produto, input->'site'->>'url' as site,
             input->'ajuste'->>'pedido' as ajuste, input->'ajuste'->>'baseId' as base_id,
-            render, video_key, render_erro, progresso, uso, error, created_at,
+            render, video_key, render_erro, input->'musica' as musica, progresso, uso, error, created_at,
             coalesce((status in ('na_fila', 'gerando') or render in ('na_fila', 'renderizando'))
                      and vivo_em < now() - interval '10 minutes', false) as parado
        from motions where user_id = $1 ${id ? "and id = $2" : ""}
@@ -90,6 +94,7 @@ export async function listarMotions(pool: Pool, userId: string, id?: string): Pr
     render: r.render,
     videoKey: r.video_key,
     renderErro: r.render_erro,
+    musica: r.musica,
     progresso: r.progresso,
     uso: r.uso,
     erro: r.error,

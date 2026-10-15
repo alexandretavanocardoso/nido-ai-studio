@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { liberadoOuResponder } from "@/lib/admin/acesso";
+import { readIp } from "@/lib/ai/rate-limit";
 import {
   generateImage,
   ImageBlockedError,
@@ -17,6 +18,7 @@ import {
 } from "@/lib/creditos";
 import { getPool } from "@/lib/db";
 import { getFal, mensagemDeErro } from "@/lib/fal";
+import { MusicaSchema } from "@/lib/musica";
 import {
   armazenamentoOuResponder,
   liberarVaga,
@@ -37,6 +39,7 @@ import {
   creditosImagemDaCena,
   DURACOES_PRODUTO,
   MAX_CENAS_MUDAS_PRODUTO,
+  MAX_FOTOS_PRODUTO,
   MODELOS_FALADO_PRODUTO,
   MODELOS_MUDO_PRODUTO,
   PRODUTO_MAX_CARACTERES,
@@ -111,7 +114,11 @@ const BodySchema = z.object({
   /** Personagem escolhido, ou null com uma foto avulsa. */
   characterId: z.string().min(1).nullable().default(null),
   imageKey: z.string().min(1, "Escolha quem aparece no vídeo."),
-  produtoKey: z.string().min(1, "Envie a foto do produto."),
+  /** Fotos do produto (a primeira é a principal), até MAX_FOTOS_PRODUTO. */
+  produtoKeys: z
+    .array(z.string().min(1))
+    .min(1, "Envie a foto do produto.")
+    .max(MAX_FOTOS_PRODUTO),
   produto: z
     .string()
     .trim()
@@ -125,6 +132,8 @@ const BodySchema = z.object({
   audio: z.boolean().default(false),
   voiceId: z.string().optional(),
   cenas: z.array(CenaSchema).min(1).max(MAX_CENAS_MUDAS_PRODUTO),
+  /** Música de fundo (opcional), por baixo do vídeo pronto. */
+  musica: MusicaSchema.optional(),
 });
 
 /** Modelo gravado no job (coluna `modelo`): o id do modelo no serviço. */
@@ -230,7 +239,11 @@ export async function POST(req: Request) {
       },
       { status: 400 },
     );
-  if (!ownsKey(userId, body.imageKey) || !ownsKey(userId, body.produtoKey))
+  if (
+    !ownsKey(userId, body.imageKey) ||
+    body.produtoKeys.some((k) => !ownsKey(userId, k)) ||
+    (body.musica && !ownsKey(userId, body.musica.key))
+  )
     return NextResponse.json(
       { error: "Imagem não encontrada." },
       { status: 404 },
@@ -324,10 +337,10 @@ export async function POST(req: Request) {
 
   try {
     const jobId = nanoid(12);
-    const [pessoa, produto] = await Promise.all([
-      getObjectBuffer(s3, body.imageKey).then(shrinkReferencia),
-      getObjectBuffer(s3, body.produtoKey).then(shrinkReferencia),
-    ]);
+    // A pessoa primeiro; depois as fotos do produto (ângulos e detalhes do mesmo produto).
+    const [pessoa, ...fotosProduto] = await Promise.all(
+      [body.imageKey, ...body.produtoKeys].map((k) => getObjectBuffer(s3, k).then(shrinkReferencia)),
+    );
     const imagemDaCena = async (cena: string): Promise<Buffer> => {
       const pedido = {
         prompt: promptImagemDaCena({
@@ -335,8 +348,9 @@ export async function POST(req: Request) {
           produto: body.produto,
           vertical: body.vertical,
           falado,
+          fotosProduto: fotosProduto.length,
         }),
-        referencias: [pessoa, produto],
+        referencias: [pessoa, ...fotosProduto],
         aspectRatio: body.vertical ? "9:16" : "16:9",
         imageSize: "1K" as const,
         qualidade: pro ? ("pro" as const) : ("padrao" as const),
@@ -430,7 +444,9 @@ export async function POST(req: Request) {
       ? await carregarPersonagem(userId, body.characterId)
       : null;
     const nome = personagem?.identidade.nome || "Influencer";
-    const produtoInput = { nome: body.produto, key: body.produtoKey };
+    const produtoInput = { nome: body.produto, keys: body.produtoKeys };
+    // Música de fundo: entra na finalização, depois de unir as cenas (lib/video/musica.ts).
+    const musica = body.musica ? { key: body.musica.key, nome: body.musica.nome, origem: body.musica.origem } : undefined;
 
     let idExterno: string;
     let input: Record<string, unknown>;
@@ -460,6 +476,7 @@ export async function POST(req: Request) {
         modeloDoJob = faladoNoServico(modeloFalado);
         input = {
           produto: produtoInput,
+          musica,
           imageKey: body.imageKey,
           voiceId: body.voiceId,
           cenasProduto: body.cenas,
@@ -490,6 +507,7 @@ export async function POST(req: Request) {
         modeloDoJob = modeloMudo;
         input = {
           produto: produtoInput,
+          musica,
           imageKey: body.imageKey,
           cenasProduto: body.cenas,
           promptText: prompts[0],
@@ -531,6 +549,13 @@ export async function POST(req: Request) {
         provedor,
       ],
     );
+    if (body.musica)
+      await pool
+        .query(
+          "insert into consentimentos (id, user_id, character_id, tipo, texto, ip) values ($1, $2, $3, 'uso_musica', $4, $5)",
+          [nanoid(14), userId, characterId, `${body.musica.declaracao} [${body.musica.key}]`, readIp(req)],
+        )
+        .catch((e) => console.warn("[produto] declaração da música:", (e as Error).message));
     // Com personagem, o vídeo também aparece no Estúdio dele.
     if (personagem)
       await registrarVideoNoBanco(userId, characterId, {

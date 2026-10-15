@@ -6,6 +6,7 @@ import {
   MAX_CENAS_MUDAS_PRODUTO,
   MODELOS_FALADO_PRODUTO,
   promptImagemDaCena,
+  promptVideoDaCena,
   sistemaRoteiroProduto,
 } from "./produto";
 import { cadeiaDoJob } from "./video/cadeia";
@@ -65,6 +66,20 @@ describe("pedidos", () => {
     expect(p).toContain("EXACTLY the product");
     expect(p).toContain("16:9");
     expect(p).toContain("Tênis Aurora");
+  });
+
+  it("com várias fotos do produto, todas contam como o mesmo produto", () => {
+    const p = promptImagemDaCena({ cena: "x", produto: "Tênis", vertical: true, falado: false, fotosProduto: 3 });
+    expect(p).toContain("Images 2 to 4 show the SAME product");
+    expect(p).toContain("EXACTLY the product in images 2 to 4");
+  });
+
+  it("o roteiro olha as fotos e pede uma ação simples, com física real, por cena", () => {
+    const s = sistemaRoteiroProduto({ modo: "mudo", segundos: [10, 5], temFalas: false });
+    expect(s).toContain("Look at them");
+    expect(s).toContain("ONE simple, continuous action per scene");
+    expect(s).toContain("never floats");
+    expect(promptVideoDaCena("x")).toContain("never floats");
   });
 
   it("o roteiro pede o número certo de cenas e o limite de cada fala", () => {

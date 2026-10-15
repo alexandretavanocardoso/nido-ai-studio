@@ -257,6 +257,7 @@ const PADROES: Padrao[] = [
     /^A fala ficou com (\d+)s e passa dos (\d+)s escolhidos\. Encurte o texto ou escolha uma duração maior\.$/,
     "The speech came out at $1s, over the $2s you chose. Shorten the text or pick a longer duration.",
   ],
+  [/^Vídeo com (\d+) min — o máximo é 15 min\.$/, "Video is $1 min long — the maximum is 15 min."],
   [
     /^A fala da cena (\d+) passa de (\d+)s\. Encurte essa fala\.$/,
     "The speech in scene $1 is over $2s. Shorten it.",
@@ -724,6 +725,14 @@ const ERROS_EN: Record<string, string> = {
     "Finish your Stripe account onboarding to withdraw.",
   "Não foi possível abrir o cadastro no Stripe. Tente de novo em instantes.":
     "Couldn't open the Stripe onboarding. Try again in a moment.",
+  "Não consegui confirmar a transferência no Stripe. O saque ficou em análise e o saldo não se perde.":
+    "Couldn't confirm the transfer on Stripe. The withdrawal is under review and your balance won't be lost.",
+  "Não consegui a cotação do dólar agora. O saldo continua disponível; tente de novo em instantes.":
+    "Couldn't get the dollar exchange rate right now. Your balance is still available; try again in a moment.",
+  "O saque está indisponível no momento. O saldo continua disponível; tente de novo mais tarde.":
+    "Withdrawals are unavailable right now. Your balance is still available; try again later.",
+  "O limite diário de saques foi atingido. O saldo continua disponível; tente de novo amanhã.":
+    "The daily withdrawal limit was reached. Your balance is still available; try again tomorrow.",
   "O Stripe não concluiu a transferência. O saldo continua disponível; tente de novo mais tarde.":
     "Stripe didn't complete the transfer. Your balance is still available; try again later.",
   "O saque em USDC não está disponível nesta rede.":
@@ -915,6 +924,12 @@ const ERROS_EN: Record<string, string> = {
     "The scenes don't match the chosen duration. Put the scenes together again.",
   "Escreva a fala de cada cena.": "Write the speech for each scene.",
   "Escolha a voz.": "Choose the voice.",
+  "Falha ao traduzir.": "Couldn't translate.",
+  // Música de fundo (app/api/videos/musica)
+  "Confirme que tem direito de usar a música.": "Confirm that you have the right to use the music.",
+  "Link não suportado. Use YouTube, TikTok, Instagram, X ou um link direto de vídeo.":
+    "Unsupported link. Use YouTube, TikTok, Instagram, X or a direct video link.",
+  "Não consegui tirar a música desse link.": "Couldn't get the music from that link.",
   "Descreva cada cena.": "Describe each scene.",
   "Escolha quem aparece no vídeo.": "Choose who appears in the video.",
   "Envie a foto do produto.": "Upload the product photo.",

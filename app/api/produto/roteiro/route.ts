@@ -9,7 +9,9 @@ import {
 import { idiomaDoPedido } from "@/lib/ai/idioma";
 import { askJson } from "@/lib/ai/parse";
 import { allow, readIp } from "@/lib/ai/rate-limit";
+import { shrinkReferencia } from "@/lib/ai/gemini";
 import { getUserId } from "@/lib/auth/server";
+import { getObjectBuffer, getS3, ownsKey } from "@/lib/storage/s3";
 import {
   cobrarOuResponder,
   creditosAtivos,
@@ -18,6 +20,7 @@ import {
 import { CREDITOS_TEXTO } from "@/lib/planos";
 import {
   CENA_MAX_CARACTERES,
+  MAX_FOTOS_PRODUTO,
   cenasDoProduto,
   DURACOES_PRODUTO,
   MODELOS_FALADO_PRODUTO,
@@ -44,6 +47,9 @@ const BodySchema = z.object({
   modo: z.enum(["falado", "mudo"]),
   modelo: z.string(),
   duracao: z.number().int(),
+  /** Fotos que a IA olha para montar as cenas: a pessoa e o produto. */
+  imageKey: z.string().min(1).optional(),
+  produtoKeys: z.array(z.string().min(1)).max(MAX_FOTOS_PRODUTO).default([]),
 });
 
 const RespostaSchema = z.object({
@@ -109,6 +115,23 @@ export async function POST(req: Request) {
 
   const segundos = cenasDoProduto(body.modo, body.modelo, body.duracao);
   const limpar = (t: string) => t.trim().replace(/\s+/g, " ");
+  // A IA olha as fotos (a pessoa e o produto) para descrever o produto como ele
+  // é: só pelo nome, ela inventava cores. Melhor esforço: sem as fotos, segue sem.
+  const s3 = getS3();
+  const keys = [body.imageKey, ...body.produtoKeys].filter(
+    (k): k is string => !!k && !!userId && ownsKey(userId, k),
+  );
+  const imagens = s3
+    ? await Promise.all(
+        keys.map(async (k) => {
+          const r = await shrinkReferencia(await getObjectBuffer(s3, k));
+          return { mediaType: "image/jpeg" as const, data: r.data };
+        }),
+      ).catch((e) => {
+        console.warn("[produto/roteiro] fotos:", (e as Error).message);
+        return [];
+      })
+    : [];
   try {
     const r = await askJson({
       system: sistemaRoteiroProduto({
@@ -120,6 +143,7 @@ export async function POST(req: Request) {
       schema: RespostaSchema,
       maxTokens: 3000,
       idioma: idiomaDoPedido(req),
+      imagens,
     });
     // Sempre o número de cenas do plano: a tela e a geração contam com ele.
     const cenas = segundos.map((_, i) => {

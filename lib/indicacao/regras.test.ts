@@ -6,6 +6,8 @@ import {
   moedaDaComissao,
   normalizarCodigo,
   problemaDoCodigo,
+  saldoDaMoeda,
+  carenciaDoPagamento,
 } from "./regras";
 
 describe("código de indicação", () => {
@@ -50,6 +52,18 @@ describe("comissão", () => {
     expect(moedaDaComissao("BRL", "stripe")).toBe("BRL");
     expect(moedaDaComissao("usd", "stripe")).toBe("USD");
     expect(moedaDaComissao("USD", "usdc")).toBe("USDC");
+  });
+
+  it("cartão espera 60 dias para liberar; USDC, 14", () => {
+    expect(carenciaDoPagamento("stripe")).toBe(60);
+    expect(carenciaDoPagamento("usdc")).toBe(14);
+  });
+
+  it("USD e USDC somam o mesmo saldo em dólar; BRL fica à parte", () => {
+    expect(saldoDaMoeda("USD")).toBe("USD");
+    expect(saldoDaMoeda("USDC")).toBe("USD");
+    expect(saldoDaMoeda("BRL")).toBe("BRL");
+    expect(saldoDaMoeda("brl")).toBe("BRL");
   });
 });
 

@@ -7,7 +7,7 @@ import {
   MODELOS_MOTION,
   precoMotion,
 } from "../worker/motion/modelos";
-import { pedidoCorrecao, pedidoMotion, sistemaMotion } from "../worker/motion/prompt";
+import { pedidoCorrecao, pedidoMotion, pedidoRevisao, sistemaMotion } from "../worker/motion/prompt";
 import { extrairHtml, montarHtml, resolverAssets, runtimeJs } from "../worker/motion/runtime";
 import type { InputMotion } from "../worker/motion/tipos";
 
@@ -131,6 +131,24 @@ describe("pedido ao modelo", () => {
     const texto = (partes[0] as { texto: string }).texto;
     expect(texto).toContain(doc);
     expect(texto).toContain("fundo mais escuro");
+  });
+
+  it("fixa o idioma dos textos e manda esconder de verdade o texto fora da tela", () => {
+    const pt = sistemaMotion({ largura: 1080, altura: 1920, duracao: 10 });
+    expect(pt).toContain("Brazilian Portuguese");
+    expect(pt).toContain("autoAlpha: 0");
+    expect(sistemaMotion({ largura: 1080, altura: 1920, duracao: 10, idioma: "en" })).toContain("is in English");
+  });
+
+  it("a revisão manda o HTML e cada quadro depois do seu tempo", () => {
+    const partes = pedidoRevisao(doc, [
+      { t: 0.6, base64: "AAA" },
+      { t: 1.9, base64: "BBB" },
+    ]);
+    expect((partes[0] as { texto: string }).texto).toContain(doc);
+    expect((partes[0] as { texto: string }).texto).toContain("answer exactly: OK");
+    expect(partes.slice(1).map((p) => p.tipo)).toEqual(["texto", "imagem", "texto", "imagem"]);
+    expect((partes[3] as { texto: string }).texto).toBe("Frame at 1.9s:");
   });
 
   it("a correção manda o erro e o HTML", () => {

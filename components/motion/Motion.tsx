@@ -82,7 +82,11 @@ export function Motion() {
                 type="button"
                 role="tab"
                 aria-selected={aba === id}
-                onClick={() => setAba(id)}
+                onClick={() => {
+                  setAba(id);
+                  // Voltar para "Novo" tira do painel o motion que estava aberto.
+                  if (id === "novo") setEscolhido(null);
+                }}
                 className={cn(
                   "inline-flex h-9 items-center rounded-full px-4 text-[13px] font-semibold transition cursor-pointer",
                   aba === id ? "bg-accent text-bg" : "text-ink-mute hover:text-ink",
@@ -104,7 +108,8 @@ export function Motion() {
                   <li key={m.id}>
                     <button
                       type="button"
-                      onClick={() => setEscolhido(m.id)}
+                      onClick={() => setEscolhido((e) => (e === m.id ? null : m.id))}
+                      aria-pressed={m.id === escolhido}
                       className={cn(
                         "grid w-full gap-0.5 rounded-xl border px-3 py-2.5 text-left transition cursor-pointer",
                         m.id === escolhido ? "border-accent bg-accent/10" : "border-line hover:border-line-strong",
@@ -147,6 +152,7 @@ export function Motion() {
               worker={worker}
               onNovo={novo}
               onMudou={(m) => setMotions((l) => l.map((x) => (x.id === m.id ? m : x)))}
+              onFechar={() => setEscolhido(null)}
             />
           ) : (
             <div className="card p-6 text-center text-[13px] text-ink-dim">

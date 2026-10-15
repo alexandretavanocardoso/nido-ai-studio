@@ -452,6 +452,69 @@ export async function comporRemocaoIA(o: {
   ]);
 }
 
+/** Só o áudio de um arquivo (música tirada de um link), em AAC, até `maxSegundos`. */
+export async function audioDaMusica(
+  entrada: string,
+  saida: string,
+  maxSegundos: number,
+): Promise<void> {
+  await run(["-y", "-i", entrada, "-vn", "-t", String(maxSegundos), "-c:a", "aac", "-b:a", "192k", saida]);
+}
+
+/**
+ * Música de fundo por baixo do vídeo (vídeo de produto, motion). A música
+ * repete se for mais curta, entra e sai em fade e, quando o vídeo tem som
+ * (fala, som ambiente), abaixa sozinha enquanto ele toca (sidechain). O vídeo
+ * é copiado sem reprocessar.
+ */
+export async function misturarMusica(o: {
+  video: string;
+  musica: string;
+  saida: string;
+  /** Volume da música (0–1). Padrão: 0,3 com som no vídeo, 0,9 sem. */
+  volume?: number;
+}): Promise<void> {
+  const { duracao } = await probe(o.video);
+  const d = Math.max(1, duracao);
+  const comSom = await temAudio(o.video);
+  const fade = Math.min(1.5, d / 4);
+  const volume = o.volume ?? (comSom ? 0.3 : 0.9);
+  const musica =
+    `[1:a]aresample=48000,atrim=0:${d.toFixed(3)},asetpts=PTS-STARTPTS,` +
+    `afade=t=in:st=0:d=0.4,afade=t=out:st=${(d - fade).toFixed(3)}:d=${fade.toFixed(3)},volume=${volume}`;
+  const filtro = comSom
+    ? `${musica}[m];[0:a]aresample=48000,asplit=2[v][sc];` +
+      "[m][sc]sidechaincompress=threshold=0.03:ratio=6:attack=15:release=350[md];" +
+      "[v][md]amix=inputs=2:duration=first:normalize=0[a]"
+    : `${musica}[a]`;
+  await run([
+    "-y",
+    "-i",
+    o.video,
+    "-stream_loop",
+    "-1",
+    "-i",
+    o.musica,
+    "-filter_complex",
+    filtro,
+    "-map",
+    "0:v",
+    "-map",
+    "[a]",
+    "-c:v",
+    "copy",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "192k",
+    "-t",
+    d.toFixed(3),
+    "-movflags",
+    "+faststart",
+    o.saida,
+  ]);
+}
+
 /**
  * Coloca uma fala no vídeo. "substituir" troca o áudio original pela fala;
  * "misturar" mantém o original mais baixo (30%) por baixo da fala.

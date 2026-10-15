@@ -33,8 +33,7 @@ import type { RedeUsdc } from "@/lib/pagamentos/redes-usdc";
  *  - USDC_SAQUE_SOLANA_SECRET_KEY: chave secreta da carteira de saques na
  *    Solana, em JSON ([12,34,…], 64 números — o formato do `solana-keygen`).
  *    Precisa de USDC e de SOL para a taxa.
- *  - USDC_SAQUE_TETO: maior saque automático, em USDC (padrão 200).
- *  - USDC_SAQUE_TETO_DIA: soma máxima de saques em 24h, todos os usuários (padrão 1000).
+ *  - Os tetos de saque (valem também para o Stripe) ficam em lib/indicacao/server.ts.
  *
  * A transação é assinada ANTES de ser enviada e o hash dela é guardado antes
  * do envio: se algo cair no meio, dá para conferir na rede se ela saiu.
@@ -109,18 +108,6 @@ export function instrucaoTransferir(
   });
 }
 
-/** Maior saque automático em USDC; acima disso o usuário é mandado ao suporte. */
-export function tetoDoSaqueUsdc(): number {
-  const n = Number(process.env.USDC_SAQUE_TETO);
-  return Number.isFinite(n) && n > 0 ? n : 200;
-}
-
-/** Soma máxima de saques em USDC em 24 horas, de todos os usuários (padrão 1000). */
-export function tetoDiarioUsdc(): number {
-  const n = Number(process.env.USDC_SAQUE_TETO_DIA);
-  return Number.isFinite(n) && n > 0 ? n : 1000;
-}
-
 function contaEvm() {
   const chave = process.env.USDC_SAQUE_EVM_PRIVATE_KEY?.trim();
   if (!chave || !/^(0x)?[0-9a-fA-F]{64}$/.test(chave)) return null;
@@ -192,6 +179,8 @@ export type EnvioUsdc =
   | {
       ok: true;
       hash: string;
+      /** Redes EVM: a vez (nonce) da carteira de saques usada por esta transação. */
+      nonce?: number;
       enviar: () => Promise<"confirmado" | "revertido" | "incerto">;
     };
 
@@ -237,12 +226,14 @@ async function prepararEvm(
     args: [destino as Hex, quantia],
   });
   let assinada: Hex;
+  let nonce: number;
   try {
     // Estima o gás (falha aqui se a transferência reverteria ou se falta a moeda da taxa).
     const pedido = await carteira.prepareTransactionRequest({
       to: usdc,
       data,
     });
+    nonce = pedido.nonce;
     assinada = await carteira.signTransaction(pedido);
   } catch (e) {
     return {
@@ -254,6 +245,7 @@ async function prepararEvm(
   return {
     ok: true,
     hash,
+    nonce,
     enviar: async () => {
       try {
         await publico.sendRawTransaction({ serializedTransaction: assinada });
@@ -348,6 +340,22 @@ function encodeBase58(bytes: Uint8Array): string {
     s = "1" + s;
   }
   return s;
+}
+
+/**
+ * Rede EVM: a vez (nonce) já foi usada por outra transação da carteira de
+ * saques? Só então uma transferência sem registro nunca mais pode entrar —
+ * até lá, ela pode ficar na fila da rede e ser confirmada horas depois.
+ */
+export async function vezJaUsada(rede: RedeEvm, nonce: number): Promise<boolean> {
+  const conta = contaEvm();
+  if (!conta) throw new Error("Carteira de saque não configurada.");
+  const { chain, transport } = clientesEvm(rede);
+  const confirmadas = await createPublicClient({ chain, transport }).getTransactionCount({
+    address: conta.address,
+    blockTag: "latest",
+  });
+  return confirmadas > nonce;
 }
 
 /**

@@ -1181,32 +1181,84 @@ export const TEXTOS_EN: Record<string, string> = {
     "Minimum withdrawal",
   "Uma comissão já sacada foi estornada. O valor será descontado das próximas.":
     "A commission you already withdrew was reversed. The amount will be deducted from your next ones.",
-  "A comissão fica em carência por":
-    "Commissions stay on hold for",
-  "dias depois do pagamento do indicado e então libera para saque. Se o pagamento for estornado, a comissão é desfeita.":
-    "days after the referred user's payment and then become available to withdraw. If the payment is refunded, the commission is reversed.",
   "O saque pelo Stripe não está configurado neste deploy.":
     "Withdrawals through Stripe are not set up on this deployment.",
   "Falta terminar o cadastro da sua conta de recebimento no Stripe.":
     "You still need to finish setting up your payout account on Stripe.",
-  "Para sacar, cadastre sua conta de recebimento no Stripe (dados pessoais e conta bancária).":
-    "To withdraw, set up your payout account on Stripe (personal details and bank account).",
   "Continuar cadastro":
     "Continue setup",
   "Conectar Stripe":
     "Connect Stripe",
-  "O saque é em USDC, direto para a sua carteira, na mesma rede em que o indicado pagou. Você informa o endereço na hora de sacar.":
-    "Withdrawals are in USDC, straight to your wallet, on the same network the referred user paid on. You enter the address when you withdraw.",
-  "Em USDC, direto para a sua carteira, na mesma rede em que o indicado pagou.":
-    "In USDC, straight to your wallet, on the same network the referred user paid on.",
-  "O saque em USDC nesta rede ainda não está disponível. O saldo fica guardado.":
-    "USDC withdrawals on this network are not available yet. Your balance is kept.",
+  "dias depois do pagamento no cartão para a comissão liberar para saque (em USDC,":
+    "days after a card payment for the commission to become withdrawable (in USDC,",
+  "A comissão de pagamento no cartão fica em carência por":
+    "Commission from a card payment has a holding period of",
+  "dias; a de pagamento em USDC, por":
+    "days; from a USDC payment,",
+  "A carência cobre reembolsos e contestações do pagamento. Depois disso a comissão fica disponível, respeitando o saque mínimo.":
+    "The holding period covers refunds and payment disputes. After that the commission becomes available, subject to the minimum withdrawal.",
+  "A comissão libera para saque":
+    "Commission becomes withdrawable",
+  "dias depois do pagamento no cartão, ou":
+    "days after a card payment, or",
+  "dias depois do pagamento em USDC. Se o pagamento for estornado, a comissão é desfeita.":
+    "days after a USDC payment. If the payment is refunded, the commission is reversed.",
+  "O valor é convertido para reais pela cotação do dia e vai para a sua conta no Stripe, que repassa para o seu banco no prazo dela.":
+    "The amount is converted to Brazilian reais at today's rate and goes to your Stripe account, which pays out to your bank on its schedule.",
+  "O saque é feito pelo Stripe, direto para o seu banco. A comissão de quem pagou em USDC também pode sair em USDC, para a sua carteira.":
+    "Withdrawals go through Stripe, straight to your bank. Commission from users who paid in USDC can also be paid in USDC, to your wallet.",
+  "A comissão de quem pagou em USDC sai em USDC, direto para a sua carteira.":
+    "Commission from users who paid in USDC is paid in USDC, straight to your wallet.",
+  "Pelo Stripe, direto para o seu banco. O que veio de pagamento em USDC também pode sair em USDC, na rede que você preferir.":
+    "Through Stripe, straight to your bank. What came from USDC payments can also be paid in USDC, on the network you prefer.",
+  "Pelo Stripe, que transfere em reais, pela cotação do dia, para a sua conta de recebimento e repassa para o seu banco. A comissão de quem pagou em USDC também pode sair em USDC, para a sua carteira, na rede que você preferir; a de quem pagou no cartão sai só pelo Stripe.":
+    "Through Stripe, which transfers in Brazilian reais, at today's rate, to your payout account and pays out to your bank. Commission from users who paid in USDC can also be paid in USDC, to your wallet, on the network you prefer; commission from card payments goes only through Stripe.",
+  "Pelo Stripe: a comissão vai em reais, pela cotação do dia, para a sua conta de recebimento no Stripe, que repassa para o seu banco.":
+    "Through Stripe: the commission goes in Brazilian reais, at today's rate, to your Stripe payout account, which pays out to your bank.",
+  "A comissão de quem pagou em USDC sai em USDC, para a sua carteira, na rede que você escolher. Você informa o endereço na hora de sacar.":
+    "Commission from users who paid in USDC is paid in USDC, to your wallet, on the network you choose. You enter the address when you withdraw.",
+  "Sai em reais, pela cotação do dia.":
+    "Paid in Brazilian reais, at today's rate.",
+  "Em USDC":
+    "In USDC",
+  "A comissão de quem pagou no cartão sai só pelo Stripe.":
+    "Commission from card payments goes only through Stripe.",
+  "Stripe: sua conta de recebimento está pronta. O saque vai para ela em reais, e o Stripe repassa para o seu banco.":
+    "Stripe: your payout account is ready. Withdrawals go to it in Brazilian reais, and Stripe pays out to your bank.",
+  "Vale para as comissões de quem pagou em USDC. Você informa o endereço na hora de sacar.":
+    "Applies to commission from users who paid in USDC. You enter the address when you withdraw.",
+  "O saque é feito pelo Stripe, direto para o seu banco.":
+    "Withdrawals go through Stripe, straight to your bank.",
+  "Pelo Stripe, direto para o seu banco.":
+    "Through Stripe, straight to your bank.",
+  "Em USDC, direto para a sua carteira, na rede que você preferir.":
+    "In USDC, straight to your wallet, on the network you prefer.",
+  "Como eu recebo?":
+    "How do I get paid?",
+  "meses em cada assinatura que vier do seu link.":
+    "months on every subscription that comes from your link.",
+  "O saque deste saldo ainda não está disponível. O saldo fica guardado.":
+    "Withdrawals for this balance are not available yet. Your balance is kept.",
+  "Como receber":
+    "How to get paid",
+  "Stripe (banco)":
+    "Stripe (bank)",
+  "USDC (carteira)":
+    "USDC (wallet)",
+  "Para sacar pelo Stripe, conecte sua conta de recebimento logo abaixo.":
+    "To withdraw through Stripe, connect your payout account below.",
+  "Sacar em USDC":
+    "Withdraw in USDC",
+  "Sacar pelo Stripe":
+    "Withdraw through Stripe",
+  "Para sacar pelo Stripe, cadastre sua conta de recebimento (dados pessoais e conta bancária).":
+    "To withdraw through Stripe, set up your payout account (personal details and bank account).",
+  "USDC: para a sua carteira, na rede que você escolher":
+    "USDC: to your wallet, on the network you choose",
   "rede":
     "network",
   "Assinaturas de qualquer plano, mensais ou anuais, e as renovações. Compra de créditos avulsos e o plano gratuito não geram comissão.":
     "Subscriptions to any plan, monthly or yearly, and their renewals. Credit purchases and the free plan do not earn commission.",
-  "meses em cada assinatura que vier do seu link. A comissão sai em USDC, direto para a sua carteira.":
-    "months on every subscription that comes from your link. The commission is paid in USDC, straight to your wallet.",
   "Indicados":
     "Referrals",
   "assinaram":
@@ -1505,8 +1557,6 @@ export const TEXTOS_EN: Record<string, string> = {
     "See who signed up through your link and who subscribed, so you know what is working.",
   "Saque quando quiser":
     "Withdraw whenever you want",
-  "Pelo Stripe, direto para o seu banco. Se o plano foi pago em USDC, a comissão vai em USDC para a sua carteira.":
-    "Through Stripe, straight to your bank. If the plan was paid in USDC, the commission goes in USDC to your wallet.",
   "Seu código, seu nome":
     "Your code, your name",
   "Troque o código do link por um que tenha a sua cara. Dá para escolher uma vez.":
@@ -1519,8 +1569,6 @@ export const TEXTOS_EN: Record<string, string> = {
     "commission on each referral's first subscription",
   "dias: é por quanto tempo o clique no seu link fica guardado":
     "days: how long a click on your link is remembered",
-  "dias depois do pagamento para a comissão liberar para saque":
-    "days after the payment until the commission can be withdrawn",
   "Ficou alguma dúvida?":
     "Any questions?",
   "Quem pode participar?":
@@ -1537,8 +1585,6 @@ export const TEXTOS_EN: Record<string, string> = {
     "The first subscription to any plan, monthly or yearly, by card, Pix, boleto or USDC. Renewals, credit purchases and the free plan do not earn commission.",
   "Quando posso sacar?":
     "When can I withdraw?",
-  "dias depois do pagamento do indicado. Depois disso fica disponível, respeitando o saque mínimo.":
-    "days after the referred user's payment. After that it becomes available, subject to the minimum withdrawal.",
   "E se o indicado pedir reembolso?":
     "What if the referred user asks for a refund?",
   "Se o pagamento for estornado, a comissão é desfeita. Se você já tinha sacado, o valor é descontado das próximas comissões.":
@@ -1573,8 +1619,6 @@ export const TEXTOS_EN: Record<string, string> = {
     "every month.",
   "de comissão, em dinheiro, por até":
     "commission, in cash, for up to",
-  "meses em cada assinatura que vier do seu link. O saque é feito pelo Stripe; se o plano foi pago em USDC, a comissão sai em USDC para a sua carteira.":
-    "months on every subscription that comes from your link. Withdrawals are made through Stripe; if the plan was paid in USDC, the commission is paid in USDC to your wallet.",
   "Cada nova indicação se soma às que já estão pagando, então a comissão cresce mês a mês. Ajuste os valores para estimar os primeiros 12 meses.":
     "Each new referral adds to the ones already paying, so your commission grows month after month. Adjust the values to estimate the first 12 months.",
   "Novas indicações por mês":
@@ -3855,7 +3899,6 @@ export const TEXTOS_EN: Record<string, string> = {
   "Você mudou a duração, o modelo ou a fala: monte as cenas de novo.":
     "You changed the duration, the model or the speech: build the scenes again.",
   "Edite o que quiser antes de gerar.": "Edit anything you want before generating.",
-  "O que se vê": "What is seen",
   "O que a pessoa fala nesta cena": "What the person says in this scene",
   "Fala longa: cada cena tem até 15s.": "Long speech: each scene has up to 15s.",
   "Escolha a voz para gerar.": "Choose the voice to generate.",
@@ -3867,6 +3910,38 @@ export const TEXTOS_EN: Record<string, string> = {
   "O produto inteiro, com o rótulo legível. Fundo limpo funciona melhor.":
     "The whole product, with the label readable. A clean background works best.",
   "Sem conexão. Tente de novo.": "No connection. Try again.",
+  Produto: "Product",
+  "Outra foto do produto": "Another product photo",
+  "Enviar outra foto (opcional)": "Upload another photo (optional)",
+  "Outro ângulo ou um detalhe (rótulo, textura). Ajuda a IA a acertar o produto.":
+    "Another angle or a detail (label, texture). Helps the AI get the product right.",
+  "Remover foto": "Remove photo",
+  // Música de fundo (vídeo de produto e motion)
+  "Música de fundo": "Background music",
+  "vai no MP4": "goes into the MP4",
+  "Enviar áudio": "Upload audio",
+  "Link do YouTube": "YouTube link",
+  "A música fica mais baixa enquanto a pessoa fala.": "The music gets quieter while the person speaks.",
+  "Envie um áudio em MP3, M4A, WAV ou OGG.": "Upload an MP3, M4A, WAV or OGG audio file.",
+  "O áudio passa de 10 MB.": "The audio is over 10 MB.",
+  "Música do link": "Music from link",
+  "Áudio enviado": "Uploaded audio",
+  "Tirar a música": "Remove the music",
+  "Escolher o arquivo de áudio": "Choose the audio file",
+  "MP3, M4A, WAV ou OGG, até 10 MB.": "MP3, M4A, WAV or OGG, up to 10 MB.",
+  "Baixando a música… pode levar até 2 minutos.": "Downloading the music… it can take up to 2 minutes.",
+  "Usa até 5 minutos do áudio.": "Uses up to 5 minutes of the audio.",
+  "Tirar o som": "Mute",
+  "Ouvir a música": "Play the music",
+  "Declaro que tenho direito de usar esta música (é minha, tenho a licença ou é livre de direitos) e sei que música protegida pode fazer as redes silenciarem ou removerem o vídeo.":
+    "I declare that I have the right to use this music (it's mine, I have the license or it's royalty-free) and I know that copyrighted music can make the networks mute or remove the video.",
+  Roteiro: "Script",
+  "Ver em português": "Show in Portuguese",
+  "O que acontece": "What happens",
+  "em inglês, vai para o modelo": "in English, sent to the model",
+  "Em português": "In Portuguese",
+  "só para ler": "read only",
+  "Traduzindo…": "Translating…",
 
   // Motion (/app/motion, só admin)
   "A IA escreve uma animação do seu site, produto ou influencer. Veja na tela, peça ajustes e exporte em MP4.":
@@ -3915,6 +3990,8 @@ export const TEXTOS_EN: Record<string, string> = {
   "Pensando na animação…": "Thinking about the animation…",
   "Escrevendo a animação…": "Writing the animation…",
   "Conferindo se a animação carrega…": "Checking that the animation loads…",
+  "Revisando os quadros…": "Reviewing the frames…",
+  "ajustado na revisão dos quadros": "fixed in the frame review",
   "Gravando o vídeo…": "Recording the video…",
   "Guardando o vídeo…": "Saving the video…",
   caracteres: "characters",
@@ -3926,6 +4003,7 @@ export const TEXTOS_EN: Record<string, string> = {
     "What to change. E.g.: bigger final text, darker background, product coming in earlier.",
   "Ajustar (cria uma versão nova)": "Adjust (creates a new version)",
   "Exportar MP4": "Export MP4",
+  "MP4 do motion": "Motion MP4",
   "Baixar MP4": "Download MP4",
   "Baixar HTML": "Download HTML",
   Gravando: "Recording",

@@ -14,5 +14,8 @@ export const DECLARACAO_NFT =
 export const DECLARACAO_VIDEO_LINK =
   "Declaro que tenho direito de usar este vídeo (sou o autor ou tenho autorização) e que vou sinalizar que o personagem é sintético.";
 
+export const DECLARACAO_MUSICA =
+  "Declaro que tenho direito de usar esta música (é minha, tenho a licença ou é livre de direitos) e sei que música protegida pode fazer as redes silenciarem ou removerem o vídeo.";
+
 export const DECLARACAO_VIDEO_LIVE =
   "Declaro que tenho direito de usar este vídeo na live (gravei eu mesmo ou tenho autorização) e que sei que transmitir gravação como se fosse ao vivo pode violar as regras das plataformas.";

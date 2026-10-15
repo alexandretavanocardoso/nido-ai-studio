@@ -125,7 +125,8 @@ Situação em **15/10/2026**: conta nova **NIDO AI Studio** (`acct_1UQnzw2crtPOJ
    - Escolher contas **Express** e ligar a função **Transferências** (*transfers*). O app cria a conta Express de cada indicador pedindo só essa função e paga com uma transferência do saldo da plataforma.
    - Em Connect → Configurações → Marca, pôr nome, logo e cor — aparecem na tela de cadastro que o indicador vê.
    - Não precisa de outro webhook: o app consulta a conta do indicador na hora do saque.
-   - O saque sai do **saldo disponível** da plataforma na moeda da comissão. Com o saldo ainda pendente (vendas recentes) ou sem saldo em dólar, a transferência falha e a comissão volta para "disponível".
+   - O saque pelo Stripe sai do **saldo disponível** da plataforma **em reais** (a conta brasileira só tem saldo em reais): o saldo em dólar do indicador é convertido pela cotação do dia. Com o saldo ainda pendente (vendas recentes), a transferência falha e a comissão volta para "disponível".
+   - Tetos dos saques (Stripe e USDC, em dólar): `SAQUE_TETO` (padrão 200 por saque) e `SAQUE_TETO_DIA` (padrão 1.000 por dia, todos os usuários).
 
 ---
 
@@ -185,7 +186,7 @@ Authorization: Bearer <CRON_SECRET>
 - [x] **Processo do Motion no Railway** (serviço `motion`, no ar em 15/10; gera a animação e grava o MP4; sem ele, os pedidos ficam na fila):
   1. No projeto do Railway: **New → GitHub Repo** → este repositório. Não precisa ser público: se ele não aparecer na lista, clique em **Configure GitHub App**, instale o app do Railway na conta dona do repositório (`alexandretavanocardoso`), libere o `nido-ai-studio` e volte em **Refresh**.
   2. No serviço criado → **Settings → Source → Root Directory**: `worker/motion`. O Railway acha o `Dockerfile` sozinho (imagem do Playwright, já com o Chrome). Não precisa de domínio público.
-  3. **Variables**: `DATABASE_URL`, `S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `ANTHROPIC_API_KEY` (e `ANTHROPIC_WORKSPACE_ID`, se o app usa) — as mesmas da Vercel —, `GEMINI_API_KEY` (para o Gemini 4 Argon, chave paga) e `OPENAI_API_KEY` (para o GPT-6.1 Sol).
+  3. **Variables**: `DATABASE_URL`, `S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `ANTHROPIC_API_KEY` (e `ANTHROPIC_WORKSPACE_ID`, se o app usa) — as mesmas da Vercel —, `GEMINI_API_KEY` (para o Gemini 4 Argon, chave paga), `OPENAI_API_KEY` (para o GPT-6.1 Sol), e `APP_URL=https://aistudio.nido.global` + `CRON_SECRET` (o mesmo da Vercel) para o **relógio dos vídeos**: a cada minuto o worker chama `/api/cron/video-jobs`, e os vídeos em cenas (produto, criar, falado, troca) terminam mesmo com o navegador fechado. No log: `relógio dos vídeos ligado`.
   4. Deploy. Nos logs aparece `[motion] ligado:`; na tela do Motion some o aviso "o worker não está ligado".
   5. Memória: o Chrome gravando em 1080p usa ~1 GB; o plano do Railway dá conta. Uns US$ 5–10/mês.
 - [ ] Motion de verdade: um de produto (Opus 5.5, esforço alto, 15 s), um de site (Sonnet 5.5) e exportar o MP4 de um deles.

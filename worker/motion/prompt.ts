@@ -11,7 +11,18 @@ export type ParteMotion =
   | { tipo: "texto"; texto: string }
   | { tipo: "imagem"; mime: "image/jpeg" | "image/png"; base64: string };
 
-export function sistemaMotion(o: { largura: number; altura: number; duracao: number }): string {
+const IDIOMA = {
+  pt: "Brazilian Portuguese (pt-BR)",
+  en: "English",
+} as const;
+
+export function sistemaMotion(o: {
+  largura: number;
+  altura: number;
+  duracao: number;
+  /** Idioma dos textos na tela (o da conta de quem pediu). */
+  idioma?: "pt" | "en";
+}): string {
   const vertical = o.altura > o.largura;
   return `You are a senior motion designer who also writes production-grade front-end code. You create short promotional motion-graphics videos as ONE self-contained HTML document. The document is shown in a browser and also rendered frame by frame (${FPS_MOTION} fps) into an MP4.
 
@@ -31,16 +42,24 @@ Return ONLY the complete HTML document, from <!doctype html> to </html>. No expl
   - \`motion.width\`, \`motion.height\`, \`motion.duration\`.
 - Time only moves through the master timeline and onFrame. Never use requestAnimationFrame, setTimeout, setInterval, Date, performance.now, CSS transitions, video/audio elements, fetch or tweens outside the master timeline: the renderer jumps to arbitrary times and those would break. CSS @keyframes are allowed only for infinite loops that start at page load (the renderer seeks them too). Math.random is seeded and repeatable. With SplitText, split once inside build (no autoSplit / onSplit).
 
+# Language
+- Every word on screen is in ${IDIOMA[o.idioma ?? "pt"]}, with perfect spelling, grammar and all accents, whatever the language of the brief. Keep product and person names exactly as the client wrote them.
+
+# Hidden text must be invisible, not just clipped
+- Accents and cedillas (Á É Ê Í Ó Ô Ú Ã Õ Ç) reach above and below the line box. A letter pushed down under an overflow mask still shows its accent, which then appears as a stray mark over whatever text is on screen — it looks like a misspelling.
+- So: whenever text is off screen (before it enters, after it leaves), ALSO give it autoAlpha: 0 — set it to 1 as it starts entering and back to 0 once it has left. Give overflow masks at least 0.3em of padding on top and bottom, and move masked letters by at least 150% (yPercent: 150).
+- Never leave a hidden heading in the same place as a visible one unless the hidden one has opacity 0.
+
 # Images
 - Use only the images listed by the client, as \`asset://<id>\` URLs: <img src="asset://a1"> or CSS url(asset://a1). Never invent other image URLs or use stock photos.
 - The real product, person or website is the hero: show the images themselves, never redraw them with CSS or SVG. Transparent PNG cut-outs can float over your own backgrounds (drop shadows, reflections, light rays, depth). Photos with a background need a frame: rounded cards, masks, circles, device mockups (draw the phone/laptop frame yourself), split screens. Website screenshots look best inside a device mockup with a slow scroll or zoom.
-- Fonts: load Google Fonts with <link> tags. Icons and illustrations: inline SVG written by you.
+- Fonts: load Google Fonts with <link> tags, choosing fonts that include all the accented letters of the language. Icons and illustrations: inline SVG written by you.
 
 # Craft
 - Think like an editor: a hook in the first 1.5s, a development with 3–6 distinct beats (each scene changes layout, scale or camera), and a payoff with the call to action.
 - Real motion design: eases with character (expo, power4, back, custom), overlapping action, staggered text reveals (SplitText by words or chars, mask reveals), parallax layers, scale and camera moves, kinetic typography, transitions between beats (wipes, masks, zooms, morphs). Vary how things enter; keep a steady rhythm.
 - Typography: big and legible on a phone, strong hierarchy, at most ~8 words on screen at once.${vertical ? " Keep key text out of the top 10% and the bottom 18% (social apps cover them) and 6% from the sides." : " Keep key text 6% away from every edge."}
-- Copy: on-screen text in the language of the client's brief. Short, concrete, specific to this product/site/person — no lorem ipsum, no invented brands, prices or claims the client didn't give.
+- Copy: short, concrete, specific to this product/site/person — no lorem ipsum, no invented brands, prices or claims the client didn't give.
 - Colour: take the palette from the images (product colours, the site's brand colours) and keep text contrast high.
 - Avoid generic AI looks: no purple-to-blue gradient backgrounds, no glassmorphism cards everywhere, no "01 / 02 / 03" labels, no emoji, no fake dashboards, no lens flares unless asked.
 - Performance: keep the DOM light (under ~400 elements); animate transforms and opacity; avoid animating blur filters on large areas.`;
@@ -146,5 +165,34 @@ export function pedidoCorrecao(html: string, erro: string): ParteMotion[] {
         "Fix the error and return the complete corrected HTML document. Keep the design and the animation as they are.",
       ].join("\n"),
     },
+  ];
+}
+
+/**
+ * Revisão visual: o modelo vê quadros do próprio motion (já renderizados) e
+ * procura defeitos que só aparecem na imagem. Responde "OK" ou o HTML corrigido.
+ */
+export function pedidoRevisao(html: string, quadros: Array<{ t: number; base64: string }>): ParteMotion[] {
+  return [
+    {
+      tipo: "texto",
+      texto: [
+        "Below is the motion HTML you wrote, followed by frames rendered from it (the time of each frame comes before it).",
+        "Review the frames like a picky art director. Look ONLY for real defects:",
+        "- stray marks or fragments of letters (often accents of hidden text) over other text or images;",
+        "- text overlapping other text, or cut off by the frame or by a mask;",
+        "- misspelled words or missing accents;",
+        "- text that is hard to read (low contrast, too small), or important elements accidentally off frame or covered;",
+        "- empty or broken frames.",
+        "If there is no defect, answer exactly: OK",
+        "If there are defects, fix them in the HTML (change only what is needed; keep the design and timing) and answer with the complete corrected HTML document only.",
+        "",
+        html,
+      ].join("\n"),
+    },
+    ...quadros.flatMap((q) => [
+      { tipo: "texto" as const, texto: `Frame at ${q.t.toFixed(1)}s:` },
+      { tipo: "imagem" as const, mime: "image/jpeg" as const, base64: q.base64 },
+    ]),
   ];
 }

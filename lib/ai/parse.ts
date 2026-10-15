@@ -14,14 +14,17 @@ export async function askJson<T extends z.ZodTypeAny>({
   schema,
   maxTokens,
   idioma,
+  imagens,
 }: {
   system: string;
   user: string;
   schema: T;
   maxTokens?: number;
   idioma?: IdiomaIA;
+  /** Imagens que vão junto com o pedido (só na primeira chamada; o reparo é só texto). */
+  imagens?: Parameters<typeof askClaude>[0]["imagens"];
 }): Promise<z.infer<T>> {
-  const raw = await askClaude({ system, user, maxTokens, idioma });
+  const raw = await askClaude({ system, user, maxTokens, idioma, imagens });
   const first = tryParse(raw, schema);
   if (first.ok) return first.data;
 

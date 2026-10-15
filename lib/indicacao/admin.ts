@@ -1,8 +1,13 @@
 import type Stripe from "stripe";
 import { getPool } from "@/lib/db";
+import type { RedeEvm } from "@/lib/pagamentos/evm";
 import { ehRedeUsdc } from "@/lib/pagamentos/redes-usdc";
-import { situacaoDoEnvio } from "./onchain";
-import { estornarComissao } from "./server";
+import { situacaoDoEnvio, vezJaUsada } from "./onchain";
+import {
+  devolverComissoes,
+  estornarComissao,
+  recuperarComissaoSacada,
+} from "./server";
 
 function pool() {
   const p = getPool();
@@ -205,8 +210,14 @@ export async function listarIndicacoesAdmin(): Promise<IndicacoesAdmin> {
   };
 }
 
-/** Desfaz à mão uma comissão (ex.: plano pago em USDC devolvido fora do Stripe). */
-export async function estornarComissaoAdmin(comissaoId: string): Promise<void> {
+/**
+ * Desfaz à mão uma comissão (ex.: plano pago em USDC devolvido fora do Stripe).
+ * Se ela já tinha saído pelo Stripe, tenta trazer o valor de volta da conta do indicador.
+ */
+export async function estornarComissaoAdmin(
+  stripe: Stripe | null,
+  comissaoId: string,
+): Promise<void> {
   const { rows } = await pool().query<{ pagamento_id: string }>(
     "select pagamento_id from indicacao_comissoes where id = $1",
     [comissaoId],
@@ -214,6 +225,7 @@ export async function estornarComissaoAdmin(comissaoId: string): Promise<void> {
   if (!rows[0]) throw new Error("Comissão não encontrada.");
   if (!(await estornarComissao(rows[0].pagamento_id)))
     throw new Error("Esta comissão já foi estornada.");
+  if (stripe) await recuperarComissaoSacada(stripe, rows[0].pagamento_id);
 }
 
 /** Um envio on-chain sem registro na rede só é dado como perdido depois disso. */
@@ -236,9 +248,10 @@ export async function resolverSaque(
     status: string;
     rede: string | null;
     tx_hash: string | null;
+    tx_nonce: string | null;
     minutos: number;
   }>(
-    `select status, rede, tx_hash, extract(epoch from now() - created_at) / 60 as minutos
+    `select status, rede, tx_hash, tx_nonce, extract(epoch from now() - created_at) / 60 as minutos
      from indicacao_saques where id = $1`,
     [saqueId],
   );
@@ -255,10 +268,7 @@ export async function resolverSaque(
     return "pago" as const;
   };
   const falhou = async (motivo: string) => {
-    await db.query(
-      "update indicacao_comissoes set status = 'disponivel', saque_id = null where saque_id = $1 and status = 'sacada'",
-      [saqueId],
-    );
+    await devolverComissoes(saqueId);
     await db.query(
       "update indicacao_saques set status = 'falhou', erro = $2 where id = $1 and status = 'processando'",
       [saqueId, motivo],
@@ -279,6 +289,18 @@ export async function resolverSaque(
       throw new Error(
         `A rede ainda não registrou esta transação. Confira de novo depois de ${ESPERA_ONCHAIN_MIN} minutos do pedido.`,
       );
+    // EVM: uma transação parada na fila pode entrar horas depois. Só devolve o
+    // saldo quando a vez dela já foi usada por outra (aí nunca mais entra).
+    if (saque.rede !== "solana") {
+      if (saque.tx_nonce == null)
+        throw new Error(
+          "Sem a vez (nonce) desta transação não dá para garantir que ela não entra mais na rede. Confira a carteira de saques no explorer antes de devolver à mão.",
+        );
+      if (!(await vezJaUsada(saque.rede as RedeEvm, Number(saque.tx_nonce))))
+        throw new Error(
+          "A transação ainda pode entrar na rede (a vez dela não foi usada). Confira de novo mais tarde.",
+        );
+    }
     return falhou(
       "A transação não entrou na rede; saldo devolvido pelo admin.",
     );

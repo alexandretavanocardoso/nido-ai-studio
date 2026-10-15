@@ -22,8 +22,10 @@ const BodySchema = z.union([
 ]);
 
 /**
- * POST — saca todo o saldo disponível de uma moeda. BRL e USD vão para a conta
- * Stripe do usuário; USDC vai on-chain para a carteira informada.
+ * POST — saca todo o saldo disponível. BRL ou USD: o saldo dessa moeda vai
+ * para a conta Stripe do usuário (o em dólar, convertido em reais pela cotação
+ * do dia). USDC: as comissões de quem pagou em USDC vão on-chain, na rede
+ * escolhida, para a carteira informada (as de cartão só saem pelo Stripe).
  */
 export async function POST(req: Request) {
   const bloqueio = await liberadoOuResponder("indicacoes");
@@ -68,5 +70,5 @@ export async function POST(req: Request) {
   const r = await sacarComissoes(stripe, userId, parsed.data.moeda);
   if ("erro" in r)
     return NextResponse.json({ error: r.erro }, { status: 400 });
-  return NextResponse.json({ valor: r.valor });
+  return NextResponse.json({ valor: r.valor, pago: r.pago });
 }

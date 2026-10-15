@@ -9,7 +9,9 @@ import { getFal } from "@/lib/fal";
 import { estornarSeHouver, type Cobranca } from "@/lib/creditos";
 import { somarArmazenamento } from "@/lib/limites";
 import { getS3, newKey, putObject } from "@/lib/storage/s3";
+import type { MusicaDeFundo } from "@/lib/musica";
 import { PRODUTO_SEM_PERSONAGEM } from "@/lib/produto";
+import { comMusica } from "./musica";
 import { SOMBRA_SEM_PERSONAGEM } from "@/lib/sombra";
 import type { Character, VideoArquivo } from "@/lib/types";
 import { consultarJob, keyDoNido, type Provedor } from "./jobs";
@@ -452,6 +454,9 @@ export async function finalizarJob(
       await putObject(s3, key, buf, "video/mp4");
       size = buf.length;
     }
+    // Vídeo de produto com música de fundo: entra por baixo do vídeo pronto.
+    const musica = (job.input as { musica?: MusicaDeFundo }).musica;
+    if (musica?.key) ({ key, size } = await comMusica({ s3, userId: job.user_id, videoKey: key, musica }));
     await somarArmazenamento(job.user_id, size);
     await pool.query(
       "update video_jobs set status = 'concluido', result_key = $2, updated_at = now() where id = $1",

@@ -6,17 +6,31 @@
  * até MESES_COMISSAO (12) meses contados da primeira comissão. Compra de
  * créditos avulsos não gera comissão.
  *
- * A comissão sai na moeda do pagamento: BRL e USD são sacados pelo Stripe;
- * USDC (plano pago em USDC) é sacado on-chain, para a carteira do usuário,
- * na mesma rede em que o indicado pagou.
+ * A comissão é guardada na moeda do pagamento, mas o saque é por saldo: as
+ * comissões em USD (cartão) e em USDC (qualquer rede) somam um saldo só, em
+ * dólar, que o usuário escolhe como receber na hora de sacar — pelo Stripe,
+ * para o banco, ou em USDC, na rede que preferir. BRL (pagamentos antigos em
+ * reais) é um saldo à parte e só sai pelo Stripe.
  */
 export const COMISSAO = 0.1;
 
 /** Por quantos meses, a partir da primeira comissão, um indicado continua gerando comissão. */
 export const MESES_COMISSAO = 12;
 
-/** Dias até a comissão poder ser sacada (cobre estorno e contestação do pagamento). */
+/**
+ * Dias até a comissão poder ser sacada. Cobre o reembolso (até 7 dias) e, no
+ * cartão, as contestações: a grande maioria chega nas primeiras semanas. O
+ * prazo máximo do cartão é de 120 dias; uma contestação depois da carência é
+ * revertida no Stripe ou descontada das próximas comissões. USDC não tem
+ * contestação.
+ */
 export const CARENCIA_DIAS = 14;
+export const CARENCIA_CARTAO_DIAS = 60;
+
+/** Carência da comissão de um pagamento: USDC 14 dias; cartão (Stripe) 60. */
+export function carenciaDoPagamento(provedor: string): number {
+  return provedor === "usdc" ? CARENCIA_DIAS : CARENCIA_CARTAO_DIAS;
+}
 
 /** Só conta nova pode ser vinculada a um código: até quantos dias depois do cadastro. */
 export const JANELA_VINCULO_DIAS = 7;
@@ -33,6 +47,14 @@ export const SAQUE_MINIMO: Record<MoedaComissao, number> = {
 };
 
 export type MoedaComissao = "BRL" | "USD" | "USDC";
+
+/** Saldo de saque: dólar (USD + USDC) ou reais. */
+export type SaldoComissao = "BRL" | "USD";
+
+/** Em qual saldo a comissão (ou o saque) desta moeda entra. */
+export function saldoDaMoeda(moeda: string): SaldoComissao {
+  return moeda.toUpperCase() === "BRL" ? "BRL" : "USD";
+}
 
 /** Palavras que não podem ser código (rotas e nomes da casa). */
 const RESERVADOS = new Set([

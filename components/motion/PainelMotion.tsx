@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Download, FileCode, Film, Loader2, Wand2 } from "lucide-react";
+import { AlertTriangle, Download, FileCode, Film, Loader2, Wand2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
 import { tx } from "@/lib/i18n/tx";
@@ -15,6 +15,7 @@ import {
   type EsforcoMotion,
 } from "@/worker/motion/modelos";
 import { FORMATOS_MOTION, type ProgressoMotion } from "@/worker/motion/tipos";
+import { EscolherMusica, type MusicaEscolhida } from "@/components/musica/EscolherMusica";
 import { PlayerMotion } from "./PlayerMotion";
 
 const ETAPA: Record<ProgressoMotion["etapa"], string> = {
@@ -22,6 +23,7 @@ const ETAPA: Record<ProgressoMotion["etapa"], string> = {
   pensando: "Pensando na animação…",
   escrevendo: "Escrevendo a animação…",
   conferindo: "Conferindo se a animação carrega…",
+  revisando: "Revisando os quadros…",
   gravando: "Gravando o vídeo…",
   enviando: "Guardando o vídeo…",
 };
@@ -38,12 +40,15 @@ export function PainelMotion({
   worker,
   onNovo,
   onMudou,
+  onFechar,
 }: {
   motion: ItemMotion;
   worker: boolean | null;
   /** Um ajuste virou um motion novo. */
   onNovo: (m: ItemMotion) => void;
   onMudou: (m: ItemMotion) => void;
+  /** Tira o motion do painel. */
+  onFechar: () => void;
 }) {
   const [pedido, setPedido] = useState("");
   const [enviando, setEnviando] = useState<"ajustar" | "exportar" | null>(null);
@@ -51,6 +56,19 @@ export function PainelMotion({
   const { largura, altura } = FORMATOS_MOTION[m.formato];
   const andamento = m.status === "na_fila" || m.status === "gerando";
   const gravando = m.render === "na_fila" || m.render === "renderizando";
+
+  /** Põe, troca ou tira a música do MP4 (o MP4 gravado antes deixa de valer). */
+  async function trocarMusica(nova: MusicaEscolhida | null) {
+    setErro(null);
+    const r = await fetch(`/api/admin/motion/${encodeURIComponent(m.id)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ acao: "musica", musica: nova }),
+    }).catch(() => null);
+    const b = await r?.json().catch(() => ({}));
+    if (!r?.ok) return setErro(b?.error ?? tx("Sem conexão. Tente de novo."));
+    onMudou(b.motion);
+  }
 
   async function agir(acao: "ajustar" | "exportar") {
     setErro(null);
@@ -77,13 +95,24 @@ export function PainelMotion({
   const p = m.progresso;
   return (
     <div className="card grid gap-4 p-4 sm:p-5">
-      <div className="grid gap-0.5">
-        <div className="text-[14px] font-semibold text-ink line-clamp-2">
-          {m.ajuste ? `${tx("Ajuste")}: ${m.ajuste}` : m.brief || m.assunto || tx("Motion")}
+      <div className="flex items-start gap-3">
+        <div className="grid min-w-0 flex-1 gap-0.5">
+          <div className="text-[14px] font-semibold text-ink line-clamp-2">
+            {m.ajuste ? `${tx("Ajuste")}: ${m.ajuste}` : m.brief || m.assunto || tx("Motion")}
+          </div>
+          <div className="text-[12px] text-ink-dim">
+            {nomeDoModelo(m.modelo)} · {nomeDoEsforco(m.esforco)} · {m.formato} · {m.duracao}s
+          </div>
         </div>
-        <div className="text-[12px] text-ink-dim">
-          {nomeDoModelo(m.modelo)} · {nomeDoEsforco(m.esforco)} · {m.formato} · {m.duracao}s
-        </div>
+        <button
+          type="button"
+          onClick={onFechar}
+          aria-label={tx("Fechar")}
+          title={tx("Fechar")}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-line text-ink-mute hover:border-line-strong hover:text-ink cursor-pointer"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
 
       {andamento ? (
@@ -111,7 +140,7 @@ export function PainelMotion({
           {m.erro ?? tx("A geração falhou.")}
         </p>
       ) : (
-        <PlayerMotion id={m.id} largura={largura} altura={altura} duracao={m.duracao} />
+        <PlayerMotion id={m.id} largura={largura} altura={altura} duracao={m.duracao} musicaKey={m.musica?.key} />
       )}
 
       {m.uso ? (
@@ -123,6 +152,7 @@ export function PainelMotion({
           ·{" "}
           {duracaoTexto(m.uso.segundos)}
           {m.uso.correcoes ? ` · ${tx("1 correção automática")}` : ""}
+          {m.uso.revisado ? ` · ${tx("ajustado na revisão dos quadros")}` : ""}
         </div>
       ) : null}
 
@@ -149,7 +179,15 @@ export function PainelMotion({
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
+          <div className="grid gap-2 border-t border-line pt-4">
+            <span className="label-cap">
+              {tx("Música de fundo")}{" "}
+              <span className="font-normal normal-case tracking-normal text-ink-dim">· {tx("vai no MP4")}</span>
+            </span>
+            <EscolherMusica valor={m.musica ?? null} onChange={(nova) => void trocarMusica(nova)} />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
             {m.render === "pronto" && m.videoKey ? (
               <a
                 href={downloadUrl(m.videoKey, `motion-${m.id}.mp4`)}

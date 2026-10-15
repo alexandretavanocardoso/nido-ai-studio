@@ -12,6 +12,7 @@ import {
 } from "@/lib/planos";
 import {
   ajustarComissaoParcial,
+  recuperarComissaoSacada,
   registrarComissao,
 } from "@/lib/indicacao/server";
 import {
@@ -272,7 +273,10 @@ export async function processarEvento(
       break;
     }
     case "checkout.session.async_payment_succeeded":
-      await concluir(evento.data.object);
+      // Assinatura é ativada (e gera comissão) pelo invoice.paid: aplicar aqui
+      // também daria o plano e a comissão duas vezes pelo mesmo dinheiro.
+      if (evento.data.object.mode === "payment")
+        await concluir(evento.data.object);
       break;
     case "checkout.session.async_payment_failed":
     case "checkout.session.expired":
@@ -384,6 +388,7 @@ export async function reembolsarNoStripe(pagamentoId: string): Promise<void> {
     { idempotencyKey: `reembolso-${pagamentoId}` },
   );
   const desfeito = await reverterCompra(pagamentoId);
+  await recuperarComissaoSacada(stripe, pagamentoId);
   if (desfeito?.assinatura)
     await stripe.subscriptions
       .cancel(desfeito.assinatura)
@@ -402,6 +407,8 @@ async function estornarDoPagamento(
   if (!pagamentoId) return;
   const desfeito = await reverterCompra(pagamentoId);
   if (!desfeito) return;
+  // Comissão que já tinha sido sacada: tenta trazer de volta da conta do indicador.
+  await recuperarComissaoSacada(stripe, pagamentoId);
   console.log("[stripe] compra estornada:", pagamentoId, desfeito.userId);
   if (desfeito.assinatura)
     await stripe.subscriptions

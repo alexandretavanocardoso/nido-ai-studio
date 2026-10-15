@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, Sparkles, Wand2 } from "lucide-react";
+import { Loader2, Sparkles, Wand2, X } from "lucide-react";
 import type { VideoDeProduto } from "@/app/api/produto/route";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { avisarCreditos, useCreditos } from "@/components/creditos/CreditosProvider";
@@ -22,11 +22,11 @@ import { tx } from "@/lib/i18n/tx";
 import { dinheiro } from "@/lib/moeda";
 import { bloqueioCriarVideo, bloqueioVideoFalado, PLANOS } from "@/lib/planos";
 import {
-  caracteresDaCena,
   cenasDoProduto,
   creditosProduto,
   custoProduto,
   DURACOES_PRODUTO,
+  MAX_FOTOS_PRODUTO,
   MODELOS_FALADO_PRODUTO,
   MODELOS_MUDO_PRODUTO,
   PRODUTO_MAX_CARACTERES,
@@ -44,7 +44,9 @@ import {
   type ModeloCriar,
   type ModeloFalado,
 } from "@/lib/video/precos";
+import { EscolherMusica, type MusicaEscolhida } from "@/components/musica/EscolherMusica";
 import { HistoricoProduto } from "./HistoricoProduto";
+import { RoteiroProduto } from "./RoteiroProduto";
 
 /** Ideias rápidas de cenário (preenchem o campo). */
 const CENARIOS = [
@@ -71,7 +73,9 @@ export function VideoProduto() {
     imageKey: null,
   });
   const [foto, setFoto] = useState<ImagemEnviada | null>(null);
-  const [produtoFoto, setProdutoFoto] = useState<ImagemEnviada | null>(null);
+  /** Fotos do produto: a primeira é obrigatória; a vaga seguinte aparece quando a anterior é enviada. */
+  const [fotosProduto, setFotosProduto] = useState<Array<ImagemEnviada | null>>([null]);
+  const produtoKeys = fotosProduto.filter((f): f is ImagemEnviada => !!f).map((f) => f.key);
   const [produto, setProduto] = useState("");
   const [cenario, setCenario] = useState("");
   const [detalhes, setDetalhes] = useState("");
@@ -81,6 +85,7 @@ export function VideoProduto() {
   const [duracao, setDuracao] = useState<number>(15);
   const [vertical, setVertical] = useState(true);
   const [audio, setAudio] = useState(false);
+  const [musica, setMusica] = useState<MusicaEscolhida | null>(null);
 
   // Só os modelos que algum serviço configurado neste deploy gera.
   const falados = MODELOS_FALADO_PRODUTO.filter(
@@ -130,7 +135,7 @@ export function VideoProduto() {
       : bloqueioCriarVideo(conta.plano, modeloMudo, comAudio);
   const semModelo = modo === "falado" ? !falados.length : !mudos.length;
   const prontoParaMontar =
-    !!quem.imageKey && !!produtoFoto && produto.trim().length >= 2 && !semModelo;
+    !!quem.imageKey && produtoKeys.length > 0 && produto.trim().length >= 2 && !semModelo;
   const cenasValem = !!cenas && planoDe === chave;
   const prontoParaGerar =
     cenasValem &&
@@ -145,7 +150,18 @@ export function VideoProduto() {
       const r = await fetch("/api/produto/roteiro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ produto, cenario, detalhes, falas: modo === "falado" ? falas : "", modo, modelo, duracao }),
+        body: JSON.stringify({
+          produto,
+          cenario,
+          detalhes,
+          falas: modo === "falado" ? falas : "",
+          modo,
+          modelo,
+          duracao,
+          // A IA olha as fotos para descrever o produto como ele é.
+          imageKey: quem.imageKey ?? undefined,
+          produtoKeys,
+        }),
       });
       const b = await r.json().catch(() => ({}));
       if (!r.ok) return setErro({ mensagem: txErro(b.error ?? `Falha (HTTP ${r.status}).`), code: b.code });
@@ -160,7 +176,7 @@ export function VideoProduto() {
   }
 
   async function gerar() {
-    if (!cenas || !produtoFoto || !quem.imageKey) return;
+    if (!cenas || !produtoKeys.length || !quem.imageKey) return;
     setErro(null);
     setGerando(true);
     try {
@@ -170,7 +186,7 @@ export function VideoProduto() {
         body: JSON.stringify({
           characterId: quem.characterId,
           imageKey: quem.imageKey,
-          produtoKey: produtoFoto.key,
+          produtoKeys,
           produto,
           modo,
           modelo,
@@ -179,6 +195,7 @@ export function VideoProduto() {
           audio: comAudio,
           voiceId: modo === "falado" ? voz?.voiceId : undefined,
           cenas: cenas.map((c) => (modo === "falado" ? c : { cena: c.cena })),
+          musica: musica ?? undefined,
         }),
       });
       const b = await r.json().catch(() => ({}));
@@ -237,15 +254,49 @@ export function VideoProduto() {
                   </div>
                   <div className="grid gap-2">
                     <span className="label-cap">{tx("Produto")}</span>
-                    <QuemEntra
-                      valor={produtoFoto}
-                      onChange={setProdutoFoto}
-                      textos={{
-                        enviada: "Foto do produto",
-                        enviar: "Enviar a foto do produto",
-                        dica: "O produto inteiro, com o rótulo legível. Fundo limpo funciona melhor.",
-                      }}
-                    />
+                    {fotosProduto.map((f, i) => (
+                      <div key={i} className="relative">
+                        <QuemEntra
+                          valor={f}
+                          onChange={(nova) =>
+                            setFotosProduto((l) => {
+                              const lista = l.map((x, j) => (j === i ? nova : x));
+                              // A próxima vaga aparece quando esta é enviada (até MAX_FOTOS_PRODUTO).
+                              return lista.length < MAX_FOTOS_PRODUTO && lista.every(Boolean) ? [...lista, null] : lista;
+                            })
+                          }
+                          textos={
+                            i === 0
+                              ? {
+                                  enviada: "Foto do produto",
+                                  enviar: "Enviar a foto do produto",
+                                  dica: "O produto inteiro, com o rótulo legível. Fundo limpo funciona melhor.",
+                                }
+                              : {
+                                  enviada: "Outra foto do produto",
+                                  enviar: "Enviar outra foto (opcional)",
+                                  dica: "Outro ângulo ou um detalhe (rótulo, textura). Ajuda a IA a acertar o produto.",
+                                }
+                          }
+                        />
+                        {i > 0 && f ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFotosProduto((l) => {
+                                const resto = l.filter((_, j) => j !== i);
+                                return resto.every(Boolean) && resto.length < MAX_FOTOS_PRODUTO ? [...resto, null] : resto;
+                              })
+                            }
+                            aria-label={tx("Remover foto")}
+                            title={tx("Remover foto")}
+                            className="absolute -right-2 -top-2 grid h-6 w-6 place-items-center rounded-full border border-line bg-bg text-ink-mute hover:text-ink cursor-pointer"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
                   </div>
                 </>
               }
@@ -322,6 +373,15 @@ export function VideoProduto() {
                     />
                   </label>
 
+                  <div className="grid gap-2">
+                    <span className="label-cap">{tx("Música de fundo")} <span className="font-normal normal-case tracking-normal text-ink-dim">· {tx("opcional")}</span></span>
+                    <EscolherMusica
+                      valor={musica}
+                      onChange={setMusica}
+                      dica={modo === "falado" ? "A música fica mais baixa enquanto a pessoa fala." : undefined}
+                    />
+                  </div>
+
                   <div className="flex flex-wrap gap-x-8 gap-y-3">
                     <div className="grid gap-2">
                       <span className="label-cap">{tx("Duração")}</span>
@@ -391,49 +451,21 @@ export function VideoProduto() {
           {erro ? <ErroGeracao mensagem={erro.mensagem} code={erro.code} /> : null}
 
           {cenas ? (
-            <section className="card grid gap-4 p-4 sm:p-6">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="label-cap">{tx("Cenas")}</h2>
-                {!cenasValem ? (
-                  <span className="text-[12px] text-pink">
+            <RoteiroProduto
+              cenas={cenas}
+              onChange={setCenas}
+              segundos={segundos}
+              falado={modo === "falado"}
+              aviso={
+                !cenasValem ? (
+                  <span className="text-pink">
                     {tx("Você mudou a duração, o modelo ou a fala: monte as cenas de novo.")}
                   </span>
                 ) : (
-                  <span className="text-[12px] text-ink-dim">{tx("Edite o que quiser antes de gerar.")}</span>
-                )}
-              </div>
-              <ol className="grid gap-3 lg:grid-cols-2">
-                {cenas.map((c, i) => (
-                  <li key={i} className="grid content-start gap-2 rounded-xl border border-line p-3">
-                    <span className="text-[12.5px] font-semibold text-ink">
-                      {tx("Cena")} {i + 1}
-                      {segundos[i] ? <span className="font-normal text-ink-dim"> · ~{segundos[i]}s</span> : null}
-                    </span>
-                    <Textarea
-                      value={c.cena}
-                      onChange={(e) => setCenas((l) => l!.map((x, j) => (j === i ? { ...x, cena: e.target.value } : x)))}
-                      rows={3}
-                      maxLength={600}
-                      aria-label={tx("O que se vê")}
-                    />
-                    {modo === "falado" ? (
-                      <>
-                        <Textarea
-                          value={c.fala ?? ""}
-                          onChange={(e) => setCenas((l) => l!.map((x, j) => (j === i ? { ...x, fala: e.target.value } : x)))}
-                          rows={2}
-                          maxLength={1000}
-                          aria-label={tx("Fala")}
-                          placeholder={tx("O que a pessoa fala nesta cena")}
-                        />
-                        {(c.fala ?? "").length > caracteresDaCena(15) ? (
-                          <span className="text-[11.5px] text-pink">{tx("Fala longa: cada cena tem até 15s.")}</span>
-                        ) : null}
-                      </>
-                    ) : null}
-                  </li>
-                ))}
-              </ol>
+                  `${cenas.length} ${cenas.length > 1 ? tx("cenas") : tx("cena")} · ${tx("Edite o que quiser antes de gerar.")}`
+                )
+              }
+              rodape={
               <div className="-mx-4 -mb-4 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-line px-4 py-4 sm:-mx-6 sm:-mb-6 sm:px-6">
                 <span className="mr-auto text-[12.5px] text-ink-dim">
                   {modo === "falado" && !voz
@@ -445,7 +477,8 @@ export function VideoProduto() {
                   {gerando ? tx("Preparando as cenas…") : `${tx("Gerar vídeo")} · ${preco(modelo)}`}
                 </Button>
               </div>
-            </section>
+              }
+            />
           ) : null}
 
           <HistoricoProduto videos={videos} onMudou={carregar} />

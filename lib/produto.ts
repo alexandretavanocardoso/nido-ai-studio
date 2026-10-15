@@ -42,6 +42,8 @@ export type ModoProduto = "falado" | "mudo";
 export const MAX_CENAS_FALADAS_PRODUTO = 4;
 /** Sem fala: os modelos de cenas curtas (Veo, Gen-4) fazem 60s em até 8 cenas. */
 export const MAX_CENAS_MUDAS_PRODUTO = 8;
+/** Fotos do produto (ângulos e detalhes): todas vão como referência da imagem de cada cena. */
+export const MAX_FOTOS_PRODUTO = 3;
 /** Texto do produto (nome e o que é) e de cada cena. */
 export const PRODUTO_MAX_CARACTERES = 400;
 export const CENA_MAX_CARACTERES = 600;
@@ -158,11 +160,16 @@ export function sistemaRoteiroProduto(o: {
       ? '{"cenas": [{"cena": "<what is seen>", "fala": "<what the person says>"}]}'
       : '{"cenas": [{"cena": "<what is seen>"}]}',
     "",
+    "The images attached to the request are the person (first) and the product (the others). Look at them: plan scenes that fit this person and this exact product.",
+    "",
     '"cena" rules:',
-    '- English, one paragraph, present tense, at most 60 words. Refer to the influencer as "the person" — never by name.',
-    "- Say where the person is (use the requested setting; you may change the camera angle or spot between scenes), exactly what they do with the product (show it to the camera, hold it up, open it, use it, wear it, apply it, taste it, react to it) and the framing and camera movement (e.g. medium shot, slow push-in, handheld selfie).",
-    "- The product and the person must be clearly visible in every scene. Build a small story: hook in the first scene, the product in use in the middle, a satisfied close-up of the product with the person at the end.",
-    "- Describe the product by what it is and its colours (\"the white sneaker\", \"the amber glass serum bottle\"): never write brand names, logos or text — the image already shows them.",
+    '- English, one paragraph, present tense, at most 50 words. Refer to the influencer as "the person" — never by name.',
+    "- Say where the person is (use the requested setting), what they do with the product and the framing and camera movement.",
+    "- ONE simple, continuous action per scene that fits its duration — e.g. hold the product up and turn it slowly; put it on; walk a few steps wearing it; apply it and smile. Never chain several actions in one scene (no \"sit, lift it, then put it on and tie the laces\").",
+    "- Realistic physics: the product is always held firmly in the person's hand(s), worn, or resting on a surface. It never floats, flies, spins on its own, multiplies or changes shape. There is only one product: if the person holds it, they are not also wearing or using another one at the same time.",
+    "- Calm camera: static, slow push-in or gentle handheld. No fast moves, whip pans, spins or lens flares. The product and the person stay clearly visible in every scene (don't frame only clothes or only the face).",
+    "- Continuity: each scene starts where the previous one ended — same place, same outfit, the product in the same state (if it was put on, it stays on). Build a small story: hook, the product in use, a satisfied final shot of the product with the person.",
+    "- Describe the product exactly as it looks in the product photos (what it is and its real colours: \"the white and grey sneaker with red details\"). Never write brand names, logos or text — the image already shows them.",
     "- No dialogue or quotes, no on-screen text, captions, hashtags or emojis. Nothing violent, sexual, hateful or dangerous.",
     ...(o.modo === "falado"
       ? [
@@ -196,19 +203,27 @@ export function pedidoRoteiroProduto(o: {
 }
 
 /**
- * Imagem de uma cena (Nano Banana): a pessoa da primeira foto com o produto da
- * segunda, fazendo o que a cena pede, no formato do vídeo.
+ * Imagem de uma cena (Nano Banana): a pessoa da primeira foto com o produto
+ * das outras (uma ou mais, do mesmo produto), fazendo o que a cena pede, no
+ * formato do vídeo.
  */
 export function promptImagemDaCena(o: {
   cena: string;
   produto: string;
   vertical: boolean;
   falado: boolean;
+  /** Quantas fotos do produto vêm depois da foto da pessoa (padrão 1). */
+  fotosProduto?: number;
 }): string {
+  const n = Math.max(1, o.fotosProduto ?? 1);
+  const doProduto = n > 1 ? `the product in images 2 to ${n + 1}` : "the product from the second image";
   return [
-    `The first image is a person. The second image is a product (${o.produto.slice(0, 200)}).`,
+    n > 1
+      ? `The first image is a person. Images 2 to ${n + 1} show the SAME product from different angles and details (${o.produto.slice(0, 200)}).`
+      : `The first image is a person. The second image is a product (${o.produto.slice(0, 200)}).`,
     `Create a new photorealistic photo of the SAME person from the first image — same face, hair, skin tone and body; keep their outfit unless the scene asks for something else — in this scene: ${o.cena}`,
-    "The product in the photo must be EXACTLY the product from the second image: same shape, proportions, colours, materials, label, logo and printed text, at a realistic size next to the person. When the person holds it, the grip and hands look natural.",
+    `The product in the photo must be EXACTLY ${doProduto}: same shape, proportions, colours, materials, label, logo and printed text, at a realistic size next to the person. When the person holds it, the fingers firmly grip it and the hands look natural.`,
+    "Show the product only once: if the person holds it, they are not also wearing or using a second one (unless the scene says they wear it).",
     o.falado
       ? "The person faces the camera with the face fully visible and sharp, relaxed and ready to talk."
       : "",
@@ -221,8 +236,16 @@ export function promptImagemDaCena(o: {
 
 /** Pedido ao modelo de vídeo de uma cena sem fala. */
 export function promptVideoDaCena(cena: string): string {
-  return `${cena} The person keeps the same face, hair and outfit, and the product keeps exactly its shape, colours, label and logo. Smooth, natural motion. No text or captions on screen.`.slice(
+  return `${cena} ${FISICA_DO_PRODUTO} The person keeps the same face, hair and outfit, and the product keeps exactly its shape, colours, label and logo. Slow, smooth camera. No text or captions on screen.`.slice(
     0,
     1000,
   );
 }
+
+/**
+ * Física do produto no vídeo: os modelos de vídeo tendem a deixar o objeto
+ * "voando" (visto em 15/10/2026 com o Gen-4.5: tênis flutuando na frente do
+ * rosto e um segundo par aparecendo nos pés).
+ */
+export const FISICA_DO_PRODUTO =
+  "Realistic physics: the product stays firmly in the person's hand, on the person or resting on a surface the whole time — it never floats, flies, spins by itself, duplicates or changes shape. Natural, unhurried hand movements.";

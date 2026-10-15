@@ -311,7 +311,7 @@ export function promptComAcao(
     `The person from ${ref.imagem}, with the same face, hair and outfit, holding or using the same product and in the same place as ${ref.imagem}.`,
     acao,
     `While doing this they talk to the camera, saying exactly the words of ${ref.audio} with precise lip sync. ${ref.audio} is the only voice: no other speech, no music.`,
-    "The product keeps exactly the shape, colours, label and logo it has in the reference image. Hands look natural. The scene fills the whole frame edge to edge: no borders, no letterbox bars. No text or captions on screen.",
+    "The product keeps exactly the shape, colours, label and logo it has in the reference image and stays firmly in their hand or on them the whole time — it never floats, flies, duplicates or changes shape. Hands look natural. Slow, steady camera. The scene fills the whole frame edge to edge: no borders, no letterbox bars. No text or captions on screen.",
   ].join(" ");
 }
 

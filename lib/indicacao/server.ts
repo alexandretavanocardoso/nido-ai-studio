@@ -7,11 +7,10 @@ import {
   carteiraValida,
   prepararEnvioUsdc,
   redesDeSaqueUsdc,
-  tetoDiarioUsdc,
-  tetoDoSaqueUsdc,
 } from "./onchain";
+import { cambioUsdBrl } from "@/lib/moeda";
 import {
-  CARENCIA_DIAS,
+  carenciaDoPagamento,
   COMISSAO,
   comissaoEmCentavos,
   MESES_COMISSAO,
@@ -20,8 +19,13 @@ import {
   normalizarCodigo,
   problemaDoCodigo,
   SAQUE_MINIMO,
+  saldoDaMoeda,
   type MoedaComissao,
+  type SaldoComissao,
 } from "./regras";
+
+/** O saldo da comissão em SQL (o mesmo que saldoDaMoeda): USD e USDC somam juntos. */
+const SALDO_SQL = "(case when moeda = 'BRL' then 'BRL' else 'USD' end)";
 
 /** Código inicial de quem ainda não escolheu o seu: 8 caracteres sem ambiguidade. */
 const codigoAleatorio = customAlphabet("abcdefghjkmnpqrstuvwxyz23456789", 8);
@@ -172,7 +176,7 @@ export async function registrarComissao(pagamentoId: string): Promise<void> {
         p.valor,
         moedaDaComissao(p.moeda, p.provedor),
         (centavos / 100).toFixed(2),
-        CARENCIA_DIAS,
+        carenciaDoPagamento(p.provedor),
         // USDC sai pela rede em que entrou (nulo = solana, pagamentos antigos).
         p.provedor === "usdc" ? (p.rede ?? "solana") : null,
       ],
@@ -216,11 +220,12 @@ export async function ajustarComissaoParcial(
 }
 
 export interface SaldoIndicacao {
-  moeda: MoedaComissao;
-  /** USDC: a rede em que o indicado pagou, que é por onde este saldo sai. */
-  rede: RedeUsdc | null;
+  /** USD = comissões de cartão e de USDC juntas; sai pelo Stripe ou em USDC. BRL só pelo Stripe. */
+  moeda: SaldoComissao;
   /** Já pode sacar (descontadas as comissões estornadas depois de sacadas). */
   disponivel: number;
+  /** Parte do disponível que pode sair em USDC: só comissões de quem pagou em USDC. */
+  porUsdc: number;
   /** Ainda na carência. */
   pendente: number;
   /** Já transferido (para a conta Stripe ou para a carteira, no caso do USDC). */
@@ -252,6 +257,8 @@ export interface ResumoIndicacao {
     /** Saque on-chain: rede e hash da transação. */
     rede: string | null;
     txHash: string | null;
+    /** Saque em dólar pago pelo Stripe: quanto saiu em reais. */
+    pago: { valor: number; moeda: string } | null;
   }>;
   /** Saque em USDC on-chain: redes ligadas neste deploy e o teto automático. */
   usdc: { redes: RedeUsdc[]; teto: number };
@@ -298,18 +305,20 @@ export async function resumoDaIndicacao(
       [userId],
     ),
     db.query<{
-      moeda: MoedaComissao;
-      rede: RedeUsdc | null;
+      moeda: SaldoComissao;
       disponivel: string;
+      por_usdc: string;
       pendente: string;
       sacado: string;
     }>(
-      `select moeda, rede,
+      `select ${SALDO_SQL} as moeda,
          coalesce(sum(valor) filter (where status = 'disponivel' and disponivel_em <= now()), 0)
            - coalesce(sum(valor) filter (where status = 'estorno_devido'), 0) as disponivel,
+         coalesce(sum(valor) filter (where moeda = 'USDC' and status = 'disponivel' and disponivel_em <= now()), 0)
+           - coalesce(sum(valor) filter (where moeda = 'USDC' and status = 'estorno_devido'), 0) as por_usdc,
          coalesce(sum(valor) filter (where status = 'disponivel' and disponivel_em > now()), 0) as pendente,
          coalesce(sum(valor) filter (where status in ('sacada', 'estorno_devido', 'estorno_quitado')), 0) as sacado
-       from indicacao_comissoes where indicador_user_id = $1 group by moeda, rede order by moeda, rede`,
+       from indicacao_comissoes where indicador_user_id = $1 group by 1 order by 1 desc`,
       [userId],
     ),
     db.query<{
@@ -320,9 +329,11 @@ export async function resumoDaIndicacao(
       created_at: Date;
       rede: string | null;
       tx_hash: string | null;
+      valor_pago: string | null;
+      moeda_paga: string | null;
     }>(
-      `select id, moeda, valor, status, created_at, rede, tx_hash from indicacao_saques
-       where user_id = $1 order by created_at desc limit 20`,
+      `select id, moeda, valor, status, created_at, rede, tx_hash, valor_pago, moeda_paga
+       from indicacao_saques where user_id = $1 order by created_at desc limit 20`,
       [userId],
     ),
   ]);
@@ -352,8 +363,8 @@ export async function resumoDaIndicacao(
     })),
     saldos: saldos.rows.map((s) => ({
       moeda: s.moeda,
-      rede: s.rede,
       disponivel: Number(s.disponivel),
+      porUsdc: Number(s.por_usdc),
       pendente: Number(s.pendente),
       sacado: Number(s.sacado),
       minimo: SAQUE_MINIMO[s.moeda],
@@ -366,8 +377,12 @@ export async function resumoDaIndicacao(
       quando: s.created_at.toISOString(),
       rede: s.rede,
       txHash: s.tx_hash,
+      pago:
+        s.valor_pago != null && s.moeda_paga && s.moeda_paga !== s.moeda
+          ? { valor: Number(s.valor_pago), moeda: s.moeda_paga }
+          : null,
     })),
-    usdc: { redes: redesDeSaqueUsdc(), teto: tetoDoSaqueUsdc() },
+    usdc: { redes: redesDeSaqueUsdc(), teto: tetoDoSaque() },
     stripe: {
       configurado: !!stripe,
       conectado: !!conta.stripeAccountId,
@@ -402,49 +417,149 @@ export async function contaStripeDeSaque(
   return rows[0].stripe_account_id;
 }
 
+/** Maior saque automático, em dólar, pelos dois caminhos; acima disso, só pelo suporte (padrão 200). */
+export function tetoDoSaque(): number {
+  const n = Number(process.env.SAQUE_TETO ?? process.env.USDC_SAQUE_TETO);
+  return Number.isFinite(n) && n > 0 ? n : 200;
+}
+
+/** Soma máxima de saques em 24 horas, de todos os usuários e pelos dois caminhos, em dólar (padrão 1000). */
+export function tetoDiarioDeSaques(): number {
+  const n = Number(process.env.SAQUE_TETO_DIA ?? process.env.USDC_SAQUE_TETO_DIA);
+  return Number.isFinite(n) && n > 0 ? n : 1000;
+}
+
+/** Como o saque sai: pelo Stripe (o saldo de uma moeda) ou em USDC, numa rede, para uma carteira. */
+type Via =
+  | { tipo: "stripe"; saldo: SaldoComissao }
+  | { tipo: "usdc"; rede: RedeUsdc; carteira: string };
+
 /**
- * Reserva as comissões disponíveis de uma moeda para um saque novo e calcula
- * o valor a pagar (já descontado o que foi estornado depois de sacado). Em
- * USDC, só entram as comissões da rede do saque: cada rede tem o seu saldo.
- * Abaixo do mínimo, desfaz a reserva e devolve o erro.
+ * Quais comissões cada caminho leva (SQL). Pelo Stripe sai o saldo inteiro da
+ * moeda — em dólar, cartão e USDC juntos. Em USDC só saem as comissões de
+ * quem pagou em USDC: pagamento no cartão pode ser contestado meses depois, e
+ * um envio on-chain não volta (seria o jeito de transformar cartão roubado em
+ * cripto). Pelo Stripe, quem recebe tem cadastro verificado.
+ */
+function comissoesDoCaminho(via: Via): string {
+  if (via.tipo === "usdc") return "moeda = 'USDC'";
+  return via.saldo === "BRL" ? "moeda = 'BRL'" : "moeda in ('USD', 'USDC')";
+}
+
+/** PTAX do Banco Central (compra) do último dia útil da semana; null se não respondeu. */
+async function ptaxDoBancoCentral(): Promise<number | null> {
+  const data = (d: Date) =>
+    `${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}-${d.getUTCFullYear()}`;
+  const fim = new Date();
+  const inicio = new Date(fim.getTime() - 7 * 86_400_000);
+  const url =
+    "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/" +
+    "CotacaoDolarPeriodo(dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)" +
+    `?@dataInicial='${data(inicio)}'&@dataFinalCotacao='${data(fim)}'` +
+    "&$format=json&$orderby=dataHoraCotacao%20desc&$top=1";
+  const r = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+  if (!r.ok) return null;
+  const b = (await r.json()) as { value?: Array<{ cotacaoCompra?: number }> };
+  const v = Number(b.value?.[0]?.cotacaoCompra);
+  return v > 0 ? v : null;
+}
+
+/**
+ * Reais por dólar agora. Primeiro a cotação do Stripe (API de câmbio, ainda em
+ * prévia: a versão vai no pedido e pode ser trocada por STRIPE_FX_VERSAO), pela
+ * taxa base, sem a margem dele. Se o Stripe não responder, a PTAX do Banco
+ * Central. Cotação a mais de 30% do CAMBIO_USD_BRL é descartada: nenhum saque
+ * é pago com um câmbio absurdo. Sem nenhuma cotação, devolve null.
+ */
+async function cambioDoDia(stripe: Stripe): Promise<number | null> {
+  const plausivel = (v: number) =>
+    v > 0 && Math.abs(v / cambioUsdBrl() - 1) < 0.3;
+  try {
+    const r = (await stripe.rawRequest(
+      "POST",
+      "/v1/fx_quotes",
+      { to_currency: "brl", "from_currencies[0]": "usd", lock_duration: "none" },
+      { apiVersion: process.env.STRIPE_FX_VERSAO?.trim() || "2026-09-30.preview" },
+    )) as { rates?: Record<string, { rate_details?: { base_rate?: number } }> };
+    const v = Number(r.rates?.usd?.rate_details?.base_rate);
+    if (plausivel(v)) return v;
+    console.error("[indicacao] cotação do Stripe fora da faixa:", v);
+  } catch (e) {
+    console.error("[indicacao] cotação do Stripe:", e);
+  }
+  try {
+    const v = await ptaxDoBancoCentral();
+    if (v && plausivel(v)) return v;
+    console.error("[indicacao] PTAX fora da faixa ou vazia:", v);
+  } catch (e) {
+    console.error("[indicacao] PTAX do Banco Central:", e);
+  }
+  return null;
+}
+
+/**
+ * Reserva as comissões disponíveis do caminho para um saque novo e calcula o
+ * valor a pagar (já descontado o que foi estornado depois de sacado). Abaixo
+ * do mínimo, ou acima dos tetos (por saque e do dia, somando todos os
+ * usuários e os dois caminhos), desfaz a reserva e devolve o erro.
  */
 async function abrirSaque(
   userId: string,
-  moeda: MoedaComissao,
-  destino: { rede: RedeUsdc; carteira: string } | null,
+  via: Via,
 ): Promise<
   | { erro: string }
-  | { saqueId: string; total: number; dividas: string[]; devolver: () => Promise<unknown> }
+  | {
+      saqueId: string;
+      total: number;
+      devolver: () => Promise<unknown>;
+      falhar: (motivo: string, paraUsuario: string) => Promise<{ erro: string }>;
+    }
 > {
   const db = pool();
   const saqueId = `saq_${nanoid(14)}`;
-  const devolver = () =>
-    db.query(
-      "update indicacao_comissoes set status = 'disponivel', saque_id = null where saque_id = $1",
-      [saqueId],
+  const moeda: MoedaComissao = via.tipo === "usdc" ? "USDC" : via.saldo;
+  const filtro = comissoesDoCaminho(via);
+  const devolver = () => devolverComissoes(saqueId);
+  const falhar = async (motivo: string, paraUsuario: string) => {
+    await devolver();
+    await db.query(
+      "update indicacao_saques set status = 'falhou', erro = $2 where id = $1",
+      [saqueId, motivo.slice(0, 500)],
     );
+    return { erro: paraUsuario };
+  };
 
   await db.query(
     "insert into indicacao_saques (id, user_id, moeda, valor, rede, carteira) values ($1, $2, $3, 0.01, $4, $5)",
-    [saqueId, userId, moeda, destino?.rede ?? null, destino?.carteira ?? null],
+    [
+      saqueId,
+      userId,
+      moeda,
+      via.tipo === "usdc" ? via.rede : null,
+      via.tipo === "usdc" ? via.carteira : null,
+    ],
   );
   const { rows } = await db.query<{ total: string | null }>(
     `with reservadas as (
-       update indicacao_comissoes set status = 'sacada', saque_id = $3
-       where indicador_user_id = $1 and moeda = $2 and rede is not distinct from $4
+       update indicacao_comissoes set status = 'sacada', saque_id = $2
+       where indicador_user_id = $1 and ${filtro}
          and status = 'disponivel' and disponivel_em <= now()
        returning valor)
      select sum(valor) as total from reservadas`,
-    [userId, moeda, saqueId, destino?.rede ?? null],
+    [userId, saqueId],
   );
-  // Comissões já sacadas e depois estornadas: descontam deste saque.
-  const dividas = await db.query<{ id: string; valor: string }>(
-    `select id, valor from indicacao_comissoes
-     where indicador_user_id = $1 and moeda = $2 and rede is not distinct from $3
-       and status = 'estorno_devido'`,
-    [userId, moeda, destino?.rede ?? null],
+  // Comissões já sacadas e depois estornadas: descontam deste saque. Ficam
+  // presas a ele na mesma instrução (dois saques não descontam a mesma dívida)
+  // e voltam a ser dívida se o saque não sair (devolverComissoes).
+  const { rows: cobradas } = await db.query<{ devido: string }>(
+    `with cobradas as (
+       update indicacao_comissoes set status = 'estorno_quitado', cobrada_no_saque = $2
+       where indicador_user_id = $1 and ${filtro} and status = 'estorno_devido'
+       returning valor)
+     select coalesce(sum(valor), 0) as devido from cobradas`,
+    [userId, saqueId],
   );
-  const devido = dividas.rows.reduce((t, d) => t + Number(d.valor), 0);
+  const devido = Number(cobradas[0]?.devido ?? 0);
   const total =
     Math.round((Number(rows[0]?.total ?? 0) - devido) * 100) / 100;
   if (total < SAQUE_MINIMO[moeda]) {
@@ -457,32 +572,148 @@ async function abrirSaque(
           : "Não há saldo disponível para sacar.",
     };
   }
-  await db.query("update indicacao_saques set valor = $2 where id = $1", [
-    saqueId,
-    total.toFixed(2),
-  ]);
-  return { saqueId, total, dividas: dividas.rows.map((d) => d.id), devolver };
-}
-
-/** Saque pago: quita as dívidas de estorno que foram descontadas dele. */
-async function quitarDividas(ids: string[]) {
-  if (ids.length)
-    await pool().query(
-      "update indicacao_comissoes set status = 'estorno_quitado' where id = any($1) and status = 'estorno_devido'",
-      [ids],
+  // Tetos: limitam o estrago se alguém achar um jeito de gerar comissão
+  // indevida. Em dólar (reais convertidos pelo CAMBIO_USD_BRL).
+  const dolares = moeda === "BRL" ? total / cambioUsdBrl() : total;
+  if (dolares > tetoDoSaque())
+    return falhar(
+      `Acima do teto automático (US$ ${tetoDoSaque()}).`,
+      "Este valor passa do limite do saque automático. Fale com o suporte para receber.",
     );
+
+  // Teto do dia (todos os usuários, o que saiu e o que está saindo em 24h).
+  // Uma trava no banco faz um saque de cada vez passar por aqui: o valor deste
+  // saque é gravado ainda com a trava, então o próximo já o vê na soma — dois
+  // pedidos ao mesmo tempo não passam juntos do limite.
+  let soma = 0;
+  let cabe = false;
+  const cliente = await db.connect();
+  try {
+    await cliente.query("begin");
+    await cliente.query("select pg_advisory_xact_lock(hashtext('indicacao_teto_diario'))");
+    const { rows: dia } = await cliente.query<{ soma: string }>(
+      `select coalesce(sum(case when moeda = 'BRL' then valor / $2 else valor end), 0) as soma
+       from indicacao_saques
+       where id <> $1 and status in ('pago', 'processando')
+         and created_at > now() - interval '24 hours'`,
+      [saqueId, cambioUsdBrl()],
+    );
+    soma = Number(dia[0].soma);
+    cabe = soma + dolares <= tetoDiarioDeSaques();
+    if (cabe)
+      await cliente.query("update indicacao_saques set valor = $2 where id = $1", [
+        saqueId,
+        total.toFixed(2),
+      ]);
+    await cliente.query("commit");
+  } catch (e) {
+    await cliente.query("rollback").catch(() => {});
+    console.error("[indicacao] teto diário", saqueId, e);
+    return falhar(
+      `Falha ao conferir o teto diário: ${(e as Error).message}`,
+      "O saque está indisponível no momento. O saldo continua disponível; tente de novo mais tarde.",
+    );
+  } finally {
+    cliente.release();
+  }
+  if (!cabe) {
+    console.error(
+      `[indicacao] ALERTA: teto diário de saques atingido (US$ ${soma.toFixed(2)} + ${dolares.toFixed(2)} > ${tetoDiarioDeSaques()}). Saque ${saqueId} recusado.`,
+    );
+    return falhar(
+      `Teto diário de saques atingido (US$ ${tetoDiarioDeSaques()}).`,
+      "O limite diário de saques foi atingido. O saldo continua disponível; tente de novo amanhã.",
+    );
+  }
+  return { saqueId, total, devolver, falhar };
 }
 
 /**
- * Saca pelo Stripe todo o saldo disponível em BRL ou USD: reserva as
- * comissões, transfere para a conta Connect do usuário e, se a transferência
- * falhar, devolve as comissões ao saldo. Devolve o valor sacado ou o erro.
+ * Saque que não saiu: as comissões reservadas voltam ao saldo. As que foram
+ * estornadas enquanto o saque andava (viraram "estorno_devido") nunca foram
+ * pagas: ficam só estornadas — não voltam ao saldo nem viram dívida. As
+ * dívidas que este saque ia descontar voltam a ser dívida.
+ */
+export async function devolverComissoes(saqueId: string): Promise<void> {
+  const db = pool();
+  await db.query(
+    "update indicacao_comissoes set status = 'disponivel', saque_id = null where saque_id = $1 and status = 'sacada'",
+    [saqueId],
+  );
+  await db.query(
+    "update indicacao_comissoes set status = 'estornada', saque_id = null where saque_id = $1 and status = 'estorno_devido'",
+    [saqueId],
+  );
+  await db.query(
+    "update indicacao_comissoes set status = 'estorno_devido', cobrada_no_saque = null where cobrada_no_saque = $1 and status = 'estorno_quitado'",
+    [saqueId],
+  );
+}
+
+/**
+ * Comissão que já tinha saído pelo Stripe e depois foi estornada (contestação
+ * do cartão): tenta trazer o valor de volta da conta Connect do indicador,
+ * revertendo parte da transferência, enquanto o dinheiro ainda está lá.
+ * Conseguiu → a dívida some. Não conseguiu (já foi para o banco dele) →
+ * continua como dívida, descontada dos próximos saques. Nunca lança.
+ */
+export async function recuperarComissaoSacada(
+  stripe: Stripe,
+  pagamentoId: string,
+): Promise<void> {
+  try {
+    const { rows } = await pool().query<{
+      id: string;
+      valor: string;
+      transferencia: string;
+      cambio: string | null;
+    }>(
+      `select c.id, c.valor, s.stripe_transfer_id as transferencia, s.cambio
+       from indicacao_comissoes c
+       join indicacao_saques s on s.id = c.saque_id
+       where c.pagamento_id = $1 and c.status = 'estorno_devido'
+         and s.status = 'pago' and s.stripe_transfer_id is not null`,
+      [pagamentoId],
+    );
+    for (const c of rows) {
+      // Na moeda da transferência (reais), pelo mesmo câmbio do saque.
+      const centavos = c.cambio
+        ? Math.floor(Number(c.valor) * Number(c.cambio) * 100)
+        : Math.round(Number(c.valor) * 100);
+      try {
+        await stripe.transfers.createReversal(
+          c.transferencia,
+          { amount: centavos, metadata: { comissaoId: c.id, pagamentoId } },
+          { idempotencyKey: `reversao-${c.id}` },
+        );
+        await pool().query(
+          "update indicacao_comissoes set status = 'estorno_quitado' where id = $1 and status = 'estorno_devido'",
+          [c.id],
+        );
+      } catch (e) {
+        console.error("[indicacao] reverter comissão sacada", c.id, e);
+      }
+    }
+  } catch (e) {
+    console.error("[indicacao] recuperar comissão", pagamentoId, e);
+  }
+}
+
+/**
+ * Saca pelo Stripe todo o saldo disponível em dólar (comissões de cartão e de
+ * USDC) ou em reais: reserva as comissões e transfere para a conta Connect do
+ * usuário. A conta do Stripe da NIDO só tem saldo em reais, então o saldo em
+ * dólar sai em reais, pela cotação do dia (arredondado para baixo).
+ *
+ * Só devolve o saldo quando há certeza de que a transferência não saiu.
  */
 export async function sacarComissoes(
   stripe: Stripe,
   userId: string,
-  moeda: Exclude<MoedaComissao, "USDC">,
-): Promise<{ valor: number } | { erro: string }> {
+  saldo: SaldoComissao,
+): Promise<
+  { valor: number; pago: { valor: number; moeda: "BRL"; cambio: number | null } } | { erro: string }
+> {
   const conta = await contaDeIndicacao(userId);
   if (!conta.stripeAccountId)
     return { erro: "Conecte sua conta do Stripe antes de sacar." };
@@ -490,46 +721,85 @@ export async function sacarComissoes(
   if (!destino.details_submitted || !destino.payouts_enabled)
     return { erro: "Termine o cadastro da sua conta no Stripe para sacar." };
 
-  const saque = await abrirSaque(userId, moeda, null);
+  // Cotação antes de reservar: sem ela, nada é mexido.
+  const cambio = saldo === "USD" ? await cambioDoDia(stripe) : null;
+  if (saldo === "USD" && !cambio)
+    return {
+      erro: "Não consegui a cotação do dólar agora. O saldo continua disponível; tente de novo em instantes.",
+    };
+
+  const saque = await abrirSaque(userId, { tipo: "stripe", saldo });
   if ("erro" in saque) return saque;
   const { saqueId, total } = saque;
+  const centavos = cambio
+    ? Math.floor(total * cambio * 100)
+    : Math.round(total * 100);
   const db = pool();
+  let transferencia: Stripe.Transfer;
   try {
-    const transferencia = await stripe.transfers.create(
+    transferencia = await stripe.transfers.create(
       {
-        amount: Math.round(total * 100),
-        currency: moeda.toLowerCase(),
+        amount: centavos,
+        currency: "brl",
         destination: conta.stripeAccountId,
         description: "NIDO AI Studio · comissão de indicações",
         // O admin acha a transferência por aqui se o saque ficar pela metade.
         transfer_group: saqueId,
-        metadata: { userId, saqueId },
+        metadata: {
+          userId,
+          saqueId,
+          ...(cambio ? { valorUsd: total.toFixed(2), cambio: String(cambio) } : {}),
+        },
       },
       { idempotencyKey: saqueId },
     );
-    await db.query(
-      "update indicacao_saques set status = 'pago', stripe_transfer_id = $2 where id = $1",
-      [saqueId, transferencia.id],
-    );
-    await quitarDividas(saque.dividas);
-    return { valor: total };
   } catch (e) {
-    const msg = (e as Error).message ?? "Falha na transferência.";
+    const msg = ((e as Error).message ?? "Falha na transferência.").slice(0, 500);
     console.error("[indicacao] saque", saqueId, e);
-    await saque.devolver();
-    await db.query(
-      "update indicacao_saques set status = 'falhou', erro = $2 where id = $1",
-      [saqueId, msg.slice(0, 500)],
-    );
-    return {
-      erro: "O Stripe não concluiu a transferência. O saldo continua disponível; tente de novo mais tarde.",
-    };
+    // Um erro de rede pode esconder uma transferência que saiu: confere pelo
+    // grupo do saque antes de devolver o saldo. Sem como conferir, o saque fica
+    // "processando" e o admin resolve (Conferir) — nunca devolve no escuro.
+    const saiu = await stripe.transfers
+      .list({ transfer_group: saqueId, limit: 1 })
+      .then((r) => r.data[0] ?? null)
+      .catch(() => undefined);
+    if (saiu === undefined) {
+      await db
+        .query("update indicacao_saques set erro = $2 where id = $1", [saqueId, msg])
+        .catch(() => {});
+      return {
+        erro: "Não consegui confirmar a transferência no Stripe. O saque ficou em análise e o saldo não se perde.",
+      };
+    }
+    if (!saiu)
+      return saque.falhar(
+        msg,
+        "O Stripe não concluiu a transferência. O saldo continua disponível; tente de novo mais tarde.",
+      );
+    transferencia = saiu;
   }
+  // O dinheiro já saiu: uma falha daqui em diante não devolve o saldo (o saque
+  // fica "processando" e o Conferir do admin acha a transferência pelo grupo).
+  try {
+    await db.query(
+      `update indicacao_saques set status = 'pago', stripe_transfer_id = $2,
+         valor_pago = $3, moeda_paga = 'BRL', cambio = $4 where id = $1`,
+      [saqueId, transferencia.id, (transferencia.amount / 100).toFixed(2), cambio],
+    );
+  } catch (e) {
+    console.error("[indicacao] saque pago mas não registrado", saqueId, transferencia.id, e);
+  }
+  return {
+    valor: total,
+    pago: { valor: transferencia.amount / 100, moeda: "BRL", cambio },
+  };
 }
 
 /**
- * Saca on-chain o saldo disponível em USDC de uma rede (a rede em que os
- * indicados pagaram): da carteira de saques da NIDO para a carteira do usuário.
+ * Saca on-chain, em USDC, as comissões disponíveis de quem pagou em USDC (de
+ * qualquer rede), na rede que o usuário escolheu: da carteira de saques da
+ * NIDO nessa rede para a carteira do usuário. Comissão de cartão não sai
+ * por aqui (ver comissoesDoCaminho).
  *
  * O hash da transação é guardado antes do envio. Se a rede confirmar, o saque
  * fica pago; se reverter (ou for recusado antes de assinar), o saldo volta;
@@ -547,42 +817,10 @@ export async function sacarUsdc(
   if (!carteiraValida(rede, carteira))
     return { erro: "Endereço de carteira inválido para esta rede." };
 
-  const saque = await abrirSaque(userId, "USDC", { rede, carteira });
+  const saque = await abrirSaque(userId, { tipo: "usdc", rede, carteira });
   if ("erro" in saque) return saque;
-  const { saqueId, total } = saque;
+  const { saqueId, total, falhar } = saque;
   const db = pool();
-  const falhar = async (msg: string, paraUsuario: string) => {
-    await saque.devolver();
-    await db.query(
-      "update indicacao_saques set status = 'falhou', erro = $2 where id = $1",
-      [saqueId, msg.slice(0, 500)],
-    );
-    return { erro: paraUsuario };
-  };
-
-  if (total > tetoDoSaqueUsdc())
-    return falhar(
-      `Acima do teto automático (${tetoDoSaqueUsdc()} USDC).`,
-      "Este valor passa do limite do saque automático. Fale com o suporte para receber.",
-    );
-
-  // Teto do dia, somando todos os usuários: limita o estrago se alguém achar
-  // um jeito de gerar comissão indevida. Conta o que saiu e o que está saindo.
-  const { rows: dia } = await db.query<{ soma: string }>(
-    `select coalesce(sum(valor), 0) as soma from indicacao_saques
-     where rede is not null and id <> $1 and status in ('pago', 'processando')
-       and created_at > now() - interval '24 hours'`,
-    [saqueId],
-  );
-  if (Number(dia[0].soma) + total > tetoDiarioUsdc()) {
-    console.error(
-      `[indicacao] ALERTA: teto diário de saque em USDC atingido (${dia[0].soma} + ${total} > ${tetoDiarioUsdc()}). Saque ${saqueId} recusado.`,
-    );
-    return falhar(
-      `Teto diário de saques em USDC atingido (${tetoDiarioUsdc()} USDC).`,
-      "O limite diário de saques em USDC foi atingido. O saldo continua disponível; tente de novo amanhã.",
-    );
-  }
 
   let envio;
   try {
@@ -597,11 +835,12 @@ export async function sacarUsdc(
       "O saque em USDC está indisponível no momento. O saldo continua disponível; tente de novo mais tarde.",
     );
 
-  // Daqui em diante a transação existe (assinada): guarda o hash antes de transmitir.
-  await db.query("update indicacao_saques set tx_hash = $2 where id = $1", [
-    saqueId,
-    envio.hash,
-  ]);
+  // Daqui em diante a transação existe (assinada): guarda o hash (e, nas
+  // redes EVM, a vez da carteira) antes de transmitir.
+  await db.query(
+    "update indicacao_saques set tx_hash = $2, tx_nonce = $3 where id = $1",
+    [saqueId, envio.hash, envio.nonce ?? null],
+  );
   const resultado = await envio.enviar();
   if (resultado === "revertido")
     return falhar(
@@ -613,6 +852,5 @@ export async function sacarUsdc(
   await db.query("update indicacao_saques set status = 'pago' where id = $1", [
     saqueId,
   ]);
-  await quitarDividas(saque.dividas);
   return { valor: total, hash: envio.hash };
 }

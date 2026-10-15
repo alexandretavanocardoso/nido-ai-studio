@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { adminOuResponder } from "@/lib/admin/acesso";
+import { readIp } from "@/lib/ai/rate-limit";
+import { MusicaSchema } from "@/lib/musica";
+import { ownsKey } from "@/lib/storage/s3";
 import { getPool } from "@/lib/db";
 import { listarMotions } from "@/lib/motion";
 import { ehModeloMotion, MODELOS_MOTION, type ModeloMotion } from "@/worker/motion/modelos";
@@ -18,6 +21,8 @@ const BodySchema = z.discriminatedUnion("acao", [
     esforco: z.enum(["low", "medium", "high", "xhigh", "max"]).optional(),
   }),
   z.object({ acao: z.literal("exportar") }),
+  // Música de fundo do MP4 (null tira). Muda o que o próximo "Exportar MP4" grava.
+  z.object({ acao: z.literal("musica"), musica: MusicaSchema.nullable() }),
 ]);
 
 /** GET — um motion (a tela acompanha o andamento). */
@@ -44,7 +49,27 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: parsed.error.issues[0].message, code: "BAD_INPUT" }, { status: 400 });
   const body = parsed.data;
 
-  if (body.acao === "exportar") {
+  if (body.acao === "musica") {
+    if (body.musica && !ownsKey(admin.userId, body.musica.key))
+      return NextResponse.json({ error: "Áudio não encontrado." }, { status: 404 });
+    const musica = body.musica ? { key: body.musica.key, nome: body.musica.nome, origem: body.musica.origem } : null;
+    // O MP4 gravado antes deixa de valer (era sem esta música); gravando agora, espera.
+    const { rowCount } = await pool.query(
+      `update motions set input = case when $3::jsonb is null then input - 'musica' else jsonb_set(input, '{musica}', $3::jsonb) end,
+              render = null, video_key = null, render_erro = null, updated_at = now()
+        where id = $1 and user_id = $2 and coalesce(render, '') not in ('na_fila', 'renderizando')`,
+      [id, admin.userId, musica ? JSON.stringify(musica) : null],
+    );
+    if (!rowCount)
+      return NextResponse.json({ error: "Espere a gravação do MP4 terminar.", code: "BAD_INPUT" }, { status: 409 });
+    if (body.musica)
+      await pool
+        .query(
+          "insert into consentimentos (id, user_id, character_id, tipo, texto, ip) values ($1, $2, $3, 'uso_musica', $4, $5)",
+          [nanoid(14), admin.userId, "motion", `${body.musica.declaracao} [${body.musica.key}]`, readIp(req)],
+        )
+        .catch((e) => console.warn("[admin/motion] declaração da música:", (e as Error).message));
+  } else if (body.acao === "exportar") {
     const { rowCount } = await pool.query(
       `update motions set render = 'na_fila', render_erro = null, progresso = null, updated_at = now()
         where id = $1 and user_id = $2 and status = 'pronto' and coalesce(render, '') not in ('na_fila', 'renderizando')`,
