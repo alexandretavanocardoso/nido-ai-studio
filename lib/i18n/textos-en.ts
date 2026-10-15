@@ -3356,18 +3356,12 @@ export const TEXTOS_EN: Record<string, string> = {
   "O avatar está entrando na sala…": "The avatar is joining the room…",
   "O avatar saiu da sala.": "The avatar left the room.",
   "Volte para a sala para continuar a live.": "Go back to the room to continue the live.",
-  "O avatar está pronto. Entre no ar quando quiser.":
-    "The avatar is ready. Go on air whenever you want.",
   "AO VIVO": "LIVE",
   "Trazer o avatar de volta": "Bring the avatar back",
   "Voltar para a sala": "Back to the room",
   "Ouvindo aqui": "Listening here",
   "Mudo aqui": "Muted here",
   "Descartar": "Discard",
-  "3. Ligue o chat da Twitch, do YouTube ou do Kick (ou cole as mensagens) e responda por aqui, uma a uma ou sozinho.":
-    "3. Connect the Twitch, YouTube or Kick chat (or paste messages) and reply from here, one by one or automatically.",
-  "Marque a live como conteúdo feito com IA na plataforma em que for transmitir.":
-    "Label the live as AI-generated content on the platform you stream to.",
   "Link do palco": "Stage link",
   "Copiar link do palco (OBS)": "Copy stage link (OBS)",
   "Quem tiver o link vê a live: não compartilhe.":
@@ -3426,10 +3420,6 @@ export const TEXTOS_EN: Record<string, string> = {
     "Who they are and how they talk",
   "Ex.: Barista de 30 anos, apaixonado por café especial. Fala de um jeito descontraído, com humor, e sempre puxa conversa sobre viagens.":
     "E.g.: 30-year-old barista who loves specialty coffee. Talks in a relaxed, funny way and always brings up travel.",
-  "1. Marque as redes em “Transmitir para” e cole a chave de cada uma (ou use o link do palco no OBS).":
-    "1. Check the platforms under “Stream to” and paste each stream key (or use the stage link in OBS).",
-  "2. Entre no ar: o avatar entra na sala e a transmissão começa sozinha.":
-    "2. Go on air: the avatar joins the room and the stream starts on its own.",
   "Transmitir para":
     "Stream to",
   "Parar a transmissão":
@@ -3572,4 +3562,22 @@ export const TEXTOS_EN: Record<string, string> = {
     "Without video, with the NIDO bot",
   "No painel do chat (com a live no ar), ligue o Discord com o link do canal: o bot entra no canal ou palco, fala com a voz do avatar e manda o chat do canal para a fila.":
     "In the chat panel (with the live on air), connect Discord with the channel link: the bot joins the channel or stage, speaks with the avatar's voice and sends the channel chat to the queue.",
+  "Ouvir o avatar nesta página":
+    "Hear the avatar on this page",
+  "Esta é a prévia do avatar. Entre no ar quando quiser.":
+    "This is the avatar preview. Go on air whenever you want.",
+  "O palco mostra o mesmo que as redes recebem. Marque a live como conteúdo feito com IA na plataforma.":
+    "The stage shows exactly what the platforms receive. Label the live as AI-generated content on the platform.",
+  "O chat abre quando a live entrar no ar.":
+    "The chat opens when the live goes on air.",
+  "Aqui você liga o chat da Twitch, do YouTube, do Kick e do Discord (ou cola as mensagens) e responde uma a uma ou deixa o avatar responder sozinho.":
+    "Here you connect the Twitch, YouTube, Kick and Discord chat (or paste messages) and reply one by one or let the avatar reply on its own.",
+  "Palco para o OBS":
+    "Stage for OBS",
+  "Use no OBS como fonte de navegador (1280×720) para transmitir pelo OBS ou levar o avatar para outro app.":
+    "Use it in OBS as a browser source (1280×720) to stream through OBS or bring the avatar into another app.",
+  "Transmitir":
+    "Stream",
+  "OBS e Discord":
+    "OBS & Discord",
 };

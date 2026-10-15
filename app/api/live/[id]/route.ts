@@ -3,6 +3,7 @@ import {
   carregarLive,
   encerrarLive,
   estadoSessao,
+  previaDoAvatar,
   resumoDaLive,
   type EstadoSessao,
   type LiveRow,
@@ -17,7 +18,8 @@ export const dynamic = "force-dynamic";
 /**
  * GET — como está a live. Preparando: confere se o avatar do Runway ficou
  * pronto. No ar: confere a sessão atual do avatar e encerra quando o tempo
- * cobrado acaba. Devolve também quantos segundos ainda restam.
+ * cobrado acaba. Devolve também quantos segundos ainda restam e a prévia do
+ * avatar (a imagem que o Runway preparou, já no cenário).
  */
 export async function GET(
   _req: Request,
@@ -82,5 +84,11 @@ export async function GET(
     }
   }
 
-  return NextResponse.json({ live: resumoDaLive(live), sessao, restante });
+  // Prévia do avatar (a imagem que o Runway preparou) enquanto ainda dá para conferir.
+  const previa =
+    live.avatar_id && (live.status === "pronta" || live.status === "no_ar")
+      ? await previaDoAvatar(rw, live.avatar_id)
+      : null;
+
+  return NextResponse.json({ live: resumoDaLive(live), sessao, restante, previa });
 }

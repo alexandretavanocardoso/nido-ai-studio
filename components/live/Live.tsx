@@ -30,7 +30,12 @@ import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/cn";
 import { txErro } from "@/lib/i18n/erros";
 import { tx } from "@/lib/i18n/tx";
-import type { CenaLive, LiveResumo, PersonaSalva } from "@/lib/live/tipos";
+import {
+  REDES_TRANSMISSAO,
+  type CenaLive,
+  type LiveResumo,
+  type PersonaSalva,
+} from "@/lib/live/tipos";
 import {
   CREDITOS_CENARIO,
   creditosLive,
@@ -701,16 +706,27 @@ function PainelLive({ id }: { id: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [trilhaVideo, setTrilhaVideo] = useState<RemoteTrack | null>(null);
   const [trilhaAudio, setTrilhaAudio] = useState<RemoteTrack | null>(null);
+  /** Imagem que virou o avatar, para conferir antes de entrar no ar. */
+  const [previa, setPrevia] = useState<string | null>(null);
+  /** O que o avatar está falando agora (legenda no palco). */
+  const [falando, setFalando] = useState<string | null>(null);
+  const [aba, setAba] = useState<"chat" | "transmitir" | "obs">("transmitir");
 
   const character = personagens.find((c) => c.id === live?.characterId);
   const noAr = live?.status === "no_ar";
   const conectado = !!estado && estado !== "desconectada";
+
+  // Entrou no ar: o chat passa a ser a aba principal.
+  useEffect(() => {
+    if (noAr && conectado) setAba("chat");
+  }, [noAr, conectado]);
 
   const atualizar = useCallback(async () => {
     const res = await fetch(`/api/live/${id}`, { cache: "no-store" }).catch(() => null);
     const b = (await res?.json().catch(() => null)) as {
       live?: LiveResumo;
       restante?: number | null;
+      previa?: string | null;
       error?: string;
     } | null;
     if (!res?.ok || !b?.live) {
@@ -719,6 +735,7 @@ function PainelLive({ id }: { id: string }) {
     }
     setLive(b.live);
     if (b.restante !== undefined) setRestante(b.restante);
+    if (b.previa) setPrevia(b.previa);
     if (b.live.status === "encerrada") avisarCreditos();
   }, [id]);
 
@@ -832,7 +849,7 @@ function PainelLive({ id }: { id: string }) {
 
   if (!live)
     return (
-      <main className="mx-auto max-w-[1100px] px-4 sm:px-6 py-6 sm:py-10 grid gap-6">
+      <main className="mx-auto max-w-[1440px] px-4 sm:px-6 py-6 sm:py-8 grid gap-6">
         <Cabecalho voltar="/app/live" />
         {erro ? (
           <p className="text-[13px] text-pink">{erro}</p>
@@ -843,15 +860,60 @@ function PainelLive({ id }: { id: string }) {
     );
 
   const nome = character?.identidade.nome || live.persona?.nome || tx("Personagem");
+  const palcoAtivo = live.status === "pronta" || noAr;
+  const podeEntrar = !conectado || estado === "avatar_saiu";
 
   return (
-    <main className="mx-auto max-w-[1100px] px-4 sm:px-6 py-6 sm:py-10 grid grid-cols-[minmax(0,1fr)] gap-6">
-      <Cabecalho voltar="/app/live">
-        <p className="text-[15px] text-ink-mute mt-1">
-          {nome} · {tx(NOME_STATUS[live.status])}
-          {noAr && restante !== null ? ` · ${tx("restam")} ${relogio(restante)}` : ""}
-        </p>
-      </Cabecalho>
+    <main className="mx-auto max-w-[1440px] px-4 sm:px-6 py-6 sm:py-8 grid grid-cols-[minmax(0,1fr)] gap-5">
+      <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
+        <Cabecalho voltar="/app/live">
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-[14px] text-ink-mute">
+            <span className="font-semibold text-ink">{nome}</span>
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-[11px] font-bold",
+                noAr ? "bg-pink/20 text-pink" : live.status === "erro" ? "bg-pink/10 text-pink" : "bg-panel text-ink-mute",
+              )}
+            >
+              {tx(NOME_STATUS[live.status])}
+            </span>
+            {noAr && restante !== null ? (
+              <span className="mono text-[12px]">
+                {tx("restam")} {relogio(restante)}
+              </span>
+            ) : null}
+          </p>
+        </Cabecalho>
+        {palcoAtivo ? (
+          <div className="ml-auto flex flex-wrap items-center gap-2 self-center">
+            {conectado && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setOuvir((o) => !o)}
+                title={tx("Ouvir o avatar nesta página")}
+              >
+                {ouvir ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                {ouvir ? tx("Ouvindo aqui") : tx("Mudo aqui")}
+              </Button>
+            )}
+            <Button variant="danger" size="sm" onClick={encerrar}>
+              <Square className="w-3.5 h-3.5" />
+              {noAr ? tx("Encerrar") : tx("Descartar")}
+            </Button>
+            {podeEntrar ? (
+              <Button variant="accent" onClick={entrar} disabled={entrando}>
+                {entrando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radio className="w-4 h-4" />}
+                {live.status === "pronta"
+                  ? `${tx("Entrar no ar")} · ${creditosLive(live.duracaoMin)} ${tx("créditos")}`
+                  : estado === "avatar_saiu"
+                    ? tx("Trazer o avatar de volta")
+                    : tx("Voltar para a sala")}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
       {erro ? <p className="text-[13px] text-pink">{erro}</p> : null}
 
       {live.status === "preparando" && (
@@ -883,17 +945,73 @@ function PainelLive({ id }: { id: string }) {
         </div>
       )}
 
-      {(live.status === "pronta" || noAr) && (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] items-start">
-          <section className="grid gap-3">
-            <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-line bg-black">
-              <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
+      {palcoAtivo && (
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <section className="grid gap-2">
+            {/* Palco: o mesmo que as redes recebem (16:9). */}
+            <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-line bg-black">
+              {previa ? (
+                // Fundo: a imagem do avatar desfocada, preenchendo as laterais.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={previa}
+                  alt=""
+                  aria-hidden
+                  className="absolute inset-0 h-full w-full scale-110 object-cover opacity-40 blur-2xl"
+                />
+              ) : null}
+              {!trilhaVideo && previa ? (
+                // Antes do vídeo chegar: a imagem que virou o avatar (já no cenário).
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={previa} alt="" className="absolute inset-0 h-full w-full object-contain" />
+              ) : null}
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className={cn("absolute inset-0 h-full w-full object-contain", !trilhaVideo && "invisible")}
+              />
               <audio ref={audioRef} autoPlay muted={!ouvir} />
+
+              {/* Selos no alto: ao vivo, tempo e redes recebendo. */}
+              <div className="absolute inset-x-3 top-3 flex flex-wrap items-center gap-2">
+                {trilhaVideo ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-pink px-2.5 py-1 text-[11px] font-bold text-white">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                    {tx("AO VIVO")}
+                    {restante !== null ? <span className="mono font-semibold">· {relogio(restante)}</span> : null}
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm">
+                    {tx("Prévia")}
+                  </span>
+                )}
+                {live.transmitindo.map((r) => (
+                  <span
+                    key={r}
+                    className="rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm"
+                  >
+                    {REDES_TRANSMISSAO[r].nome}
+                  </span>
+                ))}
+              </div>
+
+              {/* Legenda: o que o avatar está falando agora. */}
+              {trilhaVideo && falando ? (
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-5 pb-4 pt-10">
+                  <p className="mx-auto max-w-3xl text-center text-[15px] font-medium leading-snug text-white">
+                    {falando}
+                  </p>
+                </div>
+              ) : null}
+
+              {/* Enquanto o avatar não está no vídeo: o que está acontecendo. */}
               {!trilhaVideo && (
-                <div className="absolute inset-0 grid place-items-center p-6 text-center text-[13px] text-ink-mute">
+                <div className="absolute inset-x-0 bottom-0 grid justify-items-center bg-gradient-to-t from-black/85 to-transparent px-5 pb-5 pt-12 text-center text-[13px] text-white">
                   {estado === "conectando" || estado === "esperando_avatar" || entrando ? (
-                    <span className="grid justify-items-center gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
                       {tx("O avatar está entrando na sala…")}
                     </span>
                   ) : estado === "avatar_saiu" ? (
@@ -901,61 +1019,74 @@ function PainelLive({ id }: { id: string }) {
                   ) : noAr ? (
                     tx("Volte para a sala para continuar a live.")
                   ) : (
-                    tx("O avatar está pronto. Entre no ar quando quiser.")
+                    tx("Esta é a prévia do avatar. Entre no ar quando quiser.")
                   )}
                 </div>
               )}
-              {trilhaVideo && (
-                <span className="absolute left-3 top-3 rounded-full bg-pink px-2.5 py-0.5 text-[11px] font-bold text-white">
-                  {tx("AO VIVO")}
-                </span>
-              )}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {!conectado || estado === "avatar_saiu" ? (
-                <Button variant="accent" onClick={entrar} disabled={entrando}>
-                  {entrando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radio className="w-4 h-4" />}
-                  {live.status === "pronta"
-                    ? `${tx("Entrar no ar")} · ${creditosLive(live.duracaoMin)} ${tx("créditos")}`
-                    : estado === "avatar_saiu"
-                      ? tx("Trazer o avatar de volta")
-                      : tx("Voltar para a sala")}
-                </Button>
-              ) : null}
-              {conectado && (
-                <Button variant="ghost" size="sm" onClick={() => setOuvir((o) => !o)}>
-                  {ouvir ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                  {ouvir ? tx("Ouvindo aqui") : tx("Mudo aqui")}
-                </Button>
-              )}
-              {(noAr || live.status === "pronta") && (
-                <Button variant="danger" size="sm" onClick={encerrar}>
-                  <Square className="w-3.5 h-3.5" />
-                  {noAr ? tx("Encerrar") : tx("Descartar")}
-                </Button>
-              )}
-            </div>
-            <PainelTransmissao
-              id={id}
-              noAr={noAr && conectado}
-              avatarNoAr={!!trilhaVideo}
-              transmitindo={live.transmitindo}
-            />
-            <LinkDoPalco id={id} />
-            <GuiaDiscord id={id} />
+            <p className="text-[12px] text-ink-dim">
+              {tx("O palco mostra o mesmo que as redes recebem. Marque a live como conteúdo feito com IA na plataforma.")}
+            </p>
           </section>
 
-          {noAr && conectado ? (
-            <Conducao sala={salaRef} id={id} avatarNoAr={!!trilhaVideo} />
-          ) : (
-            <div className="card p-6 text-[13px] text-ink-mute grid gap-2">
-              <p className="font-semibold text-ink">{tx("Como funciona")}</p>
-              <p>{tx("1. Marque as redes em “Transmitir para” e cole a chave de cada uma (ou use o link do palco no OBS).")}</p>
-              <p>{tx("2. Entre no ar: o avatar entra na sala e a transmissão começa sozinha.")}</p>
-              <p>{tx("3. Ligue o chat da Twitch, do YouTube ou do Kick (ou cole as mensagens) e responda por aqui, uma a uma ou sozinho.")}</p>
-              <p>{tx("Marque a live como conteúdo feito com IA na plataforma em que for transmitir.")}</p>
+          <aside className="grid content-start gap-3">
+            <div role="tablist" className="grid grid-cols-3 gap-1 rounded-full border border-line p-1">
+              {(
+                [
+                  ["chat", "Chat"],
+                  ["transmitir", "Transmitir"],
+                  ["obs", "OBS e Discord"],
+                ] as const
+              ).map(([a, rotulo]) => (
+                <button
+                  key={a}
+                  type="button"
+                  role="tab"
+                  aria-selected={aba === a}
+                  onClick={() => setAba(a)}
+                  className={cn(
+                    "h-8 truncate rounded-full px-2 text-[12px] font-semibold transition cursor-pointer",
+                    aba === a ? "bg-accent text-bg" : "text-ink-mute hover:text-ink",
+                  )}
+                >
+                  {tx(rotulo)}
+                  {a === "transmitir" && live.transmitindo.length ? ` · ${live.transmitindo.length}` : ""}
+                </button>
+              ))}
             </div>
-          )}
+
+            {/* As abas ficam montadas: o chat (fila e conexões) e a transmissão não podem se perder ao trocar. */}
+            <div className={cn(aba !== "chat" && "hidden")}>
+              {noAr && conectado ? (
+                <Conducao sala={salaRef} id={id} avatarNoAr={!!trilhaVideo} onFalando={setFalando} />
+              ) : (
+                <div className="card grid gap-2 p-5 text-[13px] text-ink-mute">
+                  <p className="font-semibold text-ink">{tx("O chat abre quando a live entrar no ar.")}</p>
+                  <p>
+                    {tx("Aqui você liga o chat da Twitch, do YouTube, do Kick e do Discord (ou cola as mensagens) e responde uma a uma ou deixa o avatar responder sozinho.")}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className={cn(aba !== "transmitir" && "hidden")}>
+              <PainelTransmissao
+                id={id}
+                noAr={noAr && conectado}
+                avatarNoAr={!!trilhaVideo}
+                transmitindo={live.transmitindo}
+              />
+            </div>
+            <div className={cn("grid gap-3", aba !== "obs" && "hidden")}>
+              <div className="card grid gap-2 p-4">
+                <span className="label-cap">{tx("Palco para o OBS")}</span>
+                <p className="text-[12px] text-ink-mute">
+                  {tx("Use no OBS como fonte de navegador (1280×720) para transmitir pelo OBS ou levar o avatar para outro app.")}
+                </p>
+                <LinkDoPalco id={id} />
+              </div>
+              <GuiaDiscord id={id} />
+            </div>
+          </aside>
         </div>
       )}
     </main>
@@ -972,15 +1103,19 @@ function Conducao({
   sala,
   id,
   avatarNoAr,
+  onFalando,
 }: {
   sala: React.RefObject<SalaLive | null>;
   id: string;
   avatarNoAr: boolean;
+  /** Avisa o que está sendo falado (legenda no palco). */
+  onFalando?: (texto: string | null) => void;
 }) {
   const [fila, setFila] = useState<ItemFila[]>([]);
   const [historico, setHistorico] = useState<TrocaLive[]>([]);
   const [falando, setFalando] = useState<string | null>(null);
   const [pensando, setPensando] = useState(false);
+  useEffect(() => onFalando?.(falando), [falando, onFalando]);
   const [auto, setAuto] = useState(false);
   const [autor, setAutor] = useState("");
   const [mensagem, setMensagem] = useState("");

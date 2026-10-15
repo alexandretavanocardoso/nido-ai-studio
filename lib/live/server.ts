@@ -144,6 +144,20 @@ export async function criarAvatarDaImagem(
   });
 }
 
+/**
+ * Prévia do avatar: a imagem que o Runway preparou (a pessoa já no cenário),
+ * para conferir antes de entrar no ar. O endereço é temporário.
+ */
+export async function previaDoAvatar(rw: RunwayML, avatarId: string): Promise<string | null> {
+  try {
+    const a = await rw.avatars.retrieve(avatarId);
+    return a.processedImageUri ?? a.referenceImageUri ?? null;
+  } catch (e) {
+    console.warn("[live] prévia do avatar", avatarId, (e as Error).message);
+    return null;
+  }
+}
+
 /** Folga dos tokens da sala além da duração da live. */
 const FOLGA_TOKEN = 3600;
 
