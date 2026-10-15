@@ -81,6 +81,37 @@ describe("cleanupOrphans", () => {
     expect(apagados).toEqual(["users/u1/refs/antiga.jpg"]);
   });
 
+  it("produtos criados: a imagem, a logo e a foto básica ficam; sem a tabela, nada quebra", async () => {
+    const objetos = () => ({
+      "users/u1/": [
+        { Key: "users/u1/generated/produto.jpg", LastModified: VELHO },
+        { Key: "users/u1/refs/logo.png", LastModified: VELHO },
+        { Key: "users/u1/refs/foto.jpg", LastModified: VELHO },
+        { Key: "users/u1/refs/solta.jpg", LastModified: VELHO },
+      ],
+    });
+    const comProdutos = {
+      query: vi.fn(async (sql: string) =>
+        sql.includes("from produtos")
+          ? { rows: [{ k: "users/u1/generated/produto.jpg" }, { k: "users/u1/refs/logo.png" }, { k: "users/u1/refs/foto.jpg" }, { k: null }] }
+          : { rows: [], rowCount: 1 },
+      ),
+    } as unknown as Pool;
+    const a = fakeS3(objetos());
+    await cleanupOrphans(a.s3, comProdutos);
+    expect(a.apagados).toEqual(["users/u1/refs/solta.jpg"]);
+
+    const semTabela = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("from produtos")) throw Object.assign(new Error("relation does not exist"), { code: "42P01" });
+        return { rows: [], rowCount: 1 };
+      }),
+    } as unknown as Pool;
+    const b = fakeS3(objetos());
+    await cleanupOrphans(b.s3, semTabela);
+    expect(b.apagados).toHaveLength(4);
+  });
+
   it("PFPs e fotos da Sombra ficam enquanto a conta existe; de conta apagada, vão embora", async () => {
     const { s3, apagados } = fakeS3({
       "users/u1/": [

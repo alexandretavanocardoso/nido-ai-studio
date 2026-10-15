@@ -957,6 +957,13 @@ const ERROS_EN: Record<string, string> = {
     "The scenes don't match the chosen duration. Put the scenes together again.",
   "Escreva a fala de cada cena.": "Write the speech for each scene.",
   "Escolha a voz.": "Choose the voice.",
+  // Criar produto (app/api/produto/criar)
+  "Dê um nome ao produto.": "Give the product a name.",
+  "Envie a logo da empresa.": "Upload the company logo.",
+  "Envie a foto básica do produto ou descreva como ele é.": "Upload the basic product photo or describe what it looks like.",
+  "Este modelo de imagem não está configurado neste servidor.": "This image model isn't set up on this server.",
+  "Criar produto ainda não está disponível neste servidor.": "Create product isn't available on this server yet.",
+  "Produto não encontrado.": "Product not found.",
   "Falha ao traduzir.": "Couldn't translate.",
   // Música de fundo (app/api/videos/musica)
   "Confirme que tem direito de usar a música.": "Confirm that you have the right to use the music.",

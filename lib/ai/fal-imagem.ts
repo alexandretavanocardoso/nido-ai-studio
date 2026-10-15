@@ -21,12 +21,13 @@ const PERSONA_RAPIDA = "fal-ai/flux-lora";
 const TAMANHO_RAPIDA = {
   referencia: { width: 1344, height: 768 },
   retrato: { width: 832, height: 1248 },
+  quadrado: { width: 1024, height: 1024 },
 };
 
-type Tipo = "referencia" | "retrato";
+type Tipo = "referencia" | "retrato" | "quadrado";
 
 /**
- * Tamanho de saída por modelo: card 16:9, retrato 2:3.
+ * Tamanho de saída por modelo: card 16:9, retrato 2:3, quadrado (produto criado).
  *  - Seedream aceita só 2K–4K → usa 4K (é a proposta do modelo).
  *  - Flux.2 cobra por megapixel → ~2 MP.
  *  - GPT Image exige múltiplos de 16.
@@ -36,10 +37,10 @@ export function tamanho(
   tipo: Tipo,
 ): { width: number; height: number } {
   const t = {
-    seedream: { referencia: [3840, 2160], retrato: [2304, 3456] },
-    flux2: { referencia: [1920, 1088], retrato: [1088, 1632] },
-    persona: { referencia: [1920, 1088], retrato: [1088, 1632] },
-    "gpt-image": { referencia: [1536, 864], retrato: [1024, 1536] },
+    seedream: { referencia: [3840, 2160], retrato: [2304, 3456], quadrado: [2048, 2048] },
+    flux2: { referencia: [1920, 1088], retrato: [1088, 1632], quadrado: [1440, 1440] },
+    persona: { referencia: [1920, 1088], retrato: [1088, 1632], quadrado: [1440, 1440] },
+    "gpt-image": { referencia: [1536, 864], retrato: [1024, 1536], quadrado: [1024, 1024] },
   }[modelo][tipo];
   return { width: t[0], height: t[1] };
 }

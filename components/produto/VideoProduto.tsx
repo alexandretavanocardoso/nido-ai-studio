@@ -45,6 +45,8 @@ import {
   type ModeloFalado,
 } from "@/lib/video/precos";
 import { EscolherMusica, type MusicaEscolhida } from "@/components/musica/EscolherMusica";
+import type { ProdutoCriado } from "@/lib/produto-criado";
+import { CriarProduto } from "./CriarProduto";
 import { HistoricoProduto } from "./HistoricoProduto";
 import { RoteiroProduto } from "./RoteiroProduto";
 
@@ -75,8 +77,18 @@ export function VideoProduto() {
   const [foto, setFoto] = useState<ImagemEnviada | null>(null);
   /** Fotos do produto: a primeira é obrigatória; a vaga seguinte aparece quando a anterior é enviada. */
   const [fotosProduto, setFotosProduto] = useState<Array<ImagemEnviada | null>>([null]);
-  const produtoKeys = fotosProduto.filter((f): f is ImagemEnviada => !!f).map((f) => f.key);
+  /** De onde vem o produto: fotos enviadas ou um produto criado em 3D (aba "Criar produto"). */
+  const [origem, setOrigem] = useState<"foto" | "criar">("foto");
+  const [criado, setCriado] = useState<ProdutoCriado | null>(null);
+  const produtoKeys =
+    origem === "criar"
+      ? criado
+        ? [criado.imageKey]
+        : []
+      : fotosProduto.filter((f): f is ImagemEnviada => !!f).map((f) => f.key);
   const [produto, setProduto] = useState("");
+  /** Texto que o produto criado escreveu em "Qual é o produto" (trocar de produto só sobrescreve esse). */
+  const [produtoAuto, setProdutoAuto] = useState("");
   const [cenario, setCenario] = useState("");
   const [detalhes, setDetalhes] = useState("");
   const [modo, setModo] = useState<ModoProduto>("falado");
@@ -254,7 +266,32 @@ export function VideoProduto() {
                   </div>
                   <div className="grid gap-2">
                     <span className="label-cap">{tx("Produto")}</span>
-                    {fotosProduto.map((f, i) => (
+                    <div className="flex flex-wrap gap-1.5">
+                      {(
+                        [
+                          ["foto", "Foto"],
+                          ["criar", "Criar produto"],
+                        ] as const
+                      ).map(([o, rotulo]) => (
+                        <button key={o} type="button" onClick={() => setOrigem(o)} className={cn(pilula(origem === o), "h-8 px-3 cursor-pointer")}>
+                          {tx(rotulo)}
+                        </button>
+                      ))}
+                    </div>
+                    {origem === "criar" ? (
+                      <CriarProduto
+                        escolhido={criado?.id ?? null}
+                        onEscolher={(p) => {
+                          setCriado(p);
+                          // Preenche "Qual é o produto" (sem apagar o que a pessoa escreveu).
+                          if (p && (!produto.trim() || produto === produtoAuto)) {
+                            const texto = (p.descricao ? `${p.nome} — ${p.descricao}` : p.nome).slice(0, PRODUTO_MAX_CARACTERES);
+                            setProduto(texto);
+                            setProdutoAuto(texto);
+                          }
+                        }}
+                      />
+                    ) : fotosProduto.map((f, i) => (
                       <div key={i} className="relative">
                         <QuemEntra
                           valor={f}

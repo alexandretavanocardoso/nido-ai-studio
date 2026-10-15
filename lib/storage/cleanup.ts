@@ -68,6 +68,7 @@ export async function limparUsuario(
   );
   const emUso = new Set(rows.flatMap((r) => r.json.match(KEY_RE) ?? []));
   for (const key of await capasDeNft(pool, userId)) emUso.add(key);
+  for (const key of await arquivosDeProdutos(pool, userId)) emUso.add(key);
 
   // Pastas da conta, fora de qualquer personagem, que ficam enquanto a conta
   // existir: os PFPs do perfil (lib/pfp-server.ts) e as fotos da Sombra sem
@@ -95,6 +96,24 @@ export async function limparUsuario(
     stats.apagados += lote.length;
   }
   return stats;
+}
+
+/**
+ * Produtos criados na tela de vídeo de produto (lib/produto-criado.ts): a
+ * imagem do produto, a logo e a foto básica. Banco sem a tabela (migration
+ * 0044 ainda não aplicada) = nenhum; outro erro interrompe a limpeza.
+ */
+async function arquivosDeProdutos(pool: Pool, userId: string): Promise<string[]> {
+  try {
+    const { rows } = await pool.query<{ k: string | null }>(
+      `select unnest(array[image_key, logo_key, foto_key]) as k from produtos where user_id = $1`,
+      [userId],
+    );
+    return rows.flatMap((r) => (r.k ? [r.k] : []));
+  } catch (e) {
+    if ((e as { code?: string }).code === "42P01") return [];
+    throw e;
+  }
 }
 
 /**
