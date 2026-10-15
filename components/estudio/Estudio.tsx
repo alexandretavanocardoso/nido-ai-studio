@@ -1,17 +1,6 @@
 "use client";
 
-import {
-  CalendarClock,
-  CalendarDays,
-  Clapperboard,
-  ImageIcon,
-  PenLine,
-  Radar as IconeRadar,
-  type LucideIcon,
-  Sticker,
-} from "lucide-react";
 import type { Character } from "@/lib/types";
-import { cn } from "@/lib/cn";
 import { useRecursos } from "@/components/RecursosProvider";
 import { VideosOrigem } from "@/components/revisao/VideosOrigem";
 import { PromptSubstituirVideo } from "@/components/revisao/PromptSubstituirVideo";
@@ -37,120 +26,55 @@ export const SECOES_ESTUDIO: Array<{
   id: SecaoEstudio;
   titulo: string;
   descricao: string;
-  icon: LucideIcon;
 }> = [
   {
     id: "videos",
     titulo: "Vídeos",
     descricao:
       "Troque a pessoa de um vídeo pelo personagem, crie cenas novas, edite legendas e falas.",
-    icon: Clapperboard,
   },
   {
     id: "textos",
     titulo: "Textos",
     descricao:
       "Legendas, roteiros e respostas a comentários na voz do personagem.",
-    icon: PenLine,
   },
   {
     id: "imagens",
     titulo: "Imagens",
     descricao:
       "Card de referência com posicionamentos e retratos fiéis ao personagem.",
-    icon: ImageIcon,
   },
   {
     id: "figurinhas",
     titulo: "Figurinhas",
     descricao:
       "Figurinhas de WhatsApp do personagem: crie novas ou troque o personagem de uma figurinha pronta.",
-    icon: Sticker,
   },
   {
     id: "publicar",
     titulo: "Publicar",
     descricao:
       "Conecte as redes do influencer e publique agora ou agende posts no Instagram, TikTok, YouTube Shorts, X e LinkedIn.",
-    icon: CalendarClock,
   },
   {
     id: "agendamentos",
     titulo: "Agendamentos",
     descricao:
       "Calendário com o que foi agendado e publicado, e o backlog de posts prontos para agendar.",
-    icon: CalendarDays,
   },
   {
     id: "radar",
     titulo: "Radar",
     descricao:
       "O que está acontecendo hoje nos temas do personagem, com nota de relevância e ideia de post.",
-    icon: IconeRadar,
   },
 ];
 
-/** O Radar tem aba própria no cabeçalho do personagem: fica fora do menu do Estúdio. */
-const SECOES_DO_MENU = SECOES_ESTUDIO.filter((s) => s.id !== "radar");
-
-/** Navegação do Estúdio (coluna da esquerda no desktop, abas no celular). */
-export function EstudioNav({
-  atual,
-  onPick,
-  orientation,
-}: {
-  atual: SecaoEstudio;
-  onPick: (s: SecaoEstudio) => void;
-  orientation: "vertical" | "horizontal";
-}) {
-  const t = useT();
-  const vertical = orientation === "vertical";
-  return (
-    <nav
-      aria-label={tx("Estúdio")}
-      className={cn(
-        vertical ? "grid gap-1" : "flex gap-2 overflow-x-auto pb-1",
-      )}
-    >
-      {SECOES_DO_MENU.map((s) => {
-        const ativo = s.id === atual;
-        return (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => onPick(s.id)}
-            aria-current={ativo ? "page" : undefined}
-            className={cn(
-              "flex items-center gap-3 rounded-xl text-left transition shrink-0",
-              vertical ? "w-full px-3 py-2.5" : "px-3.5 py-2 border",
-              ativo
-                ? vertical
-                  ? "bg-card text-ink"
-                  : "border-accent bg-accent/10 text-ink"
-                : vertical
-                  ? "text-ink-mute hover:bg-panel hover:text-ink"
-                  : "border-line text-ink-mute hover:text-ink",
-            )}
-          >
-            <span
-              className={cn(
-                "inline-flex h-8 w-8 items-center justify-center rounded-lg shrink-0",
-                ativo ? "bg-accent text-bg" : "bg-panel text-ink-mute",
-              )}
-            >
-              <s.icon className="w-4 h-4" />
-            </span>
-            <span className="text-[14px] font-semibold">
-              {t(`estudio.${s.id}.titulo` as Chave)}
-            </span>
-          </button>
-        );
-      })}
-    </nav>
-  );
-}
-
-/** Conteúdo de uma seção do Estúdio. */
+/**
+ * Conteúdo de uma seção do Estúdio. O Estúdio não tem menu próprio: as seções
+ * abrem pelo menu lateral do app (pasta Ferramentas e Agenda), que marca a aberta.
+ */
 export function EstudioConteudo({
   secao,
   character,

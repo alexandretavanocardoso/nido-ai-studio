@@ -88,6 +88,8 @@ async function chamar(
 /**
  * O Sapiens gera o vídeo no formato da imagem (não aceita proporção no
  * image-to-video), então a imagem inicial é recortada para 9:16 ou 16:9 antes.
+ * O recorte vai para onde está o rosto (`attention`), não para o centro: no
+ * retrato de corpo inteiro em 16:9, o centro deixava só o tronco.
  */
 export async function recortarParaFormato(
   imagem: Buffer,
@@ -95,7 +97,10 @@ export async function recortarParaFormato(
 ): Promise<Buffer> {
   return sharp(imagem)
     .rotate()
-    .resize(vertical ? 720 : 1280, vertical ? 1280 : 720, { fit: "cover" })
+    .resize(vertical ? 720 : 1280, vertical ? 1280 : 720, {
+      fit: "cover",
+      position: sharp.strategy.attention,
+    })
     .jpeg({ quality: 92 })
     .toBuffer();
 }

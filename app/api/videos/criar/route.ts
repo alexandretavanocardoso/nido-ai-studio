@@ -43,6 +43,7 @@ import {
   recortarParaFormato,
 } from "@/lib/video/sapiens";
 import { contextoVideo } from "@/lib/video/server";
+import { enviarCriacaoVeo, getVeo, mensagemDeErroVeo } from "@/lib/video/veo";
 import { enviarCriacaoWan } from "@/lib/video/wan";
 
 export const runtime = "nodejs";
@@ -65,7 +66,8 @@ const BodySchema = z.object({
  * POST — cria um vídeo novo do personagem. Assíncrono: devolve o id do job,
  * acompanhado em /api/videos/jobs/[id] (e finalizado por webhook/cron).
  * Runway (Gen-4 Turbo, Gen-4.5, Veo 3.1 Fast), Sapiens (Kling V3, e o Veo
- * quando a chave dele está configurada) ou fal (Wan 3.0): imagem inicial + texto.
+ * quando a chave dele está configurada), fal (Wan 3.0) ou Google (Veo 3.1
+ * Lite): imagem inicial + texto.
  */
 export async function POST(req: Request) {
   const ctx = await contextoVideo();
@@ -84,16 +86,18 @@ export async function POST(req: Request) {
   const runway = getRunway();
   const sapiens = getSapiens();
   const fal = getFal();
+  const gemini = getVeo();
   const provedor = provedorCriar(body.modelo, {
     runway: !!runway,
     sapiens: !!sapiens,
     fal: !!fal,
+    gemini: !!gemini,
   });
   if (!pool || !provedor)
     return NextResponse.json(
       {
         error:
-          runway || sapiens || fal
+          runway || sapiens || fal || gemini
             ? "Este modelo de vídeo não está configurado neste servidor."
             : "Criação de vídeo não configurada (RUNWAYML_API_SECRET).",
         code: "CONFIG_MISSING",
@@ -173,9 +177,9 @@ export async function POST(req: Request) {
       audio,
     };
     let idExterno: string;
-    if (provedor === "sapiens" || provedor === "fal") {
-      // O Sapiens segue o formato da imagem, e o Wan parte dela como primeiro
-      // quadro: ela vai recortada em 9:16 ou 16:9.
+    if (provedor !== "runway") {
+      // O Sapiens segue o formato da imagem, e o Wan e o Veo partem dela como
+      // primeiro quadro: ela vai recortada em 9:16 ou 16:9.
       const quadroKey = newKey(userId, "refs", "image/jpeg");
       await putObject(
         s3,
@@ -190,7 +194,9 @@ export async function POST(req: Request) {
       idExterno =
         provedor === "fal"
           ? await enviarCriacaoWan(fal!, { ...pedido, jobId, imageUrl })
-          : await enviarCriacaoSapiens(sapiens!, { ...pedido, imageUrl });
+          : provedor === "google"
+            ? await enviarCriacaoVeo(gemini!, { ...pedido, imageUrl })
+            : await enviarCriacaoSapiens(sapiens!, { ...pedido, imageUrl });
     } else
       idExterno = await enviarCriacao(runway!, {
         ...pedido,
@@ -236,7 +242,9 @@ export async function POST(req: Request) {
             ? mensagemDeErroSapiens(e)
             : provedor === "fal"
               ? mensagemDeErro(e)
-              : mensagemDeErroRunway(e),
+              : provedor === "google"
+                ? mensagemDeErroVeo(e)
+                : mensagemDeErroRunway(e),
         code: "PROVIDER_ERROR",
       },
       { status: 502 },

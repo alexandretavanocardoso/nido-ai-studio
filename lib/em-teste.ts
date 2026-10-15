@@ -77,17 +77,17 @@ export const SOBRE_O_RECURSO: Record<
   live: {
     titulo: "Live do personagem",
     descricao:
-      "A página Estúdio → Live: o personagem entra ao vivo com o avatar em tempo real (Runway + LiveKit), responde o chat com a voz dele e vira uma fonte para o OBS. Fechado, só as contas admin veem e entram no ar.",
+      "A página Live (menu: Sem personagem): o personagem entra ao vivo com o avatar em tempo real (Runway + LiveKit), responde o chat com a voz dele e vira uma fonte para o OBS. Fechado, só as contas admin veem e entram no ar.",
   },
   video_produto: {
     titulo: "Vídeo de produto",
     descricao:
-      "A página Estúdio → Produto: o influencer (um personagem ou uma foto) mostrando e usando um produto, com ou sem fala, em vídeos de até 60s. Cobra créditos como os outros vídeos. Fechado, só as contas admin veem e geram.",
+      "A página Produto (menu: Sem personagem): o influencer (um personagem ou uma foto) mostrando e usando um produto, com ou sem fala, em vídeos de até 60s. Cobra créditos como os outros vídeos. Fechado, só as contas admin veem e geram.",
   },
   motion: {
     titulo: "Motion",
     descricao:
-      "A página Estúdio → Motion: a IA escreve uma animação (motion graphics) do site, do produto ou do influencer, com ajustes, música e MP4. Cobra a estimativa em créditos ao pedir e acerta pelo custo real quando fica pronto (devolve tudo se falhar). Precisa do worker/motion ligado no Railway. Fechado, só as contas admin veem e geram.",
+      "A página Motion (menu: Sem personagem): a IA escreve uma animação (motion graphics) do site, do produto ou do influencer, com ajustes, música e MP4. Cobra a estimativa em créditos ao pedir e acerta pelo custo real quando fica pronto (devolve tudo se falhar). Precisa do worker/motion ligado no Railway. Fechado, só as contas admin veem e geram.",
   },
   login: {
     titulo: "Login de usuários",

@@ -636,7 +636,7 @@ export function NftPersonagem({ character }: { character: Character }) {
                   ) : !retrato ? (
                     <p className="text-[13px] text-ink-mute">
                       {tx(
-                        "Gere o retrato do personagem em Estúdio → Imagens para mintar: ele é a imagem do NFT.",
+                        "Gere o retrato do personagem em Imagens (menu lateral) para mintar: ele é a imagem do NFT.",
                       )}
                     </p>
                   ) : !arte ? (
@@ -1016,7 +1016,7 @@ function CartaoDoNft({
                 "É assim que o NFT vai aparecer. A imagem é a arte que você escolher, e não muda depois do mint; os traços e os badges entram depois do mint.",
               )}
               {!temRetrato(character)
-                ? ` ${tx("Este personagem ainda não tem um retrato gerado: gere um em Estúdio → Imagens para ele ser a imagem do NFT.")}`
+                ? ` ${tx("Este personagem ainda não tem um retrato gerado: gere um em Imagens (menu lateral) para ele ser a imagem do NFT.")}`
                 : ""}
             </p>
             <Button variant="accent" onClick={onMintar} className="w-fit">
@@ -1315,7 +1315,7 @@ function ContasDoInfluencer({ estado }: { estado: EstadoNft }) {
 
       <p className="max-w-3xl text-[12px] leading-relaxed text-ink-dim">
         {tx(
-          "Em cada rede vale uma conta: a conectada em Estúdio → Publicar, ou a do primeiro post cadastrado por link. Só os posts dela contam, e cada conta serve a um personagem só. Números digitados à mão não contam. Com conta não conectada, as marcas mais altas passam por conferência.",
+          "Em cada rede vale uma conta: a conectada em Publicar (menu lateral), ou a do primeiro post cadastrado por link. Só os posts dela contam, e cada conta serve a um personagem só. Números digitados à mão não contam. Com conta não conectada, as marcas mais altas passam por conferência.",
         )}
       </p>
     </div>

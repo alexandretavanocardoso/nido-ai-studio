@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   custoCriar,
+  custoPorSegundoTroca,
   custoTroca,
+  custoTrocaOmni,
   custoTrocaPremium,
+  MINIMO_TROCA,
+  MODELOS_TROCA,
+  MODELOS_TROCA_IDS,
   MAX_TOMADAS,
   segundosCobradosTroca,
   segundosDaTomada,
@@ -27,11 +32,27 @@ describe("estimativas de custo de vídeo", () => {
     expect(custoTrocaPremium(3)).toBe(2.27);
   });
 
+  it("Gemini Omni Flash: ~US$ 0,10/s em 720p, mínimo 3s", () => {
+    expect(custoTrocaOmni(10)).toBe(1);
+    expect(custoTrocaOmni(1)).toBe(0.3);
+    expect(custoPorSegundoTroca("omni")).toBe(0.1);
+    expect(MINIMO_TROCA).toEqual({ kling: 3, seedance: 3, omni: 3 });
+  });
+
+  it("só o Seedance e o Omni avisam que podem recusar rostos reais", () => {
+    expect(MODELOS_TROCA_IDS.filter((id) => MODELOS_TROCA[id].recusaRostoReal)).toEqual(["seedance", "omni"]);
+  });
+
   it("criar vídeo: Veo com áudio custa mais; Gen-4 ignora áudio", () => {
     expect(custoCriar("veo3.1_fast", 8, false)).toBe(0.8);
     expect(custoCriar("veo3.1_fast", 8, true)).toBe(1.2);
     expect(custoCriar("gen4.5", 10, true)).toBe(1.2);
     expect(custoCriar("gen4_turbo", 10, false)).toBe(0.5);
+  });
+
+  it("Veo 3.1 Lite: o mesmo preço com ou sem áudio (o Google sempre gera o som)", () => {
+    expect(custoCriar("veo3.1_lite", 8, false)).toBe(0.4);
+    expect(custoCriar("veo3.1_lite", 8, true)).toBe(0.4);
   });
 });
 
@@ -49,6 +70,7 @@ describe("criar vídeo em cenas", () => {
     expect(cenasDoVideo("veo3.1_fast", 15)).toEqual([8, 8]);
     expect(cenasDoVideo("veo3.1_fast", 30)).toEqual([8, 8, 8, 6]);
     expect(segundosGerados("veo3.1_fast", 15)).toBe(16);
+    expect(cenasDoVideo("veo3.1_lite", 30)).toEqual([8, 8, 8, 6]);
     expect(segundosGerados("gen4.5", 15)).toBe(15);
   });
 
@@ -77,6 +99,12 @@ describe("criar vídeo em cenas", () => {
     expect(provedorCriar("wan3", { ...os2, fal: true })).toBe("fal");
     expect(
       provedorCriar("gen4.5", { runway: false, sapiens: false, fal: true }),
+    ).toBeNull();
+    // O Lite só existe na API do Gemini; o Fast nunca vai por ela.
+    expect(provedorCriar("veo3.1_lite", os2)).toBeNull();
+    expect(provedorCriar("veo3.1_lite", { ...os2, gemini: true })).toBe("google");
+    expect(
+      provedorCriar("veo3.1_fast", { runway: false, sapiens: false, gemini: true }),
     ).toBeNull();
     const { modeloPadraoCriar } = await import("./precos");
     expect(modeloPadraoCriar({ sapiens: true })).toBe("kling_v3");

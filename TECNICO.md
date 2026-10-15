@@ -182,12 +182,14 @@ O CORS com `GET` também é necessário para a exportação em PNG/PDF (html2can
 No painel **"Substituir pessoa em vídeo"** (Revisão), com login + S3, a pessoa envia vídeos e, em cada um:
 
 - **Legenda** — para legendas "queimadas" na imagem. Escolhe um quadro, arrasta um retângulo sobre a legenda e escolhe **Remover** (o `delogo` do ffmpeg reconstrói a área com os pixels vizinhos) ou **Trocar texto** (remove e escreve o novo texto centralizado, em Poppins Bold branca com contorno). Roda no servidor com o ffmpeg do pacote `ffmpeg-static`, sem custo externo, até 3 min de vídeo. Gera um vídeo novo; o original fica.
-- **Trocar pessoa** — troca a pessoa pelo personagem mantendo movimento, câmera, cenário **e o áudio original** (música, fala). Dois motores, escolhidos na tela:
+- **Trocar pessoa** — troca a pessoa pelo personagem mantendo movimento, câmera, cenário **e o áudio original** (música, fala). Três motores, escolhidos na tela:
   - **Padrão · Kling O3 Edit** no fal.ai (`lib/video/troca.ts`), em Standard (US$ 0,126/s → 13 créditos/s), Pro (US$ 0,168/s → 17 créditos/s) ou 4K (US$ 0,42/s → 42 créditos/s), trechos de até 15s; vai com quadro-âncora, close do rosto e descrição das outras pessoas (`lib/video/ancora.ts`), de 3s até o limite do plano (60s no Studio). A personagem vai **sem fundo** (recortada com BiRefNet e posta sobre branco — com fundo, o modelo copia o cenário da imagem). O Kling aceita 3–10s com lado menor ≥ 720px, então o vídeo vira **trechos iguais de até 10s** (ajustados para 720p+ e 24–60 fps) processados em paralelo; no fim os trechos são juntados e o **áudio original** volta por baixo. Testado: personagem 3D fiel, cenário e música mantidos. Dicas: personagem de **corpo inteiro** (meio corpo faz a IA inventar pernas/roupa, que podem variar entre trechos) e vídeo **sem cortes de cena**. Substituiu o Wan 2.2 Animate, que não trocava personagens 3D/estilizados.
   - **Premium · Seedance 2.5** (modo edição) no fal.ai — US$ 0,568/s em 720p (o fal cobra US$ 0,284 por segundo de entrada e de saída) → 57 créditos/s (gera no mínimo 4s), a partir do Creator. Aceita **até 30s de uma vez** (vídeos maiores viram partes de até 30s): no teste preservou melhor o cenário e os objetos (o Kling alterou o logo de um galão) e a roupa ficou coerente com o vídeo. Mesmo fluxo do Kling (personagem sem fundo, áudio original de volta). Substituiu o Runway Aleph, que custava o mesmo e exigia outra conta.
-  - Nos dois motores dá para **remover legendas e textos da tela no mesmo passo** (vai no pedido à IA).
-  Assíncrono: o app cria um job (`video_jobs`, com `provedor` fal/runway), consulta o serviço a cada 10s e, quando termina, salva o resultado no S3. Recomendado usar um **retrato de corpo inteiro** gerado na etapa Visual.
-- **Criar vídeo** (Runway) — vídeo novo a partir da imagem do personagem (primeiro quadro) + texto da cena: **Gen-4 Turbo** (US$ 0,05/s, 5 ou 10s), **Gen-4.5** (US$ 0,12/s, 5 ou 10s) ou **Veo 3.1 Fast** (US$ 0,10/s, 0,15 com áudio; 4, 6 ou 8s). Vertical ou horizontal. O texto inicial vem da primeira ideia de conteúdo da ficha. Com `SAPIENS_KEY` (Sapiens Sintéticos, API em beta) entra o **Kling V3 Standard** (US$ 0,053/s, 0,079 com áudio; 5, 10 ou 15s por cena → 6 e 8 créditos/s) e o **Veo 3.1 Fast passa a ser gerado por lá** (US$ 0,079/s, 0,119 com áudio; os créditos não mudam). O Sapiens segue o formato da imagem, então ela é recortada em 9:16 ou 16:9 antes de ir (`lib/video/sapiens.ts`).
+  - **Gemini Omni Flash** (`gemini-omni-1.1-flash`, Google, `lib/video/omni.ts`) — US$ 0,10/s em 720p (5.792 tokens por segundo gerado a US$ 17,50/M) → 11 créditos/s, o mais barato; aparece com `GEMINI_API_KEY` (a mesma do Nano Banana, com faturamento). O Omni só edita vídeo enviado de **até 10s**, então o vídeo vira trechos de até 9,5s, divididos nos cortes de câmera e nas entradas de pessoas como no Kling, com o mesmo quadro-âncora e a ação de cada trecho (sem o modo tomada por tomada nem o close do rosto). Cada trecho sobe pela Files API, vai como interação em segundo plano (`background`, `task: "edit"`, 720p, resultado como arquivo; sem `aspect_ratio`, que a API recusa na edição — sai no formato do vídeo) com as imagens no pedido (personagens recortados e, por último, o quadro-âncora, como `<IMAGE_REF_n>` — o pedido é o mesmo do Kling/Seedance, convertido por `pedidoParaOmni`). O app acompanha pelas consultas de sempre (tela, cron; não há webhook), baixa os trechos com a chave e junta esticando cada um para a duração original, com o áudio original por baixo. Recusa algumas pessoas reconhecíveis e conteúdo sensível (a tela sugere o Kling).
+  - Modelos que podem recusar rosto de pessoa real (Seedance e Omni, `recusaRostoReal` em `MODELOS_TROCA`) mostram um aviso abaixo do seletor quando escolhidos (`AvisoRostoReal` em `components/sombra/comum.tsx`, na Sombra e no Estúdio). Jobs com `provedor 'google'`.
+  - Em todos os motores dá para **remover legendas e textos da tela no mesmo passo** (vai no pedido à IA).
+  Assíncrono: o app cria um job (`video_jobs`, com `provedor` fal/runway/google), consulta o serviço a cada 10s e, quando termina, salva o resultado no S3. Recomendado usar um **retrato de corpo inteiro** gerado na etapa Visual.
+- **Criar vídeo** (Runway) — vídeo novo a partir da imagem do personagem (primeiro quadro) + texto da cena: **Gen-4 Turbo** (US$ 0,05/s, 5 ou 10s), **Gen-4.5** (US$ 0,12/s, 5 ou 10s) ou **Veo 3.1 Fast** (US$ 0,10/s, 0,15 com áudio; 4, 6 ou 8s). Vertical ou horizontal. O texto inicial vem da primeira ideia de conteúdo da ficha. Com `SAPIENS_KEY` (Sapiens Sintéticos, API em beta) entra o **Kling V3 Standard** (US$ 0,053/s, 0,079 com áudio; 5, 10 ou 15s por cena → 6 e 8 créditos/s) e o **Veo 3.1 Fast passa a ser gerado por lá** (US$ 0,079/s, 0,119 com áudio; os créditos não mudam). Com `GEMINI_API_KEY` entra o **Veo 3.1 Lite**, direto na API do Gemini (`lib/video/veo.ts`; US$ 0,05/s com ou sem áudio, 4, 6 ou 8s por cena → 5 créditos/s, a partir do Creator; jobs com `provedor 'google'`): a API sempre gera o som, então sem áudio pedido ele sai na união das cenas (`semAudio` em `unirCenas`), e o vídeo pronto só baixa com a chave (`veo:<uri>`, `buscarResultado`). O Sapiens segue o formato da imagem, e o Wan e o Veo Lite partem dela, então ela é recortada em 9:16 ou 16:9 antes de ir (`recortarParaFormato` em `lib/video/sapiens.ts`) — no ponto de mais atenção (o rosto), não no centro, que no retrato de corpo inteiro em 16:9 deixava só o tronco.
 
 - **Legenda com IA** — para fundos complexos (o `delogo` deixa borrão): **Bria Video Eraser** (máscara) no fal.ai, US$ 0,14/s → 15 créditos/s, até 60s, a partir do Starter. O modelo aceita 5s, então o vídeo vira trechos de 4,8s processados em paralelo (`lib/video/legenda-ia.ts`); no fim os trechos limpos são juntados e **só a área da legenda** é aplicada sobre o original (resto da imagem e áudio intactos), com a legenda nova por cima no modo "trocar". Assíncrono, como a troca de pessoa.
 
@@ -203,19 +205,22 @@ Ao finalizar, o vídeo é atualizado **dentro do personagem no banco** — apare
 > **Frequência do cron:** no plano Hobby a Vercel só permite cron diário (`vercel.json` está diário). Para o Runway terminar em minutos com a página fechada: plano Pro com `"schedule": "*/5 * * * *"`, ou um cron externo grátis (ex.: cron-job.org) chamando `GET https://aistudio.nido.global/api/cron/video-jobs` a cada 5 min com o header `Authorization: Bearer $CRON_SECRET`.
 
 Custos e limites:
-- Troca: Kling O3 Edit Standard US$ 0,126/s, Pro US$ 0,168/s, 4K US$ 0,42/s (mínimo 3s); Seedance 2.5 US$ 0,568/s (entrada + saída; mínimo 4s gerados). Criar vídeo (Runway) conforme o modelo acima. A tela mostra a estimativa antes de enviar (`lib/video/precos.ts`).
+- Troca: Kling O3 Edit Standard US$ 0,126/s, Pro US$ 0,168/s, 4K US$ 0,42/s (mínimo 3s); Seedance 2.5 US$ 0,568/s (entrada + saída; mínimo 4s gerados); Gemini Omni Flash ~US$ 0,10/s em 720p (mínimo 3s). Criar vídeo (Runway) conforme o modelo acima. A tela mostra a estimativa antes de enviar (`lib/video/precos.ts`).
 - `VIDEO_MAX_SECONDS` (padrão 60) por vídeo e `VIDEO_DAILY_SECONDS` (padrão 180) por conta/dia, contados no Neon. A duração é medida no servidor.
 
 Para ligar a troca de pessoa:
 1. Conta em [fal.ai](https://fal.ai) com créditos → **Dashboard → Keys** → criar chave.
 2. `.env.local` / Vercel: `FAL_KEY=...`.
 3. Rodar `db/migrations/0003_video_jobs.sql` e `0004_video_jobs_provedor.sql` no Neon.
+4. Gemini Omni (opcional): `GEMINI_API_KEY` com faturamento ativo no Google AI Studio. Sem ela, o modelo some do seletor.
 
 Para ligar o Runway (Criar vídeo):
 1. [dev.runwayml.com](https://dev.runwayml.com) → criar organização, adicionar créditos → **API Keys**.
 2. `.env.local` / Vercel: `RUNWAYML_API_SECRET=...`.
 
 Para ligar o Sapiens (Kling V3 e Veo mais barato no Criar vídeo): criar a chave em [sapiensinteticos.com/dashboard/developers](https://www.sapiensinteticos.com/dashboard/developers#chaves), pôr saldo e `SAPIENS_KEY=...` no `.env.local` / Vercel. Sem a chave, o Kling V3 some da tela e o Veo segue no Runway.
+
+O Veo 3.1 Lite aparece com `GEMINI_API_KEY` (a mesma do Nano Banana, com faturamento ativo). O Google limita o gasto por projeto a cada 10 min (Tier 1: US$ 10, somando Nano Banana, Omni e Veo); acima disso o pedido volta com 429 e a cena seguinte é tentada de novo na próxima consulta.
 
 Limitações conhecidas:
 - A remoção de legenda por `delogo` deixa um leve borrão em fundos com muito detalhe. Remoção perfeita exigiria inpainting por IA (ex.: Wan VACE no fal), que hoje processa no máximo ~8s por vez.
@@ -328,9 +333,9 @@ Com login configurado, toda geração com IA gasta **créditos** (1 crédito ≈
 | Créditos/mês | 50 (uma vez) | 600 | 1.600 | 4.200 |
 | Personagens | 1 | 3 | 10 | 30 |
 | Imagem | NB Padrão, Seedream | + Flux.2, GPT média | todos, inclusive Pro | todos |
-| Trocar pessoa (Kling O3) | — | até 15s | até 30s | até 60s |
+| Trocar pessoa (Kling O3, Gemini Omni) | — | até 15s | até 30s | até 60s |
 | Troca Premium (Seedance 2.5) | — | — | ✓ | ✓ |
-| Criar vídeo | — | Gen-4 Turbo | + Gen-4.5, Veo Fast | + Veo com áudio |
+| Criar vídeo | — | Gen-4 Turbo | + Gen-4.5, Veo Fast, Veo Lite | + Veo com áudio |
 | Créditos que sobram | — | vencem | passam 1 mês | passam 1 mês |
 | Gerações ao mesmo tempo (imagens / vídeos) | 1 / 1 | 1 / 1 | 2 / 2 | 4 / 3 |
 | Armazenamento | 1 GB | 10 GB | 50 GB | 200 GB |
@@ -423,7 +428,7 @@ Não feito: trocar a carteira de um NFT já mintado (ele é intransferível; hoj
 - **Tailwind CSS 3** — tema claro, cream + verde, serif Fraunces + Inter + JetBrains Mono (design system do Treinadores de IA)
 - **Zustand** + middleware `persist` → localStorage
 - **@anthropic-ai/sdk** + **Zod** para as rotas de IA
-- **@google/genai** (Nano Banana) + **sharp** para a geração de imagens — opcional
+- **@google/genai** (Nano Banana e Gemini Omni) + **sharp** para a geração de imagens — opcional
 - **AWS S3** (`@aws-sdk/client-s3` + presigner) para arquivos — opcional
 - **fal.ai** (`@fal-ai/client`, Kling O3 Edit, BiRefNet), **Runway** (`@runwayml/sdk`, Gen-4 / Veo) + **ffmpeg-static** para vídeo — opcionais
 - **Neon** (Postgres, `@neondatabase/serverless`) + **Better Auth** (login Google) — opcionais
@@ -449,7 +454,7 @@ app/
     storage/liberar/route.ts     POST — apaga arquivos sem uso da conta e recalcula o espaço
     cron/storage-cleanup/route.ts  GET (cron) — apaga órfãos do S3 e contadores antigos
     videos/legenda/route.ts      POST — remove/troca legenda queimada (ffmpeg)
-    videos/substituir/route.ts   POST — inicia troca de pessoa (Kling O3 ou Seedance 2.5 no fal.ai, em trechos) — job
+    videos/substituir/route.ts   POST — inicia troca de pessoa (Kling O3 ou Seedance 2.5 no fal.ai, ou Gemini Omni, em trechos) — job
     videos/criar/route.ts        POST — cria vídeo novo pelo Runway (Gen-4/Veo) — job
     videos/jobs/[id]/route.ts    GET — estado do job (finaliza se o serviço já terminou)
     videos/webhook/route.ts      POST — webhook do fal (URL assinada) → finaliza o job

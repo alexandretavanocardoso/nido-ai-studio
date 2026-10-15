@@ -639,6 +639,10 @@ function TabelaCustos() {
     ["Criar vídeo · Gen-4 Turbo / Gen-4.5", tx("5 / 12 por segundo")],
     ["Criar vídeo · Veo 3.1 Fast (sem / com áudio)", tx("10 / 15 por segundo")],
     [
+      "Criar vídeo · Veo 3.1 Lite",
+      `${creditosCriarVideo("veo3.1_lite", 1, false)} ${tx("por segundo")}`,
+    ],
+    [
       "Criar vídeo · Wan 3.0",
       `${creditosCriarVideo("wan3", 1, false)} ${tx("por segundo")}`,
     ],

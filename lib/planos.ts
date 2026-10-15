@@ -10,10 +10,13 @@
  * Custos da IA de texto medidos em 07/10/2026 (ver CREDITOS_TEXTO).
  */
 import type { ModeloImagem } from "@/lib/ai/modelos-imagem";
-import type {
-  ModeloCriar,
-  ModeloFalado,
-  QualidadeTroca,
+import {
+  MODELOS_TROCA,
+  OMNI_TROCA,
+  type ModeloCriar,
+  type ModeloFalado,
+  type ModeloTroca,
+  type QualidadeTroca,
 } from "@/lib/video/precos";
 
 export type PlanoId = "gratis" | "starter" | "creator" | "studio";
@@ -106,7 +109,7 @@ export const PLANOS: Record<PlanoId, Plano> = {
     modelosImagem: ["persona", "nano-banana", "seedream", "flux2", "gpt-image"],
     qualidadePro: true,
     troca: { segundosMax: 30 },
-    criarVideo: ["gen4_turbo", "gen4.5", "veo3.1_fast", "kling_v3", "wan3"],
+    criarVideo: ["gen4_turbo", "gen4.5", "veo3.1_fast", "veo3.1_lite", "kling_v3", "wan3"],
     veoComAudio: false,
     rollover: true,
     armazenamentoGB: 50,
@@ -126,7 +129,7 @@ export const PLANOS: Record<PlanoId, Plano> = {
     modelosImagem: ["persona", "nano-banana", "seedream", "flux2", "gpt-image"],
     qualidadePro: true,
     troca: { segundosMax: 60 },
-    criarVideo: ["gen4_turbo", "gen4.5", "veo3.1_fast", "kling_v3", "wan3"],
+    criarVideo: ["gen4_turbo", "gen4.5", "veo3.1_fast", "veo3.1_lite", "kling_v3", "wan3"],
     veoComAudio: true,
     rollover: true,
     armazenamentoGB: 200,
@@ -224,10 +227,14 @@ export const TROCA_POR_SEGUNDO_QUALIDADE: Record<QualidadeTroca, number> = {
 };
 /** Seedance 2.5 (720p, com vídeo de referência): US$ 0,284/s de entrada + US$ 0,284/s de saída = US$ 0,568/s (mínimo 4s gerados). */
 export const TROCA_PREMIUM_POR_SEGUNDO = 57;
+/** Gemini Omni Flash (720p): 5.792 tokens por segundo gerado a US$ 17,50/M = US$ 0,101/s, + a entrada (quase nada). */
+export const TROCA_OMNI_POR_SEGUNDO = 11;
 const CRIAR_POR_SEGUNDO: Record<ModeloCriar, number> = {
   gen4_turbo: 5,
   "gen4.5": 12,
   "veo3.1_fast": 10,
+  // US$ 0,05/s com ou sem áudio (a API do Gemini sempre gera o som).
+  "veo3.1_lite": 5,
   kling_v3: 6,
   wan3: 10,
 };
@@ -248,6 +255,21 @@ export function creditosTroca(
 
 export function creditosTrocaPremium(segundos: number): number {
   return Math.ceil(Math.max(4, segundos)) * TROCA_PREMIUM_POR_SEGUNDO;
+}
+
+export function creditosTrocaOmni(segundos: number): number {
+  return (
+    Math.ceil(Math.max(OMNI_TROCA.minSegundos, segundos)) * TROCA_OMNI_POR_SEGUNDO
+  );
+}
+
+/** Créditos por segundo de cada modelo da troca (o seletor ordena e mostra por isto). */
+export function creditosPorSegundoTroca(m: ModeloTroca): number {
+  const { motor, qualidade } = MODELOS_TROCA[m];
+  if (motor === "omni") return TROCA_OMNI_POR_SEGUNDO;
+  return qualidade
+    ? TROCA_POR_SEGUNDO_QUALIDADE[qualidade]
+    : TROCA_PREMIUM_POR_SEGUNDO;
 }
 
 export function creditosCriarVideo(

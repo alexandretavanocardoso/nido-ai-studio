@@ -3,7 +3,9 @@ import {
   acaoDoTrecho,
   alvosDoTrecho,
   alvosNosTrechos,
+  entradaOmni,
   entradasDosAlvos,
+  MOTORES_TROCA,
   PEDIDO_MAX,
   promptEdicao,
   promptTroca,
@@ -352,5 +354,72 @@ describe("só a cabeça (roupa do vídeo)", () => {
     const p = promptTroca("kling", [{ descricao: "a" }], false);
     expect(p).not.toMatch(/CLOTHING:/);
     expect(p).toMatch(/replace with the character @Element1/);
+  });
+});
+
+describe("Gemini Omni", () => {
+  const alvo = (n: number, rosto = false) => ({
+    personagemUrl: `https://fal/p${n}.png`,
+    rostoUrl: rosto ? `https://fal/r${n}.png` : null,
+    descricao: `the person ${n}`,
+  });
+
+  it("personagens nas primeiras imagens e o quadro-âncora por último, sem sobrar referência do fal", () => {
+    const { pedido, imagens } = entradaOmni({
+      alvos: [alvo(1), alvo(2)],
+      duracao: 8,
+      removerTexto: false,
+      ancoraUrl: "https://fal/ancora.jpg",
+    });
+    expect(imagens).toEqual(["https://fal/p1.png", "https://fal/p2.png", "https://fal/ancora.jpg"]);
+    expect(pedido).toMatch(/In the input video, replace ONLY these people/);
+    expect(pedido).toMatch(/the person 1 → replace with the character <IMAGE_REF_0>/);
+    expect(pedido).toMatch(/the person 2 → replace with the character <IMAGE_REF_1>/);
+    expect(pedido).toMatch(/<IMAGE_REF_2> is a frame of this same scene with the replacement already done/);
+    expect(pedido).not.toMatch(/@(Video|Image|Element)\d/);
+  });
+
+  it("âncora parcial: avisa quem falta, apontando para a imagem certa", () => {
+    const { pedido } = entradaOmni({
+      alvos: [alvo(1), alvo(2)],
+      duracao: 8,
+      removerTexto: false,
+      ancoraUrl: "https://fal/ancora.jpg",
+      naAncora: [0],
+    });
+    expect(pedido).toMatch(/<IMAGE_REF_2> is a frame of this same scene with the replacement already done ONLY for <IMAGE_REF_0>/);
+    expect(pedido).toMatch(/<IMAGE_REF_2> does NOT show the replacement of the person 2 \(<IMAGE_REF_1>\)/);
+  });
+
+  it("só a cabeça usa o close do rosto; sem âncora, só os personagens", () => {
+    const { pedido, imagens } = entradaOmni({
+      alvos: [alvo(1, true)],
+      duracao: 8,
+      removerTexto: false,
+      roupa: "foto",
+    });
+    expect(imagens).toEqual(["https://fal/r1.png"]);
+    expect(pedido).toMatch(/replace ONLY their head .* the character <IMAGE_REF_0>/);
+    expect(pedido).not.toMatch(/replacement already done/);
+  });
+
+  it("ninguém a trocar (só a cena): o quadro com a mudança é a única imagem", () => {
+    const { pedido, imagens } = entradaOmni({
+      alvos: [],
+      duracao: 8,
+      removerTexto: false,
+      ancoraUrl: "https://fal/ancora.jpg",
+      edicao: { modo: "cena", pedido: "a beach at sunset" },
+    });
+    expect(imagens).toEqual(["https://fal/ancora.jpg"]);
+    expect(pedido).toMatch(/In the input video, change ONLY the background and setting: a beach at sunset\./);
+    expect(pedido).toMatch(/<IMAGE_REF_0> is a frame of this same video with the change already done/);
+  });
+
+  it("trechos de no máximo 9,5s (o Omni só edita até 10s)", () => {
+    const trechos = trechosTroca(47, MOTORES_TROCA.omni.maxTrecho, [{ t: 20, forca: 0.5 }]);
+    expect(trechos.every((t) => t.duracao <= 9.5 && t.duracao >= 3)).toBe(true);
+    expect(trechos.reduce((s, t) => s + t.duracao, 0)).toBeCloseTo(47, 2);
+    expect(trechos.some((t) => t.inicio === 20)).toBe(true);
   });
 });

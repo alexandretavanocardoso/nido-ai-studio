@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { nanoid } from "nanoid";
-import { Loader2, RefreshCw, Upload } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw, Upload } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { tx } from "@/lib/i18n/tx";
 import { CORES_MARCA, type Marca } from "@/components/revisao/MarcarPessoas";
@@ -13,6 +13,21 @@ import { STORAGE_KINDS } from "@/lib/storage/env";
 export interface ImagemEnviada {
   key: string;
   src: string;
+}
+
+/**
+ * Aviso dos modelos da troca que podem recusar rosto de pessoa real
+ * (`recusaRostoReal` em MODELOS_TROCA): aparece ao escolher um deles.
+ */
+export function AvisoRostoReal() {
+  return (
+    <p className="flex items-start gap-1.5 text-[12px] leading-snug text-ink-mute">
+      <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0 text-pink" />
+      {tx(
+        "Este modelo pode recusar vídeos e imagens com rostos de pessoas reais. Se recusar, os créditos voltam. Com pessoas reais, prefira um Kling O3.",
+      )}
+    </p>
+  );
 }
 
 /**

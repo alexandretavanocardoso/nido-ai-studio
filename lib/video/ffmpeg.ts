@@ -269,14 +269,16 @@ export async function extrairUltimoQuadro(
  * Une cenas geradas em sequência num vídeo só, cortado em `segundos`. Cada
  * cena depois da primeira começa no último quadro da anterior, então o
  * primeiro quadro dela é descartado (senão o quadro aparece duas vezes).
- * O áudio só entra se todas as cenas tiverem.
+ * O áudio só entra se todas as cenas tiverem (e não for `semAudio`).
  */
 export async function emendarCenas(
   cenas: string[],
   segundos: number,
   saida: string,
+  semAudio = false,
 ): Promise<void> {
-  const comAudio = (await Promise.all(cenas.map(temAudio))).every(Boolean);
+  const comAudio =
+    !semAudio && (await Promise.all(cenas.map(temAudio))).every(Boolean);
   const filtros: string[] = [];
   let entradas = "";
   cenas.forEach((_, i) => {

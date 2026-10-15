@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -10,10 +11,11 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Bell,
   CalendarClock,
+  ChevronDown,
   ChevronsRight,
   ChevronUp,
   Clapperboard,
@@ -42,6 +44,7 @@ import {
   Users,
   Sticker,
   Terminal,
+  WandSparkles,
   X,
   Zap,
   type LucideIcon,
@@ -261,6 +264,8 @@ interface ItemMenu {
   onClick?: () => void;
   ativo?: boolean;
   contagem?: string;
+  /** Dica ao passar o mouse (title); sem ela, o rótulo. */
+  dica?: string;
 }
 
 export const FERRAMENTAS: Array<{
@@ -281,15 +286,20 @@ export const FERRAMENTAS: Array<{
   { secao: "publicar", rotulo: "Publicar", curto: "Publicar", icon: Send },
   {
     secao: "agendamentos",
-    rotulo: "Agendamentos",
+    rotulo: "Agenda",
     curto: "Agenda",
     icon: CalendarClock,
   },
 ];
 
 /** Link do Estúdio de um personagem, já na ferramenta. */
-export function linkEstudio(id: string, secao: SecaoEstudio) {
-  return `/app/personagem/${id}?aba=estudio&secao=${secao}`;
+export function linkEstudio(
+  id: string,
+  secao: SecaoEstudio,
+  /** Etapa da ficha (?step=) a manter, para a aba Ficha voltar nela. */
+  step?: string | null,
+) {
+  return `/app/personagem/${id}?aba=estudio&secao=${secao}${step ? `&step=${encodeURIComponent(step)}` : ""}`;
 }
 
 const CHAVE_ATIVO = "nido:personagem-ativo";
@@ -346,9 +356,46 @@ function definirAtivo(id: string) {
   window.dispatchEvent(new Event(EVENTO_ATIVO));
 }
 
+/** O personagem aberto na tela, segundo a URL (/app/personagem/:id?aba=…&secao=…&step=…). */
+interface PersonagemNaUrl {
+  id: string;
+  /** Seção do Estúdio aberta; fora da aba Estúdio, null. */
+  secao: SecaoEstudio | null;
+  /** Etapa da ficha: os links do menu a mantêm, como fazia o menu interno do Estúdio. */
+  step: string | null;
+}
+
+/**
+ * Avisa o personagem e a seção do Estúdio abertos, lendo a URL como o Wizard:
+ * seção desconhecida cai em Vídeos, e ?secao=radar abre a aba Radar (não é do
+ * Estúdio). Fica dentro de um Suspense e não desenha nada: o useSearchParams
+ * não pode impedir a pré-renderização do menu.
+ */
+function PersonagemAbertoNaUrl({
+  onMudar,
+}: {
+  onMudar: (v: PersonagemNaUrl | null) => void;
+}) {
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const id = idNaRota(pathname);
+  const pedida = params.get("secao");
+  const secao =
+    params.get("aba") === "estudio" && pedida !== "radar"
+      ? (FERRAMENTAS.find((f) => f.secao === pedida)?.secao ?? "videos")
+      : null;
+  const step = params.get("step");
+  useEffect(
+    () => onMudar(id ? { id, secao, step } : null),
+    [id, secao, step, onMudar],
+  );
+  return null;
+}
+
 /**
  * Menu lateral: fixo e recolhível no desktop (largura 248px ou 84px), gaveta
- * no celular. As ferramentas do Estúdio abrem no personagem ativo.
+ * no celular. As ferramentas sem personagem abrem a própria página; as com
+ * personagem, o Estúdio do personagem ativo.
  */
 function MenuLateral({
   recolhido,
@@ -371,8 +418,41 @@ function MenuLateral({
   const alvo = recente;
   // No celular a gaveta sempre abre inteira.
   const mini = recolhido && !gaveta;
+  // O Estúdio não tem menu próprio: é aqui que a seção aberta fica marcada.
+  const [naUrl, setNaUrl] = useState<PersonagemNaUrl | null>(null);
+  // Só vale se o personagem da tela é o mesmo dos links (um excluído, por exemplo, não é).
+  const daTela = naUrl && alvo && naUrl.id === alvo.id ? naUrl : null;
 
-  const grupos: Array<{ rotulo: string; itens: ItemMenu[] }> = [
+  // Nome do personagem em que as ferramentas abrem: vai na dica do mouse.
+  const nomeAlvo = alvo
+    ? alvo.identidade.nome.trim() || tx("Sem nome")
+    : null;
+
+  // Ferramentas do Estúdio: abrem no personagem ativo; sem nenhum, abrem o criar.
+  const doEstudio = (f: (typeof FERRAMENTAS)[number]): ItemMenu => ({
+    rotulo: tx(f.rotulo),
+    curto: tx(f.curto),
+    icon: f.icon,
+    ativo: daTela?.secao === f.secao,
+    dica: `${tx(f.rotulo)} · ${nomeAlvo ?? tx("Crie um AI Creator primeiro")}`,
+    ...(alvo
+      ? { href: linkEstudio(alvo.id, f.secao, daTela?.step) }
+      : {
+          // Botão, não link: o <nav> só fecha a gaveta do celular em clique de link.
+          onClick: () => {
+            onFecharGaveta();
+            onCriar();
+          },
+        }),
+  });
+
+  const grupos: Array<{
+    /** Título do grupo. Sem ele, o grupo continua o de cima (no menu recolhido, ganha a linha fina). */
+    rotulo?: string;
+    /** Pasta recolhível com este nome e ícone; a chave guarda se a pessoa a fechou. */
+    pasta?: { rotulo: string; icon: LucideIcon; chave: string };
+    itens: ItemMenu[];
+  }> = [
     {
       rotulo: tx("Principal"),
       itens: [
@@ -391,31 +471,17 @@ function MenuLateral({
           ativo: pathname.startsWith("/app/personagen"),
           contagem: recente ? String(total).padStart(2, "0") : undefined,
         },
-        {
-          rotulo: tx("Dashboard"),
-          curto: tx("Dashboard"),
-          icon: ChartColumn,
-          href: "/app/dashboard",
-          ativo: pathname === "/app/dashboard",
-        },
       ],
     },
     {
-      rotulo: tx("Inspiração"),
+      // Personagem opcional: cada página escolhe um personagem, uma foto ou nenhum.
+      rotulo: tx("Ferramentas"),
+      pasta: {
+        rotulo: tx("Sem personagem"),
+        icon: WandSparkles,
+        chave: "nido:menu-ferramentas-livres",
+      },
       itens: [
-        {
-          rotulo: tx("Radar"),
-          curto: tx("Radar"),
-          icon: Zap,
-          href: "/app/radar",
-          ativo: pathname === "/app/radar",
-        },
-      ],
-    },
-    {
-      rotulo: tx("Estúdio"),
-      itens: [
-        // Sombra sem personagem, no topo: não depende do personagem ativo.
         {
           rotulo: tx("Sombra"),
           curto: tx("Sombra"),
@@ -459,18 +525,44 @@ function MenuLateral({
               },
             ]
           : []),
-        ...FERRAMENTAS.map((f) => ({
-          rotulo: tx(f.rotulo),
-          curto: tx(f.curto),
-          icon: f.icon,
-          ...(alvo
-            ? { href: linkEstudio(alvo.id, f.secao) }
-            : { onClick: onCriar }),
-        })),
       ],
     },
     {
-      rotulo: tx("Conta"),
+      // Precisam de personagem: abrem o Estúdio do personagem ativo (sem nenhum, o criar).
+      // Sem título: continua as Ferramentas, logo abaixo da pasta Sem personagem.
+      pasta: {
+        rotulo: tx("Com personagem"),
+        icon: UserRound,
+        chave: "nido:menu-ferramentas",
+      },
+      itens: FERRAMENTAS.filter((f) => f.secao !== "agendamentos").map(
+        doEstudio,
+      ),
+    },
+    {
+      rotulo: tx("Acompanhar"),
+      itens: [
+        {
+          rotulo: tx("Radar"),
+          curto: tx("Radar"),
+          icon: Zap,
+          href: "/app/radar",
+          ativo: pathname === "/app/radar",
+        },
+        ...FERRAMENTAS.filter((f) => f.secao === "agendamentos").map(
+          doEstudio,
+        ),
+        {
+          rotulo: tx("Dashboard"),
+          curto: tx("Dashboard"),
+          icon: ChartColumn,
+          href: "/app/dashboard",
+          ativo: pathname === "/app/dashboard",
+        },
+      ],
+    },
+    {
+      rotulo: tx("Mais"),
       itens: [
         {
           rotulo: tx("Créditos"),
@@ -607,27 +699,49 @@ function MenuLateral({
           </div>
         )}
 
+        <Suspense fallback={null}>
+          <PersonagemAbertoNaUrl onMudar={setNaUrl} />
+        </Suspense>
         <nav
           aria-label={tx("Principal")}
+          // Trocar de seção do Estúdio muda só o ?secao= (o pathname fica): sem isto a gaveta do celular ficava aberta por cima da tela.
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest("a")) onFecharGaveta();
+          }}
           // Em tela baixa (até 640px de altura) a lista não rola por dentro: quem rola é o menu inteiro.
           className="flex min-h-[120px] flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden px-2.5 pt-1 pb-2.5 [scrollbar-width:none] [@media(max-height:640px)]:flex-none [@media(max-height:640px)]:overflow-visible"
         >
-          {grupos.map((g, gi) => (
-            <div key={g.rotulo} className="flex flex-col gap-0.5">
-              {mini ? (
-                gi > 0 ? (
-                  <div className="mx-3.5 my-2 h-px bg-white/[0.08]" />
-                ) : null
-              ) : (
-                <div className="px-2.5 pt-3 pb-1.5 font-geist-mono text-[10px] uppercase tracking-[0.14em] text-nido-dim">
-                  {g.rotulo}
-                </div>
-              )}
-              {g.itens.map((it) => (
-                <LinhaMenu key={it.rotulo} item={it} mini={mini} />
-              ))}
-            </div>
-          ))}
+          {grupos
+            .filter((g) => g.itens.length > 0)
+            .map((g, gi) => (
+              <div
+                key={g.rotulo ?? g.pasta?.chave}
+                className="flex flex-col gap-0.5"
+              >
+                {mini ? (
+                  gi > 0 ? (
+                    <div className="mx-3.5 my-2 h-px bg-white/[0.08]" />
+                  ) : null
+                ) : g.rotulo ? (
+                  <div className="px-2.5 pt-3 pb-1.5 font-geist-mono text-[10px] uppercase tracking-[0.14em] text-nido-dim">
+                    {g.rotulo}
+                  </div>
+                ) : null}
+                {g.pasta ? (
+                  <PastaDoMenu
+                    rotulo={g.pasta.rotulo}
+                    icon={g.pasta.icon}
+                    chave={g.pasta.chave}
+                    itens={g.itens}
+                    mini={mini}
+                  />
+                ) : (
+                  g.itens.map((it) => (
+                    <LinhaMenu key={it.rotulo} item={it} mini={mini} />
+                  ))
+                )}
+              </div>
+            ))}
         </nav>
 
         {conta ? (
@@ -644,10 +758,10 @@ function MenuLateral({
             </Link>
           ) : (
             <div className="border-t border-white/[0.06] px-3 pt-2.5">
-              <div className="flex flex-col gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
+              <div className="flex flex-col gap-2 px-0.5 py-2.5">
                 <div className="flex items-center gap-2">
                   <Coins className="h-[18px] w-[18px] shrink-0 text-nido-yellow" />
-                  <span className="font-geist-mono text-sm font-semibold">
+                  <span className="font-geist-mono text-sm font-bold">
                     {conta.total.toLocaleString("pt-BR")}
                   </span>
                   {/* Com saldo de 6 dígitos a linha não cabe em 248px: quem cede é a palavra "créditos". */}
@@ -669,20 +783,12 @@ function MenuLateral({
                     }}
                   />
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 truncate font-geist-mono text-[10.5px] text-nido-dim">
-                    {tx("Plano")} {PLANOS[conta.plano].nome}
-                    {diasAte(conta.proximaRecargaEm) != null
-                      ? ` · ${tx("renova em")} ${diasAte(conta.proximaRecargaEm)}d`
-                      : ""}
-                  </span>
-                  <Link
-                    href="/app/planos"
-                    className="flex h-6 shrink-0 items-center rounded-full bg-nido-yellow px-2.5 text-[11.5px] font-semibold text-nido-bg transition hover:bg-nido-yellow-hi"
-                  >
-                    {tx("Upgrade")}
-                  </Link>
-                </div>
+                <span className="truncate font-geist-mono text-[10.5px] text-nido-dim">
+                  {tx("Plano")} {PLANOS[conta.plano].nome}
+                  {diasAte(conta.proximaRecargaEm) != null
+                    ? ` · ${tx("renova em")} ${diasAte(conta.proximaRecargaEm)}d`
+                    : ""}
+                </span>
               </div>
             </div>
           )
@@ -872,7 +978,98 @@ function diasAte(iso: string | null): number | null {
   return Number.isFinite(d) && d >= 0 ? d : null;
 }
 
-function LinhaMenu({ item: it, mini }: { item: ItemMenu; mini: boolean }) {
+/**
+ * Pasta recolhível do menu (Ferramentas): começa aberta, lembra se a pessoa
+ * fechou (cada pasta na sua `chave` do localStorage) e abre sozinha quando a
+ * tela aberta é um dos itens. No menu recolhido os itens ficam sempre à mostra.
+ */
+function PastaDoMenu({
+  rotulo,
+  icon: Icone,
+  chave,
+  itens,
+  mini,
+}: {
+  rotulo: string;
+  icon: LucideIcon;
+  chave: string;
+  itens: ItemMenu[];
+  mini: boolean;
+}) {
+  const temAtivo = itens.some((it) => it.ativo);
+  const [aberta, setAberta] = useState(true);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(chave) === "0") setAberta(false);
+    } catch {}
+  }, [chave]);
+  useEffect(() => {
+    if (temAtivo) setAberta(true);
+  }, [temAtivo]);
+  const alternar = () =>
+    setAberta((v) => {
+      try {
+        localStorage.setItem(chave, v ? "0" : "1");
+      } catch {}
+      return !v;
+    });
+  const visivel = mini || aberta;
+
+  return (
+    <>
+      {mini ? null : (
+        <button
+          type="button"
+          onClick={alternar}
+          aria-expanded={aberta}
+          className={cn(
+            "flex h-[38px] w-full items-center gap-3 rounded-[10px] px-2.5 text-left text-[13.5px] font-medium transition hover:bg-white/[0.05] hover:text-nido-ink",
+            aberta ? "text-nido-ink" : "text-nido-mute",
+          )}
+        >
+          <Icone className="h-[17px] w-[17px] shrink-0" strokeWidth={1.75} />
+          <span className="flex-1 whitespace-nowrap">{rotulo}</span>
+          <ChevronDown
+            className={cn(
+              "h-[15px] w-[15px] shrink-0 transition-transform duration-[250ms]",
+              aberta && "rotate-180",
+            )}
+            strokeWidth={1.75}
+          />
+        </button>
+      )}
+      <div
+        inert={!visivel}
+        className={cn(
+          "grid transition-[grid-template-rows] duration-[280ms]",
+          visivel ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+      >
+        <div
+          className={cn(
+            "flex min-h-0 flex-col gap-0.5 overflow-hidden",
+            !mini && "ml-[18px] border-l border-white/[0.08] pl-2.5",
+          )}
+        >
+          {itens.map((it) => (
+            <LinhaMenu key={it.rotulo} item={it} mini={mini} sub={!mini} />
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function LinhaMenu({
+  item: it,
+  mini,
+  sub,
+}: {
+  item: ItemMenu;
+  mini: boolean;
+  /** Item dentro de uma pasta: mais baixo e com a marca de ativo sobre a linha da pasta. */
+  sub?: boolean;
+}) {
   const conteudo = mini ? (
     <>
       <span
@@ -890,7 +1087,12 @@ function LinhaMenu({ item: it, mini }: { item: ItemMenu; mini: boolean }) {
   ) : (
     <>
       {it.ativo ? (
-        <span className="absolute -left-2.5 top-[9px] bottom-[9px] w-[3px] rounded-r-[3px] bg-nido-yellow shadow-[0_0_10px_#fdf327]" />
+        <span
+          className={cn(
+            "absolute top-[9px] bottom-[9px] w-[3px] rounded-r-[3px] bg-nido-yellow shadow-[0_0_10px_#fdf327]",
+            sub ? "-left-[11px]" : "-left-2.5",
+          )}
+        />
       ) : null}
       <it.icon className="h-[17px] w-[17px] shrink-0" strokeWidth={1.75} />
       <span className="flex-1 whitespace-nowrap">{it.rotulo}</span>
@@ -907,14 +1109,15 @@ function LinhaMenu({ item: it, mini }: { item: ItemMenu; mini: boolean }) {
     mini
       ? "flex w-full flex-col items-center gap-1 py-1.5"
       : cn(
-          "relative flex h-[38px] w-full items-center gap-3 rounded-[10px] px-2.5 text-left text-[13.5px] font-medium hover:bg-white/[0.05]",
+          "relative flex w-full items-center gap-3 rounded-[10px] px-2.5 text-left font-medium hover:bg-white/[0.05]",
+          sub ? "h-[34px] text-[13px]" : "h-[38px] text-[13.5px]",
           it.ativo && "bg-nido-yellow/10",
         ),
   );
   return it.href ? (
     <Link
       href={it.href}
-      title={it.rotulo}
+      title={it.dica ?? it.rotulo}
       aria-current={it.ativo ? "page" : undefined}
       className={classe}
     >
@@ -924,7 +1127,7 @@ function LinhaMenu({ item: it, mini }: { item: ItemMenu; mini: boolean }) {
     <button
       type="button"
       onClick={it.onClick}
-      title={it.rotulo}
+      title={it.dica ?? it.rotulo}
       className={classe}
     >
       {conteudo}

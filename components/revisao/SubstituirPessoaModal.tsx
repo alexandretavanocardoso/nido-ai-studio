@@ -17,10 +17,10 @@ import {
 import { ErroGeracao } from "@/components/creditos/ErroGeracao";
 import {
   bloqueioTroca,
+  creditosPorSegundoTroca,
   creditosTroca,
+  creditosTrocaOmni,
   creditosTrocaPremium,
-  TROCA_POR_SEGUNDO_QUALIDADE,
-  TROCA_PREMIUM_POR_SEGUNDO,
 } from "@/lib/planos";
 import { DECLARACAO_VIDEO_LINK } from "@/lib/declaracoes";
 import {
@@ -32,17 +32,18 @@ import {
 import {
   custoPorSegundoTroca,
   custoTroca,
+  custoTrocaOmni,
   custoTrocaPremium,
-  KLING_TROCA,
+  MINIMO_TROCA,
   MODELOS_TROCA,
   MODELOS_TROCA_IDS,
-  SEEDANCE_TROCA,
   segundosCobradosTroca,
   trocaPorTomadas,
   type ModeloTroca,
 } from "@/lib/video/precos";
 import { Button } from "@/components/ui/Button";
 import { SeletorModelo } from "@/components/ui/SeletorModelo";
+import { AvisoRostoReal } from "@/components/sombra/comum";
 import { cn } from "@/lib/cn";
 import {
   EscolherImagemPersonagem,
@@ -60,14 +61,6 @@ import { useDuravel } from "@/lib/duravel";
 import { tx } from "@/lib/i18n/tx";
 import { txErro } from "@/lib/i18n/erros";
 import { dinheiro } from "@/lib/moeda";
-
-/** Créditos por segundo de cada modelo da troca. */
-const creditosPorSegundo = (m: ModeloTroca) => {
-  const { qualidade } = MODELOS_TROCA[m];
-  return qualidade
-    ? TROCA_POR_SEGUNDO_QUALIDADE[qualidade]
-    : TROCA_PREMIUM_POR_SEGUNDO;
-};
 
 /** Vídeo buscado por link (/api/videos/link): não está no S3, só na cópia temporária da IA. */
 export interface VideoLink {
@@ -103,7 +96,8 @@ interface Props {
  * O modelo é escolhido no rodapé (ver MODELOS_TROCA em lib/video/precos):
  *  - Kling O3 Edit (fal.ai), em Standard, Pro ou 4K; vídeos longos viram trechos de até 15s.
  *  - Seedance 2.5 (fal.ai); até 30s de uma vez, cenário e objetos mais fiéis.
- * Os dois podem remover legendas/textos da tela no mesmo passo.
+ *  - Gemini Omni Flash (Google); trechos de até 10s, o mais barato.
+ * Todos podem remover legendas/textos da tela no mesmo passo.
  * Mostra o custo estimado antes de enviar.
  */
 /** Trechos que dá para escolher em vez do vídeo inteiro (segundos, a partir do começo). */
@@ -202,6 +196,11 @@ export function SubstituirPessoaModal({
         creditos: creditosTrocaPremium(segundos),
         custo: custoTrocaPremium(segundos),
       };
+    if (motor === "omni")
+      return {
+        creditos: creditosTrocaOmni(segundos),
+        custo: custoTrocaOmni(segundos),
+      };
     // Padrão: os segundos que o motor processa (iguais aos do vídeo, salvo
     // cortes rápidos — que só vão tomada por tomada no modo "personagem").
     const cobrados =
@@ -216,7 +215,7 @@ export function SubstituirPessoaModal({
   const { creditos, custo } = precoDe(duracao);
   /** Tomadas do vídeo, quando ele vai tomada por tomada (só no motor Padrão). */
   const tomadas =
-    premium || !duracao || modo !== "personagem"
+    motor !== "kling" || !duracao || modo !== "personagem"
       ? null
       : trocaPorTomadas(cortesAte(duracao), duracao);
   // Trechos menores que o vídeo, do menor para o maior, e o vídeo inteiro por último.
@@ -224,7 +223,7 @@ export function SubstituirPessoaModal({
     ...CORTES.filter((c) => c < duracaoTotal - 0.2),
     0 as const,
   ];
-  const minimo = premium ? SEEDANCE_TROCA.minSegundos : KLING_TROCA.minSegundos;
+  const minimo = MINIMO_TROCA[motor];
   const curtoDemais = duracao > 0 && duracao < minimo;
   const bloqueio =
     conta && duracao ? bloqueioTroca(conta.plano, duracao) : null;
@@ -257,7 +256,7 @@ export function SubstituirPessoaModal({
               }))
             : undefined,
           motor,
-          qualidade: premium ? undefined : qualidade,
+          qualidade: motor === "kling" ? qualidade : undefined,
           removerTexto,
           estilo,
           roupa,
@@ -686,15 +685,20 @@ export function SubstituirPessoaModal({
                   rotulo={tx("Modelo")}
                   valor={modeloTroca}
                   onChange={setModeloTroca}
-                  // Do mais caro para o mais barato.
-                  opcoes={[...MODELOS_TROCA_IDS]
-                    .sort((a, b) => creditosPorSegundo(b) - creditosPorSegundo(a))
+                  // Do mais caro para o mais barato (o Omni só com a chave do Gemini).
+                  opcoes={MODELOS_TROCA_IDS.filter(
+                    (id) => MODELOS_TROCA[id].motor !== "omni" || recursos.gemini,
+                  )
+                    .sort(
+                      (a, b) =>
+                        creditosPorSegundoTroca(b) - creditosPorSegundoTroca(a),
+                    )
                     .map((id) => ({
                       id,
                       label: MODELOS_TROCA[id].label,
                       nota: tx(MODELOS_TROCA[id].nota),
                       preco: conta
-                        ? `${creditosPorSegundo(id)} ${tx("créditos/s")}`
+                        ? `${creditosPorSegundoTroca(id)} ${tx("créditos/s")}`
                         : `${dinheiro(custoPorSegundoTroca(id), { de: "USD" })}/s`,
                     }))}
                 />
@@ -715,6 +719,7 @@ export function SubstituirPessoaModal({
                   </div>
                 </div>
               </div>
+              {MODELOS_TROCA[modeloTroca].recusaRostoReal ? <AvisoRostoReal /> : null}
               <Button
                 variant="accent"
                 className="w-full justify-center"

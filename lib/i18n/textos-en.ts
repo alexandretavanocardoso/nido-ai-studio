@@ -126,8 +126,8 @@ export const TEXTOS_EN: Record<string, string> = {
   "Card de referência": "Reference sheet",
   "Card de referência com posicionamentos e retratos fiéis ao personagem.":
     "Reference sheet with poses and portraits faithful to the character.",
-  "Card de referência e retratos ficam no Estúdio → Imagens. Use “Usar como referência” na galeria para a imagem aparecer aqui.":
-    "Reference sheets and portraits live in Studio → Images. Use “Use as reference” in the gallery to show the image here.",
+  "Card de referência e retratos ficam em Imagens (menu lateral). Use “Usar como referência” na galeria para a imagem aparecer aqui.":
+    "Reference sheets and portraits live in Images (side menu). Use “Use as reference” in the gallery to show the image here.",
   "Carregando…": "Loading…",
   "Cartão": "Card",
   Cena: "Scene",
@@ -282,7 +282,6 @@ export const TEXTOS_EN: Record<string, string> = {
     "This deploy doesn't have sign-in enabled yet. Ask the admin to fill in",
   Estilo: "Style",
   "Estilo de roupa": "Clothing style",
-  Estúdio: "Studio",
   "Etapas da ficha": "Profile steps",
   "Ex.: 28 anos, atemporal, infantil…":
     "E.g.: 28 years old, ageless, childlike…",
@@ -1903,8 +1902,8 @@ export const TEXTOS_EN: Record<string, string> = {
     "Use a saved script",
   "Este roteiro é maior que o limite da cena: entrou só o começo. Edite para descrever o trecho que você quer.":
     "This script is longer than the scene limit: only the beginning was used. Edit it to describe the part you want.",
-  "Os roteiros que você escrever em Estúdio → Textos aparecem aqui para escolher.":
-    "Scripts you write in Studio → Text show up here to choose from.",
+  "Os roteiros que você escrever em Textos (menu lateral) aparecem aqui para escolher.":
+    "Scripts you write in Text (side menu) show up here to choose from.",
 
   // Criar vídeo em cenas
   "A imagem vira o primeiro quadro e o texto descreve o que acontece. Vídeos mais longos são gerados em cenas seguidas e unidos.":
@@ -2080,8 +2079,12 @@ export const TEXTOS_EN: Record<string, string> = {
     "Full body, with gestures",
   "Corpo inteiro · Alibaba":
     "Full body · Alibaba",
-  "Partes de 15s · o mais barato":
-    "15s parts · the cheapest",
+  "Partes de 15s · o Kling mais barato":
+    "15s parts · the cheapest Kling",
+  "Partes de 10s · pode recusar rostos reais":
+    "10s parts · may refuse real faces",
+  "Este modelo pode recusar vídeos e imagens com rostos de pessoas reais. Se recusar, os créditos voltam. Com pessoas reais, prefira um Kling O3.":
+    "This model may refuse videos and images with real people's faces. If it refuses, your credits come back. With real people, prefer a Kling O3.",
   "Partes de 15s · mais nítido":
     "15s parts · sharper",
   "Partes de 15s · em 4K":
@@ -2102,6 +2105,10 @@ export const TEXTOS_EN: Record<string, string> = {
     "Runway's best",
   "Google · pode ter áudio":
     "Google · can have audio",
+  "Google · o Veo mais barato":
+    "Google · the cheapest Veo",
+  "· cobrança real no Google AI Studio":
+    "· actual billing in Google AI Studio",
   "Até 15s por cena":
     "Up to 15s per scene",
   "Alibaba · até 30s numa cena":
@@ -2124,6 +2131,8 @@ export const TEXTOS_EN: Record<string, string> = {
     "Create spoken video · in the character's voice (depends on the model)",
   "Criar vídeo · Wan 3.0":
     "Create video · Wan 3.0",
+  "Criar vídeo · Veo 3.1 Lite":
+    "Create video · Veo 3.1 Lite",
 
   "O navegador não conseguiu abrir este vídeo (arquivo indisponível ou formato que ele não toca, como HEVC/H.265). A troca ainda funciona: sem marcar ninguém, a IA troca a pessoa principal.":
     "The browser couldn't open this video (file unavailable or a format it can't play, such as HEVC/H.265). The swap still works: with nobody marked, the AI swaps the main person.",
@@ -3165,8 +3174,8 @@ export const TEXTOS_EN: Record<string, string> = {
     "Generate the character's portrait before minting: it is the NFT image.",
   "Gere um retrato do personagem para usar como imagem do NFT.":
     "Generate a portrait of the character to use as the NFT image.",
-  "Gere o retrato do personagem em Estúdio → Imagens para mintar: ele é a imagem do NFT.":
-    "Generate the character's portrait in Studio → Images to mint: it is the NFT image.",
+  "Gere o retrato do personagem em Imagens (menu lateral) para mintar: ele é a imagem do NFT.":
+    "Generate the character's portrait in Images (side menu) to mint: it is the NFT image.",
   "Imagem que fica pública no NFT":
     "Image that becomes public on the NFT",
   "Este personagem ainda não está salvo na sua conta. Assim que ele sincronizar, o NFT aparece aqui.":
@@ -3236,8 +3245,8 @@ export const TEXTOS_EN: Record<string, string> = {
     "You are on a different address: out there they only show up once this version of the app is published at that address.",
   "É assim que o NFT vai aparecer. A imagem é o retrato do personagem; os traços e os badges entram depois do mint.":
     "This is how the NFT will look. The image is the character's portrait; traits and badges come in after minting.",
-  "Este personagem ainda não tem um retrato gerado: gere um em Estúdio → Imagens para ele ser a imagem do NFT.":
-    "This character has no generated portrait yet: create one in Studio → Images so it becomes the NFT image.",
+  "Este personagem ainda não tem um retrato gerado: gere um em Imagens (menu lateral) para ele ser a imagem do NFT.":
+    "This character has no generated portrait yet: create one in Images (side menu) so it becomes the NFT image.",
   "Ir para o mint": "Go to mint",
   "Este personagem ainda não tem um NFT.":
     "This character does not have an NFT yet.",
@@ -3258,8 +3267,8 @@ export const TEXTOS_EN: Record<string, string> = {
     "No accounts yet. Add the link of one of the influencer's posts in the Dashboard: the account that posted becomes its account on that network.",
   "Lendo na rede quem publicou os posts cadastrados por link. Os números aparecem em instantes.":
     "Reading from the network who published the posts added by link. The numbers will show up shortly.",
-  "Em cada rede vale uma conta: a conectada em Estúdio → Publicar, ou a do primeiro post cadastrado por link. Só os posts dela contam, e cada conta serve a um personagem só. Números digitados à mão não contam. Com conta não conectada, as marcas mais altas passam por conferência.":
-    "One account counts per network: the one connected in Studio → Publish, or the one from the first post added by link. Only its posts count, and each account serves a single character. Numbers typed in by hand do not count. With an account that is not connected, the highest milestones go through a review.",
+  "Em cada rede vale uma conta: a conectada em Publicar (menu lateral), ou a do primeiro post cadastrado por link. Só os posts dela contam, e cada conta serve a um personagem só. Números digitados à mão não contam. Com conta não conectada, as marcas mais altas passam por conferência.":
+    "One account counts per network: the one connected in Publish (side menu), or the one from the first post added by link. Only its posts count, and each account serves a single character. Numbers typed in by hand do not count. With an account that is not connected, the highest milestones go through a review.",
   "Gerar meu PFP":
     "Generate my PFP",
   "Transforme sua foto num avatar no estilo NIDO, com o colar da marca. Baixe ou use como foto de perfil.":
@@ -4080,4 +4089,25 @@ export const TEXTOS_EN: Record<string, string> = {
   "Baixando o vídeo… pode levar até 2 minutos.": "Downloading the video… it can take up to 2 minutes.",
   "YouTube, TikTok, Instagram ou X, até 1 minuto.": "YouTube, TikTok, Instagram or X, up to 1 minute.",
   "Declaro que tenho direito de usar este vídeo como referência, inclusive o áudio (é meu, tenho autorização ou é livre de direitos), e sei que conteúdo protegido pode fazer as redes silenciarem ou removerem o vídeo.": "I declare that I have the right to use this video as a reference, including its audio (it is mine, I have permission or it is royalty-free), and I know protected content can make social networks mute or remove the video.",
+  "Troque a pessoa de qualquer vídeo pelo seu creator": "Swap the person in any video for your creator",
+  "Escreva a cena e receba o vídeo pronto, na voz do creator": "Write the scene and get the finished video, in your creator's voice",
+  "Traga seu NFT": "Bring your NFT",
+  "Seu NFT ganha rosto, voz e personalidade e vira creator": "Your NFT gets a face, a voice and a personality and becomes a creator",
+  "Peça em uma frase: o agente gera, legenda e agenda": "Ask in one sentence: the agent generates, captions and schedules",
+  "As tendências do dia no nicho do seu creator": "Today's trends in your creator's niche",
+  "Opere o estúdio inteiro a partir de um chat": "Run the whole studio from a chat",
+  "Funcionalidades": "Features",
+  "Falhou · tentar de novo": "Failed · try again",
+  "Domingo": "Sunday",
+  "Segunda": "Monday",
+  "Terça": "Tuesday",
+  "Quarta": "Wednesday",
+  "Quinta": "Thursday",
+  "Sexta": "Friday",
+  "Sábado": "Saturday",
+  "Ferramentas": "Tools",
+  "Acompanhar": "Track",
+  "Mais": "More",
+  "Com personagem": "With character",
+  "Crie um AI Creator primeiro": "Create an AI Creator first",
 };

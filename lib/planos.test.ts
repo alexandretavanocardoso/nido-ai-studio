@@ -6,6 +6,8 @@ import {
   creditosCriarVideo,
   creditosVideoFalado,
   creditosImagem,
+  creditosPorSegundoTroca,
+  creditosTrocaOmni,
   creditosTrocaPremium,
   creditosTroca,
   PACOTES,
@@ -28,6 +30,8 @@ describe("custo em créditos", () => {
     expect(creditosTroca(2)).toBe(51); // mínimo de 3s do Kling (17 créditos/s)
     expect(creditosTroca(10, "standard")).toBe(130);
     expect(creditosTroca(10, "4k")).toBe(420);
+    expect(creditosTrocaOmni(10)).toBe(110);
+    expect(creditosTrocaOmni(2)).toBe(33); // mínimo de 3s, como os outros motores
     expect(creditosTrocaPremium(30)).toBe(1710);
     expect(creditosTrocaPremium(3)).toBe(228); // Seedance gera no mínimo 4s
     expect(creditosCriarVideo("gen4.5", 5, false)).toBe(60);
@@ -36,9 +40,18 @@ describe("custo em créditos", () => {
     expect(creditosCriarVideo("kling_v3", 10, false)).toBe(60);
     expect(creditosCriarVideo("kling_v3", 10, true)).toBe(80);
     expect(creditosCriarVideo("wan3", 10, true)).toBe(100); // Wan: mesmo preço com áudio
+    expect(creditosCriarVideo("veo3.1_lite", 8, false)).toBe(40);
+    expect(creditosCriarVideo("veo3.1_lite", 8, true)).toBe(40); // Lite: mesmo preço com áudio
     expect(creditosVideoFalado(10)).toBe(20); // avatar
     expect(creditosVideoFalado(10, "hailuo3")).toBe(120);
     expect(creditosVideoFalado(10, "wan3")).toBe(110);
+  });
+
+  it("troca por modelo: o Gemini Omni é o mais barato e o Seedance o mais caro", () => {
+    expect(creditosPorSegundoTroca("omni")).toBe(11);
+    expect(creditosPorSegundoTroca("kling_standard")).toBe(13);
+    expect(creditosPorSegundoTroca("kling_pro")).toBe(17);
+    expect(creditosPorSegundoTroca("seedance")).toBe(57);
   });
 });
 
@@ -73,6 +86,11 @@ describe("bloqueios por plano", () => {
     expect(bloqueioImagem("creator", "gpt-image", "pro")).toBeNull();
     expect(bloqueioCriarVideo("creator", "veo3.1_fast", true)).not.toBeNull();
     expect(bloqueioCriarVideo("studio", "veo3.1_fast", true)).toBeNull();
+    // Veo 3.1 Lite: nos planos que têm Veo, com a mesma regra do áudio.
+    expect(bloqueioCriarVideo("starter", "veo3.1_lite", false)).not.toBeNull();
+    expect(bloqueioCriarVideo("creator", "veo3.1_lite", false)).toBeNull();
+    expect(bloqueioCriarVideo("creator", "veo3.1_lite", true)).not.toBeNull();
+    expect(bloqueioCriarVideo("studio", "veo3.1_lite", true)).toBeNull();
     expect(bloqueioTroca("studio", 60)).toBeNull();
   });
 });

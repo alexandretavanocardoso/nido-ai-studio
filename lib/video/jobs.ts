@@ -2,7 +2,9 @@ import { getPool } from "@/lib/db";
 import { consultarDecart } from "@/lib/live/decart";
 import { consultar as consultarFal, getFal } from "./fal";
 import { consultarRunway, getRunway } from "./runway";
+import type { ModeloCriar } from "./precos";
 import { consultarSapiens, getSapiens } from "./sapiens";
+import { consultarVeo, getVeo, MODELO_VEO } from "./veo";
 import { endpointFal } from "./wan";
 
 /** Estado de um job de vídeo, igual para qualquer serviço. */
@@ -12,8 +14,12 @@ export type EstadoVideo =
   | { estado: "concluido"; videoUrl: string }
   | { estado: "erro"; mensagem: string };
 
-/** "nido": o processo da Sombra (worker/sombra), que guarda o andamento no próprio job. */
-export type Provedor = "fal" | "runway" | "sapiens" | "decart" | "nido";
+/**
+ * "nido": o processo da Sombra (worker/sombra), que guarda o andamento no próprio job.
+ * "google": API do Gemini — o Omni na troca de pessoa (acompanhada em lote,
+ * por ./troca) e o Veo no "Criar vídeo" (./veo).
+ */
+export type Provedor = "fal" | "runway" | "sapiens" | "decart" | "nido" | "google";
 
 /** Consulta o job no serviço que o processa (coluna `provedor` de video_jobs). */
 export async function consultarJob(
@@ -23,6 +29,14 @@ export async function consultarJob(
 ): Promise<EstadoVideo> {
   if (provedor === "decart") return consultarDecart(idExterno);
   if (provedor === "nido") return consultarNido(idExterno);
+  if (provedor === "google") {
+    if (!MODELO_VEO[modelo as ModeloCriar])
+      return { estado: "erro", mensagem: "Job do Gemini Omni fora da troca de pessoa." };
+    const ai = getVeo();
+    if (!ai)
+      return { estado: "erro", mensagem: "GEMINI_API_KEY não configurada no servidor." };
+    return consultarVeo(ai, idExterno);
+  }
   if (provedor === "sapiens") {
     const chave = getSapiens();
     if (!chave)

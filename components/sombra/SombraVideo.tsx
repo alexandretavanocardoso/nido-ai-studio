@@ -24,26 +24,27 @@ import { tx } from "@/lib/i18n/tx";
 import { dinheiro } from "@/lib/moeda";
 import {
   bloqueioTroca,
+  creditosPorSegundoTroca,
   creditosTroca,
+  creditosTrocaOmni,
   creditosTrocaPremium,
-  TROCA_POR_SEGUNDO_QUALIDADE,
-  TROCA_PREMIUM_POR_SEGUNDO,
 } from "@/lib/planos";
 import { uploadFile } from "@/lib/storage/client";
 import { STORAGE_KINDS } from "@/lib/storage/env";
 import {
   custoPorSegundoTroca,
   custoTroca,
+  custoTrocaOmni,
   custoTrocaPremium,
-  KLING_TROCA,
+  MINIMO_TROCA,
   MODELOS_TROCA,
   MODELOS_TROCA_IDS,
-  SEEDANCE_TROCA,
   segundosCobradosTroca,
   trocaPorTomadas,
   type ModeloTroca,
 } from "@/lib/video/precos";
 import {
+  AvisoRostoReal,
   EnviarOrigem,
   marcaSemPersonagem,
   Opcoes,
@@ -51,14 +52,6 @@ import {
   QuemEntra,
   type ImagemEnviada,
 } from "./comum";
-
-/** Créditos por segundo de cada modelo da troca. */
-const creditosPorSegundo = (m: ModeloTroca) => {
-  const { qualidade } = MODELOS_TROCA[m];
-  return qualidade
-    ? TROCA_POR_SEGUNDO_QUALIDADE[qualidade]
-    : TROCA_PREMIUM_POR_SEGUNDO;
-};
 
 /** Trechos que dá para escolher em vez do vídeo inteiro (segundos, a partir do começo). */
 const CORTES = [10, 15, 30] as const;
@@ -137,24 +130,31 @@ export function SombraVideo({
           creditos: creditosTrocaPremium(segundos),
           custo: custoTrocaPremium(segundos),
         }
-      : {
-          creditos: creditosTroca(
-            segundosCobradosTroca(cortesAte(segundos), segundos),
-            qualidade,
-          ),
-          custo: custoTroca(
-            segundosCobradosTroca(cortesAte(segundos), segundos),
-            qualidade,
-          ),
-        };
+      : motor === "omni"
+        ? {
+            creditos: creditosTrocaOmni(segundos),
+            custo: custoTrocaOmni(segundos),
+          }
+        : {
+            creditos: creditosTroca(
+              segundosCobradosTroca(cortesAte(segundos), segundos),
+              qualidade,
+            ),
+            custo: custoTroca(
+              segundosCobradosTroca(cortesAte(segundos), segundos),
+              qualidade,
+            ),
+          };
   const { creditos, custo } = precoDe(duracao);
   const tomadas =
-    premium || !duracao ? null : trocaPorTomadas(cortesAte(duracao), duracao);
+    motor !== "kling" || !duracao
+      ? null
+      : trocaPorTomadas(cortesAte(duracao), duracao);
   const opcoesDeCorte = [
     ...CORTES.filter((c) => c < duracaoTotal - 0.2),
     0 as const,
   ];
-  const minimo = premium ? SEEDANCE_TROCA.minSegundos : KLING_TROCA.minSegundos;
+  const minimo = MINIMO_TROCA[motor];
   const curtoDemais = duracao > 0 && duracao < minimo;
   const bloqueio =
     conta && duracao ? bloqueioTroca(conta.plano, duracao) : null;
@@ -229,7 +229,7 @@ export function SombraVideo({
               }))
             : undefined,
           motor,
-          qualidade: premium ? undefined : qualidade,
+          qualidade: motor === "kling" ? qualidade : undefined,
           removerTexto,
           roupa,
           segundos: cortando ? corte : undefined,
@@ -546,15 +546,19 @@ export function SombraVideo({
               rotulo={tx("Modelo")}
               valor={modeloTroca}
               onChange={setModeloTroca}
-              // Do mais caro para o mais barato.
-              opcoes={[...MODELOS_TROCA_IDS]
-                .sort((a, b) => creditosPorSegundo(b) - creditosPorSegundo(a))
+              // Do mais caro para o mais barato (o Omni só com a chave do Gemini).
+              opcoes={MODELOS_TROCA_IDS.filter(
+                (id) => MODELOS_TROCA[id].motor !== "omni" || recursos.gemini,
+              )
+                .sort(
+                  (a, b) => creditosPorSegundoTroca(b) - creditosPorSegundoTroca(a),
+                )
                 .map((id) => ({
                   id,
                   label: MODELOS_TROCA[id].label,
                   nota: tx(MODELOS_TROCA[id].nota),
                   preco: conta
-                    ? `${creditosPorSegundo(id)} ${tx("créditos/s")}`
+                    ? `${creditosPorSegundoTroca(id)} ${tx("créditos/s")}`
                     : `${dinheiro(custoPorSegundoTroca(id), { de: "USD" })}/s`,
                 }))}
             />
@@ -575,6 +579,7 @@ export function SombraVideo({
               </div>
             </div>
           </div>
+          {MODELOS_TROCA[modeloTroca].recusaRostoReal ? <AvisoRostoReal /> : null}
           <Button
             variant="accent"
             className="w-full justify-center"

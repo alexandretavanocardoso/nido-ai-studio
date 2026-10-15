@@ -786,7 +786,7 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
                           "Descreva ação, câmera e luz: o modelo anima a imagem, não fala o texto.",
                         )}
                 {roteiros.length === 0 && !convertendo
-                  ? ` ${tx("Os roteiros que você escrever em Estúdio → Textos aparecem aqui para escolher.")}`
+                  ? ` ${tx("Os roteiros que você escrever em Textos (menu lateral) aparecem aqui para escolher.")}`
                   : ""}
               </p>
               <span className="mono shrink-0">
@@ -1220,7 +1220,9 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
                           ? tx("· cobrança real no painel do Sapiens")
                           : provedorCriar(modelo, recursos) === "fal"
                             ? tx("· cobrança real no painel do fal.ai")
-                            : tx("· cobrança real no painel do Runway")
+                            : provedorCriar(modelo, recursos) === "google"
+                              ? tx("· cobrança real no Google AI Studio")
+                              : tx("· cobrança real no painel do Runway")
                     }`}
               </div>
             </div>

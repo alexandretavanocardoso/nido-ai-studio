@@ -81,7 +81,7 @@ export function VisualStep({ id }: { id: string }) {
             </div>
             <p className="text-[13px] text-ink-mute mt-0.5">
               {tx(
-                "Card de referência e retratos ficam no Estúdio → Imagens. Use “Usar como referência” na galeria para a imagem aparecer aqui.",
+                "Card de referência e retratos ficam em Imagens (menu lateral). Use “Usar como referência” na galeria para a imagem aparecer aqui.",
               )}
             </p>
           </div>

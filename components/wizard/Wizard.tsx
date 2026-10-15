@@ -30,7 +30,6 @@ import { liberadoNaTela } from "@/lib/em-teste";
 import { cn } from "@/lib/cn";
 import {
   EstudioConteudo,
-  EstudioNav,
   SECOES_ESTUDIO,
   type SecaoEstudio,
 } from "@/components/estudio/Estudio";
@@ -38,18 +37,17 @@ import { useT, type Chave } from "@/lib/i18n";
 import { tx } from "@/lib/i18n/tx";
 
 /**
- * Larguras mínimas do conteúdo (em px) para cada layout desta tela. A régua é
+ * Larguras mínimas do conteúdo (em px) para cada layout da ficha. A régua é
  * a largura que SOBRA para o conteúdo, medida na tela, e não um breakpoint: o
  * menu lateral do app ocupa 124 ou 288px, então a mesma tela de 1024px deixa
  * 852 ou 688px para cá. Com `lg:`, as três colunas da ficha esmagavam o
  * formulário em ~110px. (Medido por JS e não por @container: um contêiner aqui
  * prenderia os modais do Estúdio dentro dele em navegadores mais antigos.)
- *  - Ficha: menu de etapas ao lado a partir de 760; prévia na terceira coluna
- *    a partir de 1060 (entre os dois, a prévia fica embaixo do formulário).
- *  - Estúdio: menu de ferramentas ao lado a partir de 860.
- * Abaixo disso o menu vira a faixa horizontal acima do conteúdo.
+ * Menu de etapas ao lado a partir de 760 (abaixo disso ele vira a faixa
+ * horizontal acima do formulário); prévia na terceira coluna a partir de 1060
+ * (entre os dois, a prévia fica embaixo do formulário).
  */
-const LARGURA_MENU = { ficha: 760, estudio: 860 } as const;
+const LARGURA_MENU = 760;
 const LARGURA_PREVIA_AO_LADO = 1060;
 
 /** Largura atual de um elemento (0 até medir). Use com `ref={medir}`. */
@@ -89,11 +87,11 @@ export function Wizard({ id }: { id: string }) {
         : params?.get("aba") === "estudio"
           ? "estudio"
           : "ficha";
-  // Radar e NFT ocupam a largura toda: não têm menu lateral.
-  const semMenu = aba === "radar" || aba === "nft";
+  // Só a ficha tem menu próprio (as etapas). Estúdio, Radar e NFT ocupam a
+  // largura toda: as ferramentas do Estúdio ficam no menu lateral do app.
+  const semMenu = aba !== "ficha";
   const [largura, medir] = useLargura();
-  const menuAoLado =
-    !semMenu && largura >= LARGURA_MENU[aba === "ficha" ? "ficha" : "estudio"];
+  const menuAoLado = !semMenu && largura >= LARGURA_MENU;
   const previaAoLado = aba === "ficha" && largura >= LARGURA_PREVIA_AO_LADO;
   const currentId = useMemo<StepId>(() => {
     const raw = params?.get("step");
@@ -122,7 +120,6 @@ export function Wizard({ id }: { id: string }) {
         ? { aba: a, secao: "videos" }
         : { aba: a },
     );
-  const setSecao = (s: SecaoEstudio) => navegar({ aba: "estudio", secao: s });
 
   const current = useMemo(
     () => STEPS[stepIndex(currentId)] ?? STEPS[0],
@@ -161,19 +158,13 @@ export function Wizard({ id }: { id: string }) {
         />
         {aba === "ficha" && <SuggestionCounter character={character} />}
 
-        {/* Pouca largura: nav horizontal rolável acima do conteúdo */}
+        {/* Ficha com pouca largura: etapas numa faixa horizontal rolável acima do formulário */}
         <div className={cn("mb-6", (semMenu || menuAoLado) && "hidden")}>
-          {aba === "ficha" ? (
+          {semMenu ? null : (
             <StepTabs
               current={currentId}
               character={character}
               onPick={setCurrentId}
-              orientation="horizontal"
-            />
-          ) : (
-            <EstudioNav
-              atual={secao}
-              onPick={setSecao}
               orientation="horizontal"
             />
           )}
@@ -190,20 +181,14 @@ export function Wizard({ id }: { id: string }) {
                 : "grid-cols-1",
           )}
         >
-          {/* Com largura: nav vertical sticky */}
+          {/* Ficha com largura: etapas na coluna da esquerda, fixas na rolagem */}
           <aside className={cn("min-w-0", !menuAoLado && "hidden")}>
             <div className="sticky top-20">
-              {aba === "ficha" ? (
+              {semMenu ? null : (
                 <StepTabs
                   current={currentId}
                   character={character}
                   onPick={setCurrentId}
-                  orientation="vertical"
-                />
-              ) : (
-                <EstudioNav
-                  atual={secao}
-                  onPick={setSecao}
                   orientation="vertical"
                 />
               )}

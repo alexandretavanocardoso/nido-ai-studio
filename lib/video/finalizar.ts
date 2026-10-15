@@ -55,6 +55,7 @@ import {
   unirCenas,
 } from "./cadeia";
 import { enviarFaladoSapiens, getSapiens } from "./sapiens";
+import { buscarResultado } from "./veo";
 import { enviarFaladoWan } from "./wan";
 
 /**
@@ -443,6 +444,8 @@ export async function finalizarJob(
         userId: job.user_id,
         cadeia: cadeiaDoJob(job.input)!,
         ultimaUrl: concluido.url!,
+        // O Veo na API do Gemini sempre gera som: sem áudio pedido, ele sai aqui.
+        semAudio: job.provedor === "google" && job.input.audio !== true,
       }));
     } else if (concluido.url && keyDoNido(concluido.url)) {
       // Sombra de vídeo longo: o processo da Sombra (worker/sombra) já deixou o vídeo no S3.
@@ -457,7 +460,7 @@ export async function finalizarJob(
         input: job.input,
       }));
     } else {
-      const res = await fetch(concluido.url!);
+      const res = await buscarResultado(concluido.url!);
       if (!res.ok)
         throw new Error(`download do resultado falhou (HTTP ${res.status})`);
       const buf = Buffer.from(await res.arrayBuffer());

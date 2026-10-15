@@ -85,6 +85,7 @@ import {
   recortarParaFormato,
 } from "@/lib/video/sapiens";
 import { contextoVideo } from "@/lib/video/server";
+import { enviarCriacaoVeo, getVeo, mensagemDeErroVeo } from "@/lib/video/veo";
 import {
   enviarCriacaoWan,
   enviarFaladoWan,
@@ -254,6 +255,7 @@ export async function POST(req: Request) {
   const runway = getRunway();
   const sapiens = getSapiens();
   const fal = getFal();
+  const gemini = getVeo();
   const modeloFalado = body.modelo as ModeloFalado;
   const modeloMudo = body.modelo as ModeloCriar;
   const provedor = falado
@@ -262,9 +264,18 @@ export async function POST(req: Request) {
         runway: !!runway,
         sapiens: !!sapiens,
         fal: !!fal,
+        gemini: !!gemini,
       });
   const ligado =
-    provedor === "runway" ? !!runway : provedor === "sapiens" ? !!sapiens : provedor === "fal" ? !!fal : false;
+    provedor === "runway"
+      ? !!runway
+      : provedor === "sapiens"
+        ? !!sapiens
+        : provedor === "fal"
+          ? !!fal
+          : provedor === "google"
+            ? !!gemini
+            : false;
   if (!pool || !ligado || (falado && !el))
     return NextResponse.json(
       {
@@ -503,7 +514,9 @@ export async function POST(req: Request) {
             ? await enviarCriacaoSapiens(sapiens!, pedido)
             : provedor === "fal"
               ? await enviarCriacaoWan(fal!, { ...pedido, jobId })
-              : await enviarCriacao(runway!, pedido);
+              : provedor === "google"
+                ? await enviarCriacaoVeo(gemini!, pedido)
+                : await enviarCriacao(runway!, pedido);
         modeloDoJob = modeloMudo;
         input = {
           produto: produtoInput,
@@ -529,7 +542,9 @@ export async function POST(req: Request) {
           ? mensagemDeErro(e)
           : provedor === "sapiens"
             ? mensagemDeErroSapiens(e)
-            : mensagemDeErroRunway(e),
+            : provedor === "google"
+              ? mensagemDeErroVeo(e)
+              : mensagemDeErroRunway(e),
       );
     }
 

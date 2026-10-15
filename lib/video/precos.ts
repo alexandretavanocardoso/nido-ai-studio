@@ -29,40 +29,54 @@ export function custoTroca(
 /**
  * Modelos da troca (Sombra): cada um é um motor (ver lib/video/troca.ts) e,
  * no Kling, o formato. A tela ordena pelo preço. Qualquer plano usa qualquer
- * um; cada um cobra o seu preço.
+ * um; cada um cobra o seu preço. `recusaRostoReal`: o filtro do modelo pode
+ * barrar vídeo ou imagem com rosto de pessoa real (a tela avisa ao escolher).
  */
 export const MODELOS_TROCA = {
   kling_standard: {
     label: "Kling O3 Standard",
-    nota: "Partes de 15s · o mais barato",
+    nota: "Partes de 15s · o Kling mais barato",
     motor: "kling",
     qualidade: "standard",
+    recusaRostoReal: false,
   },
   kling_pro: {
     label: "Kling O3 Pro",
     nota: "Partes de 15s · mais nítido",
     motor: "kling",
     qualidade: "pro",
+    recusaRostoReal: false,
   },
   kling_4k: {
     label: "Kling O3 4K",
     nota: "Partes de 15s · em 4K",
     motor: "kling",
     qualidade: "4k",
+    recusaRostoReal: false,
   },
   seedance: {
     label: "Seedance 2.5",
     nota: "Até 30s de uma vez · recusa rostos reais",
     motor: "seedance",
     qualidade: null,
+    recusaRostoReal: true,
+  },
+  omni: {
+    label: "Gemini Omni Flash",
+    nota: "Partes de 10s · pode recusar rostos reais",
+    motor: "omni",
+    qualidade: null,
+    recusaRostoReal: true,
   },
 } as const;
 export type ModeloTroca = keyof typeof MODELOS_TROCA;
 export const MODELOS_TROCA_IDS = Object.keys(MODELOS_TROCA) as ModeloTroca[];
+export type MotorDaTroca = (typeof MODELOS_TROCA)[ModeloTroca]["motor"];
 
 /** Custo em dólar por segundo de cada modelo da troca. */
 export function custoPorSegundoTroca(m: ModeloTroca): number {
-  const { qualidade } = MODELOS_TROCA[m];
+  const { motor, qualidade } = MODELOS_TROCA[m];
+  if (motor === "omni") return OMNI_TROCA.porSegundo;
   return qualidade ? KLING_TROCA.porSegundo[qualidade] : SEEDANCE_TROCA.porSegundo;
 }
 
@@ -159,7 +173,26 @@ export function custoTrocaPremium(duracao: number): number {
 }
 
 /**
- * Criar vídeo novo a partir da imagem do personagem (Runway, Sapiens ou fal).
+ * Gemini Omni Flash (Google, 720p): ~US$ 0,10 por segundo de vídeo gerado (a
+ * entrada custa quase nada). Edita no máximo 10s por vez (ver lib/video/omni.ts).
+ */
+export const OMNI_TROCA = { porSegundo: 0.1, minSegundos: 3 } as const;
+
+export function custoTrocaOmni(duracao: number): number {
+  return Number(
+    (Math.max(OMNI_TROCA.minSegundos, duracao) * OMNI_TROCA.porSegundo).toFixed(2),
+  );
+}
+
+/** Duração mínima do vídeo em cada motor da troca. */
+export const MINIMO_TROCA: Record<MotorDaTroca, number> = {
+  kling: KLING_TROCA.minSegundos,
+  seedance: SEEDANCE_TROCA.minSegundos,
+  omni: OMNI_TROCA.minSegundos,
+};
+
+/**
+ * Criar vídeo novo a partir da imagem do personagem (Runway, Sapiens, fal ou Google).
  * `duracoes` é o que cada modelo aceita POR CENA; o vídeo pedido (10, 15 ou
  * 30s, igual em todos os modelos) é gerado em cenas seguidas e unido no fim.
  */
@@ -183,6 +216,16 @@ export const MODELOS_CRIAR = {
     nota: "Google · pode ter áudio",
     porSegundo: 0.1,
     porSegundoComAudio: 0.15,
+    duracoes: [4, 6, 8],
+    audio: true,
+  },
+  // Só na API do Gemini (ver lib/video/veo.ts), em 720p: US$ 0,05/s, sempre com
+  // áudio — a API não desliga o som; sem áudio pedido, ele sai na união das
+  // cenas (conferido em 15/10/2026).
+  "veo3.1_lite": {
+    label: "Veo 3.1 Lite",
+    nota: "Google · o Veo mais barato",
+    porSegundo: 0.05,
     duracoes: [4, 6, 8],
     audio: true,
   },
@@ -212,20 +255,22 @@ export type ModeloCriar = keyof typeof MODELOS_CRIAR;
  * Serviço que gera cada modelo. O Veo 3.1 Fast existe nos dois: vai pelo
  * Sapiens (US$ 0,079/s, ou US$ 0,119/s com áudio) quando a chave dele está
  * configurada, senão pelo Runway (os preços da tabela acima). O Wan 3.0 só
- * existe no fal.
+ * existe no fal, e o Veo 3.1 Lite só na API do Gemini (GEMINI_API_KEY).
  */
-export type ProvedorCriar = "runway" | "sapiens" | "fal";
+export type ProvedorCriar = "runway" | "sapiens" | "fal" | "google";
 const NO_SAPIENS: readonly ModeloCriar[] = ["kling_v3", "veo3.1_fast"];
 const NO_RUNWAY: readonly ModeloCriar[] = ["gen4_turbo", "gen4.5", "veo3.1_fast"];
 const NO_FAL: readonly ModeloCriar[] = ["wan3"];
+const NO_GOOGLE: readonly ModeloCriar[] = ["veo3.1_lite"];
 
 export function provedorCriar(
   modelo: ModeloCriar,
-  ligado: { runway: boolean; sapiens: boolean; fal?: boolean },
+  ligado: { runway: boolean; sapiens: boolean; fal?: boolean; gemini?: boolean },
 ): ProvedorCriar | null {
   if (ligado.sapiens && NO_SAPIENS.includes(modelo)) return "sapiens";
   if (ligado.runway && NO_RUNWAY.includes(modelo)) return "runway";
   if (ligado.fal && NO_FAL.includes(modelo)) return "fal";
+  if (ligado.gemini && NO_GOOGLE.includes(modelo)) return "google";
   return null;
 }
 

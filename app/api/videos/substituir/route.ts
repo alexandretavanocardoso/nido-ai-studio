@@ -24,6 +24,7 @@ import {
 import {
   bloqueioTroca,
   creditosTroca,
+  creditosTrocaOmni,
   creditosTrocaPremium,
 } from "@/lib/planos";
 import { getPool } from "@/lib/db";
@@ -43,6 +44,7 @@ import {
   trechosTroca,
 } from "@/lib/video/ffmpeg";
 import { getFal, mensagemDeErro } from "@/lib/video/fal";
+import { getOmni } from "@/lib/video/omni";
 import {
   acaoDoTrecho,
   alvosNosTrechos,
@@ -69,12 +71,12 @@ import {
 } from "@/lib/video/ancora";
 import {
   custoTroca,
+  custoTrocaOmni,
   custoTrocaPremium,
-  KLING_TROCA,
+  MINIMO_TROCA,
   segundosDaTomada,
   trocaPorTomadas,
   QUALIDADES_TROCA,
-  SEEDANCE_TROCA,
 } from "@/lib/video/precos";
 import { comPastaTemporaria, contextoVideo } from "@/lib/video/server";
 import { SOMBRA_SEM_PERSONAGEM } from "@/lib/sombra";
@@ -116,8 +118,11 @@ const BodySchema = z.object({
     .min(1)
     .max(3)
     .optional(),
-  /** kling = Kling O3 Edit (padrão) · seedance = Seedance 2.5 (premium). Os dois no fal.ai. */
-  motor: z.enum(["kling", "seedance"]).default("kling"),
+  /**
+   * kling = Kling O3 Edit (padrão) · seedance = Seedance 2.5 (premium), os dois
+   * no fal.ai · omni = Gemini Omni Flash (Google, trechos de até 10s).
+   */
+  motor: z.enum(["kling", "seedance", "omni"]).default("kling"),
   /** Formato do Kling O3: Standard, Pro ou 4K (o Seedance ignora). */
   qualidade: z.enum(QUALIDADES_TROCA).default("pro"),
   /** Pede pra remover legendas/textos da tela no mesmo passo. */
@@ -265,7 +270,17 @@ export async function POST(req: Request) {
       },
       { status: 500 },
     );
+  // O Omni também usa o fal (recorte do personagem, áudio original), e a chave do Gemini.
+  if (body.motor === "omni" && !getOmni())
+    return NextResponse.json(
+      {
+        error: "Gemini Omni não configurado no servidor (GEMINI_API_KEY).",
+        code: "CONFIG_MISSING",
+      },
+      { status: 500 },
+    );
   const premium = body.motor === "seedance";
+  const omni = body.motor === "omni";
 
   // Limites do plano: espaço e vídeos ao mesmo tempo. A vaga vale até o job
   // ser registrado — a partir daí, o próprio job em processamento ocupa a vaga.
@@ -309,9 +324,7 @@ export async function POST(req: Request) {
           },
           { status: 400 },
         );
-      const minimo = premium
-        ? SEEDANCE_TROCA.minSegundos
-        : KLING_TROCA.minSegundos;
+      const minimo = MINIMO_TROCA[body.motor];
       if (duracao < minimo)
         return NextResponse.json(
           {
@@ -354,9 +367,11 @@ export async function POST(req: Request) {
       // curtas em câmera lenta. O Kling cobra pelo que processa — é isso que é
       // cobrado aqui (o máximo; tomada sem ninguém a trocar é devolvida abaixo).
       // Só no modo "personagem": nos outros o pedido muda o lugar ou um
-      // detalhe, e o quadro-guia por tomada só sabe trocar pessoas.
+      // detalhe, e o quadro-guia por tomada só sabe trocar pessoas. O Omni
+      // divide nos cortes, mas não vai tomada por tomada (é o mínimo de 3s do
+      // Kling que obriga a câmera lenta).
       const tomadas =
-        premium || body.modo !== "personagem"
+        body.motor !== "kling" || body.modo !== "personagem"
         ? null
         : trocaPorTomadas(cortesDeCamera(viradas), duracao);
       let segundosCobrados = tomadas
@@ -364,7 +379,9 @@ export async function POST(req: Request) {
         : duracao;
       let creditos = premium
         ? creditosTrocaPremium(duracao)
-        : creditosTroca(segundosCobrados, body.qualidade);
+        : omni
+          ? creditosTrocaOmni(duracao)
+          : creditosTroca(segundosCobrados, body.qualidade);
       const cobrado = await cobrarOuResponder(
         userId,
         creditos,
@@ -411,7 +428,7 @@ export async function POST(req: Request) {
       const personagens = await Promise.all(
         imagens.map((key) => getObjectBuffer(s3, key)),
       );
-      // Em paralelo: (1) quadro-âncora (só Kling) — a troca feita num quadro do
+      // Em paralelo: (1) quadro-âncora (Kling e Omni) — a troca feita num quadro do
       // vídeo guia todos os trechos (mesmo visual nas emendas, outras pessoas
       // preservadas) e, sem ninguém marcado, descreve a pessoa principal;
       // (2) personagens sem fundo; (3) com pessoas marcadas, em que momentos
@@ -429,7 +446,7 @@ export async function POST(req: Request) {
       const [ancora, personagensUrl, linha] = await Promise.all([
         !modo.personagem
           ? // Ninguém a trocar: o guia é um quadro com o pedido já aplicado.
-            body.motor === "kling" && pedido
+            !premium && pedido
             ? quadroDoPedido({
                 arquivo,
                 dir,
@@ -439,7 +456,7 @@ export async function POST(req: Request) {
                 estilo: body.estilo,
               }).then((imagem) => ({ ...semAncoraGeral, imagem }))
             : semAncoraGeral
-          : body.motor === "kling" && !(tomadas && body.pessoas)
+          : !premium && !(tomadas && body.pessoas)
           ? prepararAncora({
               arquivo,
               dir,
@@ -552,10 +569,10 @@ export async function POST(req: Request) {
           })),
         });
       } else {
-        // Kling: um trecho novo começa quando uma pessoa marcada entra em cena (o
-        // motor só troca bem quem já está na tela no começo do trecho) e nos cortes
-        // de câmera. O Seedance faz até 30s de uma vez e não tem quadro-âncora: lá
-        // mais emendas atrapalham, fica dividido só pelo tamanho.
+        // Kling e Omni: um trecho novo começa quando uma pessoa marcada entra em
+        // cena (o motor só troca bem quem já está na tela no começo do trecho) e
+        // nos cortes de câmera. O Seedance faz até 30s de uma vez e não tem
+        // quadro-âncora: lá mais emendas atrapalham, fica dividido só pelo tamanho.
         const trechos = trechosTroca(
           duracao,
           MOTORES_TROCA[body.motor].maxTrecho,
@@ -605,7 +622,9 @@ export async function POST(req: Request) {
       }
       const custo = premium
         ? custoTrocaPremium(duracao)
-        : custoTroca(segundosCobrados, body.qualidade);
+        : omni
+          ? custoTrocaOmni(duracao)
+          : custoTroca(segundosCobrados, body.qualidade);
 
       await pool.query(
         `insert into video_jobs (id, user_id, character_id, provedor, tipo, modelo, fal_request_id, input, duracao)
@@ -614,7 +633,7 @@ export async function POST(req: Request) {
           jobId,
           userId,
           characterId,
-          "fal",
+          omni ? "google" : "fal",
           troca.modelo ?? MOTORES_TROCA[body.motor].modelo,
           // O primeiro trecho pode ser uma tomada sem troca (sem pedido no motor).
           troca.segmentos.find((g) => g.requestId)?.requestId ?? "",

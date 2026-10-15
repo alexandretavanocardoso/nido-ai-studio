@@ -28,16 +28,30 @@ import {
   type Segmento,
 } from "./lote";
 import { TOMADA_MIN, type QualidadeTroca } from "./precos";
+import {
+  baixarTrechosOmni,
+  cancelarOmni,
+  enviarTrechoOmni,
+  estadoLoteOmni,
+  getOmni,
+  imagemParaOmni,
+  MODELO_OMNI,
+  OMNI_MAX_TRECHO,
+  pedidoParaOmni,
+} from "./omni";
+import type { ReferenciaInline } from "@/lib/ai/gemini";
 import { comPastaTemporaria } from "./server";
 import { webhookUrl } from "./webhook";
 
 /**
- * Troca de pessoa (fal.ai): troca só a pessoa pelo personagem e mantém
- * cenário, câmera, movimento e o áudio original. Dois motores:
- *  - kling    → Kling O3 Edit (padrão). Aceita trechos de 3–15s, em três formatos:
+ * Troca de pessoa: troca só a pessoa pelo personagem e mantém cenário,
+ * câmera, movimento e o áudio original. Três motores:
+ *  - kling    → Kling O3 Edit (padrão, fal.ai). Aceita trechos de 3–15s, em três formatos:
  *               Standard (US$ 0,126/s), Pro (US$ 0,168/s, o padrão) e 4K (US$ 0,42/s).
- *  - seedance → Seedance 2.5 em modo edição (premium, US$ 0,568/s em 720p: o fal cobra entrada + saída).
+ *  - seedance → Seedance 2.5 em modo edição (premium, fal.ai, US$ 0,568/s em 720p: o fal cobra entrada + saída).
  *               Aceita até 30s de uma vez: preserva melhor cenário, objetos e roupa.
+ *  - omni     → Gemini Omni Flash (Google, ~US$ 0,10/s em 720p, ver ./omni.ts).
+ *               Edita no máximo 10s por vez: trechos curtos, com o quadro-âncora como o Kling.
  * O vídeo vira trechos iguais do tamanho máximo do motor (lado menor ≥ 720px),
  * processados em paralelo; no fim eles são juntados e o áudio original
  * (música, fala) volta por baixo.
@@ -45,13 +59,13 @@ import { webhookUrl } from "./webhook";
  * A personagem vai SEM fundo (recortada e sobre branco) — com fundo, o modelo
  * copia o cenário da imagem em vez de manter o do vídeo.
  *
- * No Kling vão também:
+ * No Kling vão também (no Omni, menos o close do rosto):
  *  - um quadro-âncora (lib/video/ancora.ts): um quadro do vídeo com a troca já
  *    feita, igual para todos os trechos — sem ele o visual pula nas emendas;
  *  - um close do rosto de cada personagem (o rosto é pequeno na imagem de corpo inteiro);
  *  - a descrição das OUTRAS pessoas do vídeo — sem dizer quem são, o modelo as redesenha.
  */
-export type MotorTroca = "kling" | "seedance";
+export type MotorTroca = "kling" | "seedance" | "omni";
 
 /** Kling O3 Edit: um endpoint do fal por formato. */
 export const MODELOS_KLING: Record<QualidadeTroca, string> = {
@@ -72,6 +86,10 @@ export const MOTORES_TROCA: Record<
     modelo: "bytedance/seedance-2.5/reference-to-video",
     maxTrecho: 30,
   },
+  omni: {
+    modelo: MODELO_OMNI,
+    maxTrecho: OMNI_MAX_TRECHO,
+  },
 };
 const MODELO_RECORTE = "fal-ai/birefnet/v2";
 
@@ -91,8 +109,9 @@ export function ehModeloTroca(modelo: string): boolean {
 
 export interface InputTroca {
   motor: MotorTroca;
-  /** Modelo do fal usado neste job (ausente em jobs antigos = Kling O1 standard). */
+  /** Modelo usado neste job (ausente em jobs antigos = Kling O1 standard). */
   modelo?: string;
+  /** No Omni, `requestId` de cada segmento é o id da interação no Google. */
   segmentos: Segmento[];
   /** Áudio original (no storage do fal), se o vídeo tinha som. */
   audioUrl: string | null;
@@ -115,8 +134,9 @@ type AlvoDoPedido = Pick<AlvoTroca, "descricao" | "tipo">;
  * Pedido à IA: troca SÓ as pessoas indicadas (cada uma pelo seu personagem) e
  * exige que todo o resto — inclusive as outras pessoas — fique como no vídeo.
  * Sem descrição, o alvo é "a pessoa principal".
- * `ancora` (só Kling): há um quadro do vídeo com a troca já feita, enviado como
- * @Image1 — é ele que mantém o mesmo visual em todos os trechos.
+ * `ancora` (Kling e Omni): há um quadro do vídeo com a troca já feita — é ele
+ * que mantém o mesmo visual em todos os trechos. No Kling vai como @Image1 (os
+ * personagens são @Element); no Omni, depois dos personagens (ver `refAncora`).
  * `outras`: descrição das outras pessoas que aparecem (elas não podem mudar).
  */
 export function promptTroca(
@@ -197,7 +217,7 @@ export function promptTroca(
 /**
  * Pedido à IA sem ninguém a trocar: só o que o usuário escreveu muda — o fundo
  * ("cena") ou um detalhe, como um acessório ("detalhe"). Pessoas, movimento e
- * câmera ficam como no vídeo. `ancora` (só Kling): um quadro do vídeo com a
+ * câmera ficam como no vídeo. `ancora` (Kling e Omni): um quadro do vídeo com a
  * mudança já feita, enviado como @Image1, para todos os trechos saírem iguais.
  */
 export function promptEdicao(
@@ -214,7 +234,7 @@ export function promptEdicao(
     cena
       ? `In @Video1, change ONLY the background and setting: ${pedido}.`
       : `In @Video1, change ONLY this: ${pedido}.`,
-    ancora && motor === "kling"
+    ancora && motor !== "seedance"
       ? "@Image1 is a frame of this same video with the change already done: match it exactly in every frame."
       : "",
     cena
@@ -286,6 +306,9 @@ function montarPedido(
   const visual = pedidoDoEstilo(estilo);
   const ref = (i: number) =>
     motor === "kling" ? `@Element${i + 1}` : `@Image${i + 1}`;
+  // O Seedance não recebe quadro-âncora. No Omni ele vai depois dos personagens.
+  const comAncora = ancora && motor !== "seedance";
+  const refAncora = motor === "omni" ? `@Image${alvos.length + 1}` : "@Image1";
   const refsPessoas = pessoas.map(ref).join(", ");
   const quem = (a: AlvoDoPedido) =>
     a.descricao ?? `the main ${nomeDoTipo(a.tipo)}`;
@@ -313,14 +336,14 @@ function montarPedido(
           ? `- ${quem(a)} → replace ONLY their head (face, hair, headwear, skin tone) with the character ${ref(i)}; the body keeps its own build and clothes.`
           : `- ${quem(a)} → replace with the character ${ref(i)}.`,
     ),
-    ...(ancora && motor === "kling"
+    ...(comAncora
       ? foraDaAncora.length
         ? [
-            `@Image1 is a frame of this same scene with the replacement already done ONLY for ${naAncora!.map((i) => ref(i)).join(", ")}: match it exactly in every frame ${igualAncora}.`,
-            `@Image1 does NOT show the replacement of ${foraDaAncora.map((i) => `${quem(alvos[i])} (${ref(i)})`).join("; ")}: replace them too in every frame, taking ${foraDaAncora.some((i) => ehCoisa(alvos[i].tipo)) ? "their look" : soCabeca ? "face and hair" : "face, hair and outfit"} from ${foraDaAncora.map((i) => ref(i)).join(", ")}.`,
+            `${refAncora} is a frame of this same scene with the replacement already done ONLY for ${naAncora!.map((i) => ref(i)).join(", ")}: match it exactly in every frame ${igualAncora}.`,
+            `${refAncora} does NOT show the replacement of ${foraDaAncora.map((i) => `${quem(alvos[i])} (${ref(i)})`).join("; ")}: replace them too in every frame, taking ${foraDaAncora.some((i) => ehCoisa(alvos[i].tipo)) ? "their look" : soCabeca ? "face and hair" : "face, hair and outfit"} from ${foraDaAncora.map((i) => ref(i)).join(", ")}.`,
           ]
         : [
-            `@Image1 is a frame of this same scene with the replacement already done: ${temCoisa ? "everything replaced" : "the character(s)"} must look exactly like that in every frame ${igualAncora}.`,
+            `${refAncora} is a frame of this same scene with the replacement already done: ${temCoisa ? "everything replaced" : "the character(s)"} must look exactly like that in every frame ${igualAncora}.`,
           ]
       : [
           ...(temPessoa
@@ -336,11 +359,11 @@ function montarPedido(
               ]
             : []),
         ]),
-    ...(sobraNaAncora && ancora && motor === "kling"
+    ...(sobraNaAncora && comAncora
       ? [
           temCoisa
-            ? "@Image1 also shows another replacement that does NOT appear in @Video1: never add it."
-            : "@Image1 also shows another replaced person who does NOT appear in @Video1: never add them.",
+            ? `${refAncora} also shows another replacement that does NOT appear in @Video1: never add it.`
+            : `${refAncora} also shows another replaced person who does NOT appear in @Video1: never add them.`,
         ]
       : []),
     ...(alvos.length > 1
@@ -404,29 +427,38 @@ function montarPedido(
     .join("\n");
 }
 
+/** O que vai ao motor num trecho (além do vídeo dele). */
+interface EntradaTrecho {
+  alvos: AlvoTroca[];
+  duracao: number;
+  removerTexto: boolean;
+  ancoraUrl?: string | null;
+  outras?: string[];
+  naAncora?: number[];
+  sobraNaAncora?: boolean;
+  estilo?: EstiloTroca;
+  acao?: string;
+  roupa?: RoupaTroca;
+  edicao?: EdicaoTroca;
+}
+
+/**
+ * Imagem de quem entra. Só a cabeça: o close do rosto — a imagem de corpo
+ * inteiro traz a roupa do personagem, que o motor tende a copiar.
+ */
+const referenciaDoAlvo = (a: AlvoTroca, roupa?: RoupaTroca) =>
+  roupa === "foto" ? (a.rostoUrl ?? a.personagemUrl) : a.personagemUrl;
+
+/** Ninguém a trocar (só a cena, ou só um detalhe): vale só o pedido escrito. */
+const soPedidoDe = (o: EntradaTrecho) =>
+  !o.alvos.length && o.edicao ? o.edicao : null;
+
 function inputMotor(
   motor: MotorTroca,
-  o: {
-    videoUrl: string;
-    alvos: AlvoTroca[];
-    duracao: number;
-    removerTexto: boolean;
-    ancoraUrl?: string | null;
-    outras?: string[];
-    naAncora?: number[];
-    sobraNaAncora?: boolean;
-    estilo?: EstiloTroca;
-    acao?: string;
-    roupa?: RoupaTroca;
-    edicao?: EdicaoTroca;
-  },
+  o: EntradaTrecho & { videoUrl: string },
 ): Record<string, unknown> {
-  // Só a cabeça: a referência é o close do rosto — a imagem de corpo inteiro
-  // traz a roupa do personagem, que o motor tende a copiar.
-  const referencia = (a: AlvoTroca) =>
-    o.roupa === "foto" ? (a.rostoUrl ?? a.personagemUrl) : a.personagemUrl;
-  // Ninguém a trocar (só a cena, ou só um detalhe): vale só o pedido escrito.
-  const soPedido = !o.alvos.length && o.edicao ? o.edicao : null;
+  const referencia = (a: AlvoTroca) => referenciaDoAlvo(a, o.roupa);
+  const soPedido = soPedidoDe(o);
   if (motor === "kling")
     return {
       prompt: soPedido
@@ -482,6 +514,40 @@ function inputMotor(
     // Duração do trecho (o Seedance gera de 4 a 30s); o áudio original corta o excesso no final.
     duration: Math.min(30, Math.max(4, Math.round(o.duracao))),
     generate_audio: false,
+  };
+}
+
+/**
+ * Omni: o pedido (no formato dele, ver `pedidoParaOmni`) e as imagens na ordem
+ * das referências — os personagens e, por último, o quadro-âncora.
+ */
+export function entradaOmni(o: EntradaTrecho): {
+  pedido: string;
+  imagens: string[];
+} {
+  const soPedido = soPedidoDe(o);
+  const ancora = !!o.ancoraUrl;
+  const pedido = soPedido
+    ? promptEdicao("omni", soPedido, o.removerTexto, ancora, o.estilo)
+    : promptTroca(
+        "omni",
+        o.alvos,
+        o.removerTexto,
+        ancora,
+        o.outras,
+        o.naAncora,
+        o.sobraNaAncora,
+        o.estilo,
+        o.acao,
+        o.roupa,
+        o.edicao,
+      );
+  return {
+    pedido: pedidoParaOmni(pedido),
+    imagens: [
+      ...(soPedido ? [] : o.alvos.map((a) => referenciaDoAlvo(a, o.roupa))),
+      ...(o.ancoraUrl ? [o.ancoraUrl] : []),
+    ],
   };
 }
 
@@ -764,7 +830,11 @@ function comLimite<T>(p: Promise<T>, oQue: string): Promise<T> {
  * um vídeo que nunca vai ser montado.
  */
 async function enviarPartes<T>(
-  o: { fal: FalClient; modelo: string; prazo?: number },
+  o: {
+    /** Tira um pedido da fila do motor (fal ou Google). */
+    cancelar: (requestId: string) => Promise<unknown>;
+    prazo?: number;
+  },
   partes: T[],
   enviarParte: (
     parte: T,
@@ -809,9 +879,7 @@ async function enviarPartes<T>(
   );
   const falhas = filas.filter((f) => f.status === "rejected");
   if (!falhas.length) return saida;
-  await Promise.allSettled(
-    pedidos.map((requestId) => o.fal.queue.cancel(o.modelo, { requestId })),
-  );
+  await Promise.allSettled(pedidos.map((requestId) => o.cancelar(requestId)));
   // A causa é o primeiro erro de verdade, não o "interrompido" das outras filas.
   throw (
     falhas.find((f) => (f.reason as Error)?.message !== INTERROMPIDO) ??
@@ -867,7 +935,10 @@ async function enviarTomadas(
     return ancoras.get(t)!;
   };
   return enviarPartes(
-    { fal: o.fal, modelo, prazo: o.prazo },
+    {
+      cancelar: (requestId) => o.fal.queue.cancel(modelo, { requestId }),
+      prazo: o.prazo,
+    },
     partes,
     async (p, i, c) => {
       const lentidao = p.duracao < TOMADA_MIN ? TOMADA_MIN / p.duracao : 1;
@@ -926,7 +997,7 @@ export async function iniciarTroca(o: {
   alvos: AlvoTroca[];
   removerTexto: boolean;
   jobId: string;
-  /** Quadro do vídeo com a troca já feita (lib/video/ancora.ts). Só o Kling usa. */
+  /** Quadro do vídeo com a troca já feita (lib/video/ancora.ts). O Seedance não usa. */
   ancora?: Buffer | null;
   /** Descrição das outras pessoas do vídeo (não podem mudar). */
   outras?: string[];
@@ -948,7 +1019,7 @@ export async function iniciarTroca(o: {
    */
   alvosPorTrecho?: number[][];
   /**
-   * Modo tomada por tomada (vídeo de cortes rápidos, ver ./precos.ts): cada
+   * Modo tomada por tomada (só Kling: vídeo de cortes rápidos, ver ./precos.ts): cada
    * tomada vai sozinha ao motor, com os alvos, a âncora e a ação DELA. Com
    * isto, `trechos`, `alvosPorTrecho`, `acoesPorTrecho`, `ancora` e `naAncora`
    * (os do vídeo inteiro) não são usados.
@@ -976,6 +1047,10 @@ export async function iniciarTroca(o: {
     o.motor === "kling"
       ? MODELOS_KLING[o.qualidade ?? "pro"]
       : MOTORES_TROCA[o.motor].modelo;
+  // Omni: os trechos vão para o Google; o fal guarda só o áudio e as imagens.
+  const omni = o.motor === "omni" ? getOmni() : null;
+  if (o.motor === "omni" && !omni)
+    throw new Error("Gemini Omni não configurado no servidor (GEMINI_API_KEY).");
   return comPastaTemporaria(async (dir) => {
     let audioUrl: string | null = null;
     if (await temAudio(o.arquivo)) {
@@ -996,42 +1071,65 @@ export async function iniciarTroca(o: {
         audioUrl,
       };
     const ancoraUrl =
-      o.ancora && o.motor === "kling"
+      o.ancora && o.motor !== "seedance"
         ? await o.fal.storage.upload(
             new Blob([new Uint8Array(o.ancora)], { type: "image/jpeg" }),
           )
         : null;
+    // A mesma imagem vai em vários trechos: baixa e reduz uma vez só.
+    const imagensOmni = new Map<string, Promise<ReferenciaInline>>();
+    const imagemOmni = (url: string) => {
+      if (!imagensOmni.has(url)) imagensOmni.set(url, imagemParaOmni(url));
+      return imagensOmni.get(url)!;
+    };
     const segmentos = await enviarPartes(
-      { fal: o.fal, modelo, prazo: o.prazo },
+      {
+        cancelar: (requestId) =>
+          omni
+            ? cancelarOmni(omni, requestId)
+            : o.fal.queue.cancel(modelo, { requestId }),
+        prazo: o.prazo,
+      },
       o.trechos ?? trechosTroca(o.info.duracao, maxTrecho),
       async (t, i, c) => {
         const seg = path.join(dir, `seg-${i}.mp4`);
         await prepararTrechoTroca(o.arquivo, t.inicio, t.duracao, seg, o.info);
         c.conferir();
+        const entrada: EntradaTrecho = {
+          duracao: t.duracao,
+          removerTexto: o.removerTexto,
+          estilo: o.estilo,
+          roupa: o.roupa,
+          edicao: o.edicao,
+          acao: acaoDoTrecho(
+            o.acoesPorTrecho?.[i],
+            o.alvosPorTrecho?.[i],
+            o.alvos.length,
+            o.motor,
+          ),
+          ancoraUrl,
+          outras: o.outras,
+          ...alvosDoTrecho(
+            o.alvos,
+            o.alvosPorTrecho?.[i],
+            ancoraUrl ? o.naAncora : undefined,
+          ),
+        };
+        if (omni) {
+          const { pedido, imagens } = entradaOmni(entrada);
+          const id = await enviarTrechoOmni(omni, {
+            arquivo: seg,
+            imagens: await Promise.all(imagens.map(imagemOmni)),
+            pedido,
+            conferir: c.conferir,
+          });
+          c.naFila(id);
+          return { requestId: id, inicio: t.inicio, duracao: t.duracao };
+        }
         const videoUrl = await enviar(o.fal, seg, "video/mp4");
         c.conferir();
         const { request_id } = await o.fal.queue.submit(modelo, {
-          input: inputMotor(o.motor, {
-            videoUrl,
-            duracao: t.duracao,
-            removerTexto: o.removerTexto,
-            estilo: o.estilo,
-            roupa: o.roupa,
-            edicao: o.edicao,
-            acao: acaoDoTrecho(
-              o.acoesPorTrecho?.[i],
-              o.alvosPorTrecho?.[i],
-              o.alvos.length,
-              o.motor,
-            ),
-            ancoraUrl,
-            outras: o.outras,
-            ...alvosDoTrecho(
-              o.alvos,
-              o.alvosPorTrecho?.[i],
-              ancoraUrl ? o.naAncora : undefined,
-            ),
-          }),
+          input: inputMotor(o.motor, { ...entrada, videoUrl }),
           webhookUrl: webhookUrl(o.jobId),
         });
         c.naFila(request_id);
@@ -1048,6 +1146,15 @@ export function estadoTroca(
 ): Promise<EstadoLote> {
   // Acompanha no modelo em que o job foi enviado (jobs antigos do Kling, sem modelo: o O1 standard).
   const motor = input.motor ?? "kling";
+  if (motor === "omni") {
+    const omni = getOmni();
+    return omni
+      ? estadoLoteOmni(omni, input.segmentos)
+      : Promise.resolve({
+          estado: "erro",
+          mensagem: "Gemini Omni não configurado no servidor (GEMINI_API_KEY).",
+        });
+  }
   const modelo =
     input.modelo ??
     (motor === "kling" ? MODELOS_ANTIGOS[0] : MOTORES_TROCA[motor].modelo);
@@ -1079,14 +1186,21 @@ export async function comporTroca(o: {
     }
     const saida = path.join(dir, "final.mp4");
     const duracoes = o.input.segmentos.map((g) => g.duracao);
+    // Omni: os trechos só saem com a chave ("omni:…"), não por URL aberta.
+    const omni = o.input.motor === "omni" ? getOmni() : null;
+    if (o.input.motor === "omni" && !omni)
+      throw new Error("Gemini Omni não configurado no servidor (GEMINI_API_KEY).");
     // Todos os trechos saíram do motor: tenta emendar sem recodificar (o 4K só
     // cabe assim). Com trechos do original no meio (`urlPronta`) o formato muda.
     const emendou =
+      !omni &&
       !o.input.segmentos.some((g) => g.urlPronta) &&
       (await emendarTrechos({ urls: o.urls, duracoes, audio, saida }));
     if (!emendou)
       await juntarTrechos({
-        trechos: await baixarTrechos(o.urls, dir, "troca"),
+        trechos: omni
+          ? await baixarTrechosOmni(omni, o.urls, dir)
+          : await baixarTrechos(o.urls, dir, "troca"),
         duracoes,
         audio,
         saida,

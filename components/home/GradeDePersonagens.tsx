@@ -18,9 +18,8 @@ import { usePendentesDeSync } from "@/lib/sync/remoteSync";
 /**
  * Grade dos personagens da conta (Home e tela Personagens): resumo, aviso dos
  * que só existem neste navegador, o card "Novo AI Creator" e os cards.
- * `comTitulo` mostra o título "Seus AI Creators" (a tela Personagens tem o dela).
  */
-export function GradeDePersonagens({ comTitulo }: { comTitulo?: boolean }) {
+export function GradeDePersonagens() {
   const t = useT();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -44,11 +43,6 @@ export function GradeDePersonagens({ comTitulo }: { comTitulo?: boolean }) {
     <section id="personagens" className="flex scroll-mt-6 flex-col gap-[18px]">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
-          {comTitulo ? (
-            <h2 className="font-archivo text-2xl font-extrabold uppercase tracking-[-0.01em] [font-stretch:125%]">
-              {t("inicio.seus")}
-            </h2>
-          ) : null}
           {lista.length > 0 ? (
             <span className="font-geist-mono text-[11.5px] text-nido-mute">
               {lista.length} {tx("no total")} · {contagem.completo}{" "}

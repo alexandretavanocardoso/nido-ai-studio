@@ -154,6 +154,7 @@ Authorization: Bearer <CRON_SECRET>
 - [ ] Login com Google em `https://aistudio.nido.global`.
 - [ ] Gerar uma imagem e enviar um vídeo (S3 + CORS).
 - [ ] Trocar pessoa num vídeo e fechar a página — o vídeo deve aparecer pronto ao voltar (webhook do fal).
+- [ ] Sombra → Vídeo com o modelo **Gemini Omni Flash** (usa a `GEMINI_API_KEY` que já está na Vercel; precisa de faturamento ativo): um vídeo de ~20s, para conferir a troca, as emendas entre os trechos de 10s e o áudio original. Sem o relógio dos vídeos (worker do Motion), ele só termina com a página aberta ou no cron — o Omni não tem webhook.
 - [ ] Estúdio → Publicar → conectar uma rede e publicar um post de teste (bundle.social + webhook).
 - [ ] Comprar o menor pacote de créditos no Stripe (modo teste) e ver o saldo subir.
 - [ ] Sugerir campo com IA (chave da Anthropic com workspace).

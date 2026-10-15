@@ -218,6 +218,8 @@ const PADROES: Padrao[] = [
 
   // Serviços de IA
   [/^Falha \(HTTP (\d+)\)\.$/, "Failed (HTTP $1)."],
+  [/^Falha no Gemini Omni \(HTTP (\d+)\)\.$/, "Gemini Omni failed (HTTP $1)."],
+  [/^Falha no Veo \(HTTP (\d+)\)\.$/, "Veo failed (HTTP $1)."],
   [
     /^Falha ao baixar a imagem gerada \(HTTP (\d+)\)\.$/,
     "Failed to download the generated image (HTTP $1).",
@@ -539,6 +541,35 @@ const ERROS_EN: Record<string, string> = {
   "O filtro de conteúdo da IA barrou este vídeo ou as imagens enviadas. Isso costuma acontecer com cenas de filmes e séries, pessoas famosas, marcas ou conteúdo sensível. Tente com outro vídeo ou outra imagem.":
     "The AI's content filter blocked this video or the images you sent. This usually happens with scenes from films and series, famous people, brands or sensitive content. Try another video or another image.",
   "Falha no fal.ai.": "fal.ai failed.",
+  // Gemini Omni (lib/video/omni.ts)
+  "Gemini Omni não configurado no servidor (GEMINI_API_KEY).":
+    "Gemini Omni isn't configured on the server (GEMINI_API_KEY).",
+  "O Gemini Omni recusou este vídeo ou as imagens enviadas. Ele não aceita algumas pessoas reconhecíveis nem conteúdo sensível. Tente com um dos modelos Kling O3.":
+    "Gemini Omni refused this video or the images you sent. It doesn't accept some recognizable people or sensitive content. Try one of the Kling O3 models.",
+  "O Gemini Omni não conseguiu trocar a pessoa num dos trechos do vídeo.":
+    "Gemini Omni couldn't swap the person in one of the video's segments.",
+  "A chave do Gemini não tem acesso ao Gemini Omni. Confira GEMINI_API_KEY (precisa de faturamento ativo).":
+    "The Gemini key has no access to Gemini Omni. Check GEMINI_API_KEY (billing must be enabled).",
+  "O Gemini Omni não está disponível nesta chave do Gemini.":
+    "Gemini Omni isn't available on this Gemini key.",
+  "Falha no Gemini Omni.": "Gemini Omni failed.",
+  "O Google demorou demais para receber um trecho do vídeo.":
+    "Google took too long to receive a segment of the video.",
+  "O Google não conseguiu ler um trecho do vídeo.":
+    "Google couldn't read a segment of the video.",
+  "O Google não encontrou um dos trechos do vídeo.":
+    "Google couldn't find one of the video's segments.",
+  "O Google não conseguiu salvar um dos trechos.":
+    "Google couldn't save one of the segments.",
+  // Veo pela API do Gemini (lib/video/veo.ts)
+  "O Veo recusou a imagem ou o pedido. Ele não aceita algumas pessoas reconhecíveis, crianças nem conteúdo sensível. Tente outra imagem, outro texto ou outro modelo.":
+    "Veo refused the image or the request. It doesn't accept some recognizable people, children or sensitive content. Try another image, another text or another model.",
+  "O Veo não conseguiu gerar o vídeo.": "Veo couldn't generate the video.",
+  "O Google não encontrou o vídeo.": "Google couldn't find the video.",
+  "A chave do Gemini não tem acesso ao Veo. Confira GEMINI_API_KEY (precisa de faturamento ativo).":
+    "The Gemini key has no access to Veo. Check GEMINI_API_KEY (billing must be enabled).",
+  "O Google recusou o pedido do vídeo.": "Google refused the video request.",
+  "Falha no Veo.": "Veo failed.",
   "O Runway não devolveu vídeo.": "Runway returned no video.",
   "Geração cancelada no Runway.": "Generation cancelled on Runway.",
   "O Runway barrou o texto da cena na moderação. Descreva só o que aparece (ação, câmera, luz), sem falas, nomes de pessoas, marcas ou personagens famosos.":

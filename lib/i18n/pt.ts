@@ -10,16 +10,11 @@ export const pt = {
 
   // Início (/app)
   "inicio.selo": "Estúdio de AI Creators",
-  "inicio.titulo1": "Gere seu primeiro",
-  "inicio.titulo2": "AI Creator",
-  "inicio.descricao":
-    "Descreva uma ideia em uma frase. A IA monta a ficha do seu personagem; depois você gera o rosto, a voz e o conteúdo no Estúdio.",
   "inicio.limite": "Seu plano {plano} permite {n} personagens.",
   "inicio.upgrade": "Faça upgrade para criar mais",
   "inicio.criar": "Criar personagem",
   "inicio.verSeus": "Ou veja os seus",
   "inicio.biblioteca": "Biblioteca",
-  "inicio.seus": "Seus AI Creators",
   "inicio.novo": "Novo",
   "inicio.carregando": "Carregando…",
   "inicio.soAquiLimite":

@@ -38,12 +38,13 @@ A interface está em português e inglês.
 | Visão: descrever as pessoas de um vídeo ou foto e escolher o melhor quadro | **Gemini Flash** | Google |
 | Vídeo: trocar a pessoa pelo personagem (padrão) | **Kling O3 Edit** (Standard, Pro ou 4K) | Kuaishou |
 | Vídeo: trocar a pessoa pelo personagem (premium) | **Seedance 2.5** | ByteDance |
+| Vídeo: trocar a pessoa pelo personagem (o mais barato) | **Gemini Omni Flash** | Google |
 | Vídeo: criar a partir de uma imagem | **Gen-4 Turbo**, **Gen-4.5** | Runway |
-| Vídeo: criar a partir de uma imagem, com áudio | **Veo 3.1 Fast** | Google |
+| Vídeo: criar a partir de uma imagem, com áudio | **Veo 3.1 Fast**, **Veo 3.1 Lite** | Google |
 | Vídeo: remover legenda reconstruindo o fundo | **Bria Video Eraser** | Bria |
 | Recorte do fundo do personagem | **BiRefNet** | — |
 | Radar: pesquisar as notícias do dia e dar nota de relevância | **Claude Haiku 4.5** com busca na web | Anthropic |
 | Radar: o que está em alta no X | **Grok** com busca no X | xAI |
 | Voz: criar, clonar e gerar falas | **ElevenLabs** | ElevenLabs |
 
-Seedream, FLUX, Kling, Seedance, Bria e BiRefNet rodam pelo [fal.ai](https://fal.ai). O GPT Image é chamado direto na OpenAI quando há `OPENAI_API_KEY` (sem ela, também vai pelo fal). O Veo roda pela API do Runway. Claude, Nano Banana, Gemini, Grok, Runway e ElevenLabs são chamados direto na API de cada empresa.
+Seedream, FLUX, Kling, Seedance, Bria e BiRefNet rodam pelo [fal.ai](https://fal.ai). O GPT Image é chamado direto na OpenAI quando há `OPENAI_API_KEY` (sem ela, também vai pelo fal). O Veo 3.1 Fast roda pela API do Runway (ou do Sapiens, quando há a chave) e o Veo 3.1 Lite direto na API do Gemini. Claude, Nano Banana, Gemini, Grok, Runway e ElevenLabs são chamados direto na API de cada empresa.

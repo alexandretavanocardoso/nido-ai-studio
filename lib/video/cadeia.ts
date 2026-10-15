@@ -21,6 +21,13 @@ import {
   mensagemDeErroSapiens,
 } from "./sapiens";
 import { comPastaTemporaria } from "./server";
+import {
+  buscarResultado,
+  enviarCriacaoVeo,
+  getVeo,
+  mensagemDeErroVeo,
+  veoPassageiro,
+} from "./veo";
 import { enviarCriacaoWan } from "./wan";
 
 /**
@@ -70,7 +77,7 @@ export function cadeiaDoJob(input: Record<string, unknown>): Cadeia | null {
 }
 
 async function baixar(url: string, arquivo: string): Promise<void> {
-  const res = await fetch(url);
+  const res = await buscarResultado(url);
   if (!res.ok || !res.body)
     throw new Error(`download da cena falhou (HTTP ${res.status})`);
   await pipeline(
@@ -88,7 +95,7 @@ export async function proximaCena(o: {
   s3: S3Client;
   userId: string;
   jobId: string;
-  /** Serviço que gera o job (coluna `provedor`): Runway, Sapiens ou fal. */
+  /** Serviço que gera o job (coluna `provedor`): Runway, Sapiens, fal ou Google. */
   provedor: string;
   modelo: string;
   input: Record<string, unknown>;
@@ -97,15 +104,19 @@ export async function proximaCena(o: {
 }): Promise<{ idExterno: string; input: Record<string, unknown> }> {
   const sapiens = o.provedor === "sapiens" ? getSapiens() : null;
   const fal = o.provedor === "fal" ? getFal() : null;
-  const runway =
-    o.provedor === "sapiens" || o.provedor === "fal" ? null : getRunway();
-  if (!sapiens && !runway && !fal)
+  const google = o.provedor === "google" ? getVeo() : null;
+  const runway = ["sapiens", "fal", "google"].includes(o.provedor)
+    ? null
+    : getRunway();
+  if (!sapiens && !runway && !fal && !google)
     throw new FalhaDaCadeia(
       o.provedor === "sapiens"
         ? "Sapiens não configurado no servidor."
         : o.provedor === "fal"
           ? "fal.ai não configurado no servidor."
-          : "Runway não configurado no servidor.",
+          : o.provedor === "google"
+            ? "GEMINI_API_KEY não configurada no servidor."
+            : "Runway não configurado no servidor.",
     );
   return comPastaTemporaria(async (dir) => {
     const cena = path.join(dir, "cena.mp4");
@@ -139,17 +150,22 @@ export async function proximaCena(o: {
         ? await enviarCriacaoSapiens(sapiens, pedido)
         : fal
           ? await enviarCriacaoWan(fal, { ...pedido, jobId: o.jobId })
-          : await enviarCriacao(runway!, pedido);
+          : google
+            ? await enviarCriacaoVeo(google, pedido)
+            : await enviarCriacao(runway!, pedido);
     } catch (e) {
-      // Sapiens ocupado (nada cobrado): a próxima consulta do job tenta de novo.
+      // Sapiens ocupado ou Google no limite (nada cobrado): a próxima consulta do job tenta de novo.
       if (e instanceof ErroSapiens && e.passageiro) throw e;
+      if (google && veoPassageiro(e)) throw e;
       // Recusa do serviço (moderação, saldo, entrada): não adianta repetir.
       throw new FalhaDaCadeia(
         sapiens
           ? mensagemDeErroSapiens(e)
           : fal
             ? mensagemDeErro(e)
-            : mensagemDeErroRunway(e),
+            : google
+              ? mensagemDeErroVeo(e)
+              : mensagemDeErroRunway(e),
       );
     }
     return {
@@ -165,6 +181,8 @@ export async function unirCenas(o: {
   userId: string;
   cadeia: Cadeia;
   ultimaUrl: string;
+  /** Tira o som que o serviço gerou sem ter sido pedido (o Veo na API do Gemini). */
+  semAudio?: boolean;
 }): Promise<{ key: string; size: number }> {
   return comPastaTemporaria(async (dir) => {
     const arquivos: string[] = [];
@@ -178,7 +196,7 @@ export async function unirCenas(o: {
     arquivos.push(ultima);
 
     const saida = path.join(dir, "video.mp4");
-    await emendarCenas(arquivos, o.cadeia.alvo, saida);
+    await emendarCenas(arquivos, o.cadeia.alvo, saida, o.semAudio);
     const key = newKey(o.userId, "videos", "video/mp4");
     await uploadFromFile(o.s3, key, saida, "video/mp4");
     // As cenas soltas e os quadros ficam órfãos no S3: a limpeza diária apaga.
