@@ -11,6 +11,12 @@ import {
   LEGENDA_FONTE,
   quebrarLinhas,
 } from "./legenda-texto";
+import {
+  alinharFala,
+  type Envelope,
+  envelopeDeAmostras,
+  montagemDaCena,
+} from "./sincronia";
 
 /**
  * ffmpeg no servidor (binário do pacote ffmpeg-static; FFMPEG_PATH sobrescreve).
@@ -559,6 +565,28 @@ export async function aplicarAudio(o: {
   ]);
 }
 
+/** Volume do áudio do arquivo, 30 vezes por segundo. Null sem áudio ou se não der para ler. */
+export function envelopeDoAudio(arquivo: string, limiteMs = 60_000): Promise<Envelope | null> {
+  return new Promise((resolve) => {
+    const taxa = 8000;
+    const proc = spawn(
+      ffmpegPath(),
+      ["-hide_banner", "-loglevel", "error", "-i", arquivo, "-map", "0:a:0", "-ac", "1", "-ar", String(taxa), "-f", "s16le", "-"],
+      { timeout: limiteMs },
+    );
+    const partes: Buffer[] = [];
+    proc.stdout.on("data", (d: Buffer) => partes.push(d));
+    proc.stderr.resume();
+    proc.on("error", () => resolve(null));
+    proc.on("close", (code) => {
+      if (code !== 0) return resolve(null);
+      const b = Buffer.concat(partes);
+      const amostras = new Int16Array(b.buffer, b.byteOffset, Math.floor(b.length / 2));
+      resolve(amostras.length ? envelopeDeAmostras(amostras, taxa) : null);
+    });
+  });
+}
+
 /** O vídeo tem trilha de áudio? */
 export async function temAudio(arquivo: string): Promise<boolean> {
   const saida = await run([
@@ -878,7 +906,9 @@ export async function juntarFalas(
   /**
    * MP3 da fala de cada cena (128 kbps). Com eles, o som de cada cena passa a
    * ser a fala original (a voz exata do personagem) e a cena é cortada no fim
-   * da fala.
+   * da fala. Se o clipe veio com a fala do próprio modelo, o MP3 é encaixado
+   * em cima dela (a boca segue o áudio que o modelo gerou, que pode começar
+   * atrasado e mais lento): ver `sincronia.ts`.
    */
   audios?: string[],
 ): Promise<void> {
@@ -890,8 +920,54 @@ export async function juntarFalas(
         audios.map(async (a) => ((await stat(a)).size * 8) / 128_000),
       )
     : null;
+  const montagens = audios
+    ? await Promise.all(
+        cenas.map(async (cena, i) => {
+          try {
+            const [modelo, fala, info] = await Promise.all([
+              envelopeDoAudio(cena),
+              envelopeDoAudio(audios[i]),
+              probe(cena),
+            ]);
+            const alinhamento = modelo && fala && alinharFala(modelo, fala);
+            if (!alinhamento) return null;
+            const m = montagemDaCena({
+              alinhamento,
+              duracaoFala: duracoes![i],
+              duracaoClipe: info.duracao,
+            });
+            console.log(`[falado] cena ${i}: fala encaixada na boca`, m);
+            return m;
+          } catch {
+            return null;
+          }
+        }),
+      )
+    : null;
   const n = cenas.length;
   const filtros = cenas.flatMap((_, i) => {
+    const m = montagens?.[i];
+    if (m) {
+      const pad =
+        m.pad > 0.01 ? `,tpad=stop_mode=clone:stop_duration=${m.pad}` : "";
+      const tempo =
+        Math.abs(m.ritmo - 1) > 0.001
+          ? `atempo=${(1 / m.ritmo).toFixed(4)},`
+          : "";
+      // Atraso antes do atempo (depois dele o adelay não tem efeito), então
+      // em segundos do MP3 ainda não esticado.
+      const antes = m.atraso / m.ritmo;
+      const desloca =
+        antes > 0
+          ? `adelay=${Math.round(antes * 1000)}:all=1,`
+          : antes < 0
+            ? `atrim=start=${(-antes).toFixed(3)},asetpts=PTS-STARTPTS,`
+            : "";
+      return [
+        `[${i}:v]trim=start=${m.inicio}:end=${m.fim},setpts=PTS-STARTPTS,scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},setsar=1,fps=30${pad},trim=duration=${m.duracao},setpts=PTS-STARTPTS[v${i}]`,
+        `[${n + i}:a]aresample=44100,aformat=channel_layouts=stereo,${desloca}${tempo}apad,atrim=0:${m.duracao},asetpts=PTS-STARTPTS[a${i}]`,
+      ];
+    }
     const corte = duracoes ? `trim=0:${duracoes[i].toFixed(3)},` : "";
     return [
       `[${i}:v]${corte}scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},setsar=1,fps=30,setpts=PTS-STARTPTS[v${i}]`,
