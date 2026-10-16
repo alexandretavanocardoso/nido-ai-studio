@@ -15,6 +15,7 @@ import {
   Radar,
   ShieldCheck,
   TrendingUp,
+  Trophy,
   Undo2,
   Users,
 } from "lucide-react";
@@ -31,6 +32,7 @@ import { Nft } from "./Nft";
 import { Noticias } from "./Noticias";
 import { Pagamentos } from "./Pagamentos";
 import { Reembolsos } from "./Reembolsos";
+import { Sorteios } from "./Sorteios";
 import { Uso } from "./Uso";
 import { Usuarios } from "./Usuarios";
 import { VisaoGeral } from "./VisaoGeral";
@@ -42,6 +44,7 @@ const ABAS = [
   { id: "pagamentos", titulo: "Pagamentos", icone: CreditCard },
   { id: "reembolsos", titulo: "Reembolsos", icone: Undo2 },
   { id: "indicacoes", titulo: "Indicações", icone: Gift },
+  { id: "sorteios", titulo: "Sorteios", icone: Trophy },
   { id: "leads", titulo: "Leads", icone: Inbox },
   { id: "fornecedores", titulo: "Fornecedores", icone: Radar },
   { id: "noticias", titulo: "Notícias", icone: Newspaper },
@@ -128,6 +131,7 @@ export function AdminApp({ email }: { email: string }) {
           {aba === "pagamentos" && <Pagamentos abrirUsuario={abrirUsuario} />}
           {aba === "reembolsos" && <Reembolsos abrirUsuario={abrirUsuario} />}
           {aba === "indicacoes" && <Indicacoes abrirUsuario={abrirUsuario} />}
+          {aba === "sorteios" && <Sorteios />}
           {aba === "leads" && <Leads />}
           {aba === "fornecedores" && <Fornecedores />}
           {aba === "noticias" && <Noticias />}

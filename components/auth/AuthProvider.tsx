@@ -14,7 +14,8 @@ export interface AuthUser {
 interface AuthState {
   /** `null` até terminar a leitura inicial. Depois: AuthUser ou undefined (anônimo). */
   user: AuthUser | null | undefined;
-  signInWithGoogle: () => Promise<void>;
+  /** `voltar`: página do app para onde ir depois de entrar (padrão: /app). */
+  signInWithGoogle: (voltar?: string) => Promise<void>;
   signOut: () => Promise<void>;
   /** Login não configurado neste deploy. */
   disabled: boolean;
@@ -38,10 +39,11 @@ function EnabledAuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user,
       disabled: false,
-      signInWithGoogle: async () => {
+      signInWithGoogle: async (voltar?: string) => {
         await authClient.signIn.social({
           provider: "google",
-          callbackURL: "/app",
+          // Só páginas do próprio app (nada de mandar para outro site depois do login).
+          callbackURL: voltar && /^\/app(\/|$|\?)/.test(voltar) ? voltar : "/app",
           errorCallbackURL: "/auth/login",
         });
       },

@@ -286,6 +286,18 @@ const PADROES: Padrao[] = [
 
 /** Mensagens fixas do servidor, indexadas pelo texto em português. */
 const ERROS_EN: Record<string, string> = {
+  // Sorteio (app/api/sorteio, lib/sorteio)
+  "Escreva seu nome (de 2 a 24 letras).": "Write your name (2 to 24 letters).",
+  "Não consegui pôr você no sorteio. Tente de novo.": "Couldn't add you to the giveaway. Try again.",
+  "Sorteio não encontrado.": "Giveaway not found.",
+  "As inscrições deste sorteio estão fechadas.": "Entries for this giveaway are closed.",
+  "Você já está no sorteio — depois de entrar, não dá para trocar.": "You're already in the giveaway — once you're in, you can't change your entry.",
+  "Foto não encontrada.": "Photo not found.",
+  "Escreva a sua chave Pix.": "Write your Pix key.",
+  "Escreva o nome completo do titular da chave.": "Write the key holder's full name.",
+  "Não dá para informar a chave Pix deste sorteio.": "You can't enter a Pix key for this giveaway.",
+  "Influencer não encontrado.": "Influencer not found.",
+  "Você não pode participar deste sorteio.": "You can't take part in this giveaway.",
   // Sombra 3D (lib/live/avatar3d.ts e components/live/avatar3d)
   "Não consegui montar o avatar 3D.": "Couldn't build the 3D avatar.",
   "Modelo 3D não configurado no servidor (FAL_KEY).": "3D model not configured on the server (FAL_KEY).",

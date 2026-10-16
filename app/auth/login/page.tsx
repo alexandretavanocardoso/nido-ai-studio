@@ -79,7 +79,7 @@ function LoginInner() {
     setLoading(true);
     setErr(null);
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(params?.get("voltar") ?? undefined);
     } finally {
       setLoading(false);
     }

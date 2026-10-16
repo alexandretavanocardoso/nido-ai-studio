@@ -182,6 +182,12 @@ Authorization: Bearer <CRON_SECRET>
   3. Publique o processo do bot, que precisa ficar sempre ligado (a Vercel não serve): no **Railway**, novo serviço a partir deste repositório com **Root Directory** `worker/discord`, comando de início `npm start`, e as variáveis `DATABASE_URL`, `DISCORD_BOT_TOKEN`, `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` (as mesmas do app). Custa uns US$ 5/mês. Para testar no computador: `cd worker/discord && npm install && node --env-file=../../.env node_modules/tsx/dist/cli.mjs bot.ts`.
 - Detalhes no [TECNICO.md](TECNICO.md), seção "Live do personagem".
 
+## Sorteio de gift
+
+- [x] As migrations `db/migrations/0046_sorteios.sql`, `0047_sorteio_corredor.sql`, `0048_sorteio_foto_enviada.sql` e `0049_sorteio_premios.sql` já estão aplicadas no Neon (16/10). Não precisa de chave nova (o corredor usa `GEMINI_API_KEY` e `FAL_KEY`).
+- [ ] De verdade: área admin → Sorteios → criar um sorteio (ex.: Starter, 1 mês) → entrar com outra conta pelo **link para os usuários** (o sorteio não aparece no menu) → copiar o link do palco para o OBS → largar e conferir o presente na conta do ganhador (plano sem renovação, ou créditos se ele já pagava) e o aviso no sino.
+- Detalhes no [TECNICO.md](TECNICO.md), seção "Sorteio de gift".
+
 ## Vídeo de produto e Motion (em teste)
 
 - [x] As migrations `db/migrations/0041_motion.sql` e `0043_motion_creditos.sql` (créditos do Motion) já estão aplicadas no Neon (15/10).

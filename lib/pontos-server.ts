@@ -83,6 +83,14 @@ async function pontuar(o: Parameters<typeof mover>[0]): Promise<void> {
   }
 }
 
+/**
+ * Prêmio de sorteio em pontos (uma vez por sorteio). Lança se falhar: quem
+ * entrega o prêmio precisa saber (lib/sorteio/server.ts).
+ */
+export async function pontosDoSorteio(userId: string, pontos: number, sorteioId: string): Promise<void> {
+  await mover({ userId, pontos, motivo: "sorteio", ref: sorteioId, chave: `sorteio:${sorteioId}` });
+}
+
 /** Primeiro passo cumprido (pontua uma vez por conta). */
 export async function missaoCumprida(
   userId: string | null | undefined,
