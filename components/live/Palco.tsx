@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { Room, RoomEvent, Track, type RemoteTrack, type RemoteTrackPublication } from "livekit-client";
 import { cn } from "@/lib/cn";
 
+/** Sem vídeo na sala: a prévia do NIDO não vai para a sala; o avatar só chega quando a live entra no ar. */
+const AGUARDANDO = "Aguardando o avatar… Ele aparece aqui quando você clicar em “Entrar no ar” no NIDO.";
+
 /** Volume do som do jogo: abaixo da voz do avatar. */
 const VOLUME_JOGO = 0.35;
 
@@ -68,7 +71,7 @@ export function Palco() {
       if (pub.source === Track.Source.ScreenShare) setJogo((j) => (j === t ? null : j));
       else {
         setAvatar((a) => (a === t ? null : a));
-        setAviso("Aguardando o avatar…");
+        setAviso(AGUARDANDO);
       }
     };
     room.on(RoomEvent.TrackSubscribed, (t, pub) => mostrar(t, pub));
@@ -78,7 +81,7 @@ export function Palco() {
     room
       .connect(url, token, { autoSubscribe: true })
       .then(() => {
-        setAviso("Aguardando o avatar…");
+        setAviso(AGUARDANDO);
         setSemSom(!room.canPlaybackAudio);
         for (const pa of room.remoteParticipants.values())
           for (const pub of pa.trackPublications.values()) if (pub.track) mostrar(pub.track, pub);

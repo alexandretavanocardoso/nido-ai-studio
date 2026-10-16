@@ -77,6 +77,10 @@ export function GuiaChamadas({ id }: { id: string }) {
             <Passo n={2} titulo={tx("Ponha o palco no OBS")}>
               <LinkDoPalco id={id} />
               {tx("No OBS: Fontes → + → Navegador → cole o link. Largura 1280 e altura 720, e marque “Controlar áudio pelo OBS”.")}
+              <br />
+              {tx("Para o palco ocupar a tela toda: botão direito na fonte → Transformar → Ajustar à tela. Esconda as outras fontes (o olho ao lado de cada uma): a câmera virtual manda tudo o que está na tela do OBS.")}
+              <br />
+              {tx("Até a live entrar no ar, o palco fica preto com “Aguardando o avatar…”: é normal. A prévia desta página não vai para o OBS.")}
             </Passo>
 
             <Passo n={3} titulo={tx("Mande o som do palco para o cabo")}>
@@ -111,10 +115,14 @@ export function GuiaChamadas({ id }: { id: string }) {
                   {tx("Na tela antes de entrar (ou em ⋮ → Configurações): Áudio → Microfone “CABLE Output (VB-Audio Virtual Cable)”; Vídeo → Câmera “OBS Virtual Camera”.")}
                   <br />
                   {tx("Se aparecer “Cancelamento de ruído”, desligue: senão o Meet corta a voz do avatar. Deixe os efeitos e fundos de vídeo desligados.")}
+                  <br />
+                  {tx("Alto-falantes: deixe o seu fone (nunca o cabo, senão o som da reunião volta para ela).")}
+                  <br />
+                  {tx("“OBS Virtual Camera” não aparece na lista? Ligue a câmera virtual no OBS e recarregue a página do Meet (se o OBS foi instalado com o Chrome aberto, feche e abra o Chrome). “CABLE Output” não aparece? Reinicie o computador depois de instalar o VB-Cable.")}
                 </Passo>
 
                 <Passo n={6} titulo={tx("Entre na reunião")}>
-                  {tx("Entre no ar aqui no NIDO e deixe esta página aberta: o avatar sai daqui. Depois entre na reunião com a câmera e o microfone ligados.")}
+                  {tx("Entre no ar aqui no NIDO (escolha uma duração que cubra a reunião; o que sobrar volta) e deixe esta página aberta: o avatar sai daqui. Quando ele aparecer no OBS, entre na reunião com a câmera e o microfone ligados.")}
                   <br />
                   {tx("Use fone de ouvido: o som da reunião não pode voltar para o microfone.")}
                   <br />

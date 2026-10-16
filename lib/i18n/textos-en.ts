@@ -4136,8 +4136,16 @@ export const TEXTOS_EN: Record<string, string> = {
   "Se aparecer “Cancelamento de ruído”, desligue: senão o Meet corta a voz do avatar. Deixe os efeitos e fundos de vídeo desligados.":
     "If you see “Noise cancellation”, turn it off: otherwise Meet cuts the avatar's voice. Keep video effects and backgrounds off.",
   "Entre na reunião": "Join the meeting",
-  "Entre no ar aqui no NIDO e deixe esta página aberta: o avatar sai daqui. Depois entre na reunião com a câmera e o microfone ligados.":
-    "Go live here on NIDO and keep this page open: the avatar comes from here. Then join the meeting with the camera and microphone on.",
+  "Para o palco ocupar a tela toda: botão direito na fonte → Transformar → Ajustar à tela. Esconda as outras fontes (o olho ao lado de cada uma): a câmera virtual manda tudo o que está na tela do OBS.":
+    "To make the stage fill the screen: right-click the source → Transform → Fit to screen. Hide the other sources (the eye next to each one): the virtual camera sends everything on the OBS screen.",
+  "Alto-falantes: deixe o seu fone (nunca o cabo, senão o som da reunião volta para ela).":
+    "Speakers: keep your headphones (never the cable, or the meeting sound goes back into it).",
+  "“OBS Virtual Camera” não aparece na lista? Ligue a câmera virtual no OBS e recarregue a página do Meet (se o OBS foi instalado com o Chrome aberto, feche e abra o Chrome). “CABLE Output” não aparece? Reinicie o computador depois de instalar o VB-Cable.":
+    "“OBS Virtual Camera” isn't in the list? Start the virtual camera in OBS and reload the Meet page (if OBS was installed while Chrome was open, close and reopen Chrome). “CABLE Output” isn't there? Restart the computer after installing VB-Cable.",
+  "Entre no ar aqui no NIDO (escolha uma duração que cubra a reunião; o que sobrar volta) e deixe esta página aberta: o avatar sai daqui. Quando ele aparecer no OBS, entre na reunião com a câmera e o microfone ligados.":
+    "Go live here on NIDO (pick a duration that covers the meeting; what's left comes back) and keep this page open: the avatar comes from here. Once it shows up in OBS, join the meeting with the camera and microphone on.",
+  "Até a live entrar no ar, o palco fica preto com “Aguardando o avatar…”: é normal. A prévia desta página não vai para o OBS.":
+    "Until the live goes on air, the stage stays black with “Waiting for the avatar…”: that's normal. This page's preview doesn't go to OBS.",
   "Use fone de ouvido: o som da reunião não pode voltar para o microfone.":
     "Use headphones: the meeting sound can't get back into the microphone.",
   "Na live com avatar, cole as perguntas do chat do Meet na fila; na Sombra, quem fala é você.":
