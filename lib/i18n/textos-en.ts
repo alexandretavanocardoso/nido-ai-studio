@@ -3551,10 +3551,6 @@ export const TEXTOS_EN: Record<string, string> = {
     "in a cozy coffee shop",
   "numa cidade à noite, com luzes desfocadas":
     "in a city at night, with blurred lights",
-  "Discord: chamada ou palco":
-    "Discord: call or stage",
-  "O avatar entra com vídeo e voz pela sua conta do Discord, usando o OBS como câmera.":
-    "The avatar joins with video and voice through your Discord account, using OBS as the camera.",
   "Instale (uma vez só)":
     "Install (once)",
   "Depois de instalar o VB-Cable, reinicie o computador.":
@@ -3631,8 +3627,6 @@ export const TEXTOS_EN: Record<string, string> = {
     "Use it in OBS as a browser source (1280×720) to stream through OBS or bring the avatar into another app.",
   "Transmitir":
     "Stream",
-  "OBS e Discord":
-    "OBS & Discord",
   "Ex.: quarto gamer ao fundo, usando fone de ouvido":
     "E.g.: gaming room in the background, wearing headphones",
   "Descreva o lugar e, se quiser, detalhes na pessoa (fone, microfone…). A IA transforma num pedido detalhado antes de gerar.":
@@ -4131,6 +4125,25 @@ export const TEXTOS_EN: Record<string, string> = {
   "Gravadas por pessoas de verdade, em inglês. Ouça e escolha: ela vira a voz deste personagem.": "Recorded by real people, in English. Listen and choose: it becomes this character's voice.",
   "No Wan 3.0 o fundo da imagem é removido: o personagem entra direto na cena que você descrever.":
     "With Wan 3.0 the image background is removed: the character goes straight into the scene you describe.",
+  // Guia de chamadas (components/live/GuiaChamadas.tsx)
+  "OBS e chamadas": "OBS and calls",
+  "Chamada de vídeo: Discord ou Meet": "Video call: Discord or Meet",
+  "O avatar entra com vídeo e voz pela sua conta do Discord ou do Google Meet, usando o OBS como câmera.":
+    "The avatar joins with video and voice through your Discord or Google Meet account, using OBS as the camera.",
+  "Configure o Meet": "Set up Meet",
+  "Na tela antes de entrar (ou em ⋮ → Configurações): Áudio → Microfone “CABLE Output (VB-Audio Virtual Cable)”; Vídeo → Câmera “OBS Virtual Camera”.":
+    "On the screen before joining (or in ⋮ → Settings): Audio → Microphone “CABLE Output (VB-Audio Virtual Cable)”; Video → Camera “OBS Virtual Camera”.",
+  "Se aparecer “Cancelamento de ruído”, desligue: senão o Meet corta a voz do avatar. Deixe os efeitos e fundos de vídeo desligados.":
+    "If you see “Noise cancellation”, turn it off: otherwise Meet cuts the avatar's voice. Keep video effects and backgrounds off.",
+  "Entre na reunião": "Join the meeting",
+  "Entre no ar aqui no NIDO e deixe esta página aberta: o avatar sai daqui. Depois entre na reunião com a câmera e o microfone ligados.":
+    "Go live here on NIDO and keep this page open: the avatar comes from here. Then join the meeting with the camera and microphone on.",
+  "Use fone de ouvido: o som da reunião não pode voltar para o microfone.":
+    "Use headphones: the meeting sound can't get back into the microphone.",
+  "Na live com avatar, cole as perguntas do chat do Meet na fila; na Sombra, quem fala é você.":
+    "In an avatar live, paste the questions from the Meet chat into the queue; in Shadow, you do the talking.",
+  "No Zoom e no Teams é o mesmo caminho: câmera “OBS Virtual Camera” e microfone “CABLE Output”.":
+    "Zoom and Teams work the same way: camera “OBS Virtual Camera” and microphone “CABLE Output”.",
   // Sombra 3D (components/live)
   "Sombra 3D": "3D Shadow",
   "Quem vira o avatar 3D": "Who becomes the 3D avatar",

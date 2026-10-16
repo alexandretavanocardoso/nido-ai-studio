@@ -50,7 +50,7 @@ import { useCharacters } from "@/lib/store";
 import type { Character } from "@/lib/types";
 import type { MensagemChat } from "./chat-twitch";
 import { EscolherCena } from "./Cena";
-import { GuiaDiscord } from "./GuiaDiscord";
+import { GuiaChamadas } from "./GuiaChamadas";
 import { ControlesDoJogo, type JogoNaTela } from "./Jogo";
 import { LinkDoPalco } from "./LinkDoPalco";
 import { FormSombra3D, FormSombraAoVivo } from "./NovaSombra";
@@ -1354,13 +1354,13 @@ function PainelLive({ id }: { id: string }) {
           </section>
 
           <aside className="grid content-start gap-3">
-            <div role="tablist" className="grid grid-cols-4 gap-1 rounded-full border border-line p-1">
+            <div role="tablist" className="grid grid-cols-[0.8fr_1.1fr_0.8fr_1.3fr] gap-1 rounded-full border border-line p-1">
               {(
                 [
                   ["chat", "Chat"],
                   ["transmitir", "Transmitir"],
                   ["jogo", "Jogo"],
-                  ["obs", "OBS e Discord"],
+                  ["obs", "OBS e chamadas"],
                 ] as const
               ).map(([a, rotulo]) => (
                 <button
@@ -1430,7 +1430,7 @@ function PainelLive({ id }: { id: string }) {
                 </p>
                 <LinkDoPalco id={id} />
               </div>
-              <GuiaDiscord id={id} />
+              <GuiaChamadas id={id} />
             </div>
           </aside>
         </div>
