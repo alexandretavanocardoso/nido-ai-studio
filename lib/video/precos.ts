@@ -28,7 +28,7 @@ export function custoTroca(
 
 /**
  * Modelos da troca (Sombra): cada um é um motor (ver lib/video/troca.ts) e,
- * no Kling, o formato. A tela ordena pelo preço. Qualquer plano usa qualquer
+ * no Kling, o formato; no Recast, a resolução. A tela ordena pelo preço. Qualquer plano usa qualquer
  * um; cada um cobra o seu preço. `recusaRostoReal`: o filtro do modelo pode
  * barrar vídeo ou imagem com rosto de pessoa real (a tela avisa ao escolher).
  */
@@ -68,6 +68,22 @@ export const MODELOS_TROCA = {
     qualidade: null,
     recusaRostoReal: true,
   },
+  recast: {
+    label: "MiniMax Recast 768p",
+    nota: "Até 30s de uma vez · mantém os cortes",
+    motor: "recast",
+    qualidade: null,
+    resolucao: "768p",
+    recusaRostoReal: false,
+  },
+  recast_1080p: {
+    label: "MiniMax Recast 1080p",
+    nota: "Até 30s de uma vez · mais nítido",
+    motor: "recast",
+    qualidade: null,
+    resolucao: "1080p",
+    recusaRostoReal: false,
+  },
 } as const;
 export type ModeloTroca = keyof typeof MODELOS_TROCA;
 export const MODELOS_TROCA_IDS = Object.keys(MODELOS_TROCA) as ModeloTroca[];
@@ -77,7 +93,28 @@ export type MotorDaTroca = (typeof MODELOS_TROCA)[ModeloTroca]["motor"];
 export function custoPorSegundoTroca(m: ModeloTroca): number {
   const { motor, qualidade } = MODELOS_TROCA[m];
   if (motor === "omni") return OMNI_TROCA.porSegundo;
+  if (motor === "recast") return RECAST_TROCA.porSegundo[resolucaoRecast(m)];
   return qualidade ? KLING_TROCA.porSegundo[qualidade] : SEEDANCE_TROCA.porSegundo;
+}
+
+/** Resolução do Recast no modelo escolhido (os outros modelos ignoram). */
+export function resolucaoRecast(m: ModeloTroca): ResolucaoRecast {
+  const modelo = MODELOS_TROCA[m];
+  return "resolucao" in modelo ? modelo.resolucao : "1080p";
+}
+
+/**
+ * O modelo aparece na tela? O Omni precisa da chave do Gemini e o Recast, da
+ * do Sapiens; os outros só do fal (que a troca inteira exige).
+ */
+export function modeloTrocaLigado(
+  m: ModeloTroca,
+  ligado: { gemini: boolean; sapiens: boolean },
+): boolean {
+  const { motor } = MODELOS_TROCA[m];
+  if (motor === "omni") return ligado.gemini;
+  if (motor === "recast") return ligado.sapiens;
+  return true;
 }
 
 /**
@@ -128,6 +165,26 @@ export function tomadasDoVideo(cortes: number[], duracao: number): Tomada[] {
     inicio: Number(inicio.toFixed(3)),
     duracao: Number(((limites[i + 1] ?? duracao) - inicio).toFixed(3)),
   }));
+}
+
+/**
+ * Fim do trecho "primeiros N segundos". Se um corte de câmera cai a menos de
+ * TOMADA_MINUSCULA do fim pedido, o vídeo termina no corte: senão sobra no fim
+ * uma tomada minúscula, que vai no pedido da anterior, e depois de um corte no
+ * meio do pedido o motor devolve todos como no original (visto no Kling em
+ * 16/10/2026: os dois personagens voltavam nos últimos 0,4s). Não corta mais de
+ * 1s nem tira uma pessoa marcada (`marcas`, instantes em s).
+ */
+export function fimDoTrecho(
+  segundos: number,
+  cortes: number[],
+  marcas: number[] = [],
+): number {
+  let fim = segundos;
+  for (const c of [...cortes].sort((a, b) => b - a))
+    if (c < fim && fim - c < TOMADA_MINUSCULA) fim = c;
+  if (segundos - fim > 1 || marcas.some((t) => t >= fim)) return segundos;
+  return Number(fim.toFixed(3));
 }
 
 /**
@@ -184,11 +241,40 @@ export function custoTrocaOmni(duracao: number): number {
   );
 }
 
+/**
+ * MiniMax H3 Max Recast (no Sapiens): troca as pessoas do vídeo pelas das fotos
+ * de referência (até 4), mantendo movimento, câmera, cortes e som. Cada envio
+ * tem de 5 a 30s, sem nenhuma tomada acima de 15s. Cobra pela duração do vídeo
+ * enviado: US$ 0,2592/s em 768p e US$ 0,3888/s em 1080p (POST /videos/quote,
+ * 16/10/2026; o fal cobra 0,30 e 0,45).
+ */
+export const RECAST_TROCA = {
+  porSegundo: { "768p": 0.2592, "1080p": 0.3888 },
+  minSegundos: 5,
+  maxEnvio: 30,
+  maxTomada: 15,
+} as const;
+export type ResolucaoRecast = keyof typeof RECAST_TROCA.porSegundo;
+export const RESOLUCOES_RECAST = ["768p", "1080p"] as const;
+
+export function custoTrocaRecast(
+  duracao: number,
+  resolucao: ResolucaoRecast,
+): number {
+  return Number(
+    (
+      Math.ceil(Math.max(RECAST_TROCA.minSegundos, duracao)) *
+      RECAST_TROCA.porSegundo[resolucao]
+    ).toFixed(2),
+  );
+}
+
 /** Duração mínima do vídeo em cada motor da troca. */
 export const MINIMO_TROCA: Record<MotorDaTroca, number> = {
   kling: KLING_TROCA.minSegundos,
   seedance: SEEDANCE_TROCA.minSegundos,
   omni: OMNI_TROCA.minSegundos,
+  recast: RECAST_TROCA.minSegundos,
 };
 
 /**

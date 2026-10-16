@@ -21,6 +21,7 @@ import {
   creditosTroca,
   creditosTrocaOmni,
   creditosTrocaPremium,
+  creditosTrocaRecast,
 } from "@/lib/planos";
 import { DECLARACAO_VIDEO_LINK } from "@/lib/declaracoes";
 import {
@@ -34,9 +35,12 @@ import {
   custoTroca,
   custoTrocaOmni,
   custoTrocaPremium,
+  custoTrocaRecast,
   MINIMO_TROCA,
   MODELOS_TROCA,
   MODELOS_TROCA_IDS,
+  modeloTrocaLigado,
+  resolucaoRecast,
   segundosCobradosTroca,
   trocaPorTomadas,
   type ModeloTroca,
@@ -97,6 +101,7 @@ interface Props {
  *  - Kling O3 Edit (fal.ai), em Standard, Pro ou 4K; vídeos longos viram trechos de até 15s.
  *  - Seedance 2.5 (fal.ai); até 30s de uma vez, cenário e objetos mais fiéis.
  *  - Gemini Omni Flash (Google); trechos de até 10s, o mais barato.
+ *  - MiniMax Recast (Sapiens), em 768p ou 1080p; até 30s de uma vez, só troca pessoas.
  * Todos podem remover legendas/textos da tela no mesmo passo.
  * Mostra o custo estimado antes de enviar.
  */
@@ -118,15 +123,24 @@ export function SubstituirPessoaModal({
   const personagens = useCharacters((s) => s.characters);
   const srcVideo = video ? fileUrl(video.key) : (link?.videoUrl ?? null);
   const marcasSemImagem = marcas.some((m) => !m.imageKey);
-  /** Modelo da troca: o motor e, no Kling, o formato. */
-  const [modeloTroca, setModeloTroca] = useState<ModeloTroca>("kling_pro");
-  const { motor } = MODELOS_TROCA[modeloTroca];
-  const qualidade = MODELOS_TROCA[modeloTroca].qualidade ?? "pro";
   const [removerTexto, setRemoverTexto] = useState(false);
   /** Estilo visual do vídeo: realista ou redesenhado (desenho, anime, 3D). */
   const [estilo, setEstilo] = useState<EstiloTroca>("realista");
   /** O que muda: o personagem, personagem e cena, só a cena ou só um detalhe. */
   const [modo, setModo] = useState<ModoTroca>("personagem");
+  /** O Recast só troca pessoas: não muda a cena nem o estilo. */
+  const recastServe = modo === "personagem" && estilo === "realista";
+  /** Modelo da troca: o motor e, no Kling, o formato; no Recast, a resolução. */
+  const [modeloEscolhido, setModeloTroca] = useState<ModeloTroca>("kling_pro");
+  // Com outra cena ou outro estilo, o Recast escolhido dá lugar ao Kling O3 Pro
+  // (e volta se o usuário voltar a só trocar a pessoa).
+  const modeloTroca =
+    MODELOS_TROCA[modeloEscolhido].motor === "recast" && !recastServe
+      ? "kling_pro"
+      : modeloEscolhido;
+  const { motor } = MODELOS_TROCA[modeloTroca];
+  const qualidade = MODELOS_TROCA[modeloTroca].qualidade ?? "pro";
+  const resolucao = resolucaoRecast(modeloTroca);
   /** Pedido escrito (o lugar novo, o detalhe a mudar…). */
   const [pedido, setPedido] = useState("");
   const comPersonagem = MODOS_TROCA[modo].personagem;
@@ -201,6 +215,11 @@ export function SubstituirPessoaModal({
         creditos: creditosTrocaOmni(segundos),
         custo: custoTrocaOmni(segundos),
       };
+    if (motor === "recast")
+      return {
+        creditos: creditosTrocaRecast(segundos, resolucao),
+        custo: custoTrocaRecast(segundos, resolucao),
+      };
     // Padrão: os segundos que o motor processa (iguais aos do vídeo, salvo
     // cortes rápidos — que só vão tomada por tomada no modo "personagem").
     const cobrados =
@@ -257,6 +276,7 @@ export function SubstituirPessoaModal({
             : undefined,
           motor,
           qualidade: motor === "kling" ? qualidade : undefined,
+          resolucao: motor === "recast" ? resolucao : undefined,
           removerTexto,
           estilo,
           roupa,
@@ -685,9 +705,12 @@ export function SubstituirPessoaModal({
                   rotulo={tx("Modelo")}
                   valor={modeloTroca}
                   onChange={setModeloTroca}
-                  // Do mais caro para o mais barato (o Omni só com a chave do Gemini).
+                  // Do mais caro para o mais barato (o Omni só com a chave do Gemini,
+                  // o Recast com a do Sapiens e só quando é para trocar a pessoa).
                   opcoes={MODELOS_TROCA_IDS.filter(
-                    (id) => MODELOS_TROCA[id].motor !== "omni" || recursos.gemini,
+                    (id) =>
+                      modeloTrocaLigado(id, recursos) &&
+                      (MODELOS_TROCA[id].motor !== "recast" || recastServe),
                   )
                     .sort(
                       (a, b) =>

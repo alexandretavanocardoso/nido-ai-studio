@@ -2093,6 +2093,10 @@ export const TEXTOS_EN: Record<string, string> = {
     "15s parts · in 4K",
   "Até 30s de uma vez · recusa rostos reais":
     "Up to 30s at once · refuses real faces",
+  "Até 30s de uma vez · mantém os cortes":
+    "Up to 30s at once · keeps the cuts",
+  "Até 30s de uma vez · mais nítido":
+    "Up to 30s at once · sharper",
   "de vídeo":
     "of video",
   "Corpo inteiro · ByteDance":

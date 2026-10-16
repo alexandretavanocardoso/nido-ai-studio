@@ -10,6 +10,7 @@ import {
   Radar,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { avisarNaTela } from "@/lib/notificar";
 import { copyToClipboard } from "@/lib/export";
 import {
   ANOTACOES_MAX,
@@ -51,9 +52,6 @@ export function Fornecedores() {
   const { dados, erro, carregando, recarregar, setDados } =
     useAdmin<FornecedoresAdmin>(`/api/admin/fornecedores?status=${status}`);
   const [pesquisando, setPesquisando] = useState(false);
-  const [aviso, setAviso] = useState<{ texto: string; erro: boolean } | null>(
-    null,
-  );
 
   const total = (s: string) =>
     dados?.totais.find((t) => t.status === s)?.n ?? 0;
@@ -64,7 +62,6 @@ export function Fornecedores() {
 
   async function pesquisar() {
     setPesquisando(true);
-    setAviso(null);
     try {
       const r = await acaoAdmin<ResumoPesquisa>("/api/admin/fornecedores", {});
       // O mesmo erro nas três categorias (chave, saldo) aparece uma vez só.
@@ -76,22 +73,21 @@ export function Fornecedores() {
               .map((f) => `${NOME_CATEGORIA[f.categoria]}: ${f.erro}`)
               .join(" · ");
       const feito = `${r.novos} ${r.novos === 1 ? "empresa nova" : "empresas novas"} (de ${r.achados} achadas) · custo ${dinheiro(r.usd, "USD")}`;
-      setAviso({
-        texto:
-          r.falhas.length === CATEGORIAS.length
-            ? `A pesquisa não rodou. ${falhas}`
-            : feito +
-              (erros.length === 1
-                ? ` · Falhou em ${r.falhas.map((f) => NOME_CATEGORIA[f.categoria]).join(" e ")}: ${falhas}`
-                : falhas
-                  ? ` · Falhou em ${falhas}`
-                  : ""),
-        erro: !!falhas,
-      });
+      avisarNaTela(
+        r.falhas.length === CATEGORIAS.length
+          ? `A pesquisa não rodou. ${falhas}`
+          : feito +
+            (erros.length === 1
+              ? ` · Falhou em ${r.falhas.map((f) => NOME_CATEGORIA[f.categoria]).join(" e ")}: ${falhas}`
+              : falhas
+                ? ` · Falhou em ${falhas}`
+                : ""),
+        { tom: falhas ? "erro" : "ok" },
+      );
       if (status === "nova") recarregar();
       else setStatus("nova");
     } catch (e) {
-      setAviso({ texto: (e as Error).message, erro: true });
+      avisarNaTela((e as Error).message, { tom: "erro" });
     } finally {
       setPesquisando(false);
     }
@@ -135,17 +131,6 @@ export function Fornecedores() {
         <div className="rounded-xl border border-line bg-panel px-4 py-3 text-sm text-ink-mute">
           Pesquisando vídeo, imagem e voz. Leva de 2 a 3 minutos; deixe esta aba
           aberta.
-        </div>
-      ) : aviso ? (
-        <div
-          className={cn(
-            "rounded-xl border px-4 py-3 text-sm",
-            aviso.erro
-              ? "border-pink/40 bg-pink/10 text-pink"
-              : "border-ok/40 bg-ok/10 text-ok",
-          )}
-        >
-          {aviso.texto}
         </div>
       ) : null}
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Lock, LockOpen } from "lucide-react";
 import type { RecursoAdmin } from "@/lib/admin/em-teste-server";
 import { cn } from "@/lib/cn";
+import { avisarNaTela } from "@/lib/notificar";
 import { SOBRE_O_RECURSO, type RecursoEmTeste } from "@/lib/em-teste";
 import { confirmar } from "@/components/ui/Confirmacao";
 import { diaHora, Estado, Secao, Selo, useAdmin } from "./partes";
@@ -20,7 +21,6 @@ export function EmTesteAdmin() {
   const [itens, setItens] = useState<RecursoAdmin[] | null>(null);
   const [mudando, setMudando] = useState<RecursoEmTeste | null>(null);
   const [falha, setFalha] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<string | null>(null);
   useEffect(() => {
     if (dados) setItens(dados.itens);
   }, [dados]);
@@ -41,7 +41,6 @@ export function EmTesteAdmin() {
     });
     if (!ok) return;
     setFalha(null);
-    setAviso(null);
     setMudando(item.recurso);
     try {
       const res = await fetch("/api/admin/em-teste", {
@@ -57,11 +56,11 @@ export function EmTesteAdmin() {
       if (!res.ok || !b.itens)
         return setFalha(b.error ?? `Não deu para salvar (HTTP ${res.status}).`);
       setItens(b.itens);
-      setAviso(
-        b.desconectados !== undefined
-          ? `Login fechado. ${b.desconectados} sessão(ões) de usuários encerrada(s).`
-          : null,
-      );
+      if (b.desconectados !== undefined)
+        avisarNaTela(
+          `Login fechado. ${b.desconectados} sessão(ões) de usuários encerrada(s).`,
+          { tom: "info" },
+        );
     } catch (e) {
       setFalha((e as Error).message);
     } finally {
@@ -78,11 +77,6 @@ export function EmTesteAdmin() {
         {falha ? (
           <div className="rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
             {falha}
-          </div>
-        ) : null}
-        {aviso ? (
-          <div className="rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-ink">
-            {aviso}
           </div>
         ) : null}
         {!itens ? (

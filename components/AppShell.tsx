@@ -60,6 +60,7 @@ import { TutorialCriar } from "@/components/home/TutorialCriar";
 import { DiscordConta } from "@/components/auth/DiscordConta";
 import { useRecursos } from "@/components/RecursosProvider";
 import { TarefasEmAndamento } from "@/components/TarefasEmAndamento";
+import { NotificacoesTela } from "@/components/NotificacoesTela";
 import {
   carregarAvisos,
   ligarNotificacoes,
@@ -237,6 +238,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }}
       />
       <TarefasEmAndamento />
+      <NotificacoesTela />
     </CriarCtx.Provider>
   );
 }

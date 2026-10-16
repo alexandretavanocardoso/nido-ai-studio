@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronRight, Loader2, Minus, Plus, X } from "lucide-react";
 import type { DetalheUsuario, UsuarioAdmin } from "@/lib/admin/consultas";
 import { cn } from "@/lib/cn";
+import { avisarNaTela } from "@/lib/notificar";
 import { Button } from "@/components/ui/Button";
 import { confirmar } from "@/components/ui/Confirmacao";
 import { PLANOS } from "@/lib/planos";
@@ -179,7 +180,6 @@ function FichaUsuario({
   );
   const [agindo, setAgindo] = useState(false);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<string | null>(null);
 
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -190,12 +190,11 @@ function FichaUsuario({
   async function executar(corpo: Record<string, unknown>, feito: string) {
     setAgindo(true);
     setErroAcao(null);
-    setAviso(null);
     try {
       setDados(
         await acaoAdmin<DetalheUsuario>(`/api/admin/usuarios/${id}`, corpo),
       );
-      setAviso(feito);
+      avisarNaTela(feito);
       onMudou();
     } catch (e) {
       setErroAcao((e as Error).message);
@@ -310,14 +309,6 @@ function FichaUsuario({
             {erroAcao ? (
               <div className="rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
                 {erroAcao}
-              </div>
-            ) : null}
-            {aviso ? (
-              <div
-                className="rounded-xl border border-ok/40 bg-ok/10 px-4 py-3 text-sm text-ok"
-                role="status"
-              >
-                {aviso}
               </div>
             ) : null}
 

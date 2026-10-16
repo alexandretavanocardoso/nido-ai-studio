@@ -28,6 +28,8 @@ export interface VideoDaSombra {
   erro: string | null;
   duracao: number | null;
   criadoEm: string;
+  /** Link do post de onde veio o vídeo (vídeo enviado por link), como no Estúdio. */
+  fonte: string | null;
 }
 
 /**
@@ -56,8 +58,10 @@ export async function GET() {
       error: string | null;
       duracao: string | null;
       created_at: Date;
+      fonte: string | null;
     }>(
-      `select id, status, result_key, input->>'antesKey' as antes_key, error, duracao, created_at
+      `select id, status, result_key, input->>'antesKey' as antes_key, error, duracao, created_at,
+              input->'link'->>'url' as fonte
        from video_jobs
        where user_id = $1 and character_id = $2 and tipo = 'substituir'
        order by created_at desc limit $3`,
@@ -89,6 +93,8 @@ export async function GET() {
     erro: j.error,
     duracao: j.duracao == null ? null : Number(j.duracao),
     criadoEm: j.created_at.toISOString(),
+    // Só link de página (vai num <a href>).
+    fonte: j.fonte && /^https?:\/\//i.test(j.fonte) ? j.fonte : null,
   }));
 
   return NextResponse.json({ fotos, videos });

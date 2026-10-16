@@ -39,6 +39,7 @@ import {
   TREINO_MIN_IMAGENS,
 } from "@/lib/planos";
 import { tx } from "@/lib/i18n/tx";
+import { avisarNaTela } from "@/lib/notificar";
 import { txErro } from "@/lib/i18n/erros";
 
 const QUANTIDADES = [12, 20, 30];
@@ -74,10 +75,6 @@ export function PersonaTreino({ character }: { character: Character }) {
     `persona:${character.id}:erro`,
     null,
   );
-  const [aviso, setAviso] = useDuravel<string | null>(
-    `persona:${character.id}:aviso`,
-    null,
-  );
 
   if (!ativo) return null;
 
@@ -105,7 +102,7 @@ export function PersonaTreino({ character }: { character: Character }) {
       .filter((o) => !ja.has(o.key))
       .map((o) => ({ id: nanoid(8), key: o.key, aprovada: true }));
     salvarDataset([...dataset, ...novas]);
-    setAviso(
+    avisarNaTela(
       novas.length
         ? `${novas.length} imagem(ns) da galeria adicionadas.`
         : "Todas as imagens da galeria já estão no conjunto.",
@@ -115,7 +112,6 @@ export function PersonaTreino({ character }: { character: Character }) {
   async function gerarVariacoes() {
     if (!referencia) return;
     setErro(null);
-    setAviso(null);
     setOcupado("dataset");
     try {
       const res = await fetch("/api/persona/dataset", {
@@ -144,7 +140,7 @@ export function PersonaTreino({ character }: { character: Character }) {
         ...(useCharacters.getState().get(character.id)?.personaDataset ?? []),
         ...b.imagens.map((i) => ({ ...i, aprovada: true })),
       ]);
-      setAviso(
+      avisarNaTela(
         `${b.imagens.length} variações geradas${b.falhas ? ` (${b.falhas} falharam — créditos devolvidos)` : ""}. Descarte as que fugiram do personagem.`,
       );
     } catch (e) {
@@ -434,7 +430,6 @@ export function PersonaTreino({ character }: { character: Character }) {
         </>
       )}
 
-      {aviso ? <p className="text-[12px] text-ink-mute">{aviso}</p> : null}
       {erro ? <ErroGeracao mensagem={erro.msg} code={erro.code} /> : null}
     </section>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Bell, Check, Loader2 } from "lucide-react";
+import { Bell, Loader2 } from "lucide-react";
 import {
   avisarTermino,
   dispensarTermino,
@@ -13,6 +13,7 @@ import { useCharacters } from "@/lib/store";
 import { useStorageReady } from "@/lib/storage/useStorage";
 import { tx } from "@/lib/i18n/tx";
 import {
+  avisarNaTela,
   dispensarConvite,
   ligarNotificacoes,
   registrarAviso,
@@ -20,11 +21,11 @@ import {
 } from "@/lib/notificar";
 
 const POLL_MS = 10_000;
-const AVISO_MS = 6_000;
 
 /**
  * Tudo que roda em segundo plano, em qualquer tela do app:
- *  - o indicador no canto (o que está em andamento e o que acabou de terminar);
+ *  - o indicador no canto de baixo (o que está em andamento); o que termina
+ *    vira notificação no canto de cima (components/NotificacoesTela.tsx);
  *  - o aviso do navegador ao fechar/recarregar a aba com algo em andamento
  *    (aí o pedido se perde — trocar de tela dentro do app não perde nada);
  *  - o acompanhamento dos vídeos em processamento de todos os personagens;
@@ -37,17 +38,21 @@ export function TarefasEmAndamento() {
   const videos = useAcompanharVideos();
   const { convidar } = useNotificacoes();
 
-  // Cada término vira um aviso no sino (e uma notificação), uma vez só.
+  // Cada término vira uma notificação na tela e um aviso no sino (e no
+  // navegador, com o app em segundo plano), uma vez só.
   const notificadoAte = useRef(0);
   useEffect(() => {
     for (const t of terminadas) {
       if (t.id <= notificadoAte.current) continue;
       notificadoAte.current = t.id;
-      registrarAviso(`${tx("Terminou:")} ${tx(t.rotulo)}`, {
+      const texto = `${tx("Terminou:")} ${tx(t.rotulo)}`;
+      avisarNaTela(texto, { href: t.href });
+      registrarAviso(texto, {
         rotulo: t.rotulo,
         href: t.href,
         chave: t.chave,
       });
+      dispensarTermino(t.id);
     }
   }, [terminadas]);
 
@@ -58,16 +63,9 @@ export function TarefasEmAndamento() {
     return () => window.removeEventListener("beforeunload", avisar);
   }, [rodando.length]);
 
-  const maisAntiga = terminadas[0]?.id;
-  useEffect(() => {
-    if (maisAntiga === undefined) return;
-    const t = setTimeout(() => dispensarTermino(maisAntiga), AVISO_MS);
-    return () => clearTimeout(t);
-  }, [maisAntiga]);
-
   // O convite aparece enquanto há algo para esperar (inclusive vídeo em processamento).
   const convite = convidar && (rodando.length > 0 || videos > 0);
-  if (!rodando.length && !terminadas.length && !convite) return null;
+  if (!rodando.length && !convite) return null;
   return (
     <>
     {/* O cartão é fixo no rodapé: este espaço no fim da página deixa rolar até o que ficaria embaixo dele (no celular ele cobria o último botão da tela). */}
@@ -91,19 +89,6 @@ export function TarefasEmAndamento() {
           <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin text-accent" />
           <span className="truncate">{tx(rotulo)}</span>
         </div>
-      ))}
-      {terminadas.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          onClick={() => dispensarTermino(t.id)}
-          className="flex items-center gap-2 text-[13px] text-ink-mute min-w-0 text-left"
-        >
-          <Check className="w-3.5 h-3.5 shrink-0 text-ok" />
-          <span className="truncate">
-            {tx("Terminou:")} {tx(t.rotulo)}
-          </span>
-        </button>
       ))}
       {convite && (
         <div className="flex items-center gap-2 text-[12px] text-ink-mute min-w-0">
@@ -196,13 +181,16 @@ function useAcompanharVideos(): number {
                 );
               });
               avisarCreditos(); // créditos devolvidos
-              if (!avisados.has(v.jobId!))
-                registrarAviso(`${tx("Não deu certo:")} ${v.name}`, {
+              if (!avisados.has(v.jobId!)) {
+                const texto = `${tx("Não deu certo:")} ${v.name}`;
+                avisarNaTela(texto, { tom: "erro", href: verVideos(c.id) });
+                registrarAviso(texto, {
                   rotulo: v.name,
                   erro: true,
                   href: verVideos(c.id),
                   chave: `video:${v.jobId}`,
                 });
+              }
               avisados.add(v.jobId!);
             }
           } catch {

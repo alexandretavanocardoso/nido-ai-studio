@@ -13,10 +13,13 @@ import type { ModeloImagem } from "@/lib/ai/modelos-imagem";
 import {
   MODELOS_TROCA,
   OMNI_TROCA,
+  RECAST_TROCA,
+  resolucaoRecast,
   type ModeloCriar,
   type ModeloFalado,
   type ModeloTroca,
   type QualidadeTroca,
+  type ResolucaoRecast,
 } from "@/lib/video/precos";
 
 export type PlanoId = "gratis" | "starter" | "creator" | "studio";
@@ -229,6 +232,11 @@ export const TROCA_POR_SEGUNDO_QUALIDADE: Record<QualidadeTroca, number> = {
 export const TROCA_PREMIUM_POR_SEGUNDO = 57;
 /** Gemini Omni Flash (720p): 5.792 tokens por segundo gerado a US$ 17,50/M = US$ 0,101/s, + a entrada (quase nada). */
 export const TROCA_OMNI_POR_SEGUNDO = 11;
+/** MiniMax Recast no Sapiens: US$ 0,2592/s em 768p e US$ 0,3888/s em 1080p (mínimo 5s). */
+export const TROCA_RECAST_POR_SEGUNDO: Record<ResolucaoRecast, number> = {
+  "768p": 26,
+  "1080p": 39,
+};
 const CRIAR_POR_SEGUNDO: Record<ModeloCriar, number> = {
   gen4_turbo: 5,
   "gen4.5": 12,
@@ -263,10 +271,21 @@ export function creditosTrocaOmni(segundos: number): number {
   );
 }
 
+export function creditosTrocaRecast(
+  segundos: number,
+  resolucao: ResolucaoRecast,
+): number {
+  return (
+    Math.ceil(Math.max(RECAST_TROCA.minSegundos, segundos)) *
+    TROCA_RECAST_POR_SEGUNDO[resolucao]
+  );
+}
+
 /** Créditos por segundo de cada modelo da troca (o seletor ordena e mostra por isto). */
 export function creditosPorSegundoTroca(m: ModeloTroca): number {
   const { motor, qualidade } = MODELOS_TROCA[m];
   if (motor === "omni") return TROCA_OMNI_POR_SEGUNDO;
+  if (motor === "recast") return TROCA_RECAST_POR_SEGUNDO[resolucaoRecast(m)];
   return qualidade
     ? TROCA_POR_SEGUNDO_QUALIDADE[qualidade]
     : TROCA_PREMIUM_POR_SEGUNDO;

@@ -26,6 +26,7 @@ import {
   creditosTroca,
   creditosTrocaOmni,
   creditosTrocaPremium,
+  creditosTrocaRecast,
 } from "@/lib/planos";
 import { getPool } from "@/lib/db";
 import { carregarPersonagem, registrarVideoNoBanco } from "@/lib/personagens";
@@ -42,9 +43,11 @@ import {
   detectarViradas,
   probe,
   trechosTroca,
+  type Virada,
 } from "@/lib/video/ffmpeg";
 import { getFal, mensagemDeErro } from "@/lib/video/fal";
 import { getOmni } from "@/lib/video/omni";
+import { getSapiens } from "@/lib/video/sapiens";
 import {
   acaoDoTrecho,
   alvosNosTrechos,
@@ -52,6 +55,7 @@ import {
   iniciarTroca,
   MOTORES_TROCA,
   personagemSemFundo,
+  trechosRecast,
 } from "@/lib/video/troca";
 import { descreverPessoas } from "@/lib/video/pessoas";
 import {
@@ -73,10 +77,13 @@ import {
   custoTroca,
   custoTrocaOmni,
   custoTrocaPremium,
+  custoTrocaRecast,
+  fimDoTrecho,
   MINIMO_TROCA,
   segundosDaTomada,
   trocaPorTomadas,
   QUALIDADES_TROCA,
+  RESOLUCOES_RECAST,
 } from "@/lib/video/precos";
 import { comPastaTemporaria, contextoVideo } from "@/lib/video/server";
 import { SOMBRA_SEM_PERSONAGEM } from "@/lib/sombra";
@@ -120,11 +127,14 @@ const BodySchema = z.object({
     .optional(),
   /**
    * kling = Kling O3 Edit (padrão) · seedance = Seedance 2.5 (premium), os dois
-   * no fal.ai · omni = Gemini Omni Flash (Google, trechos de até 10s).
+   * no fal.ai · omni = Gemini Omni Flash (Google, trechos de até 10s) ·
+   * recast = MiniMax H3 Max Recast (Sapiens, só troca pessoas, até 30s por envio).
    */
-  motor: z.enum(["kling", "seedance", "omni"]).default("kling"),
+  motor: z.enum(["kling", "seedance", "omni", "recast"]).default("kling"),
   /** Formato do Kling O3: Standard, Pro ou 4K (o Seedance ignora). */
   qualidade: z.enum(QUALIDADES_TROCA).default("pro"),
+  /** Resolução do Recast (os outros motores ignoram). */
+  resolucao: z.enum(RESOLUCOES_RECAST).default("1080p"),
   /** Pede pra remover legendas/textos da tela no mesmo passo. */
   removerTexto: z.boolean().default(false),
   /** Estilo visual do vídeo: realista (padrão) ou redesenhado (desenho, anime, 3D). */
@@ -190,6 +200,18 @@ export async function POST(req: Request) {
   if (modo.pedidoObrigatorio && !body.pedido)
     return NextResponse.json(
       { error: "Escreva o que mudar no vídeo.", code: "BAD_INPUT" },
+      { status: 400 },
+    );
+  if (
+    body.motor === "recast" &&
+    (body.modo !== "personagem" || body.estilo !== "realista")
+  )
+    return NextResponse.json(
+      {
+        error:
+          "O MiniMax Recast só troca pessoas: não muda a cena nem o estilo do vídeo. Escolha outro modelo para isso.",
+        code: "BAD_INPUT",
+      },
       { status: 400 },
     );
   // Só a cena ou só um detalhe: ninguém é trocado (marcas e imagem não valem).
@@ -279,8 +301,18 @@ export async function POST(req: Request) {
       },
       { status: 500 },
     );
+  // O Recast também usa o fal (recorte do personagem, trechos e áudio original), e a chave do Sapiens.
+  if (body.motor === "recast" && !getSapiens())
+    return NextResponse.json(
+      {
+        error: "Sapiens não configurado no servidor (SAPIENS_KEY).",
+        code: "CONFIG_MISSING",
+      },
+      { status: 500 },
+    );
   const premium = body.motor === "seedance";
   const omni = body.motor === "omni";
+  const recast = body.motor === "recast";
 
   // Limites do plano: espaço e vídeos ao mesmo tempo. A vaga vale até o job
   // ser registrado — a partir daí, o próprio job em processamento ocupa a vaga.
@@ -297,6 +329,8 @@ export async function POST(req: Request) {
       if (link) await baixarVideo(link.fal_url, arquivo);
       else await downloadToFile(s3, body.videoKey!, arquivo);
       let info = await probe(arquivo);
+      /** Viradas do trecho já lidas no corte (para não ler o vídeo duas vezes). */
+      let viradasDoTrecho: Virada[] | null = null;
       // Só os primeiros N segundos: corta aqui e segue com o trecho como se fosse
       // o vídeo (duração, limites do plano e créditos valem para o trecho).
       if (body.segundos && info.duracao > body.segundos + 0.2) {
@@ -310,6 +344,18 @@ export async function POST(req: Request) {
           );
         const trecho = path.join(dir, "trecho.mp4");
         await cortarInicio(arquivo, body.segundos, trecho);
+        // Corte de câmera logo antes do fim pedido: o vídeo termina nele (ver
+        // `fimDoTrecho`). Corta de novo a partir do original, não do trecho.
+        viradasDoTrecho = await detectarViradas(trecho);
+        const fim = fimDoTrecho(
+          body.segundos,
+          cortesDeCamera(viradasDoTrecho),
+          body.pessoas?.map((p) => p.t),
+        );
+        if (fim < body.segundos) {
+          await cortarInicio(arquivo, fim, trecho);
+          viradasDoTrecho = viradasDoTrecho.filter((v) => v.t < fim - 0.05);
+        }
         arquivo = trecho;
         cortado = true;
         info = await probe(arquivo);
@@ -362,7 +408,9 @@ export async function POST(req: Request) {
       }
 
       // Cortes de câmera e movimentos bruscos (o Seedance não usa: faz até 30s de uma vez).
-      const viradas = premium ? [] : await detectarViradas(arquivo);
+      const viradas = premium
+        ? []
+        : (viradasDoTrecho ?? (await detectarViradas(arquivo)));
       // Vídeo de cortes rápidos (Kling): cada tomada vai sozinha ao motor, as
       // curtas em câmera lenta. O Kling cobra pelo que processa — é isso que é
       // cobrado aqui (o máximo; tomada sem ninguém a trocar é devolvida abaixo).
@@ -381,7 +429,9 @@ export async function POST(req: Request) {
         ? creditosTrocaPremium(duracao)
         : omni
           ? creditosTrocaOmni(duracao)
-          : creditosTroca(segundosCobrados, body.qualidade);
+          : recast
+            ? creditosTrocaRecast(duracao, body.resolucao)
+            : creditosTroca(segundosCobrados, body.qualidade);
       const cobrado = await cobrarOuResponder(
         userId,
         creditos,
@@ -434,6 +484,8 @@ export async function POST(req: Request) {
       // (2) personagens sem fundo; (3) com pessoas marcadas, em que momentos
       // cada uma aparece. Tomada por tomada, cada tomada tem a sua âncora: a do
       // vídeo inteiro só é feita se for preciso descrever a pessoa principal.
+      // O Recast não usa âncora (cada foto já é a referência), e só precisa
+      // saber quem aparece em cada envio quando há mais de uma pessoa marcada.
       const semAncoraGeral = {
         imagem: null as Buffer | null,
         descricoes: descricoes as Array<string | undefined>,
@@ -456,7 +508,7 @@ export async function POST(req: Request) {
                 estilo: body.estilo,
               }).then((imagem) => ({ ...semAncoraGeral, imagem }))
             : semAncoraGeral
-          : !premium && !(tomadas && body.pessoas)
+          : !premium && !recast && !(tomadas && body.pessoas)
           ? prepararAncora({
               arquivo,
               dir,
@@ -476,7 +528,7 @@ export async function POST(req: Request) {
             personagemSemFundo(fal, imagem, !ehCoisa(tipos[i])),
           ),
         ),
-        body.pessoas && !tomadas
+        body.pessoas && !tomadas && (!recast || body.pessoas.length > 1)
           ? linhaDoTempoDosAlvos({
               arquivo,
               dir,
@@ -491,6 +543,8 @@ export async function POST(req: Request) {
         rostoUrl: figura.rostoUrl,
         descricao: ancora.descricoes[i],
         tipo: tipos[i],
+        // Só o Recast usa (pista de quem é a pessoa, ver `promptRecast`).
+        instante: recast ? body.pessoas?.[i]?.t : undefined,
       }));
 
       let troca: Awaited<ReturnType<typeof iniciarTroca>>;
@@ -573,13 +627,17 @@ export async function POST(req: Request) {
         // cena (o motor só troca bem quem já está na tela no começo do trecho) e
         // nos cortes de câmera. O Seedance faz até 30s de uma vez e não tem
         // quadro-âncora: lá mais emendas atrapalham, fica dividido só pelo tamanho.
-        const trechos = trechosTroca(
-          duracao,
-          MOTORES_TROCA[body.motor].maxTrecho,
-          viradas,
-          minimo,
-          linha && !premium ? entradasDosAlvos(linha, imagens.length) : [],
-        );
+        // O Recast acompanha as pessoas pelos cortes: divide só onde precisa
+        // (envios de até 30s, tomadas de até 15s).
+        const trechos = recast
+          ? trechosRecast(duracao, cortesDeCamera(viradas))
+          : trechosTroca(
+              duracao,
+              MOTORES_TROCA[body.motor].maxTrecho,
+              viradas,
+              minimo,
+              linha && !premium ? entradasDosAlvos(linha, imagens.length) : [],
+            );
         // Cada trecho recebe só os personagens de quem aparece nele: com todos,
         // o motor "encaixa" o personagem de quem está fora em quem está em cena.
         porTrecho =
@@ -587,8 +645,8 @@ export async function POST(req: Request) {
             ? alvosNosTrechos(trechos, linha, imagens.length)
             : undefined;
         // O que acontece em cada trecho, em palavras: sem isso gestos rápidos (um
-        // golpe, uma queda) somem do resultado.
-        acoes = premium
+        // golpe, uma queda) somem do resultado. O Recast mantém o movimento sozinho.
+        acoes = premium || recast
           ? undefined
           : await acoesDosTrechos({
               arquivo,
@@ -603,6 +661,7 @@ export async function POST(req: Request) {
           fal,
           motor: body.motor,
           qualidade: body.qualidade,
+          resolucao: body.resolucao,
           arquivo,
           info,
           alvos,
@@ -624,7 +683,9 @@ export async function POST(req: Request) {
         ? custoTrocaPremium(duracao)
         : omni
           ? custoTrocaOmni(duracao)
-          : custoTroca(segundosCobrados, body.qualidade);
+          : recast
+            ? custoTrocaRecast(duracao, body.resolucao)
+            : custoTroca(segundosCobrados, body.qualidade);
 
       await pool.query(
         `insert into video_jobs (id, user_id, character_id, provedor, tipo, modelo, fal_request_id, input, duracao)
@@ -633,7 +694,7 @@ export async function POST(req: Request) {
           jobId,
           userId,
           characterId,
-          omni ? "google" : "fal",
+          omni ? "google" : recast ? "sapiens" : "fal",
           troca.modelo ?? MOTORES_TROCA[body.motor].modelo,
           // O primeiro trecho pode ser uma tomada sem troca (sem pedido no motor).
           troca.segmentos.find((g) => g.requestId)?.requestId ?? "",
@@ -647,6 +708,7 @@ export async function POST(req: Request) {
                 }
               : undefined,
             imageKey: imagens[0],
+            resolucao: recast ? body.resolucao : undefined,
             estilo: body.estilo,
             roupa: body.roupa,
             modo: body.modo,

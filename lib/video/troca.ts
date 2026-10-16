@@ -27,7 +27,18 @@ import {
   type EstadoLote,
   type Segmento,
 } from "./lote";
-import { TOMADA_MIN, type QualidadeTroca } from "./precos";
+import {
+  RECAST_TROCA,
+  TOMADA_MIN,
+  type QualidadeTroca,
+  type ResolucaoRecast,
+} from "./precos";
+import {
+  enviarRecastSapiens,
+  estadoLoteSapiens,
+  getSapiens,
+  MODELO_RECAST,
+} from "./sapiens";
 import {
   baixarTrechosOmni,
   cancelarOmni,
@@ -45,13 +56,16 @@ import { webhookUrl } from "./webhook";
 
 /**
  * Troca de pessoa: troca só a pessoa pelo personagem e mantém cenário,
- * câmera, movimento e o áudio original. Três motores:
+ * câmera, movimento e o áudio original. Quatro motores:
  *  - kling    → Kling O3 Edit (padrão, fal.ai). Aceita trechos de 3–15s, em três formatos:
  *               Standard (US$ 0,126/s), Pro (US$ 0,168/s, o padrão) e 4K (US$ 0,42/s).
  *  - seedance → Seedance 2.5 em modo edição (premium, fal.ai, US$ 0,568/s em 720p: o fal cobra entrada + saída).
  *               Aceita até 30s de uma vez: preserva melhor cenário, objetos e roupa.
  *  - omni     → Gemini Omni Flash (Google, ~US$ 0,10/s em 720p, ver ./omni.ts).
  *               Edita no máximo 10s por vez: trechos curtos, com o quadro-âncora como o Kling.
+ *  - recast   → MiniMax H3 Max Recast (Sapiens, US$ 0,26/s em 768p e 0,39/s em 1080p).
+ *               Só troca pessoas: uma foto por pessoa, sem quadro-âncora; acompanha
+ *               cada uma pelos cortes, em envios de até 30s (ver `trechosRecast`).
  * O vídeo vira trechos iguais do tamanho máximo do motor (lado menor ≥ 720px),
  * processados em paralelo; no fim eles são juntados e o áudio original
  * (música, fala) volta por baixo.
@@ -65,7 +79,7 @@ import { webhookUrl } from "./webhook";
  *  - um close do rosto de cada personagem (o rosto é pequeno na imagem de corpo inteiro);
  *  - a descrição das OUTRAS pessoas do vídeo — sem dizer quem são, o modelo as redesenha.
  */
-export type MotorTroca = "kling" | "seedance" | "omni";
+export type MotorTroca = "kling" | "seedance" | "omni" | "recast";
 
 /** Kling O3 Edit: um endpoint do fal por formato. */
 export const MODELOS_KLING: Record<QualidadeTroca, string> = {
@@ -90,6 +104,10 @@ export const MOTORES_TROCA: Record<
     modelo: MODELO_OMNI,
     maxTrecho: OMNI_MAX_TRECHO,
   },
+  recast: {
+    modelo: MODELO_RECAST,
+    maxTrecho: RECAST_TROCA.maxEnvio,
+  },
 };
 const MODELO_RECORTE = "fal-ai/birefnet/v2";
 
@@ -111,7 +129,10 @@ export interface InputTroca {
   motor: MotorTroca;
   /** Modelo usado neste job (ausente em jobs antigos = Kling O1 standard). */
   modelo?: string;
-  /** No Omni, `requestId` de cada segmento é o id da interação no Google. */
+  /**
+   * No Omni, `requestId` de cada segmento é o id da interação no Google; no
+   * Recast, o id do vídeo no Sapiens.
+   */
   segmentos: Segmento[];
   /** Áudio original (no storage do fal), se o vídeo tinha som. */
   audioUrl: string | null;
@@ -125,6 +146,11 @@ export interface AlvoTroca {
   descricao?: string;
   /** Ausente: pessoa. Animal ou objeto segue as regras de coisa (ver `montarPedido`). */
   tipo?: TipoAlvo;
+  /**
+   * Instante (s, no vídeo inteiro) em que a pessoa foi marcada. Vai no pedido
+   * do Recast como pista de quem é ela (ver `promptRecast`).
+   */
+  instante?: number;
 }
 
 /** O que o pedido precisa saber de cada alvo. */
@@ -247,6 +273,50 @@ export function promptEdicao(
     removerTexto
       ? "Remove all on-screen text, captions and subtitles."
       : "Keep the on-screen text of @Video1.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * Pedido ao Recast: quem vira quem, na ordem das fotos. Sem isso ele troca as
+ * pessoas principais da esquerda para a direita; com as pessoas marcadas
+ * descritas, cada foto vai para quem foi marcado. Movimento, câmera, cortes e
+ * cenário ele já mantém sozinho: o pedido só reforça.
+ */
+export function promptRecast(
+  /** `instante`: onde a pessoa foi marcada, em segundos DESTE envio (ausente se cair fora dele). */
+  alvos: Array<AlvoDoPedido & { instante?: number }>,
+  removerTexto: boolean,
+  roupa?: RoupaTroca,
+): string {
+  const temPessoa = alvos.some((a) => !ehCoisa(a.tipo));
+  const quem = (a: AlvoDoPedido) =>
+    a.descricao ? encurtar(a.descricao, 150) : `the main ${nomeDoTipo(a.tipo)}`;
+  // O instante da marca diz qual é a pessoa: sem ele, quem aparecia pequena no
+  // fundo do primeiro plano ficava como a original (teste de 16/10/2026).
+  const marcada = (a: { instante?: number }) =>
+    a.instante === undefined ? "" : ` (the one visible at ${a.instante.toFixed(1)}s)`;
+  return [
+    `In the video, replace ONLY ${alvos.length === 1 ? "this person" : "these people"}, in every shot where they appear:`,
+    ...alvos.map(
+      (a, i) =>
+        `- ${quem(a)}${marcada(a)} → the ${ehCoisa(a.tipo) ? nomeDoTipo(a.tipo) : "person"} in reference photo ${i + 1}.`,
+    ),
+    roupa === "foto" && temPessoa
+      ? "Take only the face, hair and skin tone from each photo: every replaced person keeps the clothes, shoes and accessories they wear in the video."
+      : "Each replacement looks exactly like their photo: face, hair and outfit.",
+    // Sem isto, num vídeo de cortes rápidos a pessoa voltava a ser a original
+    // nas tomadas em que aparecia de outro lado, de longe ou só pelas pernas.
+    "Follow each of them through every cut and keep them replaced in every frame: also seen from behind or from the side, small and far in the background, partly hidden or only in part (legs, hands).",
+    alvos.length > 1
+      ? "Each photo goes only to its own person: never mix two of them or give one photo's look to someone else."
+      : "",
+    "Everyone else, the background, the objects, the motion and the camera stay exactly as in the video.",
+    // "Keep the on-screen text" num vídeo sem texto fez aparecer uma palavra inventada.
+    removerTexto
+      ? "Remove all on-screen text, captions and subtitles."
+      : "Add no text, letters or captions that are not in the video.",
   ]
     .filter(Boolean)
     .join("\n");
@@ -761,6 +831,67 @@ export function alvosNosTrechos(
   });
 }
 
+/** Folga nos limites do Recast: o corte do trecho arredonda nos quadros. */
+const FOLGA_RECAST = 0.1;
+
+/**
+ * Divisão do vídeo para o Recast: envios de 5 a 30s, sem nenhuma tomada de
+ * mais de 15s dentro deles. As divisões caem nos cortes de câmera (ali a emenda
+ * não aparece); só uma tomada mais longa que 15s é dividida no meio, em partes
+ * iguais. Cada envio leva o máximo de tomadas que couber: o Recast acompanha
+ * cada pessoa pelos cortes, e menos envios são menos emendas.
+ */
+export function trechosRecast(
+  duracao: number,
+  cortes: number[],
+): Array<{ inicio: number; duracao: number }> {
+  const maxEnvio = RECAST_TROCA.maxEnvio - FOLGA_RECAST;
+  const maxTomada = RECAST_TROCA.maxTomada - FOLGA_RECAST;
+  const minEnvio = RECAST_TROCA.minSegundos + FOLGA_RECAST;
+  const pontos = [
+    0,
+    ...cortes
+      .filter((c) => c > FOLGA_RECAST && c < duracao - FOLGA_RECAST)
+      .sort((a, b) => a - b),
+    duracao,
+  ];
+  // Pedaços de até 15s: as tomadas, e as longas em partes iguais. `livre`: o
+  // pedaço começa num corte e pode ir no mesmo envio que o anterior.
+  const pedacos: Array<{ inicio: number; fim: number; livre: boolean }> = [];
+  for (let k = 0; k < pontos.length - 1; k++) {
+    const de = pontos[k];
+    const ate = pontos[k + 1];
+    const n = Math.max(1, Math.ceil((ate - de) / maxTomada - 1e-6));
+    const tamanho = (ate - de) / n;
+    for (let i = 0; i < n; i++)
+      pedacos.push({
+        inicio: de + i * tamanho,
+        fim: i === n - 1 ? ate : de + (i + 1) * tamanho,
+        livre: i === 0,
+      });
+  }
+  const envios: Array<typeof pedacos> = [];
+  for (const p of pedacos) {
+    const atual = envios[envios.length - 1];
+    if (atual && p.livre && p.fim - atual[0].inicio <= maxEnvio) atual.push(p);
+    else envios.push([p]);
+  }
+  // Só o último envio pode sair curto (tomadas curtas depois de um envio
+  // cheio): ele recebe as últimas tomadas do anterior até chegar ao mínimo.
+  const ultimo = envios[envios.length - 1];
+  const anterior = envios[envios.length - 2];
+  while (
+    anterior &&
+    anterior.length > 1 &&
+    ultimo[ultimo.length - 1].fim - ultimo[0].inicio < minEnvio
+  )
+    ultimo.unshift(anterior.pop()!);
+  return envios.map((e) => ({
+    inicio: Number(e[0].inicio.toFixed(3)),
+    duracao: Number((e[e.length - 1].fim - e[0].inicio).toFixed(3)),
+  }));
+}
+
 /**
  * Alvos de um trecho: só os que aparecem nele (`presentes`, índices da lista
  * completa), com a âncora reindexada para essa lista menor. Lista vazia ou
@@ -1023,6 +1154,8 @@ export async function iniciarTroca(o: {
   motor: MotorTroca;
   /** Formato do Kling O3 (Standard, Pro ou 4K). O Seedance ignora. */
   qualidade?: QualidadeTroca;
+  /** Resolução do Recast (os outros motores ignoram). */
+  resolucao?: ResolucaoRecast;
   arquivo: string;
   info: VideoInfo;
   alvos: AlvoTroca[];
@@ -1082,6 +1215,10 @@ export async function iniciarTroca(o: {
   const omni = o.motor === "omni" ? getOmni() : null;
   if (o.motor === "omni" && !omni)
     throw new Error("Gemini Omni não configurado no servidor (GEMINI_API_KEY).");
+  // Recast: os pedidos vão para o Sapiens, que lê os trechos e as imagens do storage do fal.
+  const sapiens = o.motor === "recast" ? getSapiens() : null;
+  if (o.motor === "recast" && !sapiens)
+    throw new Error("Sapiens não configurado no servidor (SAPIENS_KEY).");
   return comPastaTemporaria(async (dir) => {
     let audioUrl: string | null = null;
     if (await temAudio(o.arquivo)) {
@@ -1115,10 +1252,13 @@ export async function iniciarTroca(o: {
     };
     const segmentos = await enviarPartes(
       {
-        cancelar: (requestId) =>
+        cancelar: async (requestId) =>
           omni
             ? cancelarOmni(omni, requestId)
-            : o.fal.queue.cancel(modelo, { requestId }),
+            : sapiens
+              ? // O Sapiens não cancela (DELETE /videos/{id} dá 405, conferido em 16/10/2026).
+                console.warn("[troca] o Sapiens não cancela; o trecho segue e é cobrado:", requestId)
+              : o.fal.queue.cancel(modelo, { requestId }),
         prazo: o.prazo,
       },
       o.trechos ?? trechosTroca(o.info.duracao, maxTrecho),
@@ -1159,6 +1299,25 @@ export async function iniciarTroca(o: {
         }
         const videoUrl = await enviar(o.fal, seg, "video/mp4");
         c.conferir();
+        if (sapiens) {
+          // O instante da marca, contado do começo deste envio (fora dele, sem pista).
+          const noEnvio = (s?: number) =>
+            s !== undefined && s >= t.inicio && s < t.inicio + t.duracao
+              ? s - t.inicio
+              : undefined;
+          const id = await enviarRecastSapiens(sapiens, {
+            videoUrl,
+            imagens: entrada.alvos.map((a) => referenciaDoAlvo(a, o.roupa)),
+            prompt: promptRecast(
+              entrada.alvos.map((a) => ({ ...a, instante: noEnvio(a.instante) })),
+              o.removerTexto,
+              o.roupa,
+            ),
+            resolucao: o.resolucao ?? "1080p",
+          });
+          c.naFila(id);
+          return { requestId: id, inicio: t.inicio, duracao: t.duracao };
+        }
         const { request_id } = await o.fal.queue.submit(modelo, {
           input: inputMotor(o.motor, { ...entrada, videoUrl }),
           webhookUrl: webhookUrl(o.jobId),
@@ -1184,6 +1343,15 @@ export function estadoTroca(
       : Promise.resolve({
           estado: "erro",
           mensagem: "Gemini Omni não configurado no servidor (GEMINI_API_KEY).",
+        });
+  }
+  if (motor === "recast") {
+    const sapiens = getSapiens();
+    return sapiens
+      ? estadoLoteSapiens(sapiens, input.segmentos)
+      : Promise.resolve({
+          estado: "erro",
+          mensagem: "Sapiens não configurado no servidor (SAPIENS_KEY).",
         });
   }
   const modelo =

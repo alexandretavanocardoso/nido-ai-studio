@@ -9,6 +9,7 @@ import {
   creditosPorSegundoTroca,
   creditosTrocaOmni,
   creditosTrocaPremium,
+  creditosTrocaRecast,
   creditosTroca,
   PACOTES,
   PLANOS,
@@ -52,6 +53,15 @@ describe("custo em créditos", () => {
     expect(creditosPorSegundoTroca("kling_standard")).toBe(13);
     expect(creditosPorSegundoTroca("kling_pro")).toBe(17);
     expect(creditosPorSegundoTroca("seedance")).toBe(57);
+    expect(creditosPorSegundoTroca("recast")).toBe(26);
+    expect(creditosPorSegundoTroca("recast_1080p")).toBe(39);
+  });
+
+  it("troca no MiniMax Recast: por segundo do vídeo, mínimo de 5s", () => {
+    expect(creditosTrocaRecast(10, "768p")).toBe(260);
+    expect(creditosTrocaRecast(10, "1080p")).toBe(390);
+    expect(creditosTrocaRecast(29.2, "1080p")).toBe(1170);
+    expect(creditosTrocaRecast(3, "768p")).toBe(130);
   });
 });
 

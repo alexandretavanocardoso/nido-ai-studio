@@ -55,6 +55,7 @@ import {
 } from "@/lib/planos";
 import { recursosDoPlano } from "@/lib/planos-recursos";
 import { tx } from "@/lib/i18n/tx";
+import { avisarNaTela } from "@/lib/notificar";
 import {
   dinheiro as dinheiroNaMoeda,
   localeAtual,
@@ -133,7 +134,11 @@ function Conteudo() {
   const retorno = params?.get("pagamento");
 
   useEffect(() => {
+    // A volta do pagamento vira notificação no canto da tela.
+    if (retorno === "cancelado")
+      avisarNaTela(tx("Pagamento cancelado. Nada foi cobrado."), { tom: "info" });
     if (retorno === "sucesso") {
+      avisarNaTela(tx("Pagamento recebido. Seus créditos aparecem em instantes."));
       recarregar();
       // O cartão confirma em segundos; o webhook pode chegar um pouco depois.
       const t = setTimeout(recarregar, 4000);
@@ -222,14 +227,6 @@ function Conteudo() {
         </p>
       </header>
 
-      {retorno === "sucesso" && (
-        <Banner tom="ok">
-          {tx("Pagamento recebido. Seus créditos aparecem em instantes.")}
-        </Banner>
-      )}
-      {retorno === "cancelado" && (
-        <Banner>{tx("Pagamento cancelado. Nada foi cobrado.")}</Banner>
-      )}
       {erro && <Banner tom="erro">{erro}</Banner>}
       {semPagamento && (
         <Banner>

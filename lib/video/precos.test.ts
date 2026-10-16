@@ -5,9 +5,13 @@ import {
   custoTroca,
   custoTrocaOmni,
   custoTrocaPremium,
+  custoTrocaRecast,
+  fimDoTrecho,
   MINIMO_TROCA,
   MODELOS_TROCA,
   MODELOS_TROCA_IDS,
+  modeloTrocaLigado,
+  resolucaoRecast,
   MAX_TOMADAS,
   segundosCobradosTroca,
   segundosDaTomada,
@@ -36,7 +40,41 @@ describe("estimativas de custo de vídeo", () => {
     expect(custoTrocaOmni(10)).toBe(1);
     expect(custoTrocaOmni(1)).toBe(0.3);
     expect(custoPorSegundoTroca("omni")).toBe(0.1);
-    expect(MINIMO_TROCA).toEqual({ kling: 3, seedance: 3, omni: 3 });
+    expect(MINIMO_TROCA).toEqual({ kling: 3, seedance: 3, omni: 3, recast: 5 });
+  });
+
+  it("primeiros N segundos: corte de câmera logo antes do fim vira o fim", () => {
+    // Os cortes do reel testado em 16/10/2026: o de 9,67 deixava 0,33s no fim.
+    const cortes = [1.33, 3.33, 3.73, 4.73, 5.57, 6.4, 7.17, 8.13, 9, 9.667];
+    expect(fimDoTrecho(10, cortes, [1, 0.9])).toBe(9.667);
+    expect(fimDoTrecho(15, [...cortes, 11, 12, 13.23, 14.17])).toBe(15);
+    // Cortes em sequência, cada um a menos de meio segundo do outro.
+    expect(fimDoTrecho(10, [9.3, 9.7])).toBe(9.3);
+    // Nunca mais de 1s, nem deixando de fora quem foi marcado.
+    expect(fimDoTrecho(10, [8.5, 8.9, 9.3, 9.7])).toBe(10);
+    expect(fimDoTrecho(10, [9.67], [9.8])).toBe(10);
+  });
+
+  it("MiniMax Recast (Sapiens): US$ 0,2592/s em 768p e 0,3888/s em 1080p, mínimo 5s", () => {
+    expect(custoTrocaRecast(10, "768p")).toBe(2.59);
+    expect(custoTrocaRecast(10, "1080p")).toBe(3.89);
+    expect(custoTrocaRecast(3, "768p")).toBe(1.3);
+    expect(custoPorSegundoTroca("recast")).toBe(0.2592);
+    expect(custoPorSegundoTroca("recast_1080p")).toBe(0.3888);
+    expect(resolucaoRecast("recast")).toBe("768p");
+    expect(resolucaoRecast("recast_1080p")).toBe("1080p");
+  });
+
+  it("o Omni só aparece com a chave do Gemini e o Recast, com a do Sapiens", () => {
+    const ligados = (ligado: { gemini: boolean; sapiens: boolean }) =>
+      MODELOS_TROCA_IDS.filter((id) => modeloTrocaLigado(id, ligado));
+    expect(ligados({ gemini: false, sapiens: false })).toEqual([
+      "kling_standard",
+      "kling_pro",
+      "kling_4k",
+      "seedance",
+    ]);
+    expect(ligados({ gemini: true, sapiens: true })).toEqual(MODELOS_TROCA_IDS);
   });
 
   it("só o Seedance e o Omni avisam que podem recusar rostos reais", () => {

@@ -92,6 +92,43 @@ export function notificar(corpo: string): void {
   }
 }
 
+/**
+ * Notificação na tela: todo aviso do sistema (algo foi enviado, terminou, deu
+ * certo ou falhou) aparece no canto de cima, à direita, e some sozinho
+ * (components/NotificacoesTela.tsx). Erro de formulário fica junto do campo.
+ */
+export interface NotificacaoTela {
+  id: number;
+  texto: string;
+  tom: "ok" | "erro" | "info";
+  /** Onde ver o resultado ("Ver" na notificação). */
+  href?: string | null;
+}
+
+/** Mais que isso ao mesmo tempo, as mais antigas saem. */
+const MAX_NA_TELA = 4;
+let proximaNaTela = 1;
+
+const useListaNaTela = create<{ lista: NotificacaoTela[] }>(() => ({
+  lista: [],
+}));
+
+export function avisarNaTela(
+  texto: string,
+  o: { tom?: NotificacaoTela["tom"]; href?: string | null } = {},
+): void {
+  const n: NotificacaoTela = { id: proximaNaTela++, texto, tom: o.tom ?? "ok", href: o.href };
+  useListaNaTela.setState((s) => ({
+    lista: [...s.lista.filter((x) => x.texto !== texto), n].slice(-MAX_NA_TELA),
+  }));
+}
+
+export function fecharDaTela(id: number): void {
+  useListaNaTela.setState((s) => ({ lista: s.lista.filter((x) => x.id !== id) }));
+}
+
+export const useNaTela = () => useListaNaTela((s) => s.lista);
+
 /** Um aviso da lista do sino. */
 export interface Aviso {
   id: string;

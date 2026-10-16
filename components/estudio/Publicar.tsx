@@ -38,6 +38,7 @@ import {
   type TipoMidia,
 } from "@/lib/social/redes";
 import { tx } from "@/lib/i18n/tx";
+import { avisarNaTela } from "@/lib/notificar";
 import { useDuravel } from "@/lib/duravel";
 import { IconeRede, IconesRedes } from "@/components/ui/IconeRede";
 import { txErro } from "@/lib/i18n/erros";
@@ -154,10 +155,6 @@ export function Publicar({ character }: { character: Character }) {
     `publicar:${character.id}:escrevendo`,
     false,
     "Escrevendo a legenda",
-  );
-  const [aviso, setAviso] = useDuravel<string | null>(
-    `publicar:${character.id}:aviso`,
-    null,
   );
 
   // Vindo do calendário ("Agendar neste dia"): já abre agendando naquele dia.
@@ -282,7 +279,6 @@ export function Publicar({ character }: { character: Character }) {
 
   async function publicar() {
     setErro(null);
-    setAviso(null);
     setEnviando(true);
     try {
       const r = await fetch("/api/social/posts", {
@@ -312,12 +308,14 @@ export function Publicar({ character }: { character: Character }) {
           msg: txErro(b.error ?? `Falha (HTTP ${r.status}).`),
           code: b.code,
         });
-      setAviso(
-        modo === "backlog"
-          ? "Guardado no backlog — agende quando quiser em Agendamentos."
-          : b.agora
-            ? "Enviado! A publicação leva de alguns segundos a poucos minutos."
-            : "Post agendado — aparece no calendário em Agendamentos.",
+      avisarNaTela(
+        tx(
+          modo === "backlog"
+            ? "Guardado no backlog — agende quando quiser em Agendamentos."
+            : b.agora
+              ? "Enviado! A publicação leva de alguns segundos a poucos minutos."
+              : "Post agendado — aparece no calendário em Agendamentos.",
+        ),
       );
       setTexto("");
       setTitulo("");
@@ -629,9 +627,6 @@ export function Publicar({ character }: { character: Character }) {
             </ul>
           )}
           {erro ? <ErroGeracao mensagem={erro.msg} code={erro.code} /> : null}
-          {aviso ? (
-            <p className="text-[13px] text-ok font-semibold">{aviso}</p>
-          ) : null}
 
           <Button
             variant="accent"

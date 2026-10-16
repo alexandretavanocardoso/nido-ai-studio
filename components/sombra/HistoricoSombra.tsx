@@ -195,12 +195,28 @@ export function HistoricoSombra({
                 </div>
               )}
               <figcaption className="flex items-center justify-between gap-2 px-3 py-2">
-                <span className="text-[12px] text-ink-dim">
-                  {new Date(v.criadoEm).toLocaleString()}
-                  {v.duracao ? ` · ${v.duracao.toFixed(0)}s` : ""}
+                <span className="grid min-w-0 text-[12px] text-ink-dim">
+                  <span className="truncate">
+                    {new Date(v.criadoEm).toLocaleString()}
+                    {v.duracao ? ` · ${v.duracao.toFixed(0)}s` : ""}
+                  </span>
+                  {/* Vídeo por link: o post de origem, como na lista do Estúdio. */}
+                  {v.fonte ? (
+                    <span className="truncate">
+                      {tx("A partir de:")}{" "}
+                      <a
+                        href={v.fonte}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent hover:underline"
+                      >
+                        {tx("link")}
+                      </a>
+                    </span>
+                  ) : null}
                 </span>
                 {v.status === "concluido" && v.key ? (
-                  <span className="flex items-center gap-3">
+                  <span className="flex shrink-0 items-center gap-3">
                     {v.antesKey ? (
                       <button
                         type="button"

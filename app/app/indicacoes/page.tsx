@@ -41,6 +41,7 @@ import type { ResumoIndicacao, SaldoIndicacao } from "@/lib/indicacao/server";
 import { REDES_USDC, type RedeUsdc } from "@/lib/pagamentos/redes-usdc";
 import { PLANOS, type PlanoId } from "@/lib/planos";
 import { idiomaAtual, tx } from "@/lib/i18n/tx";
+import { avisarNaTela } from "@/lib/notificar";
 import { moedaAtual, naMoeda } from "@/lib/moeda";
 import { txErro } from "@/lib/i18n/erros";
 import { cn } from "@/lib/cn";
@@ -90,7 +91,6 @@ function IndicacoesPageLiberada() {
   const [editando, setEditando] = useState(false);
   const [novoCodigo, setNovoCodigo] = useState("");
   const [erro, setErro] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
   // Simulador: indicações novas por mês e quanto cada indicado gasta por mês
   // em plano, na moeda escolhida (lib/moeda.ts). Os saldos reais aparecem na
@@ -207,7 +207,6 @@ function IndicacoesPageLiberada() {
     });
     if (!ok) return;
     setErro(null);
-    setAviso(null);
     setOcupado(`sacar-${saldo.moeda}`);
     try {
       const r = await fetch("/api/indicacao/sacar", {
@@ -220,7 +219,7 @@ function IndicacoesPageLiberada() {
       const b = await r.json().catch(() => null);
       if (!r.ok) setErro(txErro(b?.error ?? "Falha. Tente de novo."));
       else if (usdc)
-        setAviso(
+        avisarNaTela(
           b.pendente
             ? tx(
                 "A transferência foi enviada, mas a rede ainda não confirmou. O saque fica em processamento até a confirmação.",
@@ -228,7 +227,7 @@ function IndicacoesPageLiberada() {
             : `${dinheiro(b.valor, moeda)} ${tx("enviados para a sua carteira.")}`,
         );
       else
-        setAviso(
+        avisarNaTela(
           b.pago
             ? `${dinheiro(b.pago.valor, b.pago.moeda)} (${dinheiro(b.valor, moeda)}) ${tx("enviados para a sua conta no Stripe.")}`
             : `${dinheiro(b.valor, moeda)} ${tx("enviados para a sua conta no Stripe.")}`,
@@ -501,11 +500,6 @@ function IndicacoesPageLiberada() {
       {erro ? (
         <div className="rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
           {erro}
-        </div>
-      ) : null}
-      {aviso ? (
-        <div className="rounded-xl border border-ok/40 bg-ok/10 px-4 py-3 text-sm text-ok">
-          {aviso}
         </div>
       ) : null}
 
@@ -809,21 +803,12 @@ function IndicacoesPageLiberada() {
                 {resumo.stripe.pronto ? (
                   <Check className="w-4 h-4 text-ok shrink-0" />
                 ) : (
-                  <Button
-                    variant="accent"
-                    size="sm"
-                    onClick={() =>
-                      abrirNoStripe("/api/indicacao/stripe/conectar", "conectar")
-                    }
-                    disabled={ocupado === "conectar"}
-                  >
-                    {ocupado === "conectar" ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : null}
-                    {resumo.stripe.conectado
-                      ? tx("Continuar cadastro")
-                      : tx("Conectar Stripe")}
-                  </Button>
+                  // Por enquanto sem cadastro: o Connect da plataforma ainda está em
+                  // ativação no Stripe (identidade em análise, 16/10/2026). Ao liberar,
+                  // volta o botão que chama abrirNoStripe("/api/indicacao/stripe/conectar").
+                  <span className="inline-flex h-8 shrink-0 cursor-default select-none items-center rounded-full border border-line px-3.5 text-[12.5px] font-semibold text-ink-dim">
+                    {tx("Em breve")}
+                  </span>
                 )}
               </div>
             ) : null}

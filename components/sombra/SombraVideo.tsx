@@ -21,6 +21,7 @@ import { cn } from "@/lib/cn";
 import { DECLARACAO_VIDEO_LINK } from "@/lib/declaracoes";
 import { txErro } from "@/lib/i18n/erros";
 import { tx } from "@/lib/i18n/tx";
+import { avisarNaTela } from "@/lib/notificar";
 import { dinheiro } from "@/lib/moeda";
 import {
   bloqueioTroca,
@@ -28,6 +29,7 @@ import {
   creditosTroca,
   creditosTrocaOmni,
   creditosTrocaPremium,
+  creditosTrocaRecast,
 } from "@/lib/planos";
 import { uploadFile } from "@/lib/storage/client";
 import { STORAGE_KINDS } from "@/lib/storage/env";
@@ -36,9 +38,12 @@ import {
   custoTroca,
   custoTrocaOmni,
   custoTrocaPremium,
+  custoTrocaRecast,
   MINIMO_TROCA,
   MODELOS_TROCA,
   MODELOS_TROCA_IDS,
+  modeloTrocaLigado,
+  resolucaoRecast,
   segundosCobradosTroca,
   trocaPorTomadas,
   type ModeloTroca,
@@ -86,13 +91,13 @@ export function SombraVideo({
   const { motor } = MODELOS_TROCA[modeloTroca];
   const qualidade = MODELOS_TROCA[modeloTroca].qualidade ?? "pro";
   const premium = motor === "seedance";
+  const resolucao = resolucaoRecast(modeloTroca);
   const [roupa, setRoupa] = useState<"personagem" | "foto">("personagem");
   const [removerTexto, setRemoverTexto] = useState(false);
   const [corte, setCorte] = useState<0 | (typeof CORTES)[number]>(0);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [erroCode, setErroCode] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<string | null>(null);
 
   // Cortes de câmera: num vídeo de cortes rápidos o motor Padrão vai tomada
   // por tomada e cobra mais segundos do que o vídeo tem.
@@ -135,6 +140,11 @@ export function SombraVideo({
             creditos: creditosTrocaOmni(segundos),
             custo: custoTrocaOmni(segundos),
           }
+        : motor === "recast"
+        ? {
+            creditos: creditosTrocaRecast(segundos, resolucao),
+            custo: custoTrocaRecast(segundos, resolucao),
+          }
         : {
             creditos: creditosTroca(
               segundosCobradosTroca(cortesAte(segundos), segundos),
@@ -174,7 +184,6 @@ export function SombraVideo({
     if (file.size > regras.maxBytes)
       return setErro(tx("O vídeo passa de 500 MB."));
     setErro(null);
-    setAviso(null);
     setEnviandoVideo(0);
     try {
       const key = await uploadFile(file, "videos", (p) => setEnviandoVideo(p));
@@ -203,14 +212,26 @@ export function SombraVideo({
     setMarcas([]);
     setQuem({});
     setErro(null);
-    setAviso(null);
+  }
+
+  /** Tira o vídeo, as marcas e as imagens: a tela volta a pedir um vídeo. */
+  function recomecar() {
+    if (video) URL.revokeObjectURL(video.src);
+    setVideo(null);
+    setLink(null);
+    setDireitos(false);
+    setDuracao(0);
+    setCortes([]);
+    setCorte(0);
+    setMarcas([]);
+    setQuem({});
+    setPrincipal(null);
   }
 
   async function enviar() {
     if ((!video && !link) || falta || (link && !direitos)) return;
     setErro(null);
     setErroCode(null);
-    setAviso(null);
     setEnviando(true);
     try {
       const res = await fetch("/api/videos/substituir", {
@@ -230,6 +251,7 @@ export function SombraVideo({
             : undefined,
           motor,
           qualidade: motor === "kling" ? qualidade : undefined,
+          resolucao: motor === "recast" ? resolucao : undefined,
           removerTexto,
           roupa,
           segundos: cortando ? corte : undefined,
@@ -247,7 +269,10 @@ export function SombraVideo({
           txErro(body.error ?? `Falha ao enviar (HTTP ${res.status}).`),
         );
       }
-      setAviso(
+      // Enviado: o quadro volta ao começo para o próximo vídeo (modelo, roupa e
+      // legendas ficam como estavam), e o aviso vai para o canto da tela.
+      recomecar();
+      avisarNaTela(
         tx(
           "Vídeo enviado. Leva de 3 a 10 minutos; ele aparece no histórico abaixo e você recebe um aviso quando ficar pronto.",
         ),
@@ -533,11 +558,6 @@ export function SombraVideo({
           ) : null}
           {bloqueio ? <ErroGeracao mensagem={bloqueio} code="PLANO" /> : null}
           {erro ? <ErroGeracao mensagem={erro} code={erroCode} /> : null}
-          {aviso ? (
-            <p className="rounded-xl border border-ok/40 bg-ok/10 px-3.5 py-3 text-[12.5px] text-ok">
-              {aviso}
-            </p>
-          ) : null}
         </div>
 
         <footer className="grid shrink-0 gap-2 border-t border-line p-4 sm:p-5">
@@ -546,9 +566,9 @@ export function SombraVideo({
               rotulo={tx("Modelo")}
               valor={modeloTroca}
               onChange={setModeloTroca}
-              // Do mais caro para o mais barato (o Omni só com a chave do Gemini).
-              opcoes={MODELOS_TROCA_IDS.filter(
-                (id) => MODELOS_TROCA[id].motor !== "omni" || recursos.gemini,
+              // Do mais caro para o mais barato (o Omni só com a chave do Gemini, o Recast com a do Sapiens).
+              opcoes={MODELOS_TROCA_IDS.filter((id) =>
+                modeloTrocaLigado(id, recursos),
               )
                 .sort(
                   (a, b) => creditosPorSegundoTroca(b) - creditosPorSegundoTroca(a),

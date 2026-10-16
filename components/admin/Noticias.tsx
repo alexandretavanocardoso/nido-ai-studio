@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ExternalLink, Loader2, Newspaper } from "lucide-react";
-import { cn } from "@/lib/cn";
+import { avisarNaTela } from "@/lib/notificar";
 import {
   AGENTES,
   ALVOS,
@@ -61,9 +61,6 @@ export function Noticias() {
     `/api/admin/noticias?agente=${agente}`,
   );
   const [pesquisando, setPesquisando] = useState(false);
-  const [aviso, setAviso] = useState<{ texto: string; erro: boolean } | null>(
-    null,
-  );
 
   const alvos = ALVOS[agente];
   const nomeAlvo = (id: string) => alvos.find((a) => a.id === id)?.nome ?? id;
@@ -72,22 +69,21 @@ export function Noticias() {
 
   async function pesquisar() {
     setPesquisando(true);
-    setAviso(null);
     try {
       const r = await acaoAdmin<ResumoNoticias>("/api/admin/noticias", {
         agente,
       });
       const falha = r.falhas[0]?.erro;
-      setAviso({
-        texto: falha
+      avisarNaTela(
+        falha
           ? `A pesquisa não rodou. ${falha}`
           : `${r.novos} ${r.novos === 1 ? "notícia nova" : "notícias novas"} · custo ${dinheiro(r.usd, "USD")}` +
             (r.usouX.length ? " (sem contar a leitura do X)" : " · o X não foi lido"),
-        erro: !!falha,
-      });
+        { tom: falha ? "erro" : "ok" },
+      );
       recarregar();
     } catch (e) {
-      setAviso({ texto: (e as Error).message, erro: true });
+      avisarNaTela((e as Error).message, { tom: "erro" });
     } finally {
       setPesquisando(false);
     }
@@ -126,17 +122,6 @@ export function Noticias() {
         <div className="rounded-xl border border-line bg-panel px-4 py-3 text-sm text-ink-mute">
           Lendo o X e a web. Leva de 1 a 2 minutos; deixe esta aba aberta.
         </div>
-      ) : aviso ? (
-        <div
-          className={cn(
-            "rounded-xl border px-4 py-3 text-sm",
-            aviso.erro
-              ? "border-pink/40 bg-pink/10 text-pink"
-              : "border-ok/40 bg-ok/10 text-ok",
-          )}
-        >
-          {aviso.texto}
-        </div>
       ) : null}
 
       <div className="flex flex-wrap gap-2">
@@ -146,7 +131,6 @@ export function Noticias() {
           onChange={(a) => {
             setAgente(a);
             setAlvo("");
-            setAviso(null);
           }}
           opcoes={AGENTES.map((a) => ({ id: a, rotulo: NOME_AGENTE[a] }))}
         />

@@ -406,8 +406,12 @@ export async function contaStripeDeSaque(
       capabilities: { transfers: { requested: true } },
       metadata: { userId },
     },
-    // Dois cliques seguidos não criam duas contas.
-    { idempotencyKey: `indicacao-conta-${userId}` },
+    // Dois cliques seguidos não criam duas contas: a chave vale por um minuto.
+    // Fixa por usuário, o Stripe repetia por 24h a resposta da 1ª tentativa,
+    // inclusive um erro já resolvido (Connect ainda não ativado, 16/10/2026).
+    {
+      idempotencyKey: `indicacao-conta-${userId}-${Math.floor(Date.now() / 60_000)}`,
+    },
   );
   const { rows } = await pool().query<{ stripe_account_id: string }>(
     `update indicacao_contas set stripe_account_id = coalesce(stripe_account_id, $2), updated_at = now()

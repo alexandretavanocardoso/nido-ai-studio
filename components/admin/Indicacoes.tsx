@@ -8,6 +8,7 @@ import type {
   SaqueAdmin,
 } from "@/lib/indicacao/admin";
 import { confirmar } from "@/components/ui/Confirmacao";
+import { avisarNaTela } from "@/lib/notificar";
 import {
   acaoAdmin,
   Copiavel,
@@ -68,12 +69,10 @@ export function Indicacoes({
   );
   const [agindo, setAgindo] = useState<string | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<string | null>(null);
 
   async function agir(id: string, corpo: unknown, depois?: (r: unknown) => void) {
     setAgindo(id);
     setErroAcao(null);
-    setAviso(null);
     try {
       depois?.(await acaoAdmin("/api/admin/indicacoes", corpo));
       recarregar();
@@ -109,7 +108,7 @@ export function Indicacoes({
     });
     if (ok)
       agir(s.id, { acao: "resolver_saque", saqueId: s.id }, (r) =>
-        setAviso(
+        avisarNaTela(
           (r as { resultado: string }).resultado === "pago"
             ? "A transferência tinha saído: saque marcado como enviado."
             : "A transferência não saiu: saldo devolvido ao usuário.",
@@ -151,11 +150,6 @@ export function Indicacoes({
         {erroAcao ? (
           <div className="rounded-xl border border-pink/40 bg-pink/10 px-4 py-3 text-sm text-pink">
             {erroAcao}
-          </div>
-        ) : null}
-        {aviso ? (
-          <div className="rounded-xl border border-ok/40 bg-ok/10 px-4 py-3 text-sm text-ok">
-            {aviso}
           </div>
         ) : null}
         <Estado

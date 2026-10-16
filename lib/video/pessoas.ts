@@ -304,8 +304,17 @@ const TIPOS: Record<string, TipoAlvo> = {
 };
 
 /**
+ * Tentativas da descrição. Uma falha do Gemini costuma ser passageira, e sem
+ * a descrição o alvo vira só uma posição na tela ("the person in the center"),
+ * que não vale para o resto do vídeo: o motor troca a pessoa errada ou nenhuma
+ * (visto no Recast em 16/10/2026, com o mesmo quadro descrito bem logo depois).
+ */
+const TENTATIVAS_DESCRICAO = 3;
+
+/**
  * Descreve o que foi marcado numa imagem (inglês, curto) e diz se é pessoa,
- * animal ou objeto. Sem Gemini ou se falhar, usa a posição (como pessoa).
+ * animal ou objeto. Sem Gemini ou se todas as tentativas falharem, usa a
+ * posição (como pessoa).
  */
 async function descreverUma(
   imagem: () => Promise<Buffer>,
@@ -318,69 +327,94 @@ async function descreverUma(
   };
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) return reserva;
+  let marcada: Buffer;
   try {
-    const marcada = await marcarPonto(await imagem(), p);
-    const ai = new GoogleGenAI({ apiKey });
-    const noVideo = origem === "video";
-    const onde = noVideo ? "This is a frame from a video." : "This is a photo.";
-    const resto = noVideo
-      ? "everyone and everything else in the video"
-      : "everyone and everything else in the photo";
-    // No vídeo a pessoa anda, vira e sai do quadro: posição e pose valem só para
-    // aquele instante e fazem o modelo de vídeo perder a pessoa no resto.
-    const pessoa = noVideo
-      ? "gender, build, hair, accessories, clothing (colours and pieces) — only what stays the same during the whole video. " +
-        "Do NOT mention position in the frame, pose, action or facial expression. "
-      : "position in the frame (left/center/right, foreground/background), pose, clothing (colours and pieces), hair. ";
-    const coisa = noVideo
-      ? "what it is (kind or breed, type of object), colours, size, distinctive marks or parts — only what stays the same during the whole video. " +
-        "Do NOT mention position in the frame, pose or action. "
-      : "what it is (kind or breed, type of object), colours, distinctive marks, position in the frame (left/center/right, foreground/background). ";
-    const res = await ai.models.generateContent({
-      model: MODELO_VISAO,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text:
-                `${onde} A red target marks ONE subject: a person, an animal or an object. ${REGRA_DO_TIPO} ` +
-                `Describe only that subject so it can be told apart from ${resto}. ` +
-                `For a person: ${pessoa}` +
-                `For an animal or an object: ${coisa}` +
-                'Answer with JSON only: {"kind": "person" | "animal" | "object", "description": "the ... (English, one line, max 30 words)"}',
-            },
-            {
-              inlineData: {
-                mimeType: "image/jpeg",
-                data: marcada.toString("base64"),
-              },
-            },
-          ],
-        },
-      ],
-    });
-    const json = (res.text ?? "").match(/\{[\s\S]*\}/)?.[0];
-    const r = json
-      ? (JSON.parse(json) as { kind?: unknown; description?: unknown })
-      : {};
-    const texto = (typeof r.description === "string" ? r.description : "")
-      .trim()
-      .replace(/\s+/g, " ")
-      .replace(/[."]+$/, "");
-    return texto.length > 8
-      ? {
-          descricao: texto.slice(0, 220),
-          tipo: TIPOS[String(r.kind).toLowerCase()] ?? "pessoa",
-        }
-      : reserva;
+    marcada = await marcarPonto(await imagem(), p);
   } catch (e) {
     console.warn(
-      "[pessoas] descrição falhou, usando a posição:",
+      "[pessoas] quadro marcado indisponível, usando a posição:",
       (e as Error).message,
     );
     return reserva;
   }
+  for (let tentativa = 1; tentativa <= TENTATIVAS_DESCRICAO; tentativa++) {
+    const descrito = await pedirDescricao(apiKey, marcada, origem).catch(
+      (e: Error) => {
+        console.warn(
+          `[pessoas] descrição falhou (tentativa ${tentativa}):`,
+          e.message,
+        );
+        return null;
+      },
+    );
+    if (descrito) return descrito;
+    if (tentativa < TENTATIVAS_DESCRICAO)
+      await new Promise((ok) => setTimeout(ok, 1500 * tentativa));
+  }
+  console.warn("[pessoas] sem descrição, usando a posição:", reserva.descricao);
+  return reserva;
+}
+
+/** Uma chamada ao Gemini para descrever o alvo marcado. Null se a resposta não servir. */
+async function pedirDescricao(
+  apiKey: string,
+  marcada: Buffer,
+  origem: "video" | "foto",
+): Promise<AlvoDescrito | null> {
+  const ai = new GoogleGenAI({ apiKey });
+  const noVideo = origem === "video";
+  const onde = noVideo ? "This is a frame from a video." : "This is a photo.";
+  const resto = noVideo
+    ? "everyone and everything else in the video"
+    : "everyone and everything else in the photo";
+  // No vídeo a pessoa anda, vira e sai do quadro: posição e pose valem só para
+  // aquele instante e fazem o modelo de vídeo perder a pessoa no resto.
+  const pessoa = noVideo
+    ? "gender, build, hair, accessories, clothing (colours and pieces) — only what stays the same during the whole video. " +
+      "Do NOT mention position in the frame, pose, action or facial expression. "
+    : "position in the frame (left/center/right, foreground/background), pose, clothing (colours and pieces), hair. ";
+  const coisa = noVideo
+    ? "what it is (kind or breed, type of object), colours, size, distinctive marks or parts — only what stays the same during the whole video. " +
+      "Do NOT mention position in the frame, pose or action. "
+    : "what it is (kind or breed, type of object), colours, distinctive marks, position in the frame (left/center/right, foreground/background). ";
+  const res = await ai.models.generateContent({
+    model: MODELO_VISAO,
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text:
+              `${onde} A red target marks ONE subject: a person, an animal or an object. ${REGRA_DO_TIPO} ` +
+              `Describe only that subject so it can be told apart from ${resto}. ` +
+              `For a person: ${pessoa}` +
+              `For an animal or an object: ${coisa}` +
+              'Answer with JSON only: {"kind": "person" | "animal" | "object", "description": "the ... (English, one line, max 30 words)"}',
+          },
+          {
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: marcada.toString("base64"),
+            },
+          },
+        ],
+      },
+    ],
+  });
+  const json = (res.text ?? "").match(/\{[\s\S]*\}/)?.[0];
+  const r = json
+    ? (JSON.parse(json) as { kind?: unknown; description?: unknown })
+    : {};
+  const texto = (typeof r.description === "string" ? r.description : "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[."]+$/, "");
+  return texto.length > 8
+    ? {
+        descricao: texto.slice(0, 220),
+        tipo: TIPOS[String(r.kind).toLowerCase()] ?? "pessoa",
+      }
+    : null;
 }
 
 /** Descreve cada pessoa (ou animal, ou objeto) marcada no vídeo, no quadro em que foi marcada. */

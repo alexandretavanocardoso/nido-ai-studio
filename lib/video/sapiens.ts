@@ -3,7 +3,8 @@ import type { S3Client } from "@aws-sdk/client-s3";
 import { presignGet } from "@/lib/storage/s3";
 import { promptComAcao, type CenaFalada } from "./falado";
 import type { EstadoVideo } from "./jobs";
-import type { ModeloCriar, ModeloFalado } from "./precos";
+import type { EstadoLote, Segmento } from "./lote";
+import type { ModeloCriar, ModeloFalado, ResolucaoRecast } from "./precos";
 
 /**
  * Sapiens Sintéticos (API no formato da OpenAI, cobrada do saldo em dólar da conta).
@@ -11,6 +12,7 @@ import type { ModeloCriar, ModeloFalado } from "./precos";
  *    partir da imagem do personagem e de um texto, mais barato que no Runway.
  *  - reference-to-video (Seedance): vídeo falado de corpo inteiro, com a
  *    imagem e o áudio da fala como referências.
+ *  - video-to-video (MiniMax H3 Max Recast): a troca de pessoa, em trechos.
  * A API está em beta: modelo e preço podem mudar (conferir em GET /models e
  * POST /videos/quote). Server-side apenas. Chave em SAPIENS_KEY.
  */
@@ -162,6 +164,67 @@ export async function enviarFaladoSapiens(
     `US$ ${cobrado}`,
   );
   return video.id;
+}
+
+/** MiniMax H3 Max Recast: um dos motores da troca de pessoa (ver ./troca.ts). */
+export const MODELO_RECAST = "minimax-h3-max-recast";
+/** Teto do pedido ao Recast (o MiniMax H3 aceita até 7.000 caracteres; com 3 pessoas o pedido fica em ~1.200). */
+export const RECAST_PEDIDO_MAX = 2000;
+
+/**
+ * Manda um trecho da troca ao Recast: o vídeo (sem som; o original volta na
+ * montagem) e uma foto por pessoa a trocar, na ordem do pedido. A duração é a
+ * do vídeo enviado. Devolve o id do vídeo no Sapiens.
+ */
+export async function enviarRecastSapiens(
+  chave: string,
+  o: {
+    videoUrl: string;
+    imagens: string[];
+    prompt: string;
+    resolucao: ResolucaoRecast;
+  },
+): Promise<string> {
+  try {
+    const { video, cobrado } = await chamar(chave, "/videos", {
+      model: MODELO_RECAST,
+      prompt: o.prompt.slice(0, RECAST_PEDIDO_MAX),
+      video_url: o.videoUrl,
+      reference_image_urls: o.imagens,
+      resolution: o.resolucao,
+    });
+    console.info("[sapiens] troca na fila:", video.id, o.resolucao, `US$ ${cobrado}`);
+    return video.id;
+  } catch (e) {
+    throw new Error(mensagemDeErroSapiens(e));
+  }
+}
+
+/**
+ * Andamento dos trechos da troca no Sapiens, no formato do lote do fal (ver
+ * ./lote.ts). Pronto: a URL de cada trecho, aberta (baixa sem a chave).
+ */
+export async function estadoLoteSapiens(
+  chave: string,
+  segmentos: Segmento[],
+): Promise<EstadoLote> {
+  const estados = await Promise.all(
+    segmentos.map((s): Promise<EstadoVideo> =>
+      s.urlPronta
+        ? Promise.resolve({ estado: "concluido", videoUrl: s.urlPronta })
+        : consultarSapiens(chave, s.requestId),
+    ),
+  );
+  const erro = estados.find((e) => e.estado === "erro");
+  if (erro) return erro;
+  const prontos = estados.flatMap((e) =>
+    e.estado === "concluido" ? [e.videoUrl] : [],
+  );
+  if (prontos.length < segmentos.length)
+    return estados.some((e) => e.estado === "processando") || prontos.length
+      ? { estado: "processando", progresso: prontos.length / segmentos.length }
+      : { estado: "na_fila" };
+  return { estado: "concluido", urls: prontos };
 }
 
 /** O Sapiens pede no máximo uma consulta a cada 15s por vídeo; a tela consulta a cada 10s. */
