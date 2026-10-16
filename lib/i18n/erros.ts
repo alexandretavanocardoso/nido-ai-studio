@@ -75,6 +75,9 @@ const PADROES: Padrao[] = [
     "Kick refused to fetch the video (HTTP $1). Download it and upload the file.",
   ],
   [/^Não consegui abrir o vídeo \(HTTP (\d+)\)\.$/, "Couldn't open the video (HTTP $1)."],
+  // Sombra 3D (components/live/sombra3d.ts e a tela da live)
+  [/^Não consegui ligar o rastreio do rosto: (.+)$/, "Couldn't start face tracking: $1"],
+  [/^Não consegui carregar o avatar 3D: (.+)$/, "Couldn't load the 3D avatar: $1"],
   // Limites de uso
   [
     /^Muit[ao]s (\S+) seguid[ao]s\. Tente (?:de novo )?em (\d+)s\.$/,
@@ -283,6 +286,12 @@ const PADROES: Padrao[] = [
 
 /** Mensagens fixas do servidor, indexadas pelo texto em português. */
 const ERROS_EN: Record<string, string> = {
+  // Sombra 3D (lib/live/avatar3d.ts e components/live/avatar3d)
+  "Não consegui montar o avatar 3D.": "Couldn't build the 3D avatar.",
+  "Modelo 3D não configurado no servidor (FAL_KEY).": "3D model not configured on the server (FAL_KEY).",
+  "O modelo 3D demorou demais. Tente de novo.": "The 3D model took too long. Try again.",
+  "O fal não devolveu o modelo 3D.": "fal didn't return the 3D model.",
+  "O modelo 3D veio vazio.": "The 3D model came back empty.",
   // Criar vídeo (/api/videos/criar)
   "Não deu para tirar o fundo da imagem do personagem. Tente de novo ou escolha outra imagem.":
     "Couldn't remove the background from the character image. Try again or choose another image.",

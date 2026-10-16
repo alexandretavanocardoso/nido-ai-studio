@@ -59,6 +59,9 @@ export async function limparUsuario(
        -- A foto da live (avulsa ou da Sombra ao vivo) e o cenário: as personas salvas reusam.
        select concat_ws(' ', image_key, cena::text) from lives where user_id = $1
        union all
+       -- Sombra 3D: a versão desenho e o modelo 3D de cada avatar (reaproveitados).
+       select concat_ws(' ', estilizada_key, modelo_key) from avatares_3d where user_id = $1
+       union all
        -- Motion (worker/motion): o HTML, o vídeo e as imagens de cada pedido.
        select concat_ws(' ', html_key, video_key, input::text) from motions where user_id = $1
        union all

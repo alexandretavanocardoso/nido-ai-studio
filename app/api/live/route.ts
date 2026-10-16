@@ -8,15 +8,18 @@ import {
   resumoDaLive,
   type LiveRow,
 } from "@/lib/live/server";
+import { avatar3dDaFoto, criarAvatar3d, gerarFundo3d } from "@/lib/live/avatar3d";
 import { getDecart } from "@/lib/live/decart";
 import { contextoLive } from "@/lib/live/rota";
+import { ehSombra } from "@/lib/live/tipos";
 import { carregarPersonagem } from "@/lib/personagens";
 import {
   cobrarOuResponder,
   estornarSeHouver,
   type Cobranca,
 } from "@/lib/creditos";
-import { CREDITOS_CENARIO, duracaoLiveValida } from "@/lib/planos";
+import { mensagemDeErro } from "@/lib/fal";
+import { CREDITOS_AVATAR_3D, CREDITOS_CENARIO, duracaoLiveValida } from "@/lib/planos";
 import { ownsKey } from "@/lib/storage/s3";
 import { mensagemDeErroRunway } from "@/lib/video/runway";
 import { vozPermitida } from "@/lib/voz/elevenlabs";
@@ -41,8 +44,11 @@ export async function GET() {
 
 const BodySchema = z
   .object({
-    /** avatar: avatar do Runway falando pela IA · sombra: a webcam vira o influencer. */
-    tipo: z.enum(["avatar", "sombra"]).default("avatar"),
+    /**
+     * avatar: avatar do Runway falando pela IA · sombra: a webcam vira o
+     * influencer · sombra3d: a webcam mexe um avatar 3D do influencer.
+     */
+    tipo: z.enum(["avatar", "sombra", "sombra3d"]).default("avatar"),
     /** Sombra sem personagem: só o nome de quem aparece. */
     nomeSombra: z.string().trim().max(60).optional(),
     /** Live com personagem: a ficha dele vira a personalidade. */
@@ -79,12 +85,12 @@ const BodySchema = z
   })
   .refine(
     (b) =>
-      b.tipo === "sombra"
+      ehSombra(b.tipo)
         ? !!b.characterId || !!b.nomeSombra
         : !!b.characterId !== !!b.persona,
     { message: "Escolha um personagem ou envie uma foto." },
   )
-  .refine((b) => b.tipo === "sombra" || !!b.voiceId, {
+  .refine((b) => ehSombra(b.tipo) || !!b.voiceId, {
     message: "Escolha a voz do personagem.",
   })
   .refine((b) => b.tipo !== "sombra" || !b.cena || "prompt" in b.cena, {
@@ -162,6 +168,63 @@ export async function POST(req: Request) {
       ],
     );
     return NextResponse.json({ live: resumoDaLive(rows[0]) });
+  }
+
+  // Sombra 3D: monta (ou reaproveita) o avatar 3D da foto — fica "preparando"
+  // até o modelo 3D sair (GET /api/live/[id] acompanha). Fundo descrito em
+  // texto vira uma imagem do lugar; imagem enviada vai como está.
+  if (body.tipo === "sombra3d") {
+    let cobrancaAvatar: Cobranca | null = null;
+    let cobrancaFundo: Cobranca | null = null;
+    try {
+      const anterior = await avatar3dDaFoto(pool, userId, body.imageKey);
+      if (!anterior) {
+        const cobrado = await cobrarOuResponder(userId, CREDITOS_AVATAR_3D, "live_avatar3d");
+        if (cobrado instanceof NextResponse) return cobrado;
+        cobrancaAvatar = cobrado.cobranca;
+      }
+      const lugar = cena && "prompt" in cena ? cena.prompt : null;
+      if (lugar) {
+        const cobrado = await cobrarOuResponder(userId, CREDITOS_CENARIO, "live_cena");
+        if (cobrado instanceof NextResponse) {
+          await estornarSeHouver(cobrancaAvatar);
+          return cobrado;
+        }
+        cobrancaFundo = cobrado.cobranca;
+      }
+      const [avatar, fundoKey] = await Promise.all([
+        anterior ?? criarAvatar3d(pool, s3, { userId, imageKey: body.imageKey, cobranca: cobrancaAvatar }),
+        lugar ? gerarFundo3d(s3, userId, lugar) : null,
+      ]);
+      const fundo = fundoKey ? { imageKey: fundoKey } : cena;
+      const id = nanoid(12);
+      const { rows } = await pool.query<LiveRow>(
+        `insert into lives (id, user_id, tipo, character_id, persona, cena, status, image_key, voice_id, duracao_min, sala, avatar3d_id)
+         values ($1, $2, 'sombra3d', $3, $4, $5, $6, $7, $8, $9, $10, $11) returning *`,
+        [
+          id,
+          userId,
+          body.characterId ?? null,
+          body.nomeSombra ? JSON.stringify({ nome: body.nomeSombra, descricao: "" }) : null,
+          fundo ? JSON.stringify(fundo) : null,
+          avatar.status === "pronto" ? "pronta" : "preparando",
+          body.imageKey,
+          body.voiceId ?? null,
+          body.duracaoMin,
+          `live-${id}`,
+          avatar.id,
+        ],
+      );
+      return NextResponse.json({ live: resumoDaLive(rows[0]) });
+    } catch (e) {
+      await estornarSeHouver(cobrancaAvatar);
+      await estornarSeHouver(cobrancaFundo);
+      console.error("[live] avatar 3d", e);
+      return NextResponse.json(
+        { error: mensagemDeErro(e) || "Não consegui montar o avatar 3D.", code: "PROVIDER_ERROR" },
+        { status: 502 },
+      );
+    }
   }
 
   let avatarId: string;

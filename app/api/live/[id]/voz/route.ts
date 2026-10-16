@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { carregarLive } from "@/lib/live/server";
+import { ehSombra } from "@/lib/live/tipos";
 import { contextoLive, liveNaoEncontrada } from "@/lib/live/rota";
 import { mensagemDeErroVoz, trocarVoz } from "@/lib/voz/elevenlabs";
 
@@ -11,7 +12,7 @@ export const maxDuration = 30;
 const MAX_BYTES = 16_000 * 2 * 10;
 
 /**
- * POST — voz trocada da Shadow ao vivo: recebe um pedaço curto da fala de
+ * POST — voz trocada da Shadow ao vivo (e da 3D): recebe um pedaço curto da fala de
  * quem está na live (PCM 16 bits, mono, 16 kHz, corpo cru) e devolve a mesma
  * fala na voz escolhida, no mesmo formato. O custo está no preço por minuto.
  */
@@ -23,7 +24,7 @@ export async function POST(
   if (ctx instanceof NextResponse) return ctx;
   const live = await carregarLive(ctx.pool, ctx.userId, (await params).id);
   if (!live) return liveNaoEncontrada();
-  if (live.tipo !== "sombra" || live.status !== "no_ar" || !live.voice_id)
+  if (!ehSombra(live.tipo) || live.status !== "no_ar" || !live.voice_id)
     return NextResponse.json(
       { error: "A live não está no ar.", code: "STATUS" },
       { status: 409 },

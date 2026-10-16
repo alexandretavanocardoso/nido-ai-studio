@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
+  Camera,
+  Crosshair,
   Loader2,
   MessageSquare,
   Mic,
@@ -35,12 +37,13 @@ import { cn } from "@/lib/cn";
 import { txErro } from "@/lib/i18n/erros";
 import { tx } from "@/lib/i18n/tx";
 import {
+  ehSombra as ehSombraTipo,
   REDES_TRANSMISSAO,
   type CenaLive,
   type LiveResumo,
   type PersonaSalva,
 } from "@/lib/live/tipos";
-import { creditosLive, creditosSombraAoVivo } from "@/lib/planos";
+import { creditosLive, creditosSombra3d, creditosSombraAoVivo } from "@/lib/planos";
 import type { TrocaLive } from "@/lib/prompts/live";
 import { fileUrl, uploadFile } from "@/lib/storage/client";
 import { useCharacters } from "@/lib/store";
@@ -50,18 +53,21 @@ import { EscolherCena } from "./Cena";
 import { GuiaDiscord } from "./GuiaDiscord";
 import { ControlesDoJogo, type JogoNaTela } from "./Jogo";
 import { LinkDoPalco } from "./LinkDoPalco";
-import { FormSombraAoVivo } from "./NovaSombra";
+import { FormSombra3D, FormSombraAoVivo } from "./NovaSombra";
 import { FormSombraVideo } from "./SombraDeVideo";
 import { Colunas, PrepararLive } from "./Preparar";
 import { ConexoesChat, NOME_ORIGEM } from "./Chats";
 import { SalaLive, type EstadoSala } from "./sala";
 import {
   podeAtrasarVideo,
+  SINCRONIA_3D_MS,
   SINCRONIA_MAX_MS,
   SINCRONIA_PADRAO_MS,
   SombraAoVivo,
   type EstadoSombra,
 } from "./sombra";
+// Só o tipo: o motor 3D (three.js e MediaPipe) é carregado quando a live é da Sombra 3D.
+import type { Sombra3D } from "./sombra3d";
 import { PainelTransmissao } from "./Transmissao";
 import { VozBiblioteca, type VozEscolhida } from "./VozBiblioteca";
 
@@ -114,7 +120,7 @@ interface Voz {
   nome: string;
 }
 
-type ModoNova = "personagem" | "foto" | "sombra" | "sombra_video";
+type ModoNova = "personagem" | "foto" | "sombra" | "sombra3d" | "sombra_video";
 
 function NovaLive() {
   const router = useRouter();
@@ -160,6 +166,7 @@ function NovaLive() {
               ["personagem", "Personagem"],
               ["foto", "Foto avulsa"],
               ["sombra", "Sombra ao vivo"],
+              ["sombra3d", "Sombra 3D"],
               ["sombra_video", "Sombra de vídeo"],
             ] as const
           ).map(([m, rotulo]) => (
@@ -184,6 +191,8 @@ function NovaLive() {
 
         {modoAtual === "sombra" ? (
           <FormSombraAoVivo personagens={ordenados} onCriada={aoCriar} />
+        ) : modoAtual === "sombra3d" ? (
+          <FormSombra3D personagens={ordenados} onCriada={aoCriar} />
         ) : modoAtual === "sombra_video" ? (
           <FormSombraVideo personagens={ordenados} />
         ) : modoAtual === "foto" ? (
@@ -222,9 +231,9 @@ function NovaLive() {
                     <span className="font-semibold text-ink truncate">
                       {c?.identidade.nome || l.persona?.nome || tx("Personagem")}
                     </span>
-                    {l.tipo === "sombra" ? (
+                    {ehSombraTipo(l.tipo) ? (
                       <span className="shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-bold text-accent">
-                        {tx("Sombra")}
+                        {tx(l.tipo === "sombra3d" ? "Sombra 3D" : "Sombra")}
                       </span>
                     ) : null}
                     <span className="text-ink-mute">
@@ -635,15 +644,33 @@ function PainelLive({ id }: { id: string }) {
   const [videoSombra, setVideoSombra] = useState<MediaStream | null>(null);
   const [estadoSombra, setEstadoSombra] = useState<EstadoSombra | null>(null);
   const [filaSombra, setFilaSombra] = useState<number | null>(null);
-  const [sincronia, setSincronia] = useState(SINCRONIA_PADRAO_MS);
+  /** Ajustada pela pessoa (null: o padrão do tipo de live). */
+  const [sincroniaEscolhida, setSincronia] = useState<number | null>(null);
   const [mudo, setMudo] = useState(false);
+  /** Sombra 3D: o avatar 3D desta página (components/live/sombra3d.ts). */
+  const sombra3dRef = useRef<Sombra3D | null>(null);
+  const carregando3dRef = useRef(false);
+  const montadoRef = useRef(true);
+  const [avatar3d, setAvatar3d] = useState<{
+    modeloKey: string | null;
+    desenhoKey: string | null;
+    fundoKey: string | null;
+  } | null>(null);
+  const [estado3d, setEstado3d] = useState<"carregando" | "pronto" | null>(null);
+  const [camera3d, setCamera3d] = useState(false);
+  const [semRosto, setSemRosto] = useState(false);
 
   const character = personagens.find((c) => c.id === live?.characterId);
   const noAr = live?.status === "no_ar";
   const conectado = !!estado && estado !== "desconectada";
-  const ehSombra = live?.tipo === "sombra";
-  /** Tem vídeo no palco: o avatar do Runway ou a webcam transformada. */
+  /** Quem aparece é a pessoa da webcam (Sombra ao vivo ou 3D). */
+  const ehSombra = ehSombraTipo(live?.tipo);
+  const eh3d = live?.tipo === "sombra3d";
+  const sincronia = sincroniaEscolhida ?? (eh3d ? SINCRONIA_3D_MS : SINCRONIA_PADRAO_MS);
+  /** Tem vídeo no palco: o avatar do Runway, a webcam transformada ou o avatar 3D. */
   const temVideo = !!trilhaVideo || !!videoSombra;
+  /** O palco está indo para a sala (o avatar 3D aparece antes, em prévia). */
+  const aoVivo = eh3d ? noAr && conectado && temVideo : temVideo;
 
   // Entrou no ar: o chat passa a ser a aba principal.
   useEffect(() => {
@@ -656,6 +683,7 @@ function PainelLive({ id }: { id: string }) {
       live?: LiveResumo;
       restante?: number | null;
       previa?: string | null;
+      avatar3d?: { modeloKey: string | null; desenhoKey: string | null; fundoKey: string | null } | null;
       error?: string;
     } | null;
     if (!res?.ok || !b?.live) {
@@ -664,8 +692,11 @@ function PainelLive({ id }: { id: string }) {
     }
     setLive(b.live);
     if (b.restante !== undefined) setRestante(b.restante);
+    if (b.avatar3d) setAvatar3d(b.avatar3d);
     if (b.previa) setPrevia(b.previa);
     else if (b.live.tipo === "sombra") setPrevia(fileUrl(b.live.imageKey));
+    // Sombra 3D: a versão desenho (de onde saiu o 3D) até o avatar carregar.
+    else if (b.live.tipo === "sombra3d") setPrevia(fileUrl(b.avatar3d?.desenhoKey ?? b.live.imageKey));
     if (b.live.status === "encerrada") avisarCreditos();
   }, [id]);
 
@@ -718,11 +749,59 @@ function PainelLive({ id }: { id: string }) {
       window.removeEventListener("pagehide", fechar);
     };
   }, [noAr, conectado, id]);
+  // Sombra 3D: com o modelo pronto, carrega o avatar (three.js e MediaPipe só
+  // agora) e ele já aparece no palco, em repouso. Testar com a câmera é de graça.
+  const modelo3d = avatar3d?.modeloKey ?? null;
+  const fundo3d = avatar3d?.fundoKey ?? null;
+  const pode3d = eh3d && (live?.status === "pronta" || live?.status === "no_ar") && !!modelo3d;
+  const vozTrocada = !!live?.voiceId;
+  useEffect(() => {
+    if (!pode3d || !modelo3d || sombra3dRef.current || carregando3dRef.current) return;
+    carregando3dRef.current = true;
+    setEstado3d("carregando");
+    void (async () => {
+      const { Sombra3D } = await import("./sombra3d");
+      if (!montadoRef.current) return;
+      const s = new Sombra3D({
+        liveId: id,
+        vozTrocada,
+        sincroniaMs: sincronia,
+        ao: {
+          video: (v) => sombra3dRef.current === s && setVideoSombra(v),
+          semRosto: setSemRosto,
+          erro: (m) => setErro(txErro(m)),
+        },
+      });
+      sombra3dRef.current = s;
+      await s.carregar(fileUrl(modelo3d), fundo3d ? fileUrl(fundo3d) : null);
+      if (sombra3dRef.current === s) setEstado3d("pronto");
+    })()
+      .catch((e) => {
+        console.error("[sombra3d] carregar", e);
+        setEstado3d(null);
+        setErro(`${tx("Não consegui carregar o avatar 3D:")} ${(e as Error).message}`);
+      })
+      .finally(() => {
+        carregando3dRef.current = false;
+      });
+    // A sincronia entra só ao criar; depois vai por ajustarSincronia.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pode3d, modelo3d, fundo3d, id, vozTrocada]);
+
+  useEffect(() => {
+    montadoRef.current = true;
+    return () => {
+      montadoRef.current = false;
+    };
+  }, []);
+
   // Sair da página pelo menu também encerra.
   useEffect(
     () => () => {
       void sombraRef.current?.parar();
       sombraRef.current = null;
+      void sombra3dRef.current?.parar();
+      sombra3dRef.current = null;
       const sala = salaRef.current;
       if (!sala) return;
       salaRef.current = null;
@@ -734,6 +813,7 @@ function PainelLive({ id }: { id: string }) {
 
   async function entrar() {
     if (live?.tipo === "sombra") return entrarSombra(live);
+    if (live?.tipo === "sombra3d") return entrarSombra3d(live);
     if (live?.status === "pronta") {
       const ok = await confirmar({
         titulo: tx("Entrar no ar?"),
@@ -830,6 +910,60 @@ function PainelLive({ id }: { id: string }) {
     }
   }
 
+  /** Sombra 3D: liga a câmera só nesta página (sem custo), para ver o avatar copiando. */
+  async function testarCamera3d() {
+    const s = sombra3dRef.current;
+    if (!s) return;
+    setErro(null);
+    try {
+      await s.abrirCamera();
+      setCamera3d(true);
+    } catch (e) {
+      setErro(erroDaCamera(e));
+    }
+  }
+
+  /**
+   * Sombra 3D: liga a câmera (antes de cobrar), cobra a duração, entra na sala
+   * e publica o avatar e a voz. Voltar para a sala (a conexão caiu) publica de novo.
+   */
+  async function entrarSombra3d(l: LiveResumo) {
+    const s = sombra3dRef.current;
+    if (!s || estado3d !== "pronto") return setErro(tx("O avatar 3D ainda está carregando."));
+    if (l.status === "pronta") {
+      const ok = await confirmar({
+        titulo: tx("Entrar no ar?"),
+        mensagem: `${tx("Serão cobrados")} ${creditosSombra3d(l.duracaoMin, !!l.voiceId)} ${tx("créditos")} (${l.duracaoMin} min). ${tx("O que você não usar volta ao encerrar.")}`,
+        confirmar: tx("Entrar no ar"),
+      });
+      if (!ok) return;
+    }
+    setErro(null);
+    setEntrando(true);
+    try {
+      try {
+        await s.abrirCamera();
+        setCamera3d(true);
+      } catch (e) {
+        return setErro(erroDaCamera(e));
+      }
+      const res = await fetch(`/api/live/${id}/iniciar`, { method: "POST" });
+      const b = (await res.json().catch(() => ({}))) as { url?: string; token?: string; restante?: number; error?: string };
+      avisarCreditos();
+      if (!res.ok || !b.url || !b.token) return setErro(txErro(b.error ?? `Falha (HTTP ${res.status}).`));
+      setRestante(b.restante ?? null);
+      const sala = new SalaLive({ estado: setEstado, video: setTrilhaVideo, audio: setTrilhaAudio });
+      salaRef.current = sala;
+      await sala.conectar(b.url, b.token);
+      await atualizar();
+      await s.conectar(sala.room);
+    } catch (e) {
+      setErro(txErro((e as Error).message));
+    } finally {
+      setEntrando(false);
+    }
+  }
+
   /** Tira o jogo da tela (para de publicar e limpa o vídeo). */
   const pararJogo = useCallback(async () => {
     await salaRef.current?.pararJogo();
@@ -888,6 +1022,7 @@ function PainelLive({ id }: { id: string }) {
     const novo = Math.min(SINCRONIA_MAX_MS, Math.max(0, sincronia + passo));
     setSincronia(novo);
     sombraRef.current?.ajustarSincronia(novo);
+    sombra3dRef.current?.ajustarSincronia(novo);
   }
 
   async function encerrar() {
@@ -902,6 +1037,10 @@ function PainelLive({ id }: { id: string }) {
     await sombraRef.current?.parar();
     sombraRef.current = null;
     setEstadoSombra(null);
+    await sombra3dRef.current?.parar();
+    sombra3dRef.current = null;
+    setEstado3d(null);
+    setCamera3d(false);
     const sala = salaRef.current;
     salaRef.current = null;
     await sala?.sair();
@@ -926,10 +1065,19 @@ function PainelLive({ id }: { id: string }) {
   const nome = character?.identidade.nome || live.persona?.nome || tx("Personagem");
   const palcoAtivo = live.status === "pronta" || noAr;
   const podeEntrar = !conectado || (ehSombra ? estadoSombra === "caiu" : estado === "avatar_saiu");
-  const precoNoAr = ehSombra ? creditosSombraAoVivo(live.duracaoMin) : creditosLive(live.duracaoMin);
+  const precoNoAr = eh3d
+    ? creditosSombra3d(live.duracaoMin, !!live.voiceId)
+    : ehSombra
+      ? creditosSombraAoVivo(live.duracaoMin)
+      : creditosLive(live.duracaoMin);
   /** O que mostrar no palco enquanto não há vídeo (ou a sombra caiu/reconecta). */
-  const avisoSombra =
-    estadoSombra === "camera" || (entrando && !estadoSombra)
+  const avisoSombra = eh3d
+    ? estado3d === "carregando"
+      ? tx("Carregando o avatar 3D…")
+      : camera3d && semRosto
+        ? tx("Não estou vendo o seu rosto. Fique de frente para a câmera, com luz no rosto.")
+        : null
+    : estadoSombra === "camera" || (entrando && !estadoSombra)
       ? tx("Ligando a câmera…")
       : estadoSombra === "conectando"
         ? tx("Transformando a sua câmera no influencer…")
@@ -938,6 +1086,8 @@ function PainelLive({ id }: { id: string }) {
           : estadoSombra === "caiu"
             ? tx("A Sombra caiu. Clique em Reconectar a Sombra.")
             : null;
+  /** Girando: algo está a caminho (não é um aviso parado, como "sem rosto" ou "caiu"). */
+  const avisoGirando = eh3d ? estado3d === "carregando" : estadoSombra !== "caiu";
 
   return (
     <main className="mx-auto max-w-[1440px] px-4 sm:px-6 py-6 sm:py-8 grid grid-cols-[minmax(0,1fr)] gap-5">
@@ -983,7 +1133,7 @@ function PainelLive({ id }: { id: string }) {
               {noAr ? tx("Encerrar") : tx("Descartar")}
             </Button>
             {podeEntrar ? (
-              <Button variant="accent" onClick={entrar} disabled={entrando}>
+              <Button variant="accent" onClick={entrar} disabled={entrando || (eh3d && estado3d !== "pronto")}>
                 {entrando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radio className="w-4 h-4" />}
                 {live.status === "pronta"
                   ? `${tx("Entrar no ar")} · ${precoNoAr} ${tx("créditos")}`
@@ -1002,7 +1152,11 @@ function PainelLive({ id }: { id: string }) {
       {live.status === "preparando" && (
         <div className="card p-8 grid justify-items-center gap-3 text-center">
           <Loader2 className="w-6 h-6 animate-spin text-accent" />
-          <p className="text-[14px] text-ink">{tx("O Runway está montando o avatar a partir da imagem.")}</p>
+          <p className="text-[14px] text-ink">
+            {eh3d
+              ? tx("Montando o avatar 3D: a foto vira um personagem de desenho e depois um modelo 3D.")
+              : tx("O Runway está montando o avatar a partir da imagem.")}
+          </p>
           <p className="text-[12px] text-ink-mute">{tx("Leva de 1 a 3 minutos. Pode deixar esta página aberta.")}</p>
         </div>
       )}
@@ -1062,7 +1216,7 @@ function PainelLive({ id }: { id: string }) {
 
               {/* Selos no alto: ao vivo, tempo e redes recebendo. */}
               <div className="absolute inset-x-3 top-3 flex flex-wrap items-center gap-2">
-                {temVideo ? (
+                {aoVivo ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-pink px-2.5 py-1 text-[11px] font-bold text-white">
                     <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
                     {tx("AO VIVO")}
@@ -1093,11 +1247,11 @@ function PainelLive({ id }: { id: string }) {
               ) : null}
 
               {/* Enquanto o avatar não está no vídeo: o que está acontecendo. */}
-              {ehSombra && (avisoSombra || !temVideo) ? (
+              {ehSombra && (avisoSombra || (eh3d ? noAr && !conectado : !temVideo)) ? (
                 <div className="absolute inset-x-0 bottom-0 grid justify-items-center bg-gradient-to-t from-black/85 to-transparent px-5 pb-5 pt-12 text-center text-[13px] text-white">
                   {avisoSombra ? (
                     <span className="inline-flex items-center gap-2">
-                      {estadoSombra !== "caiu" ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                      {avisoGirando ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                       {avisoSombra}
                     </span>
                   ) : noAr ? (
@@ -1124,6 +1278,27 @@ function PainelLive({ id }: { id: string }) {
                 </div>
               )}
             </div>
+            {eh3d && estado3d === "pronto" && !conectado ? (
+              <div className="flex flex-wrap items-center gap-2 text-[12px] text-ink-mute">
+                {camera3d ? (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => sombra3dRef.current?.centralizar()}>
+                      <Crosshair className="w-4 h-4" />
+                      {tx("Centralizar o avatar")}
+                    </Button>
+                    <span>{tx("Fique de frente para a tela, do jeito que vai ficar na live, e clique: esse jeito vira o centro.")}</span>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={testarCamera3d}>
+                      <Camera className="w-4 h-4" />
+                      {tx("Testar com a câmera")}
+                    </Button>
+                    <span>{tx("Só nesta página, sem custo: o avatar copia você antes de entrar no ar.")}</span>
+                  </>
+                )}
+              </div>
+            ) : null}
             {ehSombra && conectado ? (
               <div className="flex flex-wrap items-center gap-2 text-[12px] text-ink-mute">
                 <Button
@@ -1132,6 +1307,7 @@ function PainelLive({ id }: { id: string }) {
                   onClick={() =>
                     setMudo((m) => {
                       sombraRef.current?.mutar(!m);
+                      sombra3dRef.current?.mutar(!m);
                       return !m;
                     })
                   }
@@ -1139,6 +1315,12 @@ function PainelLive({ id }: { id: string }) {
                   {mudo ? <MicOff className="w-4 h-4 text-pink" /> : <Mic className="w-4 h-4" />}
                   {mudo ? tx("Microfone desligado") : tx("Microfone ligado")}
                 </Button>
+                {eh3d ? (
+                  <Button variant="ghost" size="sm" onClick={() => sombra3dRef.current?.centralizar()}>
+                    <Crosshair className="w-4 h-4" />
+                    {tx("Centralizar o avatar")}
+                  </Button>
+                ) : null}
                 <span className="ml-1">{tx("Sincronia da voz")}</span>
                 <button
                   type="button"
@@ -1225,7 +1407,7 @@ function PainelLive({ id }: { id: string }) {
               <PainelTransmissao
                 id={id}
                 noAr={noAr && conectado}
-                avatarNoAr={temVideo}
+                avatarNoAr={aoVivo}
                 transmitindo={live.transmitindo}
               />
             </div>

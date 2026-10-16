@@ -10,8 +10,8 @@ import {
   type LiveRow,
 } from "@/lib/live/server";
 import { contextoLive, liveNaoEncontrada } from "@/lib/live/rota";
-import { IDENTIDADE_AVATAR, segundosNoAr } from "@/lib/live/tipos";
-import { creditosLive, creditosSombraAoVivo } from "@/lib/planos";
+import { ehSombra, IDENTIDADE_AVATAR, segundosNoAr } from "@/lib/live/tipos";
+import { creditosLive, creditosSombra3d, creditosSombraAoVivo } from "@/lib/planos";
 import { mensagemDeErroRunway } from "@/lib/video/runway";
 
 export const runtime = "nodejs";
@@ -48,13 +48,15 @@ export async function POST(
     };
   };
 
-  // Shadow ao vivo: a webcam vira o influencer no navegador (Decart); aqui só
-  // cobra a duração, marca o início e devolve o acesso à sala.
-  if (live.tipo === "sombra" && live.status === "pronta") {
+  // Shadow ao vivo e 3D: a webcam vira o influencer no navegador (Decart ou o
+  // avatar 3D); aqui só cobra a duração, marca o início e devolve o acesso à sala.
+  if (ehSombra(live.tipo) && live.status === "pronta") {
     const cobrado = await cobrarOuResponder(
       userId,
-      creditosSombraAoVivo(live.duracao_min),
-      "live_sombra",
+      live.tipo === "sombra3d"
+        ? creditosSombra3d(live.duracao_min, !!live.voice_id)
+        : creditosSombraAoVivo(live.duracao_min),
+      live.tipo === "sombra3d" ? "live_sombra3d" : "live_sombra",
       live.id,
     );
     if (cobrado instanceof NextResponse) return cobrado;
@@ -73,7 +75,7 @@ export async function POST(
     }
     return NextResponse.json(acesso(rows[0]));
   }
-  if (live.tipo === "sombra" && live.status === "no_ar") return NextResponse.json(acesso(live));
+  if (ehSombra(live.tipo) && live.status === "no_ar") return NextResponse.json(acesso(live));
 
   if (live.status === "pronta") {
     const cobrado = await cobrarOuResponder(

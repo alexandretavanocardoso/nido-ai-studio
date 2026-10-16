@@ -347,6 +347,21 @@ export const creditosSombraAoVivo = (minutos: number): number =>
   minutos * CREDITOS_SOMBRA_POR_MINUTO;
 
 /**
+ * Sombra 3D: o avatar 3D (estilo desenho/jogo) se mexe com a webcam no próprio
+ * navegador, sem IA por minuto. Montar o avatar, uma vez por foto: a versão
+ * desenho no Nano Banana (~US$ 0,04) + o modelo 3D no fal (Trellis 2, US$ 0,30).
+ * Por minuto no ar: só o LiveKit (~US$ 0,03); com a voz trocada, mais a
+ * ElevenLabs (speech-to-speech, ~US$ 0,25/min).
+ */
+export const CREDITOS_AVATAR_3D = 40;
+export const CREDITOS_SOMBRA_3D_POR_MINUTO = 5;
+export const CREDITOS_SOMBRA_3D_VOZ_POR_MINUTO = 20;
+export const creditosSombra3dPorMinuto = (vozTrocada: boolean): number =>
+  vozTrocada ? CREDITOS_SOMBRA_3D_VOZ_POR_MINUTO : CREDITOS_SOMBRA_3D_POR_MINUTO;
+export const creditosSombra3d = (minutos: number, vozTrocada: boolean): number =>
+  minutos * creditosSombra3dPorMinuto(vozTrocada);
+
+/**
  * Sombra de vídeo gravado, por segundo do trecho escolhido: Decart Lucy 2.5 em
  * lote (US$ 0,04/s) + a voz trocada (opcional). Uma live inteira (até 12 h) ou
  * só um trecho dela. Até 3 min, o app processa sozinho; mais que isso (ou

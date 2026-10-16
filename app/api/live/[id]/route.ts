@@ -8,6 +8,7 @@ import {
   type EstadoSessao,
   type LiveRow,
 } from "@/lib/live/server";
+import { avancarAvatar3d, carregarAvatar3d } from "@/lib/live/avatar3d";
 import { contextoLive, liveNaoEncontrada } from "@/lib/live/rota";
 import { ehSessaoSombra, segundosNoAr } from "@/lib/live/tipos";
 import { estadoAvatar } from "@/lib/video/falado";
@@ -19,7 +20,8 @@ export const dynamic = "force-dynamic";
  * GET — como está a live. Preparando: confere se o avatar do Runway ficou
  * pronto. No ar: confere a sessão atual do avatar e encerra quando o tempo
  * cobrado acaba. Devolve também quantos segundos ainda restam e a prévia do
- * avatar (a imagem que o Runway preparou, já no cenário).
+ * avatar (a imagem que o Runway preparou, já no cenário). Na Sombra 3D, confere
+ * o modelo 3D e devolve onde estão o modelo, a versão desenho e o fundo.
  */
 export async function GET(
   _req: Request,
@@ -30,6 +32,19 @@ export async function GET(
   const { pool, rw, userId } = ctx;
   let live = await carregarLive(pool, userId, (await params).id);
   if (!live) return liveNaoEncontrada();
+
+  // Sombra 3D: o avatar 3D sai do fal em 1 a 3 min; enquanto isso, confere.
+  let avatar3d = live.avatar3d_id ? await carregarAvatar3d(pool, live.avatar3d_id) : null;
+  if (avatar3d && live.status === "preparando") {
+    avatar3d = await avancarAvatar3d(pool, ctx.s3, avatar3d);
+    if (avatar3d.status !== "gerando") {
+      const { rows } = await pool.query<LiveRow>(
+        `update lives set status = $2, erro = $3 where id = $1 and status = 'preparando' returning *`,
+        [live.id, avatar3d.status === "pronto" ? "pronta" : "erro", avatar3d.erro],
+      );
+      live = rows[0] ?? live;
+    }
+  }
 
   if (live.status === "preparando" && live.avatar_id) {
     const a = await estadoAvatar(rw, live.avatar_id);
@@ -93,5 +108,15 @@ export async function GET(
       ? await previaDoAvatar(rw, live.avatar_id)
       : null;
 
-  return NextResponse.json({ live: resumoDaLive(live), sessao, restante, previa });
+  return NextResponse.json({
+    live: resumoDaLive(live),
+    sessao,
+    restante,
+    previa,
+    avatar3d: avatar3d && {
+      modeloKey: avatar3d.modelo_key,
+      desenhoKey: avatar3d.estilizada_key,
+      fundoKey: live.cena && "imageKey" in live.cena ? live.cena.imageKey : null,
+    },
+  });
 }

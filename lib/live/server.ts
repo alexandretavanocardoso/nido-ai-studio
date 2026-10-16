@@ -23,7 +23,7 @@ import {
   type PersonaAvulsa,
   type SessaoLive,
   type TipoLive,
-  CREDITOS_POR_MINUTO,
+  creditosPorMinuto,
   ehSessaoSombra,
   type StatusLive,
 } from "./tipos";
@@ -46,6 +46,8 @@ export interface LiveRow {
   image_key: string;
   voice_id: string | null;
   avatar_id: string | null;
+  /** Sombra 3D: o avatar 3D (tabela avatares_3d) que a live usa. */
+  avatar3d_id: string | null;
   duracao_min: number;
   sala: string;
   sessoes: SessaoLive[];
@@ -310,7 +312,7 @@ export async function encerrarLive(
   const cobrado = live.cobranca?.total ?? 0;
   const creditos = Math.min(
     cobrado,
-    creditosDoTempo(segundos, CREDITOS_POR_MINUTO[live.tipo ?? "avatar"]),
+    creditosDoTempo(segundos, creditosPorMinuto(live.tipo ?? "avatar", !!live.voice_id)),
   );
   const { rows } = await pool.query<LiveRow>(
     `update lives set status = 'encerrada', encerrada_em = now(), sessoes = $2,

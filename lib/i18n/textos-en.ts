@@ -4131,4 +4131,32 @@ export const TEXTOS_EN: Record<string, string> = {
   "Gravadas por pessoas de verdade, em inglês. Ouça e escolha: ela vira a voz deste personagem.": "Recorded by real people, in English. Listen and choose: it becomes this character's voice.",
   "No Wan 3.0 o fundo da imagem é removido: o personagem entra direto na cena que você descrever.":
     "With Wan 3.0 the image background is removed: the character goes straight into the scene you describe.",
+  // Sombra 3D (components/live)
+  "Sombra 3D": "3D Shadow",
+  "Quem vira o avatar 3D": "Who becomes the 3D avatar",
+  "A foto vira um avatar 3D com cara de desenho ou de jogo, parecido com o influencer. Ele copia a sua cabeça, os olhos e a boca pela webcam, como num espelho. Montar o avatar leva de 1 a 3 minutos, uma vez por foto.":
+    "The photo becomes a cartoon or game-style 3D avatar that looks like the influencer. It copies your head, eyes and mouth through the webcam, like a mirror. Building the avatar takes 1 to 3 minutes, once per photo.",
+  "Sua voz vai como está, sincronizada com a boca do avatar. Use fone de ouvido.":
+    "Your voice goes out as it is, in sync with the avatar's mouth. Use headphones.",
+  "do avatar 3D (só na 1ª vez com esta foto)": "for the 3D avatar (only the 1st time with this photo)",
+  "Os minutos são cobrados ao entrar no ar; os que você não usar voltam quando a live encerra. Testar o avatar com a câmera antes de entrar no ar não custa nada.":
+    "Minutes are charged when you go live; the ones you don't use come back when the live ends. Testing the avatar with the camera before going live is free.",
+  "Fundo de estúdio": "Studio background",
+  "A IA desenha o lugar no mesmo estilo do avatar, para ficar atrás dele:":
+    "The AI draws the place in the same style as the avatar, to sit behind it:",
+  "créditos ao preparar.": "credits when preparing.",
+  "A imagem fica atrás do avatar, como está. Sem custo extra.": "The image goes behind the avatar, as it is. No extra cost.",
+  "Não consegui carregar o avatar 3D:": "Couldn't load the 3D avatar:",
+  "O avatar 3D ainda está carregando.": "The 3D avatar is still loading.",
+  "Carregando o avatar 3D…": "Loading the 3D avatar…",
+  "Não estou vendo o seu rosto. Fique de frente para a câmera, com luz no rosto.":
+    "I can't see your face. Face the camera, with light on your face.",
+  "Montando o avatar 3D: a foto vira um personagem de desenho e depois um modelo 3D.":
+    "Building the 3D avatar: the photo becomes a cartoon character and then a 3D model.",
+  "Centralizar o avatar": "Center the avatar",
+  "Fique de frente para a tela, do jeito que vai ficar na live, e clique: esse jeito vira o centro.":
+    "Face the screen the way you'll sit during the live and click: that pose becomes the center.",
+  "Testar com a câmera": "Test with the camera",
+  "Só nesta página, sem custo: o avatar copia você antes de entrar no ar.":
+    "Only on this page, free: the avatar copies you before you go live.",
 };

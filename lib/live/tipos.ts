@@ -1,4 +1,8 @@
-import { CREDITOS_LIVE_POR_MINUTO, CREDITOS_SOMBRA_POR_MINUTO } from "@/lib/planos";
+import {
+  CREDITOS_LIVE_POR_MINUTO,
+  CREDITOS_SOMBRA_POR_MINUTO,
+  creditosSombra3dPorMinuto,
+} from "@/lib/planos";
 
 /**
  * Live do personagem — o que o servidor e a tela compartilham.
@@ -103,14 +107,26 @@ export interface EstadoTransmissao {
   erro?: string;
 }
 
-/** avatar: o avatar do Runway fala com a IA · sombra: a webcam vira o influencer (Decart). */
-export type TipoLive = "avatar" | "sombra";
+/**
+ * avatar: o avatar do Runway fala com a IA · sombra: a webcam vira o
+ * influencer (Decart) · sombra3d: a webcam mexe um avatar 3D do influencer,
+ * no próprio navegador.
+ */
+export type TipoLive = "avatar" | "sombra" | "sombra3d";
 
-/** Créditos por minuto no ar de cada tipo de live. */
+/** Créditos por minuto no ar de cada tipo de live (na Sombra 3D, sem a voz trocada). */
 export const CREDITOS_POR_MINUTO: Record<TipoLive, number> = {
   avatar: CREDITOS_LIVE_POR_MINUTO,
   sombra: CREDITOS_SOMBRA_POR_MINUTO,
+  sombra3d: creditosSombra3dPorMinuto(false),
 };
+
+/** Créditos por minuto desta live: a Sombra 3D cobra mais com a voz trocada. */
+export const creditosPorMinuto = (tipo: TipoLive, vozTrocada: boolean): number =>
+  tipo === "sombra3d" ? creditosSombra3dPorMinuto(vozTrocada) : CREDITOS_POR_MINUTO[tipo];
+
+/** Quem aparece é a pessoa da webcam (Sombra ao vivo ou 3D), não o avatar do Runway. */
+export const ehSombra = (tipo: TipoLive | null | undefined) => tipo === "sombra" || tipo === "sombra3d";
 
 /** Sessão da sombra: não é do Runway (a webcam fica no navegador). */
 export const ehSessaoSombra = (id: string) => id.startsWith("sombra-");

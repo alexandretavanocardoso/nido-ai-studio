@@ -11,7 +11,7 @@ import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/cn";
 import { tx } from "@/lib/i18n/tx";
 import type { CenaLive, LiveResumo } from "@/lib/live/tipos";
-import { creditosSombraAoVivo } from "@/lib/planos";
+import { CREDITOS_AVATAR_3D, creditosSombra3d, creditosSombraAoVivo } from "@/lib/planos";
 import type { Character } from "@/lib/types";
 import { Colunas, pilula, PrepararLive } from "./Preparar";
 import { EscolherCena } from "./Cena";
@@ -236,6 +236,96 @@ export function VozDaSombra({
       ) : null}
       <span className="text-[12px] text-ink-dim">{tx(nota)}</span>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Sombra 3D                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Sombra 3D: a webcam mexe um avatar 3D do influencer (estilo desenho/jogo),
+ * no próprio navegador. Montar o avatar custa uma vez por foto; no ar, só o
+ * minuto (barato: sem IA). Cria a live "preparando" até o modelo 3D sair.
+ */
+export function FormSombra3D({
+  personagens,
+  onCriada,
+}: {
+  personagens: Character[];
+  onCriada: (l: LiveResumo) => void;
+}) {
+  const [quem, setQuem] = useState<Quem>({ characterId: personagens[0]?.id ?? null, imageKey: null });
+  const [foto, setFoto] = useState<ImagemEnviada | null>(null);
+  const [nome, setNome] = useState("");
+  const [voz, setVoz] = useState<VozEscolhida | null>(null);
+  const [cena, setCena] = useState<CenaLive | null>(null);
+  const character = personagens.find((c) => c.id === quem.characterId) ?? null;
+
+  return (
+    <>
+      <Colunas
+        imagem={
+          <div className="grid gap-1.5">
+            <span className="label-cap">{tx("Quem vira o avatar 3D")}</span>
+            <QuemAparece personagens={personagens} valor={quem} onChange={setQuem} foto={foto} onFoto={setFoto} />
+          </div>
+        }
+        resto={
+          <>
+            <p className="rounded-xl border border-line bg-panel px-3 py-2 text-[12px] text-ink-mute">
+              {tx("A foto vira um avatar 3D com cara de desenho ou de jogo, parecido com o influencer. Ele copia a sua cabeça, os olhos e a boca pela webcam, como num espelho. Montar o avatar leva de 1 a 3 minutos, uma vez por foto.")}
+            </p>
+            {!character ? (
+              <label className="grid gap-1.5">
+                <span className="label-cap">{tx("Nome")}</span>
+                <Input
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  maxLength={60}
+                  placeholder={tx("Como ele(a) se chama na live")}
+                />
+              </label>
+            ) : null}
+            <VozDaSombra
+              character={character}
+              valor={voz}
+              onChange={setVoz}
+              propria="Minha voz"
+              nota={
+                voz
+                  ? "Você fala e sai a voz escolhida. A troca leva uns segundos, então a live vai com 4 s de atraso para a boca casar com a voz (use o Chrome ou o Edge). Use fone de ouvido."
+                  : "Sua voz vai como está, sincronizada com a boca do avatar. Use fone de ouvido."
+              }
+            />
+            <EscolherCena valor={cena} onChange={setCena} sombra="3d" />
+          </>
+        }
+      />
+
+      <PrepararLive
+        falta={
+          !quem.imageKey
+            ? tx("Falta escolher quem aparece.")
+            : !character && !nome.trim()
+              ? tx("Falta o nome.")
+              : null
+        }
+        creditos={(m) => creditosSombra3d(m, !!voz)}
+        comCena={!!cena && "prompt" in cena}
+        extra={`+ ${CREDITOS_AVATAR_3D} ${tx("do avatar 3D (só na 1ª vez com esta foto)")}`}
+        nota="Os minutos são cobrados ao entrar no ar; os que você não usar voltam quando a live encerra. Testar o avatar com a câmera antes de entrar no ar não custa nada."
+        corpo={() => ({
+          tipo: "sombra3d",
+          characterId: character?.id,
+          nomeSombra: character ? undefined : nome.trim(),
+          imageKey: quem.imageKey,
+          voiceId: voz?.voiceId ?? null,
+          cena: cena ?? undefined,
+        })}
+        onCriada={onCriada}
+      />
+    </>
   );
 }
 

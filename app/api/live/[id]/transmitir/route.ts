@@ -11,6 +11,7 @@ import {
   type Transmissao,
 } from "@/lib/live/transmissao";
 import {
+  ehSombra,
   IDENTIDADE_AVATAR,
   identidadeOperador,
   REDES_TRANSMISSAO,
@@ -106,7 +107,7 @@ export async function POST(
       live.sala,
       destinos,
       pagina,
-      live.tipo === "sombra" ? identidadeOperador(live.id) : IDENTIDADE_AVATAR,
+      ehSombra(live.tipo) ? identidadeOperador(live.id) : IDENTIDADE_AVATAR,
     );
     await salvar(ctx.pool, live.id, t);
     return NextResponse.json({ redes: destinos.map((d) => d.rede) });

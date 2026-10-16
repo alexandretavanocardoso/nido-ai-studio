@@ -47,11 +47,12 @@ const EXT: Record<string, string> = {
   "audio/webm": "weba",
   "audio/ogg": "ogg",
   "application/octet-stream": "safetensors",
+  "model/gltf-binary": "glb",
 };
 
 export function newKey(
   userId: string,
-  kind: StorageKind | "generated" | "dataset" | "loras",
+  kind: StorageKind | "generated" | "dataset" | "loras" | "modelos",
   contentType: string
 ): string {
   return `users/${userId}/${kind}/${nanoid(12)}.${EXT[contentType] ?? "bin"}`;

@@ -23,6 +23,8 @@ export const ATRASO_VOZ_TROCADA = 4;
 /** Quanto o Lucy atrasa o vídeo (a voz espera isso para casar com a boca). Ajustável na tela. */
 export const SINCRONIA_PADRAO_MS = 250;
 export const SINCRONIA_MAX_MS = 1500;
+/** Na Sombra 3D, a voz própria espera só o desenho do avatar (~2 quadros). */
+export const SINCRONIA_3D_MS = 80;
 
 /** Dá para atrasar o vídeo (e casar com a voz trocada) neste navegador? */
 export const podeAtrasarVideo = (): boolean =>
@@ -40,13 +42,9 @@ interface Ao {
 export class SombraAoVivo {
   private camera: MediaStream | null = null;
   private decart: RealTimeClient | null = null;
-  private ctx: AudioContext | null = null;
-  private atrasoProprio: DelayNode | null = null;
-  private voz: VozTrocada | null = null;
+  private voz: VozNaSala;
   private retardo: RetardoDeVideo | null = null;
   private videoPub: LocalTrackPublication | null = null;
-  private audioPub: LocalTrackPublication | null = null;
-  private sincronia = SINCRONIA_PADRAO_MS / 1000;
   private parada = false;
   /** Reaberturas automáticas seguidas (zeram quando o vídeo volta). */
   private tentativas = 0;
@@ -64,6 +62,13 @@ export class SombraAoVivo {
     },
   ) {
     this.atrasoVideo = o.vozTrocada && podeAtrasarVideo() ? ATRASO_VOZ_TROCADA : 0;
+    this.voz = new VozNaSala({
+      liveId: o.liveId,
+      vozTrocada: o.vozTrocada,
+      atrasoVideo: this.atrasoVideo,
+      sincroniaMs: SINCRONIA_PADRAO_MS,
+      aoErro: (m) => o.ao.erro(m),
+    });
   }
 
   /** A voz trocada vai sem casar com a boca (navegador sem atraso de vídeo). */
@@ -160,39 +165,15 @@ export class SombraAoVivo {
       });
     }
     this.o.ao.video(new MediaStream([saida]));
-    if (!this.audioPub) await this.publicarVoz();
+    const [mic] = this.camera?.getAudioTracks() ?? [];
+    if (mic && !this.voz.publicada) await this.voz.publicar(this.o.room, mic);
     this.tentativas = 0;
     this.o.ao.estado("no_ar");
   }
 
-  /** Microfone para a sala: a voz da pessoa (atrasada pelo Lucy) ou a trocada. */
-  private async publicarVoz() {
-    const [mic] = this.camera?.getAudioTracks() ?? [];
-    if (!mic) return;
-    const ctx = (this.ctx ??= new AudioContext());
-    await ctx.resume();
-    const entrada = ctx.createMediaStreamSource(new MediaStream([mic]));
-    const saida = ctx.createMediaStreamDestination();
-    if (this.o.vozTrocada) {
-      this.voz = new VozTrocada(ctx, entrada, saida, this.o.liveId, () =>
-        this.atrasoVideo ? this.atrasoVideo + this.sincronia : 0,
-      (m) => this.o.ao.erro(m));
-    } else {
-      this.atrasoProprio = ctx.createDelay(SINCRONIA_MAX_MS / 1000);
-      this.atrasoProprio.delayTime.value = this.sincronia;
-      entrada.connect(this.atrasoProprio).connect(saida);
-    }
-    const [trilha] = saida.stream.getAudioTracks();
-    this.audioPub = await this.o.room.localParticipant.publishTrack(trilha, {
-      source: Track.Source.Microphone,
-      name: "voz",
-    });
-  }
-
   /** Quanto a voz espera para casar com a boca (o atraso do Lucy). */
   ajustarSincronia(ms: number) {
-    this.sincronia = Math.min(SINCRONIA_MAX_MS, Math.max(0, ms)) / 1000;
-    if (this.atrasoProprio) this.atrasoProprio.delayTime.value = this.sincronia;
+    this.voz.ajustarSincronia(ms);
   }
 
   /** Corta o microfone (a pessoa some do áudio; o vídeo continua). */
@@ -205,17 +186,84 @@ export class SombraAoVivo {
     this.parada = true;
     this.decart?.disconnect();
     this.decart = null;
-    this.voz?.parar();
     this.retardo?.parar();
-    const lp = this.o.room.localParticipant;
-    for (const pub of [this.videoPub, this.audioPub])
-      if (pub?.track) await lp.unpublishTrack(pub.track, true).catch(() => {});
-    this.videoPub = this.audioPub = null;
+    await this.voz.parar(this.o.room);
+    if (this.videoPub?.track) await this.o.room.localParticipant.unpublishTrack(this.videoPub.track, true).catch(() => {});
+    this.videoPub = null;
     this.camera?.getTracks().forEach((t) => t.stop());
     this.camera = null;
+    this.o.ao.video(null);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* A voz na sala: a própria (atrasada para casar com a boca) ou a trocada */
+/* ------------------------------------------------------------------ */
+
+/**
+ * O microfone de quem faz a live, publicado na sala: a voz da própria pessoa
+ * (atrasada o tanto que o vídeo atrasa, para a boca casar) ou trocada na
+ * ElevenLabs. Serve à Sombra ao vivo (Lucy) e à 3D.
+ */
+export class VozNaSala {
+  private ctx: AudioContext | null = null;
+  private atrasoProprio: DelayNode | null = null;
+  private voz: VozTrocada | null = null;
+  private pub: LocalTrackPublication | null = null;
+  private sincronia: number;
+
+  constructor(
+    private o: {
+      liveId: string;
+      vozTrocada: boolean;
+      /** Quanto o vídeo atrasa com a voz trocada (segundos; 0 = sem atraso). */
+      atrasoVideo: number;
+      sincroniaMs: number;
+      aoErro: (m: string) => void;
+    },
+  ) {
+    this.sincronia = o.sincroniaMs / 1000;
+  }
+
+  get publicada(): boolean {
+    return !!this.pub;
+  }
+
+  async publicar(room: Room, mic: MediaStreamTrack) {
+    const ctx = (this.ctx ??= new AudioContext());
+    await ctx.resume();
+    const entrada = ctx.createMediaStreamSource(new MediaStream([mic]));
+    const saida = ctx.createMediaStreamDestination();
+    if (this.o.vozTrocada) {
+      this.voz = new VozTrocada(ctx, entrada, saida, this.o.liveId, () =>
+        this.o.atrasoVideo ? this.o.atrasoVideo + this.sincronia : 0,
+      this.o.aoErro);
+    } else {
+      this.atrasoProprio = ctx.createDelay(SINCRONIA_MAX_MS / 1000);
+      this.atrasoProprio.delayTime.value = this.sincronia;
+      entrada.connect(this.atrasoProprio).connect(saida);
+    }
+    const [trilha] = saida.stream.getAudioTracks();
+    this.pub = await room.localParticipant.publishTrack(trilha, {
+      source: Track.Source.Microphone,
+      name: "voz",
+    });
+  }
+
+  /** Quanto a voz espera para casar com a boca. */
+  ajustarSincronia(ms: number) {
+    this.sincronia = Math.min(SINCRONIA_MAX_MS, Math.max(0, ms)) / 1000;
+    if (this.atrasoProprio) this.atrasoProprio.delayTime.value = this.sincronia;
+  }
+
+  async parar(room: Room) {
+    this.voz?.parar();
+    this.voz = null;
+    if (this.pub?.track) await room.localParticipant.unpublishTrack(this.pub.track, true).catch(() => {});
+    this.pub = null;
     void this.ctx?.close().catch(() => {});
     this.ctx = null;
-    this.o.ao.video(null);
+    this.atrasoProprio = null;
   }
 }
 
@@ -392,7 +440,7 @@ type JanelaComTrilhas = Window & {
 /** Quadros guardados no máximo (~5 s a 30 fps): uma folga se o atraso crescer. */
 const MAX_QUADROS_GUARDADOS = 150;
 
-class RetardoDeVideo {
+export class RetardoDeVideo {
   readonly saida: GeradorDeTrilha;
   private escritor: WritableStreamDefaultWriter<VideoFrame>;
   private leitor: ReadableStreamDefaultReader<VideoFrame> | null = null;

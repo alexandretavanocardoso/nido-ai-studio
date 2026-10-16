@@ -40,6 +40,7 @@ export const pilula = (ativo: boolean) =>
 export function PrepararLive({
   falta,
   comCena = false,
+  extra,
   creditos = creditosLive,
   nota = "Cobrados ao entrar no ar; os minutos que você não usar voltam quando a live encerra. Preparar o avatar não custa nada.",
   corpo,
@@ -49,6 +50,8 @@ export function PrepararLive({
   falta: string | null;
   /** Com cenário: a imagem no cenário é cobrada ao preparar. */
   comCena?: boolean;
+  /** Outra cobrança ao preparar, já traduzida (ex.: "+ 40 do avatar 3D"). */
+  extra?: string;
   /** Créditos pela duração (o avatar e a Shadow ao vivo têm preços diferentes). */
   creditos?: (minutos: number) => number;
   /** Como a cobrança funciona (texto em português, traduzido aqui). */
@@ -131,6 +134,7 @@ export function PrepararLive({
                 {" "}+ {CREDITOS_CENARIO} {tx("do cenário")}
               </span>
             ) : null}
+            {extra ? <span className="font-semibold text-ink-mute"> {extra}</span> : null}
           </span>
           {falta ? <span className="text-[13px] font-semibold text-pink">{falta}</span> : null}
           <span className="max-w-xl text-[12px] text-ink-dim">{tx(nota)}</span>

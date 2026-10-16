@@ -26,7 +26,8 @@ const SUGESTOES = [
  * Onde a live acontece: o fundo da própria foto, um lugar descrito em texto ou
  * uma imagem do lugar. Devolve `null` enquanto não há cenário válido (fica o
  * fundo da foto). Na Shadow (`sombra`), só por texto: o Lucy troca o fundo da
- * câmera ou do vídeo, sem imagem a gerar (e sem custo).
+ * câmera ou do vídeo, sem imagem a gerar (e sem custo). Na Sombra 3D, o fundo
+ * fica atrás do avatar: o texto vira uma imagem do lugar; a imagem vai como está.
  */
 export function EscolherCena({
   valor,
@@ -35,9 +36,10 @@ export function EscolherCena({
 }: {
   valor: CenaLive | null;
   onChange: (c: CenaLive | null) => void;
-  /** Shadow: o fundo de quê ("camera" ao vivo, "video" gravado). Só por texto. */
-  sombra?: "camera" | "video";
+  /** Shadow: o fundo de quê ("camera" ao vivo, "video" gravado; só por texto) ou do avatar "3d". */
+  sombra?: "camera" | "video" | "3d";
 }) {
+  const soTexto = sombra === "camera" || sombra === "video";
   const [modo, setModo] = useState<Modo>(modoDe(valor));
   const [texto, setTexto] = useState(valor && "prompt" in valor ? valor.prompt : "");
   const [imagem, setImagem] = useState(valor && "imageKey" in valor ? valor.imageKey : "");
@@ -85,12 +87,21 @@ export function EscolherCena({
   return (
     <div className="grid gap-2">
       <span className="label-cap">{tx("Cenário")}</span>
-      <div className={cn("grid gap-1.5", sombra ? "grid-cols-2" : "grid-cols-3")}>
+      <div className={cn("grid gap-1.5", soTexto ? "grid-cols-2" : "grid-cols-3")}>
         {(
           [
-            ["fundo", sombra === "camera" ? "Fundo da câmera" : sombra ? "Fundo do vídeo" : "Fundo da foto"],
+            [
+              "fundo",
+              sombra === "camera"
+                ? "Fundo da câmera"
+                : sombra === "video"
+                  ? "Fundo do vídeo"
+                  : sombra === "3d"
+                    ? "Fundo de estúdio"
+                    : "Fundo da foto",
+            ],
             ["texto", "Descrever"],
-            ...(sombra ? [] : [["imagem", "Enviar imagem"] as const]),
+            ...(soTexto ? [] : [["imagem", "Enviar imagem"] as const]),
           ] as const
         ).map(([m, rotulo]) => (
           <button
@@ -163,7 +174,13 @@ export function EscolherCena({
         </label>
       ) : null}
 
-      {modo !== "fundo" && sombra ? (
+      {modo !== "fundo" && sombra === "3d" ? (
+        <span className="text-[12px] text-ink-dim">
+          {modo === "texto"
+            ? `${tx("A IA desenha o lugar no mesmo estilo do avatar, para ficar atrás dele:")} ${CREDITOS_CENARIO} ${tx("créditos ao preparar.")}`
+            : tx("A imagem fica atrás do avatar, como está. Sem custo extra.")}
+        </span>
+      ) : modo !== "fundo" && sombra ? (
         <span className="text-[12px] text-ink-dim">
           {sombra === "camera"
             ? tx("O fundo da sua câmera vira este lugar, ao vivo. A IA transforma o texto num pedido detalhado. Sem custo extra.")
