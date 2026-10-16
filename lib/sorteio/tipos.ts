@@ -29,6 +29,9 @@ export type TipoPremio = Premio["tipo"];
 
 export const TIPOS_PREMIO: TipoPremio[] = ["plano", "creditos", "pontos", "pix"];
 
+/** Pontos que todo mundo que corre ganha quando a corrida termina (o ganhador também, além do prêmio). */
+export const PONTOS_POR_PARTICIPAR = 50;
+
 /** Limites do que o admin pode sortear. */
 export const LIMITES_PREMIO = {
   creditos: { min: 10, max: 100_000 },
@@ -46,7 +49,12 @@ export interface Corredor {
   foto: string | null;
   /** O próprio influencer correndo (WebP transparente); null = o boneco com o rosto. */
   corpo: string | null;
+  /** As poses do ciclo de corrida lado a lado (QUADROS_PASSOS quadros); null = a figura parada, pulando. */
+  passos: string | null;
 }
+
+/** Quantos quadros tem a tira das pernas se mexendo (lib/sorteio/passos.ts). */
+export const QUADROS_PASSOS = 4;
 
 /** O sorteio como as telas veem (sem e-mails nem contas). */
 export interface SorteioPublico {
@@ -58,6 +66,8 @@ export interface SorteioPublico {
   corredores: Corredor[];
   /** Começo da contagem (ms); a largada é CONTAGEM_S depois. */
   largadaEm: number | null;
+  /** Quanto a corrida dura (s): o ganhador cruza a linha nesse instante depois da largada. */
+  duracao: number;
   semente: number | null;
   /** Posição do ganhador em `corredores` (só depois da largada). */
   vencedor: number | null;

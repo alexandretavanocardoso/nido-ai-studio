@@ -6,6 +6,7 @@ import {
   cancelarSorteio,
   carregarSorteio,
   concluirSeAcabou,
+  duplicarSorteio,
   ErroSorteio,
   largar,
   marcarPixPago,
@@ -35,14 +36,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 }
 
 const AcaoSchema = z.discriminatedUnion("acao", [
-  z.object({ acao: z.enum(["fechar", "reabrir", "largar", "cancelar", "pix_pago"]) }),
+  z.object({ acao: z.enum(["fechar", "reabrir", "largar", "cancelar", "pix_pago", "duplicar"]) }),
   z.object({ acao: z.literal("remover"), participanteId: z.string().min(1).max(40) }),
 ]);
 
 /**
  * POST — fecha ou reabre as inscrições, larga a corrida (sorteia o ganhador
- * agora), cancela, tira um participante antes da largada, ou marca o Pix do
- * ganhador como pago.
+ * agora), cancela, tira um participante antes da largada, marca o Pix do
+ * ganhador como pago, ou duplica o sorteio que acabou (devolve o novo).
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const admin = await adminOuResponder();
@@ -54,6 +55,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!parsed.success) return NextResponse.json({ error: "Pedido inválido.", code: "BAD_INPUT" }, { status: 400 });
   try {
     const b = parsed.data;
+    if (b.acao === "duplicar") {
+      const novo = await duplicarSorteio(pool, id, admin.email);
+      return NextResponse.json({
+        sorteio: await sorteioPublico(pool, novo),
+        participantes: await participantesAdmin(pool, novo.id),
+        entrega: null,
+      });
+    }
     if (b.acao === "fechar" || b.acao === "reabrir") await mudarInscricoes(pool, id, b.acao === "reabrir");
     else if (b.acao === "largar") await largar(pool, id);
     else if (b.acao === "cancelar") await cancelarSorteio(pool, id);

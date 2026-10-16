@@ -184,7 +184,7 @@ Authorization: Bearer <CRON_SECRET>
 
 ## Sorteio de gift
 
-- [x] As migrations `db/migrations/0046_sorteios.sql`, `0047_sorteio_corredor.sql`, `0048_sorteio_foto_enviada.sql` e `0049_sorteio_premios.sql` já estão aplicadas no Neon (16/10). Não precisa de chave nova (o corredor usa `GEMINI_API_KEY` e `FAL_KEY`).
+- [x] As migrations `db/migrations/0046_sorteios.sql`, `0047_sorteio_corredor.sql`, `0048_sorteio_foto_enviada.sql`, `0049_sorteio_premios.sql`, `0050_sorteio_passos.sql` e `0051_sorteio_duracao.sql` já estão aplicadas no Neon (16/10). Não precisa de chave nova (o corredor usa `GEMINI_API_KEY` e `FAL_KEY`).
 - [ ] De verdade: área admin → Sorteios → criar um sorteio (ex.: Starter, 1 mês) → entrar com outra conta pelo **link para os usuários** (o sorteio não aparece no menu) → copiar o link do palco para o OBS → largar e conferir o presente na conta do ganhador (plano sem renovação, ou créditos se ele já pagava) e o aviso no sino.
 - Detalhes no [TECNICO.md](TECNICO.md), seção "Sorteio de gift".
 

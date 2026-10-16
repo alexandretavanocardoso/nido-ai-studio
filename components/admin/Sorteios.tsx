@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Copy, ExternalLink, Flag, Loader2, Lock, LockOpen, Plus, Trash2, Trophy, X } from "lucide-react";
+import { Copy, CopyPlus, ExternalLink, Flag, Loader2, Lock, LockOpen, Plus, Trash2, Trophy, X } from "lucide-react";
 import { Corrida } from "@/components/sorteio/Corrida";
 import { useSorteio } from "@/components/sorteio/comum";
 import { Button } from "@/components/ui/Button";
@@ -11,12 +11,14 @@ import { Select } from "@/components/ui/Select";
 import { idiomaAtual } from "@/lib/i18n/tx";
 import { avisarNaTela } from "@/lib/notificar";
 import { PLANOS, PLANOS_PAGOS, type PlanoPago } from "@/lib/planos";
+import { DURACAO_PADRAO, DURACOES } from "@/lib/sorteio/corrida";
 import type { ParticipanteAdmin, SorteioAdmin } from "@/lib/sorteio/server";
 import {
   creditosDoPresente,
   LIMITES_PREMIO,
   MESES_PRESENTE,
   nomePremio,
+  PONTOS_POR_PARTICIPAR,
   reais,
   type Entrega,
   type Premio,
@@ -121,6 +123,7 @@ function NovoSorteio({ onCriado }: { onCriado: (s: SorteioAdmin[]) => void }) {
   const [meses, setMeses] = useState<number>(1);
   const [quantidade, setQuantidade] = useState("1000");
   const [valor, setValor] = useState("100,00");
+  const [duracao, setDuracao] = useState<number>(DURACAO_PADRAO);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -148,7 +151,7 @@ function NovoSorteio({ onCriado }: { onCriado: (s: SorteioAdmin[]) => void }) {
     setErro(null);
     setEnviando(true);
     try {
-      const b = await acaoAdmin<{ sorteios: SorteioAdmin[] }>("/api/admin/sorteios", { titulo, premio });
+      const b = await acaoAdmin<{ sorteios: SorteioAdmin[] }>("/api/admin/sorteios", { titulo, premio, duracao });
       onCriado(b.sorteios);
       setTitulo("");
       avisarNaTela("Sorteio criado: as inscrições estão abertas.", { tom: "ok", href: "/app/sorteio" });
@@ -170,7 +173,7 @@ function NovoSorteio({ onCriado }: { onCriado: (s: SorteioAdmin[]) => void }) {
 
   return (
     <Secao titulo="Novo sorteio" descricao={descricao}>
-      <div className="card grid gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_140px_minmax(0,300px)_auto] sm:items-end">
+      <div className="card grid gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_140px_minmax(0,300px)_110px_auto] sm:items-end">
         <label className="grid gap-1.5">
           <span className="label-cap">Título</span>
           <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} maxLength={80} placeholder="Ex.: Sorteio da live de sexta" />
@@ -219,14 +222,24 @@ function NovoSorteio({ onCriado }: { onCriado: (s: SorteioAdmin[]) => void }) {
             <Input value={quantidade} onChange={(e) => setQuantidade(e.target.value)} inputMode="numeric" placeholder="1000" />
           </label>
         )}
+        <label className="grid gap-1.5" title="Quanto tempo a corrida leva até o ganhador cruzar a linha">
+          <span className="label-cap">Corrida</span>
+          <Select value={duracao} onChange={(e) => setDuracao(Number(e.target.value))}>
+            {DURACOES.map((d) => (
+              <option key={d} value={d}>
+                {d} s
+              </option>
+            ))}
+          </Select>
+        </label>
         <Button variant="accent" className="min-h-[46px]" onClick={criar} disabled={enviando || titulo.trim().length < 3 || !premio}>
           {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
           Criar e abrir
         </Button>
         {!premio && tipo !== "plano" ? (
-          <p className="text-[12px] text-pink sm:col-span-4">Valor fora do limite: {limite}.</p>
+          <p className="text-[12px] text-pink sm:col-span-5">Valor fora do limite: {limite}.</p>
         ) : null}
-        {erro ? <p className="text-[13px] text-pink sm:col-span-4">{erro}</p> : null}
+        {erro ? <p className="text-[13px] text-pink sm:col-span-5">{erro}</p> : null}
       </div>
     </Secao>
   );
@@ -241,13 +254,15 @@ function Resultado({
   dados,
   onNovo,
   onPago,
+  onDuplicar,
   agindo,
 }: {
   s: SorteioPublico;
   dados: Detalhe;
   onNovo: () => void;
   onPago: () => void;
-  agindo: boolean;
+  onDuplicar: () => void;
+  agindo: string | null;
 }) {
   const vencedor = s.vencedor !== null ? s.corredores[s.vencedor] : null;
   const email = vencedor ? dados.participantes.find((p) => p.id === vencedor.id)?.email : null;
@@ -265,7 +280,8 @@ function Resultado({
             ? e.tipo === "pix"
               ? textoEntrega(e)
               : `Entregue: ${textoEntrega(e)}.`
-            : "Prêmio não entregue (a conta do ganhador saiu ou a entrega falhou): libere pela aba Usuários."}
+            : "Prêmio não entregue (a conta do ganhador saiu ou a entrega falhou): libere pela aba Usuários."}{" "}
+          Quem correu ganhou {PONTOS_POR_PARTICIPAR} pontos.
         </span>
       </div>
       {pixAPagar ? (
@@ -279,12 +295,22 @@ function Resultado({
           >
             <Copy className="w-4 h-4" /> Copiar chave
           </Button>
-          <Button variant="accent" size="sm" onClick={onPago} disabled={agindo}>
-            {agindo ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          <Button variant="accent" size="sm" onClick={onPago} disabled={!!agindo}>
+            {agindo === "pix_pago" ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Marcar como pago
           </Button>
         </>
       ) : null}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onDuplicar}
+        disabled={!!agindo}
+        title="Um novo sorteio com o mesmo nome, prêmio e duração, e as mesmas pessoas já inscritas"
+      >
+        {agindo === "duplicar" ? <Loader2 className="w-4 h-4 animate-spin" /> : <CopyPlus className="w-4 h-4" />}
+        Duplicar
+      </Button>
       <Button variant={pixAPagar ? "ghost" : "accent"} size="sm" onClick={onNovo}>
         <Plus className="w-4 h-4" /> Novo sorteio
       </Button>
@@ -311,14 +337,16 @@ function SorteioAtivo({ id, onMudou, onNovo }: { id: string; onMudou: () => void
     fase.current = s.status;
   }, [s, onMudou]);
 
-  async function agir(acao: string, extra: Record<string, unknown> = {}) {
+  async function agir(acao: string, extra: Record<string, unknown> = {}): Promise<boolean> {
     setAgindo(acao + (extra.participanteId ?? ""));
     try {
       await acaoAdmin(`/api/admin/sorteios/${id}`, { acao, ...extra });
       await recarregar();
       onMudou();
+      return true;
     } catch (e) {
       avisarNaTela((e as Error).message, { tom: "erro" });
+      return false;
     } finally {
       setAgindo(null);
     }
@@ -327,7 +355,7 @@ function SorteioAtivo({ id, onMudou, onNovo }: { id: string; onMudou: () => void
   async function largar() {
     const ok = await confirmar({
       titulo: "Largar a corrida?",
-      mensagem: `O ganhador é sorteado agora, entre os ${dados?.participantes.filter((p) => !p.removido).length ?? 0} participantes, e as inscrições fecham. A corrida começa em 5 segundos em todas as telas; o presente é entregue quando o ganhador cruzar a linha.`,
+      mensagem: `O ganhador é sorteado agora, entre os ${dados?.participantes.filter((p) => !p.removido).length ?? 0} participantes, e as inscrições fecham. A corrida começa em 5 segundos em todas as telas; o presente é entregue quando o ganhador cruzar a linha, e todos que correram ganham ${PONTOS_POR_PARTICIPAR} pontos.`,
       confirmar: "Largar",
     });
     if (ok) await agir("largar");
@@ -367,7 +395,7 @@ function SorteioAtivo({ id, onMudou, onNovo }: { id: string; onMudou: () => void
   return (
     <Secao
       titulo={s.titulo}
-      descricao={`${nomePremio(s.premio)}${s.premio.tipo === "plano" ? " · sem renovação automática" : ""} · ${num(ativos.length)} ${ativos.length === 1 ? "participante" : "participantes"}`}
+      descricao={`${nomePremio(s.premio)}${s.premio.tipo === "plano" ? " · sem renovação automática" : ""} · corrida de ${s.duracao} s · ${num(ativos.length)} ${ativos.length === 1 ? "participante" : "participantes"}`}
       acoes={<Selo tom={NOME_STATUS[s.status].tom}>{NOME_STATUS[s.status].texto}</Selo>}
     >
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -419,7 +447,16 @@ function SorteioAtivo({ id, onMudou, onNovo }: { id: string; onMudou: () => void
               s={s}
               dados={dados}
               onNovo={onNovo}
-              agindo={agindo === "pix_pago"}
+              agindo={agindo}
+              onDuplicar={async () => {
+                const ok = await confirmar({
+                  titulo: "Duplicar o sorteio?",
+                  mensagem: `Abre um novo "${s.titulo}" (${nomePremio(s.premio)}, corrida de ${s.duracao} s) com os ${num(ativos.length)} participantes já inscritos, com os mesmos corredores. Se quiser, tire alguém (o ganhador, por exemplo) antes de largar.`,
+                  confirmar: "Duplicar",
+                });
+                if (ok && (await agir("duplicar")))
+                  avisarNaTela("Sorteio duplicado: as inscrições estão abertas, com as mesmas pessoas.", { tom: "ok" });
+              }}
               onPago={async () => {
                 const e = dados.entrega;
                 const ok = await confirmar({

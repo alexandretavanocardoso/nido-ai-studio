@@ -25,6 +25,7 @@ import {
   fazerCheckin,
   missaoCumprida,
   pontosPorIndicacao,
+  pontosPorParticipar,
   pontosPorPost,
   resumoPontos,
 } from "@/lib/pontos-server";
@@ -224,6 +225,17 @@ describe("primeiros passos, posts e indicação", () => {
     await pontosPorIndicacao(quem, indicado);
     await pontosPorIndicacao(quem, indicado);
     expect(await saldo(quem)).toBe(1000);
+  });
+
+  it("sorteio: quem correu ganha os pontos de participação, uma vez por sorteio", async () => {
+    const a = await conta();
+    const b = await conta();
+    await pontosPorParticipar([a, b], 50, "s1");
+    await pontosPorParticipar([a, b], 50, "s1");
+    await pontosPorParticipar([a], 50, "s2");
+    expect(await saldo(a)).toBe(100);
+    expect(await saldo(b)).toBe(50);
+    expect((await resumoPontos(b)).historico).toEqual([expect.objectContaining({ motivo: "sorteio_participou", delta: 50 })]);
   });
 
   it("sem a conta no banco, quem pontua não lança", async () => {

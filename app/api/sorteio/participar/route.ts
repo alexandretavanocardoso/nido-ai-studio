@@ -8,8 +8,8 @@ import { getS3 } from "@/lib/storage/s3";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-/** Desenhar o influencer correndo leva uns 15 s. */
-export const maxDuration = 60;
+/** Desenhar o influencer correndo e depois as poses das pernas leva uns 35 s. */
+export const maxDuration = 120;
 
 const EntrarSchema = z.object({
   sorteioId: z.string().min(1).max(40),
@@ -21,8 +21,9 @@ const EntrarSchema = z.object({
 });
 
 /**
- * POST — entra no sorteio (ou troca o nome e o influencer, com as inscrições
- * abertas). Com influencer novo, desenha ele correndo (uns 15 s).
+ * POST — entra no sorteio (de uma vez: depois não troca). A vaga sai na hora;
+ * com influencer ou foto, desenha ele correndo e as poses das pernas (uns 35 s)
+ * antes de responder.
  */
 export async function POST(req: Request) {
   const userId = await getUserId();

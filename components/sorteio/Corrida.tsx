@@ -4,24 +4,30 @@ import { useEffect, useMemo, useRef } from "react";
 import { tx } from "@/lib/i18n/tx";
 import {
   classificacao,
-  FIM_S,
   CONTAGEM_S,
-  DURACAO_S,
+  eventosAgora,
+  fimDaCorrida,
+  FOTO_S,
   gerador,
   montarRoteiro,
   progresso,
+  type Evento,
   type Roteiro,
 } from "@/lib/sorteio/corrida";
 import type { SorteioPublico } from "@/lib/sorteio/tipos";
 import { textoPremio } from "./comum";
 import {
+  ALTURA_BONECO,
+  ALTURA_FIGURA,
   AMARELO,
   caminhoChanfrado,
   desenharCorredor,
   desenharFigura,
+  desenharFreio,
   desenharGinasio,
   desenharNome,
   desenharPista,
+  desenharTurbo,
   espacar,
   H,
   NEON,
@@ -61,7 +67,7 @@ export function Corrida({
   const fotos = useRef(new Map<string, HTMLImageElement>());
 
   useEffect(() => {
-    for (const url of sorteio.corredores.flatMap((c) => [c.foto, c.corpo])) {
+    for (const url of sorteio.corredores.flatMap((c) => [c.foto, c.corpo, c.passos])) {
       if (!url || fotos.current.has(url)) continue;
       const img = new Image();
       img.decoding = "async";
@@ -73,9 +79,9 @@ export function Corrida({
   const roteiro = useMemo(
     () =>
       sorteio.semente !== null && sorteio.vencedor !== null && sorteio.vencedor >= 0
-        ? montarRoteiro(sorteio.corredores.length, sorteio.vencedor, sorteio.semente)
+        ? montarRoteiro(sorteio.corredores.length, sorteio.vencedor, sorteio.semente, sorteio.duracao)
         : null,
-    [sorteio.semente, sorteio.vencedor, sorteio.corredores.length],
+    [sorteio.semente, sorteio.vencedor, sorteio.corredores.length, sorteio.duracao],
   );
 
   // O laço de desenho lê sempre o mais recente, sem recomeçar a cada resposta do servidor.
@@ -132,13 +138,19 @@ function desenhar(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, e: E
   const n = s.corredores.length;
   const raias = Math.min(Math.max(n, 4), 10);
   const largou = s.largadaEm !== null && !!roteiro;
+  const D = s.duracao;
   const t = largou ? (Date.now() + e.desvio - s.largadaEm!) / 1000 - CONTAGEM_S : -Infinity;
-  const tc = Math.max(0, t);
+  // Foto de chegada: no instante em que o ganhador cruza, a cena congela por FOTO_S; depois, o pódio.
+  const foto = largou && t >= D && t < D + FOTO_S;
+  const tc = foto ? D : Math.max(0, t);
   const p = s.corredores.map((_, i) => (largou ? progresso(roteiro!, i, tc) : 0));
   const frente = p.length ? Math.max(...p) : 0;
   const camX = largou ? Math.min(PISTA_M - 15, Math.max(-4, frente * PISTA_M - 13)) : -4;
-  const acabou = largou && (t >= DURACAO_S + 0.8 || s.status === "concluido");
-  const empolgacao = !largou ? 0.15 : t < 0 ? 0.35 : t < DURACAO_S - 7 ? 0.55 : 1;
+  const acabou = largou && t >= D + FOTO_S;
+  const retaFinal = largou && t >= roteiro!.retaFinal;
+  const empolgacao = !largou ? 0.15 : t < 0 ? 0.35 : retaFinal ? 1 : 0.55;
+  // Turbos e freadas de agora (o que cada corredor mostra).
+  const eventos = largou && t > 0 && !acabou ? eventosAgora(roteiro!, tc) : new Map<number, Evento>();
 
   desenharGinasio(ctx, camX, relogio, empolgacao, s.titulo);
   desenharPista(ctx, camX, raias, tx("CHEGADA"));
@@ -192,16 +204,38 @@ function desenhar(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, e: E
       pele: peleDe(it.c.id),
     };
     const corpo = it.c.corpo ? fotos.get(it.c.corpo) : undefined;
+    const passos = (it.c.passos && fotos.get(it.c.passos)) || null;
     const aro = venceu || meu ? AMARELO : null;
-    // O próprio influencer correndo; sem a figura (ainda carregando, ou sem influencer), o boneco com o rosto.
+    const s1 = it.escala * 1.05;
+    // Turbo (rastros e chama atrás, inclinado para a frente) ou freio (fumaça, inclinado para trás).
+    const ev = eventos.get(it.i);
+    const altura = ALTURA_FIGURA * s1;
+    if (ev && !foto) {
+      if (ev.tipo === "freio") desenharFreio(ctx, x, it.y, altura, relogio);
+      else desenharTurbo(ctx, x, it.y, altura, relogio, ev.tipo === "arrancada");
+    }
+    const inclinaExtra = !ev ? 0 : ev.tipo === "freio" ? -0.12 : 0.1;
+    // O próprio influencer correndo (com as pernas se mexendo, se as poses já chegaram);
+    // sem a figura (ainda carregando, ou sem influencer), o boneco com o rosto.
     const cabeca =
       corpo && corpo.complete && corpo.naturalWidth
-        ? desenharFigura(ctx, x, it.y, it.escala * 1.05, fase, correndo, corpo, aro)
-        : desenharCorredor(ctx, x, it.y, it.escala * 1.05, fase, correndo, figura, aro);
+        ? desenharFigura(ctx, x, it.y, s1, fase, correndo, corpo, aro, passos, inclinaExtra)
+        : desenharCorredor(ctx, x, it.y, s1 * (ALTURA_FIGURA / ALTURA_BONECO), fase, correndo, figura, aro);
     if (comNome.has(it.i) || meu) {
       const l = lugar.get(it.i);
-      desenharNome(ctx, x, cabeca, it.escala * 1.05, it.c.nome, l && l <= 3 ? l : null, meu);
+      desenharNome(ctx, x, cabeca, s1, it.c.nome, l && l <= 3 ? l : null, meu);
     }
+  }
+
+  // Reta final: a luz pulsa nas bordas, cada vez mais rápido, até a linha.
+  if (retaFinal && !acabou && !foto) {
+    const falta = Math.max(0, D - t);
+    const pulso = 0.5 + 0.5 * Math.sin(relogio * (8 + (6 - Math.min(6, falta)) * 2));
+    const borda = ctx.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, W * 0.75);
+    borda.addColorStop(0, "rgba(255,43,214,0)");
+    borda.addColorStop(1, `rgba(255,43,214,${0.12 + 0.18 * pulso})`);
+    ctx.fillStyle = borda;
+    ctx.fillRect(0, 0, W, H);
   }
 
   // Cantos escurecidos (a luz fica no meio da pista).
@@ -215,11 +249,105 @@ function desenhar(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, e: E
   if (largou && t > 0 && !acabou) desenharClassificacao(ctx, s, ordem, p, e.destaque, fotos);
   if (!largou) desenharEspera(ctx, s);
   if (largou && t < 0.9) desenharContagem(ctx, t);
+  if (largou && t > 0 && !acabou && !foto) desenharAnuncio(ctx, s, roteiro!, t, relogio);
+  if (foto) desenharFoto(ctx, camX, t - D);
   if (acabou && s.vencedor !== null) {
     // Pódio: os 3 primeiros na chegada (o sorteado é sempre o 1º).
-    const podio = classificacao(roteiro!, FIM_S).slice(0, 3);
-    desenharPodio(ctx, s, podio, fotos, Math.max(0, t - DURACAO_S));
+    const podio = classificacao(roteiro!, fimDaCorrida(D)).slice(0, 3);
+    desenharPodio(ctx, s, podio, fotos, Math.max(0, t - D - FOTO_S));
   }
+}
+
+/** Quanto tempo uma faixa de anúncio ("NOVO LÍDER", "RETA FINAL!") fica na tela. */
+const ANUNCIO_S = 1.7;
+
+/**
+ * Faixa no alto, no meio: "RETA FINAL!" quando o ganhador começa a arrancada
+ * e "NOVO LÍDER: fulano" a cada troca de liderança. Entra crescendo e some
+ * apagando.
+ */
+function desenharAnuncio(ctx: CanvasRenderingContext2D, s: SorteioPublico, r: Roteiro, t: number, relogio: number) {
+  let texto: string | null = null;
+  let cor: string = NEON.magenta;
+  let desde = 0;
+  if (t >= r.retaFinal && t < r.retaFinal + ANUNCIO_S) {
+    texto = tx("RETA FINAL!");
+    cor = AMARELO;
+    desde = t - r.retaFinal;
+  } else {
+    const troca = [...r.lideres].reverse().find((l) => l.t <= t);
+    if (troca && troca.t > 1.5 && t - troca.t < ANUNCIO_S && t < r.duracao - 0.3) {
+      texto = `${tx("NOVO LÍDER")}: ${s.corredores[troca.i]?.nome ?? "—"}`;
+      desde = t - troca.t;
+    }
+  }
+  if (!texto) return;
+  const entra = Math.min(1, desde / 0.18);
+  const sai = Math.min(1, (ANUNCIO_S - desde) / 0.35);
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(entra, sai));
+  ctx.translate(W / 2, 212);
+  const escala = 1.25 - 0.25 * entra;
+  ctx.scale(escala, escala);
+  ctx.font = "900 26px system-ui, sans-serif";
+  espacar(ctx, "2px");
+  const largura = Math.min(500, ctx.measureText(texto).width + 48);
+  painelNeon(ctx, -largura / 2, -26, largura, 52, cor);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  textoGlitch(ctx, cortar(ctx, texto, largura - 30), 0, 1, cor, relogio);
+  ctx.restore();
+}
+
+/**
+ * Foto de chegada: a cena congelada, um clarão no começo, a linha de chegada
+ * acesa e a moldura de câmera com "FOTO DE CHEGADA". `desde`: segundos desde
+ * que o ganhador cruzou.
+ */
+function desenharFoto(ctx: CanvasRenderingContext2D, camX: number, desde: number) {
+  ctx.save();
+  // A linha de chegada acesa.
+  const xc = (PISTA_M - camX) * PX_M;
+  ctx.globalCompositeOperation = "lighter";
+  const laser = ctx.createLinearGradient(xc - 30, 0, xc + 30, 0);
+  laser.addColorStop(0, "rgba(255,230,0,0)");
+  laser.addColorStop(0.5, "rgba(255,230,0,0.55)");
+  laser.addColorStop(1, "rgba(255,230,0,0)");
+  ctx.fillStyle = laser;
+  ctx.fillRect(xc - 30, H * 0.3, 60, H * 0.68);
+  ctx.globalCompositeOperation = "source-over";
+  // Faixas de cinema e cantoneiras da câmera.
+  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  ctx.fillRect(0, 0, W, 46);
+  ctx.fillRect(0, H - 46, W, 46);
+  ctx.strokeStyle = "rgba(255,255,255,0.85)";
+  ctx.lineWidth = 3;
+  const m = 70;
+  const c = 40;
+  for (const [x, y, dx, dy] of [
+    [m, m, 1, 1],
+    [W - m, m, -1, 1],
+    [m, H - m, 1, -1],
+    [W - m, H - m, -1, -1],
+  ]) {
+    ctx.beginPath();
+    ctx.moveTo(x, y + dy * c);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x + dx * c, y);
+    ctx.stroke();
+  }
+  ctx.font = "900 22px ui-monospace, Consolas, monospace";
+  espacar(ctx, "4px");
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  textoNeon(ctx, `● ${tx("FOTO DE CHEGADA")}`, W / 2, 23, "#ff4d6d", 10);
+  // O clarão do flash.
+  const flash = Math.max(0, 1 - desde / 0.35);
+  if (flash > 0) {
+    ctx.fillStyle = `rgba(255,255,255,${0.85 * flash})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+  ctx.restore();
 }
 
 /** Título, presente e marca, no alto à esquerda. */

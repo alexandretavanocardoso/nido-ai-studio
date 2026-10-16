@@ -3,6 +3,7 @@ import { z } from "zod";
 import { adminOuResponder } from "@/lib/admin/acesso";
 import { getPool } from "@/lib/db";
 import { PLANOS_PAGOS, type PlanoPago } from "@/lib/planos";
+import { DURACOES } from "@/lib/sorteio/corrida";
 import { criarSorteio, ErroSorteio, listarSorteios } from "@/lib/sorteio/server";
 import { LIMITES_PREMIO, MESES_PRESENTE } from "@/lib/sorteio/tipos";
 
@@ -32,9 +33,15 @@ const CriarSchema = z.object({
     z.object({ tipo: z.literal("pontos"), quantidade: inteiro(LIMITES_PREMIO.pontos) }),
     z.object({ tipo: z.literal("pix"), centavos: inteiro(LIMITES_PREMIO.pix) }),
   ]),
+  /** Quanto a corrida dura (s), entre as opções. */
+  duracao: z
+    .number()
+    .int()
+    .refine((d) => (DURACOES as readonly number[]).includes(d))
+    .optional(),
 });
 
-/** POST — cria um sorteio aberto com o prêmio escolhido (um de cada vez). */
+/** POST — cria um sorteio aberto com o prêmio e a duração da corrida escolhidos (um de cada vez). */
 export async function POST(req: Request) {
   const admin = await adminOuResponder();
   if (admin instanceof NextResponse) return admin;

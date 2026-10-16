@@ -91,6 +91,31 @@ export async function pontosDoSorteio(userId: string, pontos: number, sorteioId:
   await mover({ userId, pontos, motivo: "sorteio", ref: sorteioId, chave: `sorteio:${sorteioId}` });
 }
 
+/**
+ * Pontos por participar de um sorteio: todos que correram, de uma vez (um
+ * lançamento por conta e por sorteio — chamar de novo não pontua outra vez).
+ * Lança se falhar.
+ */
+export async function pontosPorParticipar(userIds: string[], pontos: number, sorteioId: string): Promise<void> {
+  const pool = getPool();
+  if (!pool || !userIds.length || !pontos) return;
+  await pool.query(
+    `with novos as (
+       insert into pontos_mov (id, user_id, delta, motivo, ref, chave)
+       select substr(md5(random()::text || u || clock_timestamp()::text), 1, 14), u, $2::int, 'sorteio_participou', $3,
+              'sorteio-participou:' || $3
+         from unnest($1::text[]) as u
+       on conflict (user_id, chave) do nothing
+       returning user_id, delta
+     )
+     insert into pontos_conta (user_id, saldo)
+     select user_id, delta from novos
+     on conflict (user_id) do update
+       set saldo = pontos_conta.saldo + excluded.saldo, updated_at = now()`,
+    [userIds, pontos, sorteioId],
+  );
+}
+
 /** Primeiro passo cumprido (pontua uma vez por conta). */
 export async function missaoCumprida(
   userId: string | null | undefined,

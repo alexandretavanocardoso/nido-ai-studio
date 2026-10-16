@@ -64,6 +64,8 @@ export const NOME_MOTIVO_PONTOS: Record<string, string> = {
   estorno: "Gasto devolvido",
   post: "Post publicado",
   indicacao: "Indicado assinou um plano",
+  sorteio: "Prêmio de sorteio",
+  sorteio_participou: "Participou de um sorteio",
 };
 
 /** O que a tela recebe de /api/pontos. */

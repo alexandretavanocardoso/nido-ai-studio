@@ -1,4 +1,5 @@
 import { gerador } from "@/lib/sorteio/corrida";
+import { QUADROS_PASSOS } from "@/lib/sorteio/tipos";
 
 /**
  * Desenho da corrida (canvas 2D, coordenadas de 1280×720), em visual
@@ -21,10 +22,13 @@ const PISTA_PE = 0.95 * H;
 
 export const AMARELO = "#ffe600";
 
+/** Tamanho dos corredores: o mesmo em todas as raias (sem perspectiva), para ninguém parecer maior. */
+const ESCALA_CORREDOR = 0.82;
+
 /** Onde fica a raia (y do pé) e o tamanho do corredor nela (0 = mais longe). */
 export function raia(i: number, raias: number): { y: number; escala: number } {
   const d = raias > 1 ? i / (raias - 1) : 1;
-  return { y: PISTA_TOPO + 30 + d * (PISTA_PE - PISTA_TOPO - 42), escala: 0.62 + 0.38 * d };
+  return { y: PISTA_TOPO + 30 + d * (PISTA_PE - PISTA_TOPO - 42), escala: ESCALA_CORREDOR };
 }
 
 /* ------------------------------------------------------------------ */
@@ -214,10 +218,24 @@ export function desenharGinasio(ctx: CanvasRenderingContext2D, camX: number, t: 
   // Faixas holográficas no alto.
   const desloc = camX * PX_M * 0.25;
   ctx.save();
-  ctx.font = "800 20px system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   espacar(ctx, "3px");
+  // O título cabe na faixa com folga nas bordas: primeiro as letras se aproximam, depois diminuem
+  // (até 14 px) e, se ainda não couber, corta.
+  const FONTE_FAIXA = "800 20px system-ui, sans-serif";
+  const LARGURA_TEXTO = 252 - 36;
+  let tituloFaixa = titulo.trim().toUpperCase() || "SORTEIO NIDO";
+  let tamanho = 20;
+  ctx.font = FONTE_FAIXA;
+  let espaco = 3;
+  while (espaco > 0.5 && ctx.measureText(tituloFaixa).width > LARGURA_TEXTO) espacar(ctx, `${(espaco -= 0.5)}px`);
+  while (tamanho > 14 && ctx.measureText(tituloFaixa).width > LARGURA_TEXTO) ctx.font = `800 ${--tamanho}px system-ui, sans-serif`;
+  if (ctx.measureText(tituloFaixa).width > LARGURA_TEXTO) {
+    while (tituloFaixa.length > 1 && ctx.measureText(`${tituloFaixa}…`).width > LARGURA_TEXTO) tituloFaixa = tituloFaixa.slice(0, -1);
+    tituloFaixa = `${tituloFaixa.trimEnd()}…`;
+  }
+  const fonteTitulo = ctx.font;
   for (let i = -1; i < 6; i++) {
     const bx = i * 300 - (desloc % 300);
     const cor = i % 2 ? NEON.ciano : NEON.magenta;
@@ -230,7 +248,9 @@ export function desenharGinasio(ctx: CanvasRenderingContext2D, camX: number, t: 
     ctx.lineWidth = 1.5;
     ctx.stroke();
     ctx.shadowBlur = 0;
-    textoNeon(ctx, i % 2 ? "NIDO AI STUDIO" : titulo.length <= 18 ? titulo.toUpperCase() : "SORTEIO NIDO", bx + 150, 37, cor, 10);
+    ctx.font = i % 2 ? FONTE_FAIXA : fonteTitulo;
+    espacar(ctx, `${i % 2 ? 3 : espaco}px`);
+    textoNeon(ctx, i % 2 ? "NIDO AI STUDIO" : tituloFaixa, bx + 150, 37, cor, 10);
   }
   ctx.restore();
 
@@ -532,11 +552,15 @@ export function desenharCorredor(
 
 /** Altura do corredor que é o próprio influencer (no tamanho 1). */
 export const ALTURA_FIGURA = 175;
+/** Altura do boneco (do pé ao topo da cabeça, no tamanho 1): a tela o aumenta para ficar do tamanho da figura. */
+export const ALTURA_BONECO = 150;
 
 /**
  * O próprio influencer correndo (a figura desenhada ao entrar no sorteio),
- * com o pé em (x, y): pula a cada passada, inclina e encolhe um pouco ao
- * pisar. Parado, só respira. Devolve onde fica o topo da cabeça.
+ * com o pé em (x, y). Com as poses do ciclo de corrida (`passos`), as pernas
+ * se mexem: um quadro por quarto de passada, com um pulinho. Sem elas, a
+ * figura parada pula a cada passada, inclina e encolhe um pouco ao pisar.
+ * Parado, só respira. Devolve onde fica o topo da cabeça.
  */
 export function desenharFigura(
   ctx: CanvasRenderingContext2D,
@@ -547,25 +571,102 @@ export function desenharFigura(
   correndo: boolean,
   img: HTMLImageElement,
   aro: string | null,
+  passos: HTMLImageElement | null = null,
+  /** Inclinação a mais (rad): para a frente no turbo, para trás no freio. */
+  inclinaExtra = 0,
 ): number {
+  // Correndo, com as poses prontas: as pernas se mexem de verdade (um quadro por quarto de passada).
+  const comPassos = correndo && !!passos && passos.complete && passos.naturalWidth > 0;
+  const largQuadro = comPassos ? passos!.naturalWidth / QUADROS_PASSOS : img.naturalWidth;
+  const altImg = comPassos ? passos!.naturalHeight : img.naturalHeight;
   const h = ALTURA_FIGURA * s;
-  const w = (h * img.naturalWidth) / img.naturalHeight;
-  const pulo = correndo ? Math.abs(Math.sin(fase)) * 9 * s : Math.max(0, Math.sin(fase * 0.5)) * 1.5 * s;
-  const pisada = correndo ? 1 - 0.05 * Math.max(0, Math.cos(fase * 2)) : 1;
-  const inclina = correndo ? 0.04 + Math.sin(fase * 2) * 0.03 : 0;
+  const w = (h * largQuadro) / altImg;
+  const pulo = correndo ? Math.abs(Math.sin(fase)) * (comPassos ? 6 : 9) * s : Math.max(0, Math.sin(fase * 0.5)) * 1.5 * s;
+  const pisada = correndo && !comPassos ? 1 - 0.05 * Math.max(0, Math.cos(fase * 2)) : 1;
+  const inclina = comPassos ? 0.03 : correndo ? 0.04 + Math.sin(fase * 2) * 0.03 : 0;
   // Sombra com aro de luz (menor quando está no ar).
   baseNeon(ctx, x, y, w * 0.38 * (1 - pulo / (40 * s)), 6 * s, aro);
   ctx.save();
   ctx.translate(x, y - pulo);
-  ctx.rotate(inclina);
+  ctx.rotate(inclina + inclinaExtra);
   ctx.scale(1, pisada);
   if (aro) {
     ctx.shadowColor = aro;
     ctx.shadowBlur = 18 * s;
   }
-  ctx.drawImage(img, -w / 2, -h, w, h);
+  if (comPassos) {
+    // Fase 0 e π: pé no chão (quadros 1 e 3); π/2 e 3π/2: no alto, joelho para cima (2 e 4).
+    const volta = ((fase % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const quadro = Math.floor((volta + Math.PI / 4) / (Math.PI / 2)) % QUADROS_PASSOS;
+    ctx.drawImage(passos!, quadro * largQuadro, 0, largQuadro, altImg, -w / 2, -h, w, h);
+  } else ctx.drawImage(img, -w / 2, -h, w, h);
   ctx.restore();
   return y - pulo - h * pisada;
+}
+
+/**
+ * Turbo: rastros de luz atrás do corredor e uma chama no pé. `h` é a altura
+ * dele na tela; `forte` (a arrancada final do ganhador) deixa maior e amarelo.
+ */
+export function desenharTurbo(ctx: CanvasRenderingContext2D, x: number, y: number, h: number, t: number, forte: boolean) {
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  const cores = forte ? [NEON.amarelo, NEON.laranja] : [NEON.ciano, NEON.magenta];
+  for (let k = 0; k < 6; k++) {
+    const altura = y - h * (0.12 + 0.13 * k);
+    const comprimento = h * (forte ? 1.1 : 0.75) * (0.6 + 0.4 * Math.abs(Math.sin(t * 9 + k * 1.7)));
+    const ini = x - h * 0.22 - ((t * 400 + k * 37) % 30);
+    const g = ctx.createLinearGradient(ini, 0, ini - comprimento, 0);
+    g.addColorStop(0, cores[k % 2]);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.strokeStyle = g;
+    ctx.globalAlpha = 0.75;
+    ctx.lineWidth = Math.max(1.5, h * 0.018);
+    ctx.beginPath();
+    ctx.moveTo(ini, altura);
+    ctx.lineTo(ini - comprimento, altura);
+    ctx.stroke();
+  }
+  // Chama no pé, tremendo.
+  const chama = h * (forte ? 0.32 : 0.22) * (0.85 + 0.15 * Math.sin(t * 40));
+  const g = ctx.createRadialGradient(x - h * 0.18, y - h * 0.06, 0, x - h * 0.18, y - h * 0.06, chama);
+  g.addColorStop(0, "rgba(255,255,220,0.95)");
+  g.addColorStop(0.35, forte ? "rgba(255,200,0,0.7)" : "rgba(255,120,40,0.65)");
+  g.addColorStop(1, "rgba(255,40,120,0)");
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(x - h * 0.18 - chama * 0.5, y - h * 0.06, chama * 1.3, chama * 0.45, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Freio: fumaça saindo do pé (indo para trás) e faíscas no chão. */
+export function desenharFreio(ctx: CanvasRenderingContext2D, x: number, y: number, h: number, t: number) {
+  ctx.save();
+  for (let k = 0; k < 5; k++) {
+    const vida = (t * 1.6 + k / 5) % 1;
+    const px = x - h * 0.05 - vida * h * 0.55;
+    const py = y - h * 0.03 - vida * h * 0.2;
+    ctx.globalAlpha = 0.45 * (1 - vida);
+    ctx.fillStyle = "#cfd2e8";
+    ctx.beginPath();
+    ctx.arc(px, py, h * (0.04 + vida * 0.09), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = "lighter";
+  ctx.strokeStyle = NEON.laranja;
+  ctx.lineWidth = Math.max(1, h * 0.01);
+  for (let k = 0; k < 4; k++) {
+    const a = Math.PI + 0.3 + ((t * 13 + k * 0.9) % 1.1);
+    const l = h * (0.06 + 0.05 * ((k * 7 + Math.floor(t * 20)) % 3));
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(x + h * 0.08, y);
+    ctx.lineTo(x + h * 0.08 + Math.cos(a) * l, y + Math.sin(a) * l * 0.6);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 /** Plaquinha com o nome em cima do corredor (e a posição, para os 3 primeiros). `cabeca`: o topo do corredor. */

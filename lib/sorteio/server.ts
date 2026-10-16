@@ -7,15 +7,16 @@ import { criarAviso } from "@/lib/avisos-server";
 import { ativarPlano, carregarConta, creditarAvulsos, creditosAtivos } from "@/lib/creditos";
 import { carregarPersonagem } from "@/lib/personagens";
 import type { PlanoPago } from "@/lib/planos";
-import { pontosDoSorteio } from "@/lib/pontos-server";
+import { pontosDoSorteio, pontosPorParticipar } from "@/lib/pontos-server";
 import { getObjectBuffer, ownsKey } from "@/lib/storage/s3";
 import type { Character } from "@/lib/types";
-import { CONTAGEM_S, DURACAO_S } from "./corrida";
-import { desenharCorredor } from "./corredor";
+import { CONTAGEM_S, DURACAO_ANTIGA, DURACAO_PADRAO } from "./corrida";
+import { desenharCorredor, desenharPassos, type DesenhoCorredor } from "./corredor";
 import {
   corDoCorredor,
   creditosDoPresente,
   nomePremio,
+  PONTOS_POR_PARTICIPAR,
   reais,
   type Entrega,
   type MinhaParticipacao,
@@ -27,7 +28,7 @@ import {
 
 /**
  * Sorteio de gift no servidor (tabelas sorteios e sorteio_participantes,
- * migrations 0046 a 0049). O ganhador sai de `crypto.randomInt` na largada,
+ * migrations 0046 a 0051). O ganhador sai de `crypto.randomInt` na largada,
  * entre quem está participando; a corrida só encena. Quando o ganhador cruza
  * a linha (o primeiro pedido depois disso, de qualquer tela), o sorteio
  * conclui e o prêmio é entregue uma vez só:
@@ -55,6 +56,8 @@ export interface SorteioRow {
   vencedor_id: string | null;
   entrega: Entrega | null;
   concluido_em: Date | null;
+  /** Quanto a corrida dura (o ganhador cruza a linha nesse instante). */
+  duracao_s: number;
 }
 
 interface ParticipanteRow {
@@ -65,13 +68,14 @@ interface ParticipanteRow {
   imagem_key: string | null;
   tem_foto: boolean;
   tem_corpo: boolean;
+  tem_passos: boolean;
 }
 
 /** Quanto tempo depois de concluído o sorteio ainda aparece (para ver o resultado). */
 const MOSTRA_RESULTADO_H = 12;
 
 /** Quando o ganhador cruza a linha (ms desde o começo da contagem). */
-const CHEGADA_MS = (CONTAGEM_S + DURACAO_S) * 1000;
+const chegadaMs = (s: Pick<SorteioRow, "duracao_s">) => (CONTAGEM_S + (s.duracao_s ?? DURACAO_ANTIGA)) * 1000;
 
 export class ErroSorteio extends Error {}
 
@@ -102,7 +106,8 @@ export async function sorteioAtual(pool: Pool): Promise<SorteioRow | null> {
 
 async function participantes(pool: Pool, sorteioId: string): Promise<ParticipanteRow[]> {
   const { rows } = await pool.query<ParticipanteRow>(
-    `select id, user_id, nome, character_id, imagem_key, foto is not null as tem_foto, corpo is not null as tem_corpo
+    `select id, user_id, nome, character_id, imagem_key, foto is not null as tem_foto, corpo is not null as tem_corpo,
+            passos is not null as tem_passos
        from sorteio_participantes where sorteio_id = $1 and not removido
       order by criado_em, id`,
     [sorteioId],
@@ -115,18 +120,26 @@ async function participantes(pool: Pool, sorteioId: string): Promise<Participant
 const versao = (p: ParticipanteRow) => `?v=${encodeURIComponent(p.character_id ?? p.imagem_key?.split("/").pop() ?? "")}`;
 const fotoUrl = (p: ParticipanteRow) => (p.tem_foto ? `/api/sorteio/foto/${p.id}${versao(p)}` : null);
 const corpoUrl = (p: ParticipanteRow) => (p.tem_corpo ? `/api/sorteio/corredor/${p.id}${versao(p)}` : null);
+const passosUrl = (p: ParticipanteRow) => (p.tem_passos ? `/api/sorteio/corredor/${p.id}${versao(p)}&passos=1` : null);
 
 /** O sorteio para as telas: os corredores (na ordem da corrida, depois da largada) e a receita. */
 export async function sorteioPublico(pool: Pool, s: SorteioRow): Promise<SorteioPublico> {
   const lista = await participantes(pool, s.id);
-  const corredor = (p: ParticipanteRow) => ({ id: p.id, nome: p.nome, cor: corDoCorredor(p.id), foto: fotoUrl(p), corpo: corpoUrl(p) });
+  const corredor = (p: ParticipanteRow) => ({
+    id: p.id,
+    nome: p.nome,
+    cor: corDoCorredor(p.id),
+    foto: fotoUrl(p),
+    corpo: corpoUrl(p),
+    passos: passosUrl(p),
+  });
   let corredores = lista.map(corredor);
   let vencedor: number | null = null;
   if (s.ordem && (s.status === "correndo" || s.status === "concluido")) {
     // A ordem da largada vale até o fim (mesmo se alguém sair da plataforma).
     const porId = new Map(lista.map((p) => [p.id, p]));
     corredores = s.ordem.map(
-      (id) => (porId.get(id) ? corredor(porId.get(id)!) : { id, nome: "—", cor: corDoCorredor(id), foto: null, corpo: null }),
+      (id) => (porId.get(id) ? corredor(porId.get(id)!) : { id, nome: "—", cor: corDoCorredor(id), foto: null, corpo: null, passos: null }),
     );
     vencedor = s.vencedor_id ? s.ordem.indexOf(s.vencedor_id) : null;
   }
@@ -137,6 +150,7 @@ export async function sorteioPublico(pool: Pool, s: SorteioRow): Promise<Sorteio
     status: s.status,
     corredores,
     largadaEm: s.largada_em ? new Date(s.largada_em).getTime() : null,
+    duracao: s.duracao_s ?? DURACAO_ANTIGA,
     semente: s.semente === null ? null : Number(s.semente),
     vencedor,
     agora: Date.now(),
@@ -243,14 +257,24 @@ export async function participar(
       throw new ErroSorteio("Você já está no sorteio — depois de entrar, não dá para trocar.");
     throw new ErroSorteio("As inscrições deste sorteio estão fechadas.");
   }
-  // A figura correndo vem depois, com a vaga garantida (vale mesmo se a corrida já largou).
+  // A figura correndo vem depois, com a vaga garantida (vale mesmo se a corrida já largou);
+  // e, dela, as poses das pernas se mexendo. Cada uma aparece nas telas assim que fica pronta.
   if (original) {
+    let desenho: DesenhoCorredor | null = null;
     try {
-      const corpo = await desenharCorredor(original);
-      await pool.query("update sorteio_participantes set corpo = $2 where id = $1", [r.id, corpo]);
+      desenho = await desenharCorredor(original);
+      await pool.query("update sorteio_participantes set corpo = $2 where id = $1", [r.id, desenho.corpo]);
     } catch (e) {
       console.warn("[sorteio] figura do corredor", (e as Error).message);
     }
+    if (desenho)
+      try {
+        const passos = await desenharPassos(desenho);
+        if (passos) await pool.query("update sorteio_participantes set passos = $2 where id = $1", [r.id, passos]);
+        else console.warn("[sorteio] poses do corredor: a folha não veio com as 4 poses separadas");
+      } catch (e) {
+        console.warn("[sorteio] poses do corredor", (e as Error).message);
+      }
   }
   return { id: r.id, nome: r.nome, characterId: r.character_id, fotoKey: r.imagem_key };
 }
@@ -265,12 +289,18 @@ export async function sairDoSorteio(pool: Pool, userId: string, sorteioId: strin
 }
 
 /**
- * Imagem do corredor — o rosto (`foto`, JPEG) ou o influencer correndo
- * (`corpo`, WebP). Pública: quem tem o id dele está vendo a corrida.
+ * Imagem do corredor — o rosto (`foto`, JPEG), o influencer correndo
+ * (`corpo`, WebP) ou as poses do ciclo de corrida (`passos`, WebP). Pública:
+ * quem tem o id dele está vendo a corrida.
  */
-export async function imagemDoCorredor(pool: Pool, participanteId: string, qual: "foto" | "corpo"): Promise<Buffer | null> {
+export async function imagemDoCorredor(
+  pool: Pool,
+  participanteId: string,
+  qual: "foto" | "corpo" | "passos",
+): Promise<Buffer | null> {
+  const coluna = qual === "corpo" ? "corpo" : qual === "passos" ? "passos" : "foto";
   const { rows } = await pool.query<{ img: Buffer | Uint8Array | null }>(
-    `select ${qual === "corpo" ? "corpo" : "foto"} as img from sorteio_participantes where id = $1 and not removido`,
+    `select ${coluna} as img from sorteio_participantes where id = $1 and not removido`,
     [participanteId],
   );
   const f = rows[0]?.img;
@@ -283,14 +313,14 @@ export async function imagemDoCorredor(pool: Pool, participanteId: string, qual:
 
 export async function criarSorteio(
   pool: Pool,
-  o: { titulo: string; premio: Premio; adminEmail: string },
+  o: { titulo: string; premio: Premio; adminEmail: string; duracao?: number },
 ): Promise<SorteioRow> {
   const aberto = await pool.query("select 1 from sorteios where status in ('aberto', 'fechado', 'correndo') limit 1");
   if (aberto.rowCount) throw new ErroSorteio("Já existe um sorteio em andamento. Conclua ou cancele antes de criar outro.");
   const p = o.premio;
   const { rows } = await pool.query<SorteioRow>(
-    `insert into sorteios (id, titulo, premio, plano, meses, quantidade, criado_por)
-     values ($1, $2, $3, $4, $5, $6, $7) returning *`,
+    `insert into sorteios (id, titulo, premio, plano, meses, quantidade, criado_por, duracao_s)
+     values ($1, $2, $3, $4, $5, $6, $7, $8) returning *`,
     [
       nanoid(12),
       o.titulo,
@@ -299,9 +329,34 @@ export async function criarSorteio(
       p.tipo === "plano" ? p.meses : null,
       p.tipo === "creditos" || p.tipo === "pontos" ? p.quantidade : p.tipo === "pix" ? p.centavos : null,
       o.adminEmail,
+      o.duracao ?? DURACAO_PADRAO,
     ],
   );
   return rows[0];
+}
+
+/**
+ * Duplica um sorteio que acabou (concluído ou cancelado): um novo, aberto, com
+ * o mesmo título, prêmio e duração, e as mesmas pessoas já inscritas — com os
+ * corredores prontos (nome, rosto, figura e poses copiados, sem desenhar de
+ * novo). Quem foi tirado do original não volta. O admin ainda pode tirar
+ * alguém (o ganhador anterior, por exemplo) antes de largar.
+ */
+export async function duplicarSorteio(pool: Pool, id: string, adminEmail: string): Promise<SorteioRow> {
+  const s = await carregarSorteio(pool, id);
+  if (!s) throw new ErroSorteio("Sorteio não encontrado.");
+  if (s.status !== "concluido" && s.status !== "cancelado")
+    throw new ErroSorteio("Só dá para duplicar um sorteio que já acabou.");
+  const novo = await criarSorteio(pool, { titulo: s.titulo, premio: premioDe(s), adminEmail, duracao: s.duracao_s });
+  await pool.query(
+    `insert into sorteio_participantes (id, sorteio_id, user_id, nome, character_id, imagem_key, foto, corpo, passos, criado_em)
+     select substr(md5(random()::text || p.id || clock_timestamp()::text), 1, 12), $2,
+            p.user_id, p.nome, p.character_id, p.imagem_key, p.foto, p.corpo, p.passos, p.criado_em
+       from sorteio_participantes p
+      where p.sorteio_id = $1 and not p.removido`,
+    [s.id, novo.id],
+  );
+  return novo;
 }
 
 /** Fecha ou reabre as inscrições. */
@@ -365,12 +420,28 @@ export async function removerParticipante(pool: Pool, sorteioId: string, partici
  */
 export async function concluirSeAcabou(pool: Pool, s: SorteioRow, agora = Date.now()): Promise<SorteioRow> {
   if (s.status !== "correndo" || !s.largada_em || !s.vencedor_id) return s;
-  if (agora < new Date(s.largada_em).getTime() + CHEGADA_MS) return s;
+  if (agora < new Date(s.largada_em).getTime() + chegadaMs(s)) return s;
   const { rows } = await pool.query<SorteioRow>(
     `update sorteios set status = 'concluido', concluido_em = now() where id = $1 and status = 'correndo' returning *`,
     [s.id],
   );
   if (!rows[0]) return (await carregarSorteio(pool, s.id)) ?? s;
+  // Todo mundo que correu ganha os pontos de participação (uma vez por sorteio).
+  try {
+    const { rows: correram } = await pool.query<{ user_id: string }>(
+      `select distinct p.user_id from sorteio_participantes p
+        where p.sorteio_id = $1 and not p.removido
+          and p.id in (select jsonb_array_elements_text(ordem) from sorteios where id = $1)`,
+      [s.id],
+    );
+    await pontosPorParticipar(
+      correram.map((c) => c.user_id),
+      PONTOS_POR_PARTICIPAR,
+      s.id,
+    );
+  } catch (e) {
+    console.error("[sorteio] pontos de participação", s.id, e);
+  }
   const { rows: v } = await pool.query<{ user_id: string }>(
     "select user_id from sorteio_participantes where id = $1",
     [s.vencedor_id],

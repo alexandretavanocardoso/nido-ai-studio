@@ -11,7 +11,7 @@ import { cn } from "@/lib/cn";
 import { txErro } from "@/lib/i18n/erros";
 import { tx } from "@/lib/i18n/tx";
 import { avisarNaTela } from "@/lib/notificar";
-import { reais, type Entrega, type MinhaParticipacao, type SorteioPublico } from "@/lib/sorteio/tipos";
+import { PONTOS_POR_PARTICIPAR, reais, type Entrega, type MinhaParticipacao, type SorteioPublico } from "@/lib/sorteio/tipos";
 import { capaSrc, fileUrl, uploadFile } from "@/lib/storage/client";
 import { useCharacters } from "@/lib/store";
 import { Corrida } from "./Corrida";
@@ -131,12 +131,21 @@ function Participacao({
                   : tx("O presente já está na sua conta.")}
           </p>
         )}
+        <p className="text-[13px] text-ink-mute">
+          + {PONTOS_POR_PARTICIPAR} {tx("pontos por participar.")}
+        </p>
       </div>
     ) : (
       <div className="card p-6 text-[14px] text-ink-mute">
         {vencedor ? (
           <>
-            {tx("Quem ganhou")}: <b className="text-ink">{vencedor.nome}</b>. {eu ? tx("Não foi desta vez — obrigado por participar!") : ""}
+            {tx("Quem ganhou")}: <b className="text-ink">{vencedor.nome}</b>.{" "}
+            {eu ? (
+              <>
+                {tx("Não foi desta vez — obrigado por participar!")} {tx("Você ganhou")}{" "}
+                <b className="text-ink">{PONTOS_POR_PARTICIPAR} {tx("pontos por participar.")}</b>
+              </>
+            ) : null}
           </>
         ) : (
           tx("O sorteio terminou.")
@@ -400,7 +409,8 @@ function FormParticipar({
           {tx("Participar")}
         </h2>
         <p className="text-[13px] text-ink-mute">
-          {tx("Uma participação por conta — depois de entrar, não dá para trocar o nome nem quem corre. O ganhador é sorteado na largada e recebe o presente direto na conta, sem renovação automática.")}
+          {tx("Uma participação por conta — depois de entrar, não dá para trocar o nome nem quem corre. O ganhador é sorteado na largada e recebe o presente direto na conta, sem renovação automática.")}{" "}
+          {tx("Todo mundo que corre ganha")} {PONTOS_POR_PARTICIPAR} {tx("pontos quando a corrida termina.")}
         </p>
       </div>
 

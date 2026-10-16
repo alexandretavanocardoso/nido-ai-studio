@@ -24,10 +24,17 @@ vi.mock("@/lib/creditos", () => ({
     contas.creditos.push({ userId, qtd, ref });
   },
 }));
-const pontos = vi.hoisted(() => ({ dados: [] as { userId: string; pontos: number; sorteioId: string }[] }));
+const pontos = vi.hoisted(() => ({
+  dados: [] as { userId: string; pontos: number; sorteioId: string }[],
+  /** Pontos de participação: quem correu em cada sorteio. */
+  participou: [] as { userIds: string[]; pontos: number; sorteioId: string }[],
+}));
 vi.mock("@/lib/pontos-server", () => ({
   pontosDoSorteio: async (userId: string, qtd: number, sorteioId: string) => {
     pontos.dados.push({ userId, pontos: qtd, sorteioId });
+  },
+  pontosPorParticipar: async (userIds: string[], qtd: number, sorteioId: string) => {
+    pontos.participou.push({ userIds: [...userIds].sort(), pontos: qtd, sorteioId });
   },
 }));
 vi.mock("@/lib/avisos-server", () => ({
@@ -45,27 +52,31 @@ const foto = vi.hoisted(() => ({
   falhar: false,
   /** Roda no meio do desenho (que leva uns 15 s de verdade). */
   durante: null as (() => Promise<void>) | null,
+  /** A folha das poses não saiu com as 4 separadas. */
+  semPassos: false,
 }));
 vi.mock("./corredor", () => ({
   desenharCorredor: async () => {
     foto.desenhos++;
     if (foto.durante) await foto.durante();
     if (foto.falhar) throw new Error("gemini fora");
-    return Buffer.from("figura-webp");
+    return { corpo: Buffer.from("figura-webp"), correndo: Buffer.from("correndo-jpg") };
   },
+  desenharPassos: async () => (foto.semPassos ? null : Buffer.from("passos-webp")),
 }));
 vi.mock("@/lib/storage/s3", async (original) => ({
   ...(await original<typeof import("@/lib/storage/s3")>()),
   getObjectBuffer: async () => foto.buffer!,
 }));
 
-import { classificacao, CONTAGEM_S, DURACAO_S, montarRoteiro, progresso } from "./corrida";
+import { classificacao, CONTAGEM_S, DURACAO_PADRAO, DURACOES, fimDaCorrida, montarRoteiro, progresso } from "./corrida";
 import {
   cancelarSorteio,
   capaDoPersonagem,
   carregarSorteio,
   concluirSeAcabou,
   criarSorteio,
+  duplicarSorteio,
   ErroSorteio,
   imagemDoCorredor,
   informarPix,
@@ -83,41 +94,73 @@ import {
 import { corDoCorredor, creditosDoPresente, limparChavePix, limparNome, nomePremio, type Premio } from "./tipos";
 
 describe("corrida (a receita que todas as telas montam)", () => {
-  it("o sorteado cruza a linha primeiro, em qualquer semente e tamanho; os outros só depois", () => {
-    for (const n of [1, 2, 3, 8, 40, 300])
-      for (let k = 0; k < 20; k++) {
-        const semente = 1000 + k * 7919;
-        const vencedor = (k * 13) % n;
-        const r = montarRoteiro(n, vencedor, semente);
-        expect(progresso(r, vencedor, DURACAO_S)).toBeCloseTo(1, 6);
-        for (let i = 0; i < n; i++) if (i !== vencedor) expect(progresso(r, i, DURACAO_S)).toBeLessThan(1);
-        expect(classificacao(r, DURACAO_S + 0.05)[0]).toBe(vencedor);
-        expect(classificacao(r, DURACAO_S + 30)[0]).toBe(vencedor);
-      }
+  it("o sorteado cruza a linha primeiro, na duração escolhida, em qualquer semente e tamanho; os outros só depois", () => {
+    for (const D of DURACOES)
+      for (const n of [1, 2, 3, 8, 40, 300])
+        for (let k = 0; k < (n === 300 ? 4 : 12); k++) {
+          const semente = 1000 + k * 7919 + D;
+          const vencedor = (k * 13) % n;
+          const r = montarRoteiro(n, vencedor, semente, D);
+          expect(r.chegada[vencedor]).toBe(D);
+          expect(progresso(r, vencedor, D)).toBeCloseTo(1, 5);
+          expect(progresso(r, vencedor, D - 0.1)).toBeLessThan(1);
+          for (let i = 0; i < n; i++) if (i !== vencedor) expect(progresso(r, i, D)).toBeLessThan(1);
+          expect(classificacao(r, D + 0.05)[0]).toBe(vencedor);
+          expect(classificacao(r, fimDaCorrida(D))[0]).toBe(vencedor);
+        }
   });
 
   it("é a mesma corrida em toda tela (mesma semente, mesmo resultado) e ninguém anda para trás", () => {
-    const a = montarRoteiro(25, 7, 424242);
-    const b = montarRoteiro(25, 7, 424242);
+    const a = montarRoteiro(25, 7, 424242, 20);
+    const b = montarRoteiro(25, 7, 424242, 20);
     expect(a).toEqual(b);
     for (let i = 0; i < 25; i++) {
       let antes = 0;
-      for (let t = 0; t < DURACAO_S + 8; t += 0.1) {
+      for (let t = 0; t < fimDaCorrida(20) + 1; t += 0.05) {
         const p = progresso(a, i, t);
-        expect(p).toBeGreaterThanOrEqual(antes - 1e-9);
+        expect(p).toBeGreaterThanOrEqual(antes - 1e-6);
         antes = p;
       }
       expect(progresso(a, i, -1)).toBe(0);
     }
   });
 
-  it("tem emoção: o sorteado nem sempre lidera do começo ao fim", () => {
-    let virou = 0;
-    for (let k = 0; k < 30; k++) {
-      const r = montarRoteiro(12, 0, 5000 + k);
-      if (classificacao(r, DURACAO_S * 0.4)[0] !== 0) virou++;
+  it("tem emoção de corrida de patinhos: turbos, freadas e a liderança trocando de mão", () => {
+    for (const D of [15, 30]) {
+      let trocas = 0;
+      let turbos = 0;
+      let freios = 0;
+      for (let k = 0; k < 20; k++) {
+        const r = montarRoteiro(12, 0, 5000 + k, D);
+        trocas += r.lideres.length - 1;
+        turbos += r.eventos.filter((e) => e.tipo === "turbo").length;
+        freios += r.eventos.filter((e) => e.tipo === "freio").length;
+        // O sorteado faz a arrancada na reta final.
+        expect(r.eventos.some((e) => e.i === 0 && e.tipo === "arrancada" && e.ini === r.retaFinal)).toBe(true);
+      }
+      // Em média, a liderança troca algumas vezes por corrida, e todo mundo vê turbos e freadas.
+      expect(trocas / 20).toBeGreaterThanOrEqual(D === 15 ? 2 : 3);
+      expect(turbos / 20).toBeGreaterThanOrEqual(D === 15 ? 2 : 4);
+      expect(freios / 20).toBeGreaterThanOrEqual(1);
     }
-    expect(virou).toBeGreaterThan(10);
+  });
+
+  it("o sorteado vem de trás na reta final e passa o líder perto da linha (chegada apertada)", () => {
+    let pertoDaLinha = 0;
+    for (let k = 0; k < 30; k++) {
+      const D = DURACOES[k % DURACOES.length];
+      const r = montarRoteiro(10, 3, 9000 + k, D);
+      // No começo da reta final, alguém está na frente dele.
+      expect(classificacao(r, r.retaFinal)[0]).not.toBe(3);
+      // O 2º cruza menos de meio segundo depois.
+      const segundo = Math.min(...r.chegada.filter((_, i) => i !== 3));
+      expect(segundo - D).toBeLessThan(0.5);
+      // A ultrapassagem decisiva acontece no último segundo e meio.
+      const assumiu = r.lideres[r.lideres.length - 1];
+      expect(assumiu.i).toBe(3);
+      if (D - assumiu.t <= 1.5) pertoDaLinha++;
+    }
+    expect(pertoDaLinha).toBeGreaterThan(15);
   });
 });
 
@@ -196,6 +239,9 @@ describe("sorteio no banco (PGlite, com as migrations)", () => {
     expect((await participar(pool, s3, { userId: "u1", sorteioId: s.id, nome: "Alê", characterId: "c1" })).id).toBe(eu.id);
     expect(foto.desenhos).toBe(1);
     expect((await sorteioPublico(pool, s)).corredores[0].corpo).toBe(`/api/sorteio/corredor/${eu.id}?v=c1`);
+    // E as poses das pernas se mexendo, na tira.
+    expect((await imagemDoCorredor(pool, eu.id, "passos"))?.toString()).toBe("passos-webp");
+    expect((await sorteioPublico(pool, s)).corredores[0].passos).toBe(`/api/sorteio/corredor/${eu.id}?v=c1&passos=1`);
     // Depois de entrar, não troca o nome nem quem corre.
     await expect(participar(pool, s3, { userId: "u1", sorteioId: s.id, nome: "Alê T.", characterId: "c1" })).rejects.toThrow("não dá para trocar");
     await expect(participar(pool, s3, { userId: "u1", sorteioId: s.id, nome: "Alê", characterId: null })).rejects.toThrow("não dá para trocar");
@@ -206,6 +252,7 @@ describe("sorteio no banco (PGlite, com as migrations)", () => {
     const bia = await participar(pool, s3, { userId: "u2", sorteioId: s.id, nome: "Bia", characterId: null });
     expect(await imagemDoCorredor(pool, bia.id, "foto")).toBeNull();
     expect(await imagemDoCorredor(pool, bia.id, "corpo")).toBeNull();
+    expect((await sorteioPublico(pool, s)).corredores[1]).toMatchObject({ nome: "Bia", corpo: null, passos: null });
     await participar(pool, s3, { userId: "u3", sorteioId: s.id, nome: "Caio", characterId: null });
     await participar(pool, s3, { userId: "u4", sorteioId: s.id, nome: "Ofensivo", characterId: null });
     await sairDoSorteio(pool, "u3", s.id);
@@ -215,14 +262,25 @@ describe("sorteio no banco (PGlite, com as migrations)", () => {
     expect(pub.vencedor).toBeNull();
   });
 
-  it("se desenhar falhar, entra assim mesmo (boneco com o rosto)", async () => {
+  it("se desenhar falhar, entra assim mesmo (boneco com o rosto); sem as poses, a figura parada", async () => {
     const s = (await sorteioAtual(pool))!;
     contas.personagens["u3:c3"] = { visual: { capaKey: "users/u3/refs/capa.jpg", referencias: [] }, geradas: [] };
     foto.falhar = true;
     const p = await participar(pool, s3, { userId: "u3", sorteioId: s.id, nome: "Caio", characterId: "c3" });
     expect(await imagemDoCorredor(pool, p.id, "corpo")).toBeNull();
+    expect(await imagemDoCorredor(pool, p.id, "passos")).toBeNull();
     expect(await imagemDoCorredor(pool, p.id, "foto")).not.toBeNull();
     foto.falhar = false;
+    await sairDoSorteio(pool, "u3", s.id);
+    // A figura saiu, mas as poses não: corre a figura parada, pulando.
+    foto.semPassos = true;
+    try {
+      const q = await participar(pool, s3, { userId: "u3", sorteioId: s.id, nome: "Caio", characterId: "c3" });
+      expect(await imagemDoCorredor(pool, q.id, "corpo")).not.toBeNull();
+      expect(await imagemDoCorredor(pool, q.id, "passos")).toBeNull();
+    } finally {
+      foto.semPassos = false;
+    }
     await sairDoSorteio(pool, "u3", s.id);
   });
 
@@ -252,9 +310,10 @@ describe("sorteio no banco (PGlite, com as migrations)", () => {
 
   it("entrega quando o sorteado cruza a linha, uma vez só: conta no Grátis ganha o plano até daqui a N meses, sem assinatura", async () => {
     const s = (await sorteioAtual(pool))!;
+    expect(s.duracao_s).toBe(DURACAO_PADRAO);
     const largada = new Date(s.largada_em!).getTime();
-    expect((await concluirSeAcabou(pool, s, largada + (CONTAGEM_S + DURACAO_S - 1) * 1000)).status).toBe("correndo");
-    const fim = largada + (CONTAGEM_S + DURACAO_S + 1) * 1000;
+    expect((await concluirSeAcabou(pool, s, largada + (CONTAGEM_S + DURACAO_PADRAO - 1) * 1000)).status).toBe("correndo");
+    const fim = largada + (CONTAGEM_S + DURACAO_PADRAO + 1) * 1000;
     const feito = await concluirSeAcabou(pool, s, fim);
     expect(feito.status).toBe("concluido");
     const ganhador = (await pool.query<{ user_id: string }>("select user_id from sorteio_participantes where id = $1", [s.vencedor_id])).rows[0].user_id;
@@ -265,11 +324,46 @@ describe("sorteio no banco (PGlite, com as migrations)", () => {
     expect(dias).toBeLessThan(32);
     expect(feito.entrega).toMatchObject({ tipo: "plano", plano: "creator" });
     expect(contas.avisos).toEqual([expect.objectContaining({ userId: ganhador, chave: `sorteio:${s.id}` })]);
+    // Todo mundo que correu (os 2 que ficaram; quem saiu ou foi tirado não) ganha os pontos de participação.
+    expect(pontos.participou.filter((x) => x.sorteioId === s.id)).toEqual([{ userIds: ["u1", "u2"], pontos: 50, sorteioId: s.id }]);
     // Outra tela pergunta de novo (com o objeto antigo): não entrega outra vez.
     await concluirSeAcabou(pool, s, fim + 5000);
     expect(contas.ativacoes).toHaveLength(1);
+    expect(pontos.participou.filter((x) => x.sorteioId === s.id)).toHaveLength(1);
     const lista = await listarSorteios(pool);
     expect(lista[0]).toMatchObject({ status: "concluido", participantes: 2, ganhador: { userId: ganhador } });
+  });
+
+  it("duplica o sorteio que acabou: mesmo nome, prêmio e duração, e as mesmas pessoas com os corredores prontos", async () => {
+    const velho = (await listarSorteios(pool))[0];
+    const antes = foto.desenhos;
+    const novo = await duplicarSorteio(pool, velho.id, "b@x.com");
+    expect(novo).toMatchObject({ status: "aberto", titulo: "Live de sexta", premio: "plano", plano: "creator", meses: 1, duracao_s: DURACAO_PADRAO });
+    expect(novo.id).not.toBe(velho.id);
+    const pub = await sorteioPublico(pool, novo);
+    expect(pub.corredores.map((c) => c.nome)).toEqual(["Alê", "Bia"]);
+    // A figura e as poses vêm junto (sem desenhar de novo); quem foi tirado do original não volta.
+    const ale = pub.corredores[0];
+    expect(ale.id).not.toBe((await sorteioPublico(pool, (await carregarSorteio(pool, velho.id))!)).corredores[0].id);
+    expect((await imagemDoCorredor(pool, ale.id, "corpo"))?.toString()).toBe("figura-webp");
+    expect((await imagemDoCorredor(pool, ale.id, "passos"))?.toString()).toBe("passos-webp");
+    expect(foto.desenhos).toBe(antes);
+    expect(await minhaParticipacao(pool, novo.id, "u1")).toMatchObject({ nome: "Alê", characterId: "c1" });
+    expect(await minhaParticipacao(pool, novo.id, "u4")).toBeNull();
+    // Um em andamento por vez, e só duplica o que acabou.
+    await expect(duplicarSorteio(pool, velho.id, "b@x.com")).rejects.toThrow("em andamento");
+    await expect(duplicarSorteio(pool, novo.id, "b@x.com")).rejects.toThrow("já acabou");
+    await cancelarSorteio(pool, novo.id);
+  });
+
+  it("a duração escolhida vale para a corrida e para a entrega", async () => {
+    const s = await criarSorteio(pool, { titulo: "Rapidinho", premio: { tipo: "creditos", quantidade: 10 }, adminEmail: "a@x.com", duracao: 15 });
+    await participar(pool, s3, { userId: "u2", sorteioId: s.id, nome: "Bia", characterId: null });
+    const largado = await largar(pool, s.id);
+    expect((await sorteioPublico(pool, largado)).duracao).toBe(15);
+    const largada = new Date(largado.largada_em!).getTime();
+    expect((await concluirSeAcabou(pool, largado, largada + (CONTAGEM_S + 14) * 1000)).status).toBe("correndo");
+    expect((await concluirSeAcabou(pool, largado, largada + (CONTAGEM_S + 15.5) * 1000)).status).toBe("concluido");
   });
 
   it("quem já tem plano pago ganha os créditos do presente (sem mexer no plano)", async () => {
