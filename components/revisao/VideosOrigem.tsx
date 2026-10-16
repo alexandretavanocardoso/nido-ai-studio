@@ -431,7 +431,7 @@ export function VideosOrigem({ character }: { character: Character }) {
                               </span>
                               <span className="text-[11px] text-ink-dim">
                                 {v.origem === "criado"
-                                  ? tx("Costuma levar de 1 a 5 min")
+                                  ? tx(tempoDoCriado(v.duracao))
                                   : tx("Costuma levar de 3 a 15 min")}
                               </span>
                               <TempoDecorrido desde={v.createdAt} />
@@ -932,6 +932,17 @@ function SituacaoReembolso({ pedido }: { pedido: ReembolsoDoVideo }) {
     </div>
   );
 }
+
+/**
+ * Quanto um vídeo criado costuma demorar: cresce com a duração pedida (no
+ * Wan 3.0, 10s levaram ~4,5 min e 30s ~15 min, em 15/10/2026).
+ */
+const tempoDoCriado = (duracao?: number) =>
+  !duracao || duracao <= 10
+    ? "Costuma levar de 1 a 5 min"
+    : duracao <= 15
+      ? "Costuma levar de 2 a 8 min"
+      : "Costuma levar de 5 a 15 min";
 
 /** Há quanto tempo o vídeo está sendo gerado (conta a partir do envio), atualizado a cada segundo. */
 export function TempoDecorrido({ desde }: { desde: number }) {

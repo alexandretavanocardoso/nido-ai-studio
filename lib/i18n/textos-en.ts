@@ -192,6 +192,8 @@ export const TEXTOS_EN: Record<string, string> = {
   "Copiar prompt": "Copy prompt",
   "Costuma levar de 1 a 5 min": "Usually takes 1 to 5 min",
   "Costuma levar de 3 a 15 min": "Usually takes 3 to 15 min",
+  "Costuma levar de 2 a 8 min": "Usually takes 2 to 8 min",
+  "Costuma levar de 5 a 15 min": "Usually takes 5 to 15 min",
   "Criando a voz…": "Creating the voice…",
   "Criando o vídeo…": "Creating the video…",
   "Criar a voz": "Create the voice",
