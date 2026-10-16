@@ -632,9 +632,29 @@ export async function caberNaProporcao(imagem: Buffer): Promise<Buffer> {
     .toBuffer();
 }
 
+/** Prazo do recorte no modo estrito: sem ele, um recorte travado prendia o pedido até a rota cair. */
+const PRAZO_RECORTE_MS = 90_000;
+
+/** Abaixo disto de área transparente, o recorte não tirou fundo nenhum. */
+const MIN_TRANSPARENTE = 0.01;
+
+/** Fração da imagem (0 a 1) que ficou transparente no recorte. */
+export async function fracaoTransparente(png: Buffer): Promise<number> {
+  const { data, info } = await sharp(png)
+    .ensureAlpha()
+    .extractChannel(3)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let transparentes = 0;
+  for (let i = 0; i < data.length; i++) if (data[i] < 16) transparentes++;
+  return transparentes / (info.width * info.height);
+}
+
 /**
  * Personagem recortada sobre branco liso (+ close do rosto, quando dá).
- * Se o recorte falhar, segue com a imagem original.
+ * Se o recorte falhar, segue com a imagem original — menos no modo `estrito`,
+ * que lança o erro (também se o recorte demorar ou não tirar fundo nenhum):
+ * no Criar vídeo, a imagem com fundo faz o vídeo começar no fundo da foto.
  * `comRosto` false: a imagem é de um animal ou objeto — o terço de cima dela
  * não é um rosto.
  */
@@ -642,6 +662,7 @@ export async function personagemSemFundo(
   fal: FalClient,
   imagem: Buffer,
   comRosto = true,
+  estrito = false,
 ): Promise<{ url: string; rostoUrl: string | null }> {
   const subir = (b: Buffer, tipo: string) =>
     fal.storage.upload(new Blob([new Uint8Array(b)], { type: tipo }));
@@ -652,6 +673,7 @@ export async function personagemSemFundo(
     noLimite,
     noLimite === imagem ? "image/jpeg" : "image/png",
   );
+  const prazo = estrito ? AbortSignal.timeout(PRAZO_RECORTE_MS) : undefined;
   try {
     const r = await fal.subscribe(MODELO_RECORTE, {
       input: {
@@ -659,10 +681,18 @@ export async function personagemSemFundo(
         model: "General Use (Heavy)",
         output_format: "png",
       },
+      abortSignal: prazo,
     });
     const url = (r.data as { image?: { url?: string } })?.image?.url;
-    if (!url) return { url: original, rostoUrl: null };
-    const recorte = Buffer.from(await (await fetch(url)).arrayBuffer());
+    if (!url) {
+      if (estrito) throw new Error("o recorte não devolveu imagem");
+      return { url: original, rostoUrl: null };
+    }
+    const resposta = await fetch(url, { signal: prazo });
+    if (!resposta.ok) throw new Error(`recorte: HTTP ${resposta.status}`);
+    const recorte = Buffer.from(await resposta.arrayBuffer());
+    if (estrito && (await fracaoTransparente(recorte)) < MIN_TRANSPARENTE)
+      throw new Error("o recorte não tirou o fundo");
     const branco = await sharp(recorte)
       .flatten({ background: "#ffffff" })
       .png()
@@ -674,6 +704,7 @@ export async function personagemSemFundo(
     ]);
     return { url: figuraUrl, rostoUrl };
   } catch (e) {
+    if (estrito) throw e;
     console.warn(
       "[troca] recorte da personagem falhou, usando a imagem original:",
       (e as Error).message,

@@ -10,6 +10,7 @@ import { StepTabs } from "./StepTabs";
 import { StepFooter } from "./StepFooter";
 import { SuggestionCounter } from "./SuggestionCounter";
 import { WizardProvider } from "./WizardContext";
+import { PreencherFichaToda } from "./PreencherFichaToda";
 import { RegenerateSection } from "./RegenerateSection";
 import { DicaBox } from "@/components/ui/DicaBox";
 import { CharacterCard } from "@/components/preview/CharacterCard";
@@ -222,13 +223,14 @@ export function Wizard({ id }: { id: string }) {
                 </div>
 
                 {recursos.ia && currentId !== "revisao" ? (
-                  <div className="mb-4">
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
                     <RegenerateSection
                       key={currentId}
                       characterId={character.id}
                       stepId={currentId}
                       stepTitulo={t(`passo.${current.id}.titulo` as Chave)}
                     />
+                    <PreencherFichaToda characterId={character.id} />
                   </div>
                 ) : null}
 

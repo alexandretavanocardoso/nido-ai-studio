@@ -11,8 +11,10 @@ import type { RedeUsdc } from "./redes-usdc";
  * pagamento alheio não serve para outra cobrança. A mesma transação nunca paga duas
  * cobranças (índice único da assinatura).
  *
- * Env: EVM_MERCHANT_WALLET (0x…, a mesma em todas as redes) e o RPC de cada
- * rede: ETHEREUM_RPC_URL, BASE_RPC_URL, ARBITRUM_RPC_URL, BSC_RPC_URL.
+ * Env: EVM_MERCHANT_WALLET (0x…, padrão de todas as redes), a carteira própria
+ * de uma rede quando for outra (EVM_MERCHANT_WALLET_BASE, _ARBITRUM, _BNB,
+ * _ETHEREUM) e o RPC de cada rede: ETHEREUM_RPC_URL, BASE_RPC_URL,
+ * ARBITRUM_RPC_URL, BSC_RPC_URL.
  */
 export type RedeEvm = Exclude<RedeUsdc, "solana">;
 
@@ -22,6 +24,8 @@ interface ConfigRede {
   usdc: string;
   decimais: number;
   env: string;
+  /** Carteira que recebe nesta rede; vazia = EVM_MERCHANT_WALLET. */
+  envCarteira: string;
   /** Blocos de espera antes de considerar a transferência confirmada. */
   confirmacoes: number;
 }
@@ -32,6 +36,7 @@ export const REDES_EVM: Record<RedeEvm, ConfigRede> = {
     usdc: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
     decimais: 6,
     env: "ETHEREUM_RPC_URL",
+    envCarteira: "EVM_MERCHANT_WALLET_ETHEREUM",
     confirmacoes: 3,
   },
   base: {
@@ -39,6 +44,7 @@ export const REDES_EVM: Record<RedeEvm, ConfigRede> = {
     usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     decimais: 6,
     env: "BASE_RPC_URL",
+    envCarteira: "EVM_MERCHANT_WALLET_BASE",
     confirmacoes: 5,
   },
   arbitrum: {
@@ -46,6 +52,7 @@ export const REDES_EVM: Record<RedeEvm, ConfigRede> = {
     usdc: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
     decimais: 6,
     env: "ARBITRUM_RPC_URL",
+    envCarteira: "EVM_MERCHANT_WALLET_ARBITRUM",
     confirmacoes: 20,
   },
   bnb: {
@@ -53,6 +60,7 @@ export const REDES_EVM: Record<RedeEvm, ConfigRede> = {
     usdc: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
     decimais: 18,
     env: "BSC_RPC_URL",
+    envCarteira: "EVM_MERCHANT_WALLET_BNB",
     confirmacoes: 5,
   },
 };
@@ -61,14 +69,18 @@ export const REDES_EVM: Record<RedeEvm, ConfigRede> = {
 const TOPICO_TRANSFER =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
-export const carteiraEvm = () => process.env.EVM_MERCHANT_WALLET?.trim() ?? "";
+export const carteiraEvm = (rede: RedeEvm) =>
+  process.env[REDES_EVM[rede].envCarteira]?.trim() ||
+  process.env.EVM_MERCHANT_WALLET?.trim() ||
+  "";
 const rpcDaRede = (rede: RedeEvm) =>
   process.env[REDES_EVM[rede].env]?.trim() ?? "";
 
 /** Redes EVM com carteira e RPC configurados (o RPC público é só reserva). */
 export function redesEvmAtivas(): RedeEvm[] {
-  if (!/^0x[0-9a-fA-F]{40}$/.test(carteiraEvm())) return [];
-  return (Object.keys(REDES_EVM) as RedeEvm[]).filter((r) => !!rpcDaRede(r));
+  return (Object.keys(REDES_EVM) as RedeEvm[]).filter(
+    (r) => /^0x[0-9a-fA-F]{40}$/.test(carteiraEvm(r)) && !!rpcDaRede(r),
+  );
 }
 
 /** Valor em micro-USDC (6 casas) → unidades mínimas do token na rede. */
@@ -89,7 +101,7 @@ export const microParaNumero = (micro: bigint) => Number(micro) / 1e6;
 /** Link EIP-681 (MetaMask, Rabby, Coinbase Wallet, Trust…): token, rede e valor já preenchidos. */
 export function linkEip681(rede: RedeEvm, micro: bigint): string {
   const c = REDES_EVM[rede];
-  return `ethereum:${c.usdc}@${c.chainId}/transfer?address=${carteiraEvm()}&uint256=${unidadesDoToken(micro, rede)}`;
+  return `ethereum:${c.usdc}@${c.chainId}/transfer?address=${carteiraEvm(rede)}&uint256=${unidadesDoToken(micro, rede)}`;
 }
 
 /** O que a carteira conectada do usuário assina para pagar: a chamada no contrato do USDC. */
@@ -113,7 +125,7 @@ export function transferenciaUsdc(
     // 0xa9059cbb = transfer(address,uint256)
     dados:
       "0xa9059cbb" +
-      palavra(carteiraEvm().slice(2).toLowerCase()) +
+      palavra(carteiraEvm(rede).slice(2).toLowerCase()) +
       palavra(unidadesDoToken(micro, rede).toString(16)),
   };
 }
@@ -277,7 +289,7 @@ export async function conferirTransacao(
   const { unidades, pagador } = recebidoNaTransacao(
     recibo.logs ?? [],
     rede,
-    carteiraEvm(),
+    carteiraEvm(rede),
   );
   const esperado = unidadesDoToken(micro, rede);
   if (unidades === BigInt(0))

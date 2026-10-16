@@ -89,7 +89,7 @@ export function RegenerateSection({ characterId, stepId, stepTitulo }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-accent/30 bg-accent/5 p-3.5">
+    <div className="w-full rounded-xl border border-accent/30 bg-accent/5 p-3.5">
       <div className="flex items-center justify-between mb-2">
         <span className="label-cap !text-accent">
           {tx("Regenerar:")} {stepTitulo}

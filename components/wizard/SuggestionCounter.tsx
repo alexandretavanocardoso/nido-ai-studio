@@ -3,6 +3,7 @@ import { tx } from "@/lib/i18n/tx";
 
 import { CheckCheck, History, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useDuravel } from "@/lib/duravel";
 import { useCharacters } from "@/lib/store";
 import type { Character } from "@/lib/types";
 
@@ -11,8 +12,10 @@ export function SuggestionCounter({ character }: { character: Character }) {
   const undoLast = useCharacters((s) => s.undoLast);
   const pendentes = Object.keys(character._suggestions).length;
   const temHistorico = character._history.length > 0;
+  // Preenchendo a ficha toda (PreencherFichaToda): as sugestões são confirmadas no fim, não aqui.
+  const [preenchendo] = useDuravel<string | null>(`preencher-ficha:${character.id}:andamento`, null);
 
-  if (pendentes === 0 && !temHistorico) return null;
+  if (preenchendo || (pendentes === 0 && !temHistorico)) return null;
 
   return (
     <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-accent/25 bg-accent/5 px-4 py-3">

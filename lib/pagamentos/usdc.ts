@@ -202,7 +202,7 @@ export async function criarPagamentoUsdc(
     valorTexto: microParaNumero(micro).toFixed(2),
     link,
     qr: await QRCode.toDataURL(link, { margin: 1, width: 320 }),
-    carteira: rede === "solana" ? carteira() : carteiraEvm(),
+    carteira: rede === "solana" ? carteira() : carteiraEvm(rede),
     ...(rede === "solana" ? {} : { evm: transferenciaUsdc(rede, micro) }),
     expiraEm: new Date(
       new Date(c.criada).getTime() + VALIDADE_HORAS * 3600_000,

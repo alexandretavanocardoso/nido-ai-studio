@@ -632,18 +632,19 @@ export const FERRAMENTAS: Ferramenta[] = [
   {
     name: "vozes_prontas",
     description:
-      "Lista vozes naturais da ElevenLabs em português do Brasil (gravadas por pessoas), com link para ouvir a prévia. Use escolher_voz para definir uma como a voz do personagem. Não gasta créditos.",
+      "Lista vozes naturais da ElevenLabs em português do Brasil ou inglês (gravadas por pessoas), com link para ouvir a prévia. Use escolher_voz para definir uma como a voz do personagem. Não gasta créditos.",
     entrada: z.object({
       genero: z.enum(["female", "male"]).optional(),
+      idioma: z.enum(["pt", "en"]).default("pt").describe("pt: português do Brasil · en: inglês."),
       pagina: z.number().int().min(0).max(50).default(0),
     }),
     executar: async ({ args, req }) => {
-      const a = args as { genero?: string; pagina: number };
+      const a = args as { genero?: string; idioma: "pt" | "en"; pagina: number };
       const r = await chamarRota(
         bibliotecaGet,
         null,
         req,
-        `genero=${a.genero ?? ""}&pagina=${a.pagina}`,
+        `genero=${a.genero ?? ""}&idioma=${a.idioma}&pagina=${a.pagina}`,
       );
       return {
         vozes: (r.vozes as Array<Record<string, unknown>>).map((v) => ({

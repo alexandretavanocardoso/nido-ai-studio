@@ -14,12 +14,19 @@ export interface VozEscolhida {
   previewUrl?: string;
 }
 
+/** Idiomas das vozes prontas (a mesma ordem nas telas). */
+export const IDIOMAS_VOZ: Array<["pt" | "en", string]> = [
+  ["pt", "Português"],
+  ["en", "Inglês"],
+];
+
 /**
- * Vozes prontas da ElevenLabs em português (as mesmas do vídeo falado): ouve
- * a prévia e escolhe. A escolhida entra na conta da NIDO (/api/voz/biblioteca)
- * e volta pronta para usar.
+ * Vozes prontas da ElevenLabs em português do Brasil ou inglês (as mesmas do
+ * vídeo falado): ouve a prévia e escolhe. A escolhida entra na conta da NIDO
+ * (/api/voz/biblioteca) e volta pronta para usar.
  */
 export function VozBiblioteca({ onEscolher }: { onEscolher: (v: VozEscolhida) => void }) {
+  const [idioma, setIdioma] = useState<"pt" | "en">("pt");
   const [genero, setGenero] = useState<"female" | "male">("female");
   const [pagina, setPagina] = useState(0);
   const [lista, setLista] = useState<{ vozes: VozDaBiblioteca[]; temMais: boolean } | null>(null);
@@ -32,7 +39,7 @@ export function VozBiblioteca({ onEscolher }: { onEscolher: (v: VozEscolhida) =>
   useEffect(() => {
     let vivo = true;
     setLista(null);
-    fetch(`/api/voz/biblioteca?genero=${genero}&pagina=${pagina}`, { cache: "no-store" })
+    fetch(`/api/voz/biblioteca?genero=${genero}&idioma=${idioma}&pagina=${pagina}`, { cache: "no-store" })
       .then(async (r) => {
         const b = await r.json().catch(() => ({}));
         if (!vivo) return;
@@ -43,7 +50,7 @@ export function VozBiblioteca({ onEscolher }: { onEscolher: (v: VozEscolhida) =>
     return () => {
       vivo = false;
     };
-  }, [genero, pagina]);
+  }, [genero, idioma, pagina]);
 
   function ouvir(v: VozDaBiblioteca) {
     som.current?.pause();
@@ -76,6 +83,24 @@ export function VozBiblioteca({ onEscolher }: { onEscolher: (v: VozEscolhida) =>
   return (
     <div className="grid gap-2 rounded-xl border border-line p-3">
       <div className="flex flex-wrap items-center gap-2">
+        {IDIOMAS_VOZ.map(([i, rotulo]) => (
+          <button
+            key={i}
+            type="button"
+            aria-pressed={i === idioma}
+            onClick={() => {
+              setIdioma(i);
+              setPagina(0);
+            }}
+            className={cn(
+              "rounded-full border px-3 h-8 text-[12px] font-semibold cursor-pointer",
+              i === idioma ? "border-accent bg-accent/15 text-ink" : "border-line text-ink-mute hover:text-ink",
+            )}
+          >
+            {tx(rotulo)}
+          </button>
+        ))}
+        <span className="h-5 w-px bg-line" aria-hidden />
         {(["female", "male"] as const).map((g) => (
           <button
             key={g}

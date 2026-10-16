@@ -43,17 +43,26 @@ import {
   recortarParaFormato,
 } from "@/lib/video/sapiens";
 import { contextoVideo } from "@/lib/video/server";
+import { personagemSemFundo } from "@/lib/video/troca";
 import { enviarCriacaoVeo, getVeo, mensagemDeErroVeo } from "@/lib/video/veo";
-import { enviarCriacaoWan } from "@/lib/video/wan";
+import { enviarCriacaoWanReferencia } from "@/lib/video/wan";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// O Wan recorta o personagem antes de enviar (até 90s).
+export const maxDuration = 300;
 
 const COTA_DIARIA = Number(process.env.VIDEO_DAILY_SECONDS ?? 180);
 
+/** Erro com resposta pronta para o usuário (créditos devolvidos). */
+class Recusa extends Error {}
+
 const BodySchema = z.object({
   characterId: z.string().min(1),
-  /** Imagem inicial (primeiro quadro). Com a persona: uma imagem gerada com ela. */
+  /**
+   * Imagem do personagem: o primeiro quadro (no Wan 3.0, a referência, sem o
+   * fundo). Com a persona: uma imagem gerada com ela.
+   */
   imageKey: z.string().min(1, "Escolha a imagem do personagem."),
   modelo: z.enum(Object.keys(MODELOS_CRIAR) as [ModeloCriar, ...ModeloCriar[]]),
   promptText: z.string().trim().min(3, "Descreva a cena.").max(1000),
@@ -66,8 +75,8 @@ const BodySchema = z.object({
  * POST — cria um vídeo novo do personagem. Assíncrono: devolve o id do job,
  * acompanhado em /api/videos/jobs/[id] (e finalizado por webhook/cron).
  * Runway (Gen-4 Turbo, Gen-4.5, Veo 3.1 Fast), Sapiens (Kling V3, e o Veo
- * quando a chave dele está configurada), fal (Wan 3.0) ou Google (Veo 3.1
- * Lite): imagem inicial + texto.
+ * quando a chave dele está configurada) ou Google (Veo 3.1 Lite): imagem
+ * inicial + texto. fal (Wan 3.0): personagem sem fundo como referência + texto.
  */
 export async function POST(req: Request) {
   const ctx = await contextoVideo();
@@ -177,9 +186,30 @@ export async function POST(req: Request) {
       audio,
     };
     let idExterno: string;
-    if (provedor !== "runway") {
-      // O Sapiens segue o formato da imagem, e o Wan e o Veo partem dela como
-      // primeiro quadro: ela vai recortada em 9:16 ou 16:9.
+    if (provedor === "fal") {
+      // Wan 3.0 por referência: o personagem vai sem o fundo da foto e a cena do
+      // texto nasce no primeiro quadro. Sem recorte não envia: com o fundo, o
+      // vídeo começaria nele (e o recorte falho não volta para a foto).
+      const referencias = await personagemSemFundo(
+        fal!,
+        await getObjectBuffer(s3, body.imageKey),
+        true,
+        true,
+      ).catch((e) => {
+        console.error("[videos/criar] recorte", e);
+        throw new Recusa(
+          "Não deu para tirar o fundo da imagem do personagem. Tente de novo ou escolha outra imagem. Os créditos foram devolvidos.",
+        );
+      });
+      idExterno = await enviarCriacaoWanReferencia(fal!, {
+        ...pedido,
+        jobId,
+        figuraUrl: referencias.url,
+        rostoUrl: referencias.rostoUrl,
+      });
+    } else if (provedor !== "runway") {
+      // O Sapiens segue o formato da imagem, e o Veo parte dela como primeiro
+      // quadro: ela vai recortada em 9:16 ou 16:9.
       const quadroKey = newKey(userId, "refs", "image/jpeg");
       await putObject(
         s3,
@@ -192,11 +222,9 @@ export async function POST(req: Request) {
       );
       const imageUrl = await presignGet(s3, quadroKey, 86_400);
       idExterno =
-        provedor === "fal"
-          ? await enviarCriacaoWan(fal!, { ...pedido, jobId, imageUrl })
-          : provedor === "google"
-            ? await enviarCriacaoVeo(gemini!, { ...pedido, imageUrl })
-            : await enviarCriacaoSapiens(sapiens!, { ...pedido, imageUrl });
+        provedor === "google"
+          ? await enviarCriacaoVeo(gemini!, { ...pedido, imageUrl })
+          : await enviarCriacaoSapiens(sapiens!, { ...pedido, imageUrl });
     } else
       idExterno = await enviarCriacao(runway!, {
         ...pedido,
@@ -238,13 +266,15 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error:
-          provedor === "sapiens"
-            ? mensagemDeErroSapiens(e)
-            : provedor === "fal"
-              ? mensagemDeErro(e)
-              : provedor === "google"
-                ? mensagemDeErroVeo(e)
-                : mensagemDeErroRunway(e),
+          e instanceof Recusa
+            ? e.message
+            : provedor === "sapiens"
+              ? mensagemDeErroSapiens(e)
+              : provedor === "fal"
+                ? mensagemDeErro(e)
+                : provedor === "google"
+                  ? mensagemDeErroVeo(e)
+                  : mensagemDeErroRunway(e),
         code: "PROVIDER_ERROR",
       },
       { status: 502 },

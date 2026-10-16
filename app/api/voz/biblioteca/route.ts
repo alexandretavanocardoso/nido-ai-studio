@@ -23,9 +23,9 @@ const semChave = () =>
   );
 
 /**
- * GET — vozes prontas da biblioteca da ElevenLabs em português do Brasil
- * (gravadas por pessoas de verdade), para escolher como voz do personagem.
- * ?genero=female|male · ?busca= · ?pagina=
+ * GET — vozes prontas da biblioteca da ElevenLabs em português do Brasil ou
+ * inglês (gravadas por pessoas de verdade), para escolher como voz do personagem.
+ * ?genero=female|male · ?idioma=pt|en · ?busca= · ?pagina=
  */
 export async function GET(req: Request) {
   const ctx = await contextoVideo();
@@ -38,6 +38,7 @@ export async function GET(req: Request) {
     return NextResponse.json(
       await listarBiblioteca(el, {
         genero: genero === "female" || genero === "male" ? genero : undefined,
+        idioma: q.get("idioma") === "en" ? "en" : "pt",
         busca: q.get("busca")?.trim().slice(0, 60) || undefined,
         pagina: Math.min(50, Math.max(0, Number(q.get("pagina")) || 0)),
       }),

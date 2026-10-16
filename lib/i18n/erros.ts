@@ -283,6 +283,9 @@ const PADROES: Padrao[] = [
 
 /** Mensagens fixas do servidor, indexadas pelo texto em português. */
 const ERROS_EN: Record<string, string> = {
+  // Criar vídeo (/api/videos/criar)
+  "Não deu para tirar o fundo da imagem do personagem. Tente de novo ou escolha outra imagem.":
+    "Couldn't remove the background from the character image. Try again or choose another image.",
   // Motion (/api/motion)
   "Banco ou armazenamento não configurados.":
     "Database or storage not configured.",

@@ -110,6 +110,9 @@ export interface VozDaBiblioteca {
 
 const VOZES_POR_PAGINA = 6;
 
+/** Idiomas da biblioteca de vozes prontas: português do Brasil ou inglês (qualquer sotaque). */
+export type IdiomaVoz = "pt" | "en";
+
 /**
  * Vozes naturais da biblioteca em português do Brasil, as mais usadas
  * primeiro. Só as "professional" (clone profissional: horas de gravação de
@@ -120,8 +123,9 @@ const VOZES_POR_PAGINA = 6;
  */
 export async function listarBiblioteca(
   el: ElevenLabsClient,
-  o: { genero?: "female" | "male"; busca?: string; pagina?: number },
+  o: { genero?: "female" | "male"; busca?: string; pagina?: number; idioma?: IdiomaVoz },
 ): Promise<{ vozes: VozDaBiblioteca[]; temMais: boolean }> {
+  const ingles = o.idioma === "en";
   const inicio = (o.pagina ?? 0) * VOZES_POR_PAGINA;
   const naturais: ElevenLabs.LibraryVoiceResponse[] = [];
   // Uma a mais que a página pedida diz se tem mais.
@@ -129,8 +133,9 @@ export async function listarBiblioteca(
     const r = await el.voices.getShared({
       pageSize: 100,
       page: p,
-      language: "pt",
-      locale: "pt-BR",
+      language: ingles ? "en" : "pt",
+      // Português: só do Brasil. Inglês: americano, britânico, australiano…
+      ...(ingles ? {} : { locale: "pt-BR" }),
       gender: o.genero,
       search: o.busca,
       // Vozes com tarifa própria custariam mais que o previsto nos créditos.

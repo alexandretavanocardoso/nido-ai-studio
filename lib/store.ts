@@ -46,6 +46,8 @@ interface State {
     id: string,
     suggestions: Suggestion[],
     label: string,
+    /** semHistorico: quem chama já guardou o ponto de volta (ex.: preencher a ficha toda). */
+    opcoes?: { semHistorico?: boolean },
   ) => void;
   confirmSuggestion: (id: string, fieldId: string) => void;
   confirmAllSuggestions: (id: string) => void;
@@ -206,22 +208,24 @@ export const useCharacters = create<State>()(
         }),
       get: (id) => get().characters.find((c) => c.id === id),
 
-      applySuggestions: (id, suggestions, label) => {
+      applySuggestions: (id, suggestions, label, opcoes) => {
         // snapshot + apply em uma passagem só, sem auto-confirmar (os próprios
         // writes abaixo é que escrevem os valores novos — eles NÃO podem ser
         // interpretados como "edição do usuário").
         set({
           characters: mutateCharacter(get().characters, id, (c) => {
-            const { _history, ...rest } = c;
-            void _history;
-            c._history = [
-              {
-                at: Date.now(),
-                label,
-                snapshot: JSON.parse(JSON.stringify(rest)),
-              },
-              ...c._history,
-            ].slice(0, 3);
+            if (!opcoes?.semHistorico) {
+              const { _history, ...rest } = c;
+              void _history;
+              c._history = [
+                {
+                  at: Date.now(),
+                  label,
+                  snapshot: JSON.parse(JSON.stringify(rest)),
+                },
+                ...c._history,
+              ].slice(0, 3);
+            }
             for (const s of suggestions) {
               if (c._locks.includes(s.fieldId) || ehCampoManual(s.fieldId))
                 continue;

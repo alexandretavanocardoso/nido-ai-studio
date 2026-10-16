@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useCharacters } from "@/lib/store";
 import type { VozDaBiblioteca } from "@/lib/voz/elevenlabs";
+import { IDIOMAS_VOZ } from "@/components/live/VozBiblioteca";
 import type { Character } from "@/lib/types";
 import {
   cenasDoVideo,
@@ -212,10 +213,11 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
     if (faladoLigado) void carregarVozes();
   }, [carregarVozes, faladoLigado]);
 
-  // Vozes prontas da ElevenLabs (pt-BR, gravadas por pessoas): mais naturais
-  // que a voz criada pela descrição. A escolhida fica salva no personagem.
+  // Vozes prontas da ElevenLabs (pt-BR ou inglês, gravadas por pessoas): mais
+  // naturais que a voz criada pela descrição. A escolhida fica salva no personagem.
   const atualizar = useCharacters((s) => s.update);
   const [biblioteca, setBiblioteca] = useState(false);
+  const [idiomaVoz, setIdiomaVoz] = useState<"pt" | "en">("pt");
   const [genero, setGenero] = useState<"" | "female" | "male">("");
   const [pagina, setPagina] = useState(0);
   const [prontas, setProntas] = useState<{
@@ -239,7 +241,7 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
     if (!biblioteca) return;
     let vivo = true;
     setProntas(null);
-    fetch(`/api/voz/biblioteca?genero=${genero}&pagina=${pagina}`, {
+    fetch(`/api/voz/biblioteca?genero=${genero}&idioma=${idiomaVoz}&pagina=${pagina}`, {
       cache: "no-store",
     })
       .then(async (r) => {
@@ -255,7 +257,7 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
     return () => {
       vivo = false;
     };
-  }, [biblioteca, genero, pagina, setErro]);
+  }, [biblioteca, genero, idiomaVoz, pagina, setErro]);
 
   async function usarVozPronta(v: VozDaBiblioteca) {
     setErro(null);
@@ -637,7 +639,9 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
               valor={imagem}
               onChange={setImagem}
               dica={tx(
-                "É o primeiro quadro do vídeo: use um retrato já no cenário e enquadramento que você quer.",
+                !falado && modelo === "wan3"
+                  ? "No Wan 3.0 o fundo da imagem é removido: o personagem entra direto na cena que você descrever."
+                  : "É o primeiro quadro do vídeo: use um retrato já no cenário e enquadramento que você quer.",
               )}
             />
           </section>
@@ -814,6 +818,22 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
                 {tx("Vozes naturais da ElevenLabs")}
               </button>
               <div className={grupoDePilulas}>
+                {IDIOMAS_VOZ.map(([id, nome]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      setIdiomaVoz(id);
+                      setPagina(0);
+                    }}
+                    aria-pressed={idiomaVoz === id}
+                    className={pilula(idiomaVoz === id)}
+                  >
+                    {tx(nome)}
+                  </button>
+                ))}
+              </div>
+              <div className={grupoDePilulas}>
                 {GENEROS.map(([id, nome]) => (
                   <button
                     key={id}
@@ -831,9 +851,11 @@ export function CriarVideoModal({ character, onClose, onEnviado }: Props) {
               </div>
             </div>
             <p className="mb-2 text-[11px] text-ink-dim">
-              {tx(
-                "Gravadas por pessoas de verdade, em português do Brasil. Ouça e escolha: ela vira a voz deste personagem.",
-              )}
+              {idiomaVoz === "en"
+                ? tx("Gravadas por pessoas de verdade, em inglês. Ouça e escolha: ela vira a voz deste personagem.")
+                : tx(
+                    "Gravadas por pessoas de verdade, em português do Brasil. Ouça e escolha: ela vira a voz deste personagem.",
+                  )}
             </p>
             {prontas === null ? (
               <div className="grid h-40 place-items-center">

@@ -77,6 +77,26 @@ describe("redes EVM", () => {
     expect(redesEvmAtivas()).toEqual(["base"]);
   });
 
+  it("usa a carteira própria da rede quando houver; senão a padrão", () => {
+    const BNB = "0x4444444444444444444444444444444444444444";
+    process.env.EVM_MERCHANT_WALLET = CARTEIRA;
+    process.env.EVM_MERCHANT_WALLET_BNB = BNB;
+    expect(linkEip681("bnb", BigInt(1_000_000))).toContain(`address=${BNB}&`);
+    expect(linkEip681("base", BigInt(1_000_000))).toContain(
+      `address=${CARTEIRA}&`,
+    );
+    expect(transferenciaUsdc("bnb", BigInt(1_000_000)).dados).toContain(
+      BNB.slice(2),
+    );
+    // Rede com carteira própria inválida fica desligada, mesmo com a padrão válida.
+    process.env.EVM_MERCHANT_WALLET_BNB = "nao-e-endereco";
+    process.env.BASE_RPC_URL = "https://rpc";
+    process.env.BSC_RPC_URL = "https://rpc";
+    delete process.env.ETHEREUM_RPC_URL;
+    delete process.env.ARBITRUM_RPC_URL;
+    expect(redesEvmAtivas()).toEqual(["base"]);
+  });
+
   it("tira o hash de um link do explorer ou do hash puro", () => {
     const h = "0x" + "ab".repeat(32);
     expect(hashDaTransacao(`https://basescan.org/tx/${h}`)).toBe(h);

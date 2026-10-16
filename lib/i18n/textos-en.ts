@@ -4110,4 +4110,19 @@ export const TEXTOS_EN: Record<string, string> = {
   "Mais": "More",
   "Com personagem": "With character",
   "Crie um AI Creator primeiro": "Create an AI Creator first",
+  // Preencher a ficha toda com IA
+  "Preencher a ficha toda com IA": "Fill the whole profile with AI",
+  "Preencher a ficha toda com IA?": "Fill the whole profile with AI?",
+  "A IA preenche todas as etapas, uma depois da outra, e já confirma tudo. Campos com cadeado ficam como estão; o resto é substituído. Dá para desfazer tudo de uma vez.": "The AI fills every step, one after the other, and confirms everything. Locked fields stay as they are; the rest is replaced. You can undo it all at once.",
+  "Preencher": "Fill",
+  "Parou na etapa": "Stopped at step",
+  "Sem conexão.": "No connection.",
+  "As etapas anteriores ficaram preenchidas.": "The previous steps stayed filled.",
+  "Preenchendo a ficha": "Filling the profile",
+  // Vozes prontas em inglês
+  "Português": "Portuguese",
+  "Inglês": "English",
+  "Gravadas por pessoas de verdade, em inglês. Ouça e escolha: ela vira a voz deste personagem.": "Recorded by real people, in English. Listen and choose: it becomes this character's voice.",
+  "No Wan 3.0 o fundo da imagem é removido: o personagem entra direto na cena que você descrever.":
+    "With Wan 3.0 the image background is removed: the character goes straight into the scene you describe.",
 };
